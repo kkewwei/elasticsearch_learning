@@ -9,17 +9,17 @@
   <title>Condition接口原理解读 | Hexo</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
   <meta name="google-site-verification" content="sCUXxLczmZVJ1Fkt5jSJGE9xPpdVD25hYciudlUUVNQ" />
-  <meta name="description" content="任何一个java对象都拥有wait()/nitify方法通过与synchronized结合(参考Java 线程知识小结(-))来实现线程之间的通信机制, 在锁方面lock与Condition接口配合也实现了相同的功能, 但是它们之间的原理是不相同的。至于两者的区别展示如下:">
+  <meta name="description" content="任何一个java对象都拥有wait()/nitify方法通过与synchronized结合(参考Java 线程知识小结(-))来实现线程之间的通信机制, 在锁方面lock与Condition接口配合也实现了相同的功能, 但是它们之间的原理是不相同的。至于两者的区别展示如下(图片摘自java并发编程之Condition)):">
 <meta property="og:type" content="article">
 <meta property="og:title" content="Condition接口原理解读">
 <meta property="og:url" content="https://kkewwei.github.io/elasticsearch_learning/0207/10/02/Condition原理解读/index.html">
 <meta property="og:site_name" content="Hexo">
-<meta property="og:description" content="任何一个java对象都拥有wait()/nitify方法通过与synchronized结合(参考Java 线程知识小结(-))来实现线程之间的通信机制, 在锁方面lock与Condition接口配合也实现了相同的功能, 但是它们之间的原理是不相同的。至于两者的区别展示如下:">
+<meta property="og:description" content="任何一个java对象都拥有wait()/nitify方法通过与synchronized结合(参考Java 线程知识小结(-))来实现线程之间的通信机制, 在锁方面lock与Condition接口配合也实现了相同的功能, 但是它们之间的原理是不相同的。至于两者的区别展示如下(图片摘自java并发编程之Condition)):">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/LockSupport1.png">
-<meta property="og:updated_time" content="2018-12-09T11:54:42.000Z">
+<meta property="og:updated_time" content="2018-12-09T11:57:06.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Condition接口原理解读">
-<meta name="twitter:description" content="任何一个java对象都拥有wait()/nitify方法通过与synchronized结合(参考Java 线程知识小结(-))来实现线程之间的通信机制, 在锁方面lock与Condition接口配合也实现了相同的功能, 但是它们之间的原理是不相同的。至于两者的区别展示如下:">
+<meta name="twitter:description" content="任何一个java对象都拥有wait()/nitify方法通过与synchronized结合(参考Java 线程知识小结(-))来实现线程之间的通信机制, 在锁方面lock与Condition接口配合也实现了相同的功能, 但是它们之间的原理是不相同的。至于两者的区别展示如下(图片摘自java并发编程之Condition)):">
 <meta name="twitter:image" content="https://kkewwei.github.io/elasticsearch_learning/img/LockSupport1.png">
   
     <link rel="alternative" href="/atom.xml" title="Hexo" type="application/atom+xml">
@@ -44,39 +44,55 @@
   <div id="container" q-class="show:isCtnShow">
     <canvas id="anm-canvas" class="anm-canvas"></canvas>
     <div class="left-col" q-class="show:isShow">
-      <% var defaultBg = '#4d4d4d'; %>
-<div class="overlay" style="background: <%= theme.style && theme.style.header ? theme.style.header : defaultBg %>"></div>
+      
+<div class="overlay" style="background: #4d4d4d"></div>
 <div class="intrude-less">
 	<header id="header" class="inner">
-		<a href="<%=theme.root%>" class="profilepic">
-			<img src="<%=theme.avatar%>" class="js-avatar">
+		<a href="/" class="profilepic">
+      <img src="https://kkewwei.github.io/elasticsearch_learning/img/myself.png" class="js-avatar">
 		</a>
 		<hgroup>
-		  <h1 class="header-author"><a href="<%=theme.root%>"><%=theme.author%></a></h1>
+		  <h1 class="header-author"><a href="/">xiaoyu</a></h1>
 		</hgroup>
-		<% if (theme.subtitle){ %>
-		<p class="header-subtitle"><%=theme.subtitle%></p>
-		<%}%>
+		
+		<p class="header-subtitle">往事随风</p>
+		
 
 		<nav class="header-menu">
 			<ul>
-			<% for (var i in theme.menu){ %>
-				<li><a href="<%- url_for(theme.menu[i]) %>"><%= i %></a></li>
-	        <%}%>
+			
+				<li><a href="/elasticsearch_learning/">主页</a></li>
+	        
+				<li><a href="/elasticsearch_learning/tags/随笔/">随笔</a></li>
+	        
 			</ul>
 		</nav>
 		<nav class="header-smart-menu">
-    		<% for (var i in theme.smart_menu){ %>
-    			<% if(theme.smart_menu[i]){ %>
-    			<a q-on="click: openSlider(e, '<%-i%>')" href="javascript:void(0)"><%= theme.smart_menu[i] %></a>
-    			<% } %>
-            <%}%>
+    		
+    			
+    			<a q-on="click: openSlider(e, 'innerArchive')" href="javascript:void(0)">所有文章</a>
+    			
+            
+    			
+    			<a q-on="click: openSlider(e, 'friends')" href="javascript:void(0)">友链</a>
+    			
+            
+    			
+    			<a q-on="click: openSlider(e, 'aboutme')" href="javascript:void(0)">关于我</a>
+    			
+            
 		</nav>
 		<nav class="header-nav">
 			<div class="social">
-				<% for (var i in theme.subnav){ %>
-					<a class="<%= i %>" target="_blank" href="<%- url_for(theme.subnav[i]) %>" title="<%= i %>"><i class="icon-<%= i %>"></i></a>
-		        <%}%>
+				
+					<a class="github" target="_blank" href="#" title="github"><i class="icon-github"></i></a>
+		        
+					<a class="weibo" target="_blank" href="#" title="weibo"><i class="icon-weibo"></i></a>
+		        
+					<a class="rss" target="_blank" href="#" title="rss"><i class="icon-rss"></i></a>
+		        
+					<a class="zhihu" target="_blank" href="#" title="zhihu"><i class="icon-zhihu"></i></a>
+		        
 			</div>
 		</nav>
 	</header>
@@ -164,7 +180,7 @@
     
     <div class="article-entry" itemprop="articleBody">
       
-        <p>任何一个java对象都拥有wait()/nitify方法通过与synchronized结合(参考<a href="https://kkewwei.github.io/elasticsearch_learning/2016/10/27/Java%E7%BA%BF%E7%A8%8B%E7%9F%A5%E8%AF%86%E5%B0%8F%E7%BB%93/">Java 线程知识小结(-)</a>)来实现线程之间的通信机制, 在锁方面lock与Condition接口配合也实现了相同的功能, 但是它们之间的原理是不相同的。至于两者的区别展示如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/LockSupport1.png" height="200" width="450"></p>
+        <p>任何一个java对象都拥有wait()/nitify方法通过与synchronized结合(参考<a href="https://kkewwei.github.io/elasticsearch_learning/2016/10/27/Java%E7%BA%BF%E7%A8%8B%E7%9F%A5%E8%AF%86%E5%B0%8F%E7%BB%93/">Java 线程知识小结(-)</a>)来实现线程之间的通信机制, 在锁方面lock与Condition接口配合也实现了相同的功能, 但是它们之间的原理是不相同的。至于两者的区别展示如下(图片摘自<a href="https://www.jianshu.com/p/be2dc7c878dc" target="_blank" rel="external">java并发编程之Condition</a>)):<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/LockSupport1.png" height="200" width="450"></p>
 
       
 
@@ -298,21 +314,22 @@
   
 
   
-  <div id="gitment-ctn"></div> 
+  <div id="gitment-ctn"></div>
 <link rel="stylesheet" href="//imsun.github.io/gitment/style/default.css">
-<script src="//imsun.github.io/gitment/dist/gitment.browser.js"></script>
+<script src="//www.wenjunjiang.win/js/gitment.js "></script>
 <script>
 var gitment = new Gitment({
-  id: "<%=url%>",
-  owner: '<%=theme.gitment_owner%>',
-  repo: '<%=theme.gitment_repo%>',
+  id: "Condition接口原理解读",
+  owner: 'kkewwei',
+  repo: 'comments',
   oauth: {
-    client_id: '<%=theme.gitment_oauth.client_id%>',
-    client_secret: '<%=theme.gitment_oauth.client_secret%>',
+    client_id: '9391e497d6b288887f33',
+    client_secret: 'db733731bff4ee2811d9530b1ac4cfc6767e8183',
   },
 })
 gitment.render('gitment-ctn')
 </script>
+
   
 
 
