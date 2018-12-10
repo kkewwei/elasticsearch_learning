@@ -41,39 +41,55 @@
   <div id="container" q-class="show:isCtnShow">
     <canvas id="anm-canvas" class="anm-canvas"></canvas>
     <div class="left-col" q-class="show:isShow">
-      <% var defaultBg = '#4d4d4d'; %>
-<div class="overlay" style="background: <%= theme.style && theme.style.header ? theme.style.header : defaultBg %>"></div>
+      
+<div class="overlay" style="background: #4d4d4d"></div>
 <div class="intrude-less">
 	<header id="header" class="inner">
-		<a href="<%=theme.root%>" class="profilepic">
-			<img src="<%=theme.avatar%>" class="js-avatar">
+		<a href="/" class="profilepic">
+      <img src="https://kkewwei.github.io/elasticsearch_learning/img/myself.png" class="js-avatar">
 		</a>
 		<hgroup>
-		  <h1 class="header-author"><a href="<%=theme.root%>"><%=theme.author%></a></h1>
+		  <h1 class="header-author"><a href="/">xiaoyu</a></h1>
 		</hgroup>
-		<% if (theme.subtitle){ %>
-		<p class="header-subtitle"><%=theme.subtitle%></p>
-		<%}%>
+		
+		<p class="header-subtitle">往事随风</p>
+		
 
 		<nav class="header-menu">
 			<ul>
-			<% for (var i in theme.menu){ %>
-				<li><a href="<%- url_for(theme.menu[i]) %>"><%= i %></a></li>
-	        <%}%>
+			
+				<li><a href="/elasticsearch_learning/">主页</a></li>
+	        
+				<li><a href="/elasticsearch_learning/tags/随笔/">随笔</a></li>
+	        
 			</ul>
 		</nav>
 		<nav class="header-smart-menu">
-    		<% for (var i in theme.smart_menu){ %>
-    			<% if(theme.smart_menu[i]){ %>
-    			<a q-on="click: openSlider(e, '<%-i%>')" href="javascript:void(0)"><%= theme.smart_menu[i] %></a>
-    			<% } %>
-            <%}%>
+    		
+    			
+    			<a q-on="click: openSlider(e, 'innerArchive')" href="javascript:void(0)">所有文章</a>
+    			
+            
+    			
+    			<a q-on="click: openSlider(e, 'friends')" href="javascript:void(0)">友链</a>
+    			
+            
+    			
+    			<a q-on="click: openSlider(e, 'aboutme')" href="javascript:void(0)">关于我</a>
+    			
+            
 		</nav>
 		<nav class="header-nav">
 			<div class="social">
-				<% for (var i in theme.subnav){ %>
-					<a class="<%= i %>" target="_blank" href="<%- url_for(theme.subnav[i]) %>" title="<%= i %>"><i class="icon-<%= i %>"></i></a>
-		        <%}%>
+				
+					<a class="github" target="_blank" href="#" title="github"><i class="icon-github"></i></a>
+		        
+					<a class="weibo" target="_blank" href="#" title="weibo"><i class="icon-weibo"></i></a>
+		        
+					<a class="rss" target="_blank" href="#" title="rss"><i class="icon-rss"></i></a>
+		        
+					<a class="zhihu" target="_blank" href="#" title="zhihu"><i class="icon-zhihu"></i></a>
+		        
 			</div>
 		</nav>
 	</header>
@@ -638,8 +654,9 @@
       
         <p>任何一个java对象都拥有wait()/nitify方法通过与synchronized结合(参考<a href="https://kkewwei.github.io/elasticsearch_learning/2016/10/27/Java%E7%BA%BF%E7%A8%8B%E7%9F%A5%E8%AF%86%E5%B0%8F%E7%BB%93/">Java 线程知识小结(-)</a>)来实现线程之间的通信机制, 在锁方面lock与Condition接口配合也实现了相同的功能, 但是它们之间的原理是不相同的。至于两者的区别展示如下(图片摘自<a href="https://www.jianshu.com/p/be2dc7c878dc" target="_blank" rel="external">java并发编程之Condition</a>)):<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/Condition1.png" height="400" width="800"></p>
 <h1 id="基本使用"><a href="#基本使用" class="headerlink" title="基本使用"></a>基本使用</h1><p>我们将以最简单的消费者与生产者的示例讲解Condition与Lock配合使用的例子:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div><div class="line">61</div><div class="line">62</div><div class="line">63</div><div class="line">64</div><div class="line">65</div><div class="line">66</div></pre></td><td class="code"><pre><div class="line">public class ConditonTest &#123;</div><div class="line">    //当前产品个数</div><div class="line">    public static int count = 0;</div><div class="line">    static ReentrantLock reentrantLock = new ReentrantLock();</div><div class="line">    //产品为空时, 那么消费者就得生产者来唤醒, 消费者就得等待生产者生产商品这个条件</div><div class="line">    static  Condition empty = reentrantLock.newCondition();</div><div class="line">    public static void main(String[] args) &#123;</div><div class="line">        ExecutorService pool = Executors.newFixedThreadPool(2);</div><div class="line">        Thread t3 = new Consumer(&quot;A&quot;, ConditonTest.reentrantLock, ConditonTest.empty);</div><div class="line">        Thread t1 = new Producder(&quot;B&quot;, ConditonTest.reentrantLock, ConditonTest.empty);</div><div class="line">        Thread t2 = new Producder(&quot;C&quot;, ConditonTest.reentrantLock, ConditonTest.empty);</div><div class="line">        Thread t4 = new Consumer(&quot;D&quot;, ConditonTest.reentrantLock, ConditonTest.empty);</div><div class="line">        Thread t5 = new Consumer(&quot;E&quot;, ConditonTest.reentrantLock, ConditonTest.empty);</div><div class="line">        // 执行各个线程</div><div class="line">        pool.execute(t1);</div><div class="line">        pool.execute(t2);</div><div class="line">        pool.execute(t3);</div><div class="line">        pool.execute(t4);</div><div class="line">        pool.execute(t5);</div><div class="line">        pool.shutdown();</div><div class="line">    &#125;</div><div class="line">&#125;</div><div class="line">class Producder extends Thread &#123;</div><div class="line">    private String name;</div><div class="line">    Lock lock;</div><div class="line">    Condition empty;</div><div class="line">    public Producder(String name, Lock lock, Condition empty) &#123;</div><div class="line">        this.name = name;</div><div class="line">        this.lock = lock;</div><div class="line">        this.empty = empty;</div><div class="line">    &#125;</div><div class="line">    public void run() &#123;</div><div class="line">        lock.lock(); // 获取锁</div><div class="line">        ConditonTest.count ++;</div><div class="line">        System.out.println(name + &quot;产生一个&quot;);</div><div class="line">        empty.signalAll(); // 唤醒所有等待线程。</div><div class="line">        lock.unlock(); // 释放锁</div><div class="line">    &#125;</div><div class="line">&#125;</div><div class="line">class Consumer extends Thread &#123;</div><div class="line">    private String name;</div><div class="line">    Lock lock;</div><div class="line">    Condition empty;</div><div class="line">    public Consumer(String name, Lock lock, Condition empty) &#123;</div><div class="line">        this.name = name;</div><div class="line">        this.lock = lock;</div><div class="line">        this.empty = empty;</div><div class="line">    &#125;</div><div class="line">    public void run() &#123;</div><div class="line">        lock.lock(); // 获取锁</div><div class="line">        try &#123;</div><div class="line">            while ( ConditonTest.count == 0) &#123;</div><div class="line">                System.out.println(name + &quot;阻塞中&quot;);</div><div class="line">                // 阻塞取款操作, await之后就隐示自动释放了lock，直到被唤醒自动获取</div><div class="line">                empty.await();</div><div class="line">                System.out.println(name + &quot;被唤醒&quot;);</div><div class="line">            &#125;</div><div class="line">            ConditonTest.count --;</div><div class="line">            System.out.println(name + &quot;消费一个&quot;);</div><div class="line">        &#125; catch (InterruptedException e) &#123;</div><div class="line">            e.printStackTrace();</div><div class="line">        &#125; finally &#123;</div><div class="line">            lock.unlock(); // 释放锁</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
-<p>以上只是使用一个条件队列, 在实际应用中, 可以使用多个条件ConditionObject, ConditionObject都是通过调用reentrantLock.newCondition()中产生的, 该类在AbstractQueuedSynchronizer中定义, 结构如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/Condition1.png" height="400" width="800"><br>每当线程调用Condition.wait()时, 该线程将会放入该等待队列; 当别的线程调用Condition.signal()时, 该线程将从等待队列转移到AQA阻塞队列(参考<a href="https://kkewwei.github.io/elasticsearch_learning/2017/07/23/ReentrantLock%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB/">ReentrantLock源码解读</a>)。</p>
-<h1 id="wait"><a href="#wait" class="headerlink" title="wait()"></a>wait()</h1><p>#signal()</p>
+<p>以上只是使用一个条件队列, 在实际应用中, 可以使用多个条件ConditionObject, ConditionObject都是通过调用reentrantLock.newCondition()中产生的, 该类在AbstractQueuedSynchronizer中定义, 结构如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/Condition1.png" height="400" width="800"><br>每当线程调用Condition.wait()时, 该线程将会放入该等待队列; 当别的线程调用Condition.signal()时, 该线程将从等待队列转移到AQA阻塞队列(参考<a href="https://kkewwei.github.io/elasticsearch_learning/2017/07/23/ReentrantLock%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB/">ReentrantLock源码解读</a>), 使用比较简单。</p>
+<h1 id="wait"><a href="#wait" class="headerlink" title="wait()"></a>wait()</h1><p>wait主要是将该线程存放在Condition队列等待被唤醒。empty.await()实际调用的AbstractQueuedSynchronizer中的wait函数:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div></pre></td><td class="code"><pre><div class="line">public final void await() throws InterruptedException &#123;</div><div class="line">     //检查当前中断标志位, 若之前有中断, 那么直接向外抛出异常</div><div class="line">    if (Thread.interrupted())</div><div class="line">        throw new InterruptedException();</div><div class="line">    //将该线程添加到CONDITION队列中</div><div class="line">    Node node = addConditionWaiter();</div><div class="line">    //在该节点加入condition队列中等待前，await则需要释放掉当前线程占有的锁</div><div class="line">    int savedState = fullyRelease(node);</div><div class="line">    int interruptMode = 0;  //</div><div class="line">    //检查该线程是否在阻塞队列中。线程首先加入条件队列，若有signal发生，会被signal转移到阻塞队列中</div><div class="line">    while (!isOnSyncQueue(node)) &#123;</div><div class="line">       //已经加入阻塞队列, 开始进行睡眠</div><div class="line">       LockSupport.park(this);</div><div class="line">       //被唤醒了, 可能是别的线程调用了signal; 也可能是别的线程调用了中断。线程可能在条件队列, 也可能在阻塞队列</div><div class="line">       if ((interruptMode = checkInterruptWhileWaiting(node)) != 0)</div><div class="line">            break;</div><div class="line">    &#125;</div><div class="line">    //此时在阻塞队列中了</div><div class="line">    if (acquireQueued(node, savedState) &amp;&amp; interruptMode != THROW_IE) //从阻塞队列中滑行了</div><div class="line">        interruptMode = REINTERRUPT;</div><div class="line">    if (node.nextWaiter != null) // clean up if cancelled</div><div class="line">        unlinkCancelledWaiters();</div><div class="line">    if (interruptMode != 0)</div><div class="line">        reportInterruptAfterWait(interruptMode); //</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>#signal()</p>
 
       
 

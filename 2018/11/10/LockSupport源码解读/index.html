@@ -16,7 +16,7 @@
 <meta property="og:site_name" content="Hexo">
 <meta property="og:description" content="LockSupport作为并发的基础, 在CountDownLatch、ReentrantLock、Semaphore、ReentrantReadWriteLock中都是作为阻塞/唤醒线程的基本工具, 因此, 很有必要了解LockSupport的用法及原理, 本文将从LockSupport基本用法、 类主要函数及相关知识、底层基本原理三方面分别描述。 使用基本用法:1234567891011121">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/LockSupport1.png">
-<meta property="og:updated_time" content="2018-12-06T05:59:03.000Z">
+<meta property="og:updated_time" content="2018-12-09T12:58:53.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="LockSupport原理解读">
 <meta name="twitter:description" content="LockSupport作为并发的基础, 在CountDownLatch、ReentrantLock、Semaphore、ReentrantReadWriteLock中都是作为阻塞/唤醒线程的基本工具, 因此, 很有必要了解LockSupport的用法及原理, 本文将从LockSupport基本用法、 类主要函数及相关知识、底层基本原理三方面分别描述。 使用基本用法:1234567891011121">
@@ -44,39 +44,55 @@
   <div id="container" q-class="show:isCtnShow">
     <canvas id="anm-canvas" class="anm-canvas"></canvas>
     <div class="left-col" q-class="show:isShow">
-      <% var defaultBg = '#4d4d4d'; %>
-<div class="overlay" style="background: <%= theme.style && theme.style.header ? theme.style.header : defaultBg %>"></div>
+      
+<div class="overlay" style="background: #4d4d4d"></div>
 <div class="intrude-less">
 	<header id="header" class="inner">
-		<a href="<%=theme.root%>" class="profilepic">
-			<img src="<%=theme.avatar%>" class="js-avatar">
+		<a href="/" class="profilepic">
+      <img src="https://kkewwei.github.io/elasticsearch_learning/img/myself.png" class="js-avatar">
 		</a>
 		<hgroup>
-		  <h1 class="header-author"><a href="<%=theme.root%>"><%=theme.author%></a></h1>
+		  <h1 class="header-author"><a href="/">xiaoyu</a></h1>
 		</hgroup>
-		<% if (theme.subtitle){ %>
-		<p class="header-subtitle"><%=theme.subtitle%></p>
-		<%}%>
+		
+		<p class="header-subtitle">往事随风</p>
+		
 
 		<nav class="header-menu">
 			<ul>
-			<% for (var i in theme.menu){ %>
-				<li><a href="<%- url_for(theme.menu[i]) %>"><%= i %></a></li>
-	        <%}%>
+			
+				<li><a href="/elasticsearch_learning/">主页</a></li>
+	        
+				<li><a href="/elasticsearch_learning/tags/随笔/">随笔</a></li>
+	        
 			</ul>
 		</nav>
 		<nav class="header-smart-menu">
-    		<% for (var i in theme.smart_menu){ %>
-    			<% if(theme.smart_menu[i]){ %>
-    			<a q-on="click: openSlider(e, '<%-i%>')" href="javascript:void(0)"><%= theme.smart_menu[i] %></a>
-    			<% } %>
-            <%}%>
+    		
+    			
+    			<a q-on="click: openSlider(e, 'innerArchive')" href="javascript:void(0)">所有文章</a>
+    			
+            
+    			
+    			<a q-on="click: openSlider(e, 'friends')" href="javascript:void(0)">友链</a>
+    			
+            
+    			
+    			<a q-on="click: openSlider(e, 'aboutme')" href="javascript:void(0)">关于我</a>
+    			
+            
 		</nav>
 		<nav class="header-nav">
 			<div class="social">
-				<% for (var i in theme.subnav){ %>
-					<a class="<%= i %>" target="_blank" href="<%- url_for(theme.subnav[i]) %>" title="<%= i %>"><i class="icon-<%= i %>"></i></a>
-		        <%}%>
+				
+					<a class="github" target="_blank" href="#" title="github"><i class="icon-github"></i></a>
+		        
+					<a class="weibo" target="_blank" href="#" title="weibo"><i class="icon-weibo"></i></a>
+		        
+					<a class="rss" target="_blank" href="#" title="rss"><i class="icon-rss"></i></a>
+		        
+					<a class="zhihu" target="_blank" href="#" title="zhihu"><i class="icon-zhihu"></i></a>
+		        
 			</div>
 		</nav>
 	</header>
@@ -169,7 +185,7 @@
 <p>当某个线程调用LockSupport.park()时, 该线程将睡眠并同时交出cpu使用。当别的线程调用LockSupport.unpark(thread1)时, 该线程将被唤醒。可见使用及其简单且灵活。park()与unpark()调用没有先后顺序, 这也是与wait()/notify()(参考<a href="https://kkewwei.github.io/elasticsearch_learning/2016/10/27/Java%E7%BA%BF%E7%A8%8B%E7%9F%A5%E8%AF%86%E5%B0%8F%E7%BB%93/">Java 线程知识小结</a>)相比更灵活的一点。也就是说先调用了unpark(), 再调用park(), thread1也是可以继续执行而不被阻塞。后面将详细介绍该原理。</p>
 <h1 id="LockSupport源码解析"><a href="#LockSupport源码解析" class="headerlink" title="LockSupport源码解析"></a>LockSupport源码解析</h1><h2 id="Unsafe"><a href="#Unsafe" class="headerlink" title="Unsafe"></a>Unsafe</h2><p>认识LockSupport, 我们就必须要了解Unsafe。 java作为安全的高级程序语言, 屏蔽了直接与内存打交道的途径。同时java也给我们留了一些后门:Unsafe。Unsafe只听名字就知道是个不安全的类, 它可以直接操作内存, 只有受信任的类才可以使用它。我们不能通过这种方式获取到Unsafe:<code>Unsafe unsafe = sun.misc.Unsafe.getUnsafe();</code>因为内部会检查该类的加载器是否是启动类加载器，若不是的话，则直接抛出异常；一般都是通过反射实现该类的获取：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div></pre></td><td class="code"><pre><div class="line">// 应用类中获取Unsafe</div><div class="line">Field theUnsafe = Unsafe.class.getDeclaredField(&quot;theUnsafe&quot;);</div><div class="line">theUnsafe.setAccessible(true);</div><div class="line">Unsafe UNSAFE = (Unsafe) theUnsafe.get(null);</div><div class="line"></div><div class="line">//直接操纵内存修改成员变量值</div><div class="line">Test test = new Test();</div><div class="line">Field filed = test.getClass().getDeclaredField(&quot;a&quot;);</div><div class="line">long ageOffset = UNSAFE.objectFieldOffset(filed);</div><div class="line">//直接通过修改内存来修改成员变量值</div><div class="line">UNSAFE.putInt(test, ageOffset, 100);</div></pre></td></tr></table></figure></p>
 <h2 id="parkBlockerOffset和parkBlocker"><a href="#parkBlockerOffset和parkBlocker" class="headerlink" title="parkBlockerOffset和parkBlocker"></a>parkBlockerOffset和parkBlocker</h2><p>在LockSupport中有这么一段static代码块:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div></pre></td><td class="code"><pre><div class="line">private static final sun.misc.Unsafe UNSAFE;</div><div class="line">//获取parkBlocker在内存中的偏移量, 就是说谁把该线程block住了</div><div class="line">private static final long parkBlockerOffset;</div><div class="line">try &#123;</div><div class="line">    // 因为LockSupport是受信任的类, 所以才可以通过这种方式产生Unsafe</div><div class="line">    UNSAFE = sun.misc.Unsafe.getUnsafe();</div><div class="line">    // 线程类类型</div><div class="line">    Class&lt;?&gt; tk = Thread.class;</div><div class="line">    //先是通过反射机制获取Thread类的parkBlocker字段对象</div><div class="line">     parkBlockerOffset = UNSAFE.objectFieldOffset(tk.getDeclaredField(&quot;parkBlocker&quot;));</div><div class="line">&#125; catch (Exception ex) &#123; throw new Error(ex); &#125;</div></pre></td></tr></table></figure></p>
-<p>该函数可以获取到该线程类成员变量parkBlocker在内存中的偏移量parkBlockerOffset, 然后就可以通过<code>public static void park(Object blocker)</code>显示指示该类被什么阻塞的了。然后在jstack时, 将可以看到如下信息:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/LockSupport1.png" height="150" width="400"><br>提示你设置的阻塞对象是啥, park()代码如下:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div></pre></td><td class="code"><pre><div class="line"> public static void park(Object blocker) &#123;</div><div class="line">        Thread t = Thread.currentThread();</div><div class="line">        setBlocker(t, blocker);</div><div class="line">        UNSAFE.park(false, 0L);</div><div class="line">        setBlocker(t, null);</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>该函数可以获取到该线程类成员变量parkBlocker在内存中的偏移量parkBlockerOffset, 然后就可以通过<code>public static void park(Object blocker)</code>显示指示该类被什么阻塞的了。然后在jstack时, 将可以看到如下信息:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/LockSupport1.png" height="150" width="600"><br>提示你设置的阻塞对象是啥, park()代码如下:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div></pre></td><td class="code"><pre><div class="line"> public static void park(Object blocker) &#123;</div><div class="line">        Thread t = Thread.currentThread();</div><div class="line">        setBlocker(t, blocker);</div><div class="line">        UNSAFE.park(false, 0L);</div><div class="line">        setBlocker(t, null);</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
 <p>这里也可以看出LockSupport实际调用了Unsafe.park/unpark函数。</p>
 <h1 id="Unsafe底层park-unpark原理"><a href="#Unsafe底层park-unpark原理" class="headerlink" title="Unsafe底层park/unpark原理"></a>Unsafe底层park/unpark原理</h1><p>Unsafe类中函数基本都是Native属性, 在虚拟机源代码/hotspot/src/share/vm/prims/unsafe.cpp(L1561)中, 定义了Unsafe类Native与c++语言函数之间对应关系, 如下所示:<br> <figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div></pre></td><td class="code"><pre><div class="line"> // These are the methods for 1.8.0</div><div class="line">static JNINativeMethod methods_18[] = &#123;</div><div class="line">    &#123;CC&quot;getObject&quot;,        CC&quot;(&quot;OBJ&quot;J)&quot;OBJ&quot;&quot;,   FN_PTR(Unsafe_GetObject)&#125;,</div><div class="line">    &#123;CC&quot;putObject&quot;,        CC&quot;(&quot;OBJ&quot;J&quot;OBJ&quot;)V&quot;,  FN_PTR(Unsafe_SetObject)&#125;,</div><div class="line">    &#123;CC&quot;getObjectVolatile&quot;,CC&quot;(&quot;OBJ&quot;J)&quot;OBJ&quot;&quot;,   FN_PTR(Unsafe_GetObjectVolatile)&#125;,</div><div class="line">    &#123;CC&quot;putObjectVolatile&quot;,CC&quot;(&quot;OBJ&quot;J&quot;OBJ&quot;)V&quot;,  FN_PTR(Unsafe_SetObjectVolatile)&#125;,</div><div class="line">    &#123;CC&quot;getAddress&quot;,         CC&quot;(&quot;ADR&quot;)&quot;ADR,             FN_PTR(Unsafe_GetNativeAddress)&#125;,</div><div class="line">    &#123;CC&quot;putAddress&quot;,         CC&quot;(&quot;ADR&quot;&quot;ADR&quot;)V&quot;,          FN_PTR(Unsafe_SetNativeAddress)&#125;,</div><div class="line">    &#123;CC&quot;allocateMemory&quot;,     CC&quot;(J)&quot;ADR,                 FN_PTR(Unsafe_AllocateMemory)&#125;,</div><div class="line">    &#123;CC&quot;reallocateMemory&quot;,   CC&quot;(&quot;ADR&quot;J)&quot;ADR,            FN_PTR(Unsafe_ReallocateMemory)&#125;,</div><div class="line">    &#123;CC&quot;freeMemory&quot;,         CC&quot;(&quot;ADR&quot;)V&quot;,               FN_PTR(Unsafe_FreeMemory)&#125;,</div><div class="line">    &#123;CC&quot;objectFieldOffset&quot;,  CC&quot;(&quot;FLD&quot;)J&quot;,               FN_PTR(Unsafe_ObjectFieldOffset)&#125;,</div><div class="line">    &#123;CC&quot;staticFieldOffset&quot;,  CC&quot;(&quot;FLD&quot;)J&quot;,               FN_PTR(Unsafe_StaticFieldOffset)&#125;,</div><div class="line">    &#123;CC&quot;staticFieldBase&quot;,    CC&quot;(&quot;FLD&quot;)&quot;OBJ,             FN_PTR(Unsafe_StaticFieldBaseFromField)&#125;,</div><div class="line">    &#123;CC&quot;ensureClassInitialized&quot;,CC&quot;(&quot;CLS&quot;)V&quot;,            FN_PTR(Unsafe_EnsureClassInitialized)&#125;,</div><div class="line">    &#123;CC&quot;arrayBaseOffset&quot;,    CC&quot;(&quot;CLS&quot;)I&quot;,               FN_PTR(Unsafe_ArrayBaseOffset)&#125;,</div><div class="line">    &#123;CC&quot;arrayIndexScale&quot;,    CC&quot;(&quot;CLS&quot;)I&quot;,               FN_PTR(Unsafe_ArrayIndexScale)&#125;,</div><div class="line">    &#123;CC&quot;addressSize&quot;,        CC&quot;()I&quot;,                    FN_PTR(Unsafe_AddressSize)&#125;,</div><div class="line">    &#123;CC&quot;pageSize&quot;,           CC&quot;()I&quot;,                    FN_PTR(Unsafe_PageSize)&#125;,</div><div class="line">    &#123;CC&quot;defineClass&quot;,        CC&quot;(&quot;DC_Args&quot;)&quot;CLS,         FN_PTR(Unsafe_DefineClass)&#125;,</div><div class="line">    &#123;CC&quot;allocateInstance&quot;,   CC&quot;(&quot;CLS&quot;)&quot;OBJ,             FN_PTR(Unsafe_AllocateInstance)&#125;,</div><div class="line">    &#123;CC&quot;monitorEnter&quot;,       CC&quot;(&quot;OBJ&quot;)V&quot;,               FN_PTR(Unsafe_MonitorEnter)&#125;,</div><div class="line">    &#123;CC&quot;monitorExit&quot;,        CC&quot;(&quot;OBJ&quot;)V&quot;,               FN_PTR(Unsafe_MonitorExit)&#125;,</div><div class="line">    &#123;CC&quot;tryMonitorEnter&quot;,    CC&quot;(&quot;OBJ&quot;)Z&quot;,               FN_PTR(Unsafe_TryMonitorEnter)&#125;,</div><div class="line">    &#123;CC&quot;throwException&quot;,     CC&quot;(&quot;THR&quot;)V&quot;,               FN_PTR(Unsafe_ThrowException)&#125;,</div><div class="line">    &#123;CC&quot;compareAndSwapObject&quot;, CC&quot;(&quot;OBJ&quot;J&quot;OBJ&quot;&quot;OBJ&quot;)Z&quot;,  FN_PTR(Unsafe_CompareAndSwapObject)&#125;,</div><div class="line">    &#123;CC&quot;compareAndSwapInt&quot;,  CC&quot;(&quot;OBJ&quot;J&quot;&quot;I&quot;&quot;I&quot;&quot;)Z&quot;,      FN_PTR(Unsafe_CompareAndSwapInt)&#125;,</div><div class="line">    &#123;CC&quot;compareAndSwapLong&quot;, CC&quot;(&quot;OBJ&quot;J&quot;&quot;J&quot;&quot;J&quot;&quot;)Z&quot;,      FN_PTR(Unsafe_CompareAndSwapLong)&#125;,</div><div class="line">    &#123;CC&quot;putOrderedObject&quot;,   CC&quot;(&quot;OBJ&quot;J&quot;OBJ&quot;)V&quot;,         FN_PTR(Unsafe_SetOrderedObject)&#125;,</div><div class="line">    &#123;CC&quot;putOrderedInt&quot;,      CC&quot;(&quot;OBJ&quot;JI)V&quot;,             FN_PTR(Unsafe_SetOrderedInt)&#125;,</div><div class="line">    &#123;CC&quot;putOrderedLong&quot;,     CC&quot;(&quot;OBJ&quot;JJ)V&quot;,             FN_PTR(Unsafe_SetOrderedLong)&#125;,</div><div class="line">    &#123;CC&quot;park&quot;,               CC&quot;(ZJ)V&quot;,                  FN_PTR(Unsafe_Park)&#125;,</div><div class="line">    &#123;CC&quot;unpark&quot;,             CC&quot;(&quot;OBJ&quot;)V&quot;,               FN_PTR(Unsafe_Unpark)&#125;</div><div class="line">&#125;;</div></pre></td></tr></table></figure></p>
 <p>可以看出, 我们关注的park和unpark分别对应了Unsafe_Park与Unsafe_Unpark。 下面展示了Unsafe_Park的实现方式:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div></pre></td><td class="code"><pre><div class="line">UNSAFE_ENTRY(void, Unsafe_Park(JNIEnv *env, jobject unsafe, jboolean isAbsolute, jlong time))</div><div class="line">  UnsafeWrapper(&quot;Unsafe_Park&quot;);</div><div class="line">  EventThreadPark event;</div><div class="line">#ifndef USDT2</div><div class="line">  HS_DTRACE_PROBE3(hotspot, thread__park__begin, thread-&gt;parker(), (int) isAbsolute, time);</div><div class="line">#else /* USDT2 */</div><div class="line">   HOTSPOT_THREAD_PARK_BEGIN(</div><div class="line">                             (uintptr_t) thread-&gt;parker(), (int) isAbsolute, time);</div><div class="line">#endif /* USDT2 */</div><div class="line">  JavaThreadParkedState jtps(thread, time != 0);</div><div class="line">  thread-&gt;parker()-&gt;park(isAbsolute != 0, time);   //进的是这个函数</div><div class="line">#ifndef USDT2</div><div class="line">  HS_DTRACE_PROBE1(hotspot, thread__park__end, thread-&gt;parker());</div><div class="line">#else /* USDT2 */</div><div class="line">  HOTSPOT_THREAD_PARK_END(</div><div class="line">                          (uintptr_t) thread-&gt;parker());</div><div class="line">#endif /* USDT2 */</div><div class="line">  if (event.should_commit()) &#123;</div><div class="line">    oop obj = thread-&gt;current_park_blocker();</div><div class="line">    event.set_klass((obj != NULL) ? obj-&gt;klass() : NULL);</div><div class="line">    event.set_timeout(time);</div><div class="line">    event.set_address((obj != NULL) ? (TYPE_ADDRESS) cast_from_oop&lt;uintptr_t&gt;(obj) : 0);</div><div class="line">    event.commit();</div><div class="line">  &#125;</div><div class="line">UNSAFE_END</div></pre></td></tr></table></figure></p>
