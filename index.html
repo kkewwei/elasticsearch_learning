@@ -179,8 +179,20 @@
     
     <div class="article-entry" itemprop="articleBody">
       
-        <p>LinkedTransferQueue作为无边界的阻塞队列1</p>
-
+        <p>LinkedTransferQueue作为无边界的阻塞队列, 同时继承了TransferQueue和AbstractQueue。 相较于其他的阻塞队列:  LinkedTransferQueue特殊之处在于TransferQueue。 TransferQueue说明如下</p>
+<blockquote>
+<ul>
+<li>Transfers the element to a waiting consumer immediately, if possible.<ul>
+<li>More precisely, transfers the specified element immediately</li>
+<li>if there exists a consumer already waiting to receive it (in</li>
+<li>{@link #take} or timed {@link #poll(long,TimeUnit) poll}),</li>
+<li>otherwise returning {@code false} without enqueuing the element.</li>
+</ul>
+</li>
+</ul>
+</blockquote>
+<p>说的是LinkedTransferQueue不仅实现了普通BlockingQueue的功能, 还可以当有消费者等待数据时, 直接将数据交给消费者而不是再进入队列。 拿LinkedBlockingQueue相比, LinkedBlockingQueue在take和put操作时, 都是通过lock来控制, 当take和put操作并发规模上来后, 锁的获取和释放都是比较占用资源的。 而LinkedTransferQueue对这种使用进行了改进, 当生产者存放数据时, 发现有消费者等待消费数据, 生产者可以调用transfer直接将数据交给消费者, 而不用通过阻塞队列来传递数据, 减少了锁的释放与获取。</p>
+<h1 id="LinkedTransferQueue类简介"><a href="#LinkedTransferQueue类简介" class="headerlink" title="LinkedTransferQueue类简介"></a>LinkedTransferQueue类简介</h1>
       
 
       
@@ -1351,11 +1363,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">netty4, ServerBootstrap, Initiale</a>
+                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
+                <a href="javascript:void(0)" class="js-tag color4">netty4, ServerBootstrap, Initiale</a>
               </li>
             
             <div class="clearfix"></div>
