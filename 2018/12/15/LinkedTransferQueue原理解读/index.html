@@ -6,19 +6,19 @@
   <meta name="renderer" content="webkit">
   <meta http-equiv="X-UA-Compatible" content="IE=edge" >
   <link rel="dns-prefetch" href="https://kkewwei.github.io/elasticsearch_learning">
-  <title>SimpleDateFormat非线程安全分析 | Hexo</title>
+  <title>LinkedTransferQueue原理解读 | Hexo</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
   <meta name="google-site-verification" content="sCUXxLczmZVJ1Fkt5jSJGE9xPpdVD25hYciudlUUVNQ" />
-  <meta name="description" content="无名小辈">
+  <meta name="description" content="LinkedTransferQueue作为无边界的阻塞队列">
 <meta property="og:type" content="article">
-<meta property="og:title" content="SimpleDateFormat非线程安全分析">
-<meta property="og:url" content="https://kkewwei.github.io/elasticsearch_learning/2018/07/20/SimpleDateFormat非线程安全分析/index.html">
+<meta property="og:title" content="LinkedTransferQueue原理解读">
+<meta property="og:url" content="https://kkewwei.github.io/elasticsearch_learning/2018/12/15/LinkedTransferQueue原理解读/index.html">
 <meta property="og:site_name" content="Hexo">
-<meta property="og:description" content="无名小辈">
-<meta property="og:updated_time" content="2018-12-09T11:35:44.000Z">
+<meta property="og:description" content="LinkedTransferQueue作为无边界的阻塞队列">
+<meta property="og:updated_time" content="2018-12-16T08:17:27.000Z">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="SimpleDateFormat非线程安全分析">
-<meta name="twitter:description" content="无名小辈">
+<meta name="twitter:title" content="LinkedTransferQueue原理解读">
+<meta name="twitter:description" content="LinkedTransferQueue作为无边界的阻塞队列">
   
     <link rel="alternative" href="/atom.xml" title="Hexo" type="application/atom+xml">
   
@@ -158,27 +158,28 @@
             <canvas data-colors="#eaeaea" data-sectionHeight="100" data-contentId="js-content" id="myCanvas1" class="anm-canvas"></canvas>
           </div>
           <div id="js-content" class="content-ll">
-            <article id="post-SimpleDateFormat非线程安全分析" class="article article-type-post " itemscope itemprop="blogPost">
+            <article id="post-LinkedTransferQueue原理解读" class="article article-type-post " itemscope itemprop="blogPost">
   <div class="article-inner">
     
       <header class="article-header">
         
   
     <h1 class="article-title" itemprop="name">
-      SimpleDateFormat非线程安全分析
+      LinkedTransferQueue原理解读
     </h1>
   
 
         
-        <a href="/elasticsearch_learning/2018/07/20/SimpleDateFormat非线程安全分析/" class="archive-article-date">
-  	<time datetime="2018-07-20T04:09:51.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2018-07-20</time>
+        <a href="/elasticsearch_learning/2018/12/15/LinkedTransferQueue原理解读/" class="archive-article-date">
+  	<time datetime="2018-12-15T10:59:58.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2018-12-15</time>
 </a>
         
       </header>
     
     <div class="article-entry" itemprop="articleBody">
       
-        
+        <p>LinkedTransferQueue作为无边界的阻塞队列</p>
+
       
 
       
@@ -257,7 +258,7 @@
     <a class="close js-modal-close" href="javascript:;"><i class="icon icon-close"></i></a>
     <p>扫一扫，分享到微信</p>
     <div class="wx-qrcode">
-      <img src="//pan.baidu.com/share/qrcode?url=https://kkewwei.github.io/elasticsearch_learning/2018/07/20/SimpleDateFormat非线程安全分析/" alt="微信分享二维码">
+      <img src="//pan.baidu.com/share/qrcode?url=https://kkewwei.github.io/elasticsearch_learning/2018/12/15/LinkedTransferQueue原理解读/" alt="微信分享二维码">
     </div>
 </div>
 
@@ -271,18 +272,9 @@
   
 <nav id="article-nav">
   
-    <a href="/elasticsearch_learning/2018/07/20/Netty-PoolChunk原理探究/" id="article-nav-newer" class="article-nav-link-wrap">
-      <i class="icon-circle-left"></i>
-      <div class="article-nav-title">
-        
-          Netty PoolChunk原理探究
-        
-      </div>
-    </a>
   
-  
-    <a href="/elasticsearch_learning/2018/07/14/Netty-PoolThreadCache源码探究/" id="article-nav-older" class="article-nav-link-wrap">
-      <div class="article-nav-title">Netty PoolThreadCache原理探究</div>
+    <a href="/elasticsearch_learning/2018/11/10/LockSupport源码解读/" id="article-nav-older" class="article-nav-link-wrap">
+      <div class="article-nav-title">LockSupport原理解读</div>
       <i class="icon-circle-right"></i>
     </a>
   
@@ -321,7 +313,7 @@
 <script src="//www.wenjunjiang.win/js/gitment.js "></script>
 <script>
 var gitment = new Gitment({
-  id: "SimpleDateFormat非线程安全分析",
+  id: "LinkedTransferQueue原理解读",
   owner: 'kkewwei',
   repo: 'comments',
   oauth: {
@@ -447,11 +439,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
+                <a href="javascript:void(0)" class="js-tag color4">netty4, ServerBootstrap, Initiale</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">netty4, ServerBootstrap, Initiale</a>
+                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
               </li>
             
             <div class="clearfix"></div>
