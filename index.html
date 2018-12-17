@@ -190,6 +190,7 @@
 </blockquote>
 <p>说的是LinkedTransferQueue不仅实现了普通BlockingQueue的功能, 另一个优点就是: 还可以当有消费者等待数据时, 直接将数据交给消费者而不是再进入队列。 拿LinkedBlockingQueue相比, LinkedBlockingQueue在take和put操作时, 都是通过lock来控制, 当take和put操作并发规模上来后, 锁的获取和释放都是比较占用资源的。 而LinkedTransferQueue对这种使用进行了改进, 当生产者存放数据时, 发现有消费者等待消费数据, 生产者可以调用transfer直接将数据交给消费者, 而不用通过阻塞队列来传递数据, 减少了锁的释放与获取。</p>
 <h1 id="LinkedTransferQueue类简介"><a href="#LinkedTransferQueue类简介" class="headerlink" title="LinkedTransferQueue类简介"></a>LinkedTransferQueue类简介</h1><p>LinkedTransferQueue的阻塞队列的节点Node设计如下:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div></pre></td><td class="code"><pre><div class="line"> static final class Node &#123;</div><div class="line">        // 若为true,</div><div class="line">        final boolean isData;</div><div class="line">         // initially non-null if isData; CASed to match</div><div class="line">        volatile Object item;</div><div class="line">        volatile Node next;</div><div class="line">         // null until waiting  若不为null，则说明是reservation，有一个线程在等待</div><div class="line">        volatile Thread waiter;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>LinkedTransferQueue中的阻塞队列节点分为两种, 数据节点和请求节点。当调用put时, 将数据存放入阻塞队列中, 那么将生成数据节点(isData=true、item为用户存放的数据, waiter为该被阻塞的线程)。当调用take节点时, 若没有数据可以取可供取走, 那么将在阻塞队列中建立请求节点(isData=false、item为null, waiter为该被阻塞的线程)。注意, 阻塞队列中要么全部是请求节点, 要么全部是数据节点, 请求节点性质一样成为模式一致。若阻塞队列全部是阻塞节点, 若新来一个阻塞节点, 那么通过尾加的方式存放。 若新来一个数据节点, 那么就可以和阻塞队列中的节点匹配, 数据就不会放到阻塞队列中。同理, 阻塞队列中全部为数据节点, 也会被匹配, 匹配后的节点将被废弃。阻塞队列中被匹配的节点Node变化情况如下:<br>|阻塞队列节点被匹配前后|数据节点|阻塞节点|<br>|:-|:-|:-|<br>|匹配前|isData=true, item=data|isData=false, item=null|<br>|匹配后|isData=true, item=null|isData=false, item=self|</p>
 
       
 
@@ -1361,11 +1362,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">netty4, ServerBootstrap, Initiale</a>
+                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
+                <a href="javascript:void(0)" class="js-tag color4">netty4, ServerBootstrap, Initiale</a>
               </li>
             
             <div class="clearfix"></div>
