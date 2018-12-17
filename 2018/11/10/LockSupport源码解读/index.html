@@ -6,19 +6,19 @@
   <meta name="renderer" content="webkit">
   <meta http-equiv="X-UA-Compatible" content="IE=edge" >
   <link rel="dns-prefetch" href="https://kkewwei.github.io/elasticsearch_learning">
-  <title>LockSupport原理解读 | Hexo</title>
+  <title>LockSupport原理分析 | Hexo</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
   <meta name="google-site-verification" content="sCUXxLczmZVJ1Fkt5jSJGE9xPpdVD25hYciudlUUVNQ" />
   <meta name="description" content="LockSupport作为并发的基础, 在CountDownLatch、ReentrantLock、Semaphore、ReentrantReadWriteLock中都是作为阻塞/唤醒线程的基本工具, 因此, 很有必要了解LockSupport的用法及原理, 本文将从LockSupport基本用法、 类主要函数及相关知识、底层基本原理三方面分别描述。 使用基本用法:1234567891011121">
 <meta property="og:type" content="article">
-<meta property="og:title" content="LockSupport原理解读">
+<meta property="og:title" content="LockSupport原理分析">
 <meta property="og:url" content="https://kkewwei.github.io/elasticsearch_learning/2018/11/10/LockSupport源码解读/index.html">
 <meta property="og:site_name" content="Hexo">
 <meta property="og:description" content="LockSupport作为并发的基础, 在CountDownLatch、ReentrantLock、Semaphore、ReentrantReadWriteLock中都是作为阻塞/唤醒线程的基本工具, 因此, 很有必要了解LockSupport的用法及原理, 本文将从LockSupport基本用法、 类主要函数及相关知识、底层基本原理三方面分别描述。 使用基本用法:1234567891011121">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/LockSupport1.png">
-<meta property="og:updated_time" content="2018-12-09T12:58:53.000Z">
+<meta property="og:updated_time" content="2018-12-17T01:18:16.000Z">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="LockSupport原理解读">
+<meta name="twitter:title" content="LockSupport原理分析">
 <meta name="twitter:description" content="LockSupport作为并发的基础, 在CountDownLatch、ReentrantLock、Semaphore、ReentrantReadWriteLock中都是作为阻塞/唤醒线程的基本工具, 因此, 很有必要了解LockSupport的用法及原理, 本文将从LockSupport基本用法、 类主要函数及相关知识、底层基本原理三方面分别描述。 使用基本用法:1234567891011121">
 <meta name="twitter:image" content="https://kkewwei.github.io/elasticsearch_learning/img/LockSupport1.png">
   
@@ -167,7 +167,7 @@
         
   
     <h1 class="article-title" itemprop="name">
-      LockSupport原理解读
+      LockSupport原理分析
     </h1>
   
 
@@ -310,7 +310,7 @@
       <i class="icon-circle-left"></i>
       <div class="article-nav-title">
         
-          LinkedTransferQueue原理解读
+          LinkedTransferQueue原理分析
         
       </div>
     </a>
@@ -351,21 +351,22 @@
   
 
   
-  <div id="gitment-ctn"></div> 
+  <div id="gitment-ctn"></div>
 <link rel="stylesheet" href="//imsun.github.io/gitment/style/default.css">
-<script src="//imsun.github.io/gitment/dist/gitment.browser.js"></script>
+<script src="//www.wenjunjiang.win/js/gitment.js "></script>
 <script>
 var gitment = new Gitment({
-  id: "<%=url%>",
-  owner: '<%=theme.gitment_owner%>',
-  repo: '<%=theme.gitment_repo%>',
+  id: "LockSupport原理分析",
+  owner: 'kkewwei',
+  repo: 'comments',
   oauth: {
-    client_id: '<%=theme.gitment_oauth.client_id%>',
-    client_secret: '<%=theme.gitment_oauth.client_secret%>',
+    client_id: '9391e497d6b288887f33',
+    client_secret: 'db733731bff4ee2811d9530b1ac4cfc6767e8183',
   },
 })
 gitment.render('gitment-ctn')
 </script>
+
   
 
 
@@ -481,11 +482,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
+                <a href="javascript:void(0)" class="js-tag color4">netty4, ServerBootstrap, Initiale</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">netty4, ServerBootstrap, Initiale</a>
+                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
               </li>
             
             <div class="clearfix"></div>
