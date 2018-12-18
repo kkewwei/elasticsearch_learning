@@ -15,7 +15,7 @@
 <meta property="og:url" content="https://kkewwei.github.io/elasticsearch_learning/2018/12/15/LinkedTransferQueue原理解读/index.html">
 <meta property="og:site_name" content="Hexo">
 <meta property="og:description" content="LinkedTransferQueue作为无边界的阻塞队列, 同时继承了TransferQueue和AbstractQueue。 相较于其他的阻塞队列:  LinkedTransferQueue特殊之处在于TransferQueue。 TransferQueue说明如下   Transfers the element to a waiting consumer immediately, if po">
-<meta property="og:updated_time" content="2018-12-18T01:14:51.000Z">
+<meta property="og:updated_time" content="2018-12-18T01:16:27.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="LinkedTransferQueue原理分析">
 <meta name="twitter:description" content="LinkedTransferQueue作为无边界的阻塞队列, 同时继承了TransferQueue和AbstractQueue。 相较于其他的阻塞队列:  LinkedTransferQueue特殊之处在于TransferQueue。 TransferQueue说明如下   Transfers the element to a waiting consumer immediately, if po">
@@ -194,20 +194,20 @@
 <thead>
 <tr>
 <th style="text-align:left">阻塞队列节点被匹配前后</th>
-<th style="text-align:right">数据节点</th>
-<th style="text-align:center">阻塞节点</th>
+<th style="text-align:left">数据节点</th>
+<th style="text-align:left">阻塞节点</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td style="text-align:left">匹配前</td>
-<td style="text-align:right">isData=true, item=data</td>
-<td style="text-align:center">isData=false, item=null</td>
+<td style="text-align:left">isData=true, item=data</td>
+<td style="text-align:left">isData=false, item=null</td>
 </tr>
 <tr>
 <td style="text-align:left">匹配后</td>
-<td style="text-align:right">isData=true, item=null</td>
-<td style="text-align:center">isData=false, item=self</td>
+<td style="text-align:left">isData=true, item=null</td>
+<td style="text-align:left">isData=false, item=self</td>
 </tr>
 </tbody>
 </table>
