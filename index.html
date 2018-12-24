@@ -41,55 +41,39 @@
   <div id="container" q-class="show:isCtnShow">
     <canvas id="anm-canvas" class="anm-canvas"></canvas>
     <div class="left-col" q-class="show:isShow">
-      
-<div class="overlay" style="background: #4d4d4d"></div>
+      <% var defaultBg = '#4d4d4d'; %>
+<div class="overlay" style="background: <%= theme.style && theme.style.header ? theme.style.header : defaultBg %>"></div>
 <div class="intrude-less">
 	<header id="header" class="inner">
-		<a href="/" class="profilepic">
-      <img src="https://kkewwei.github.io/elasticsearch_learning/img/myself.png" class="js-avatar">
+		<a href="<%=theme.root%>" class="profilepic">
+			<img src="<%=theme.avatar%>" class="js-avatar">
 		</a>
 		<hgroup>
-		  <h1 class="header-author"><a href="/">xiaoyu</a></h1>
+		  <h1 class="header-author"><a href="<%=theme.root%>"><%=theme.author%></a></h1>
 		</hgroup>
-		
-		<p class="header-subtitle">往事随风</p>
-		
+		<% if (theme.subtitle){ %>
+		<p class="header-subtitle"><%=theme.subtitle%></p>
+		<%}%>
 
 		<nav class="header-menu">
 			<ul>
-			
-				<li><a href="/elasticsearch_learning/">主页</a></li>
-	        
-				<li><a href="/elasticsearch_learning/tags/随笔/">随笔</a></li>
-	        
+			<% for (var i in theme.menu){ %>
+				<li><a href="<%- url_for(theme.menu[i]) %>"><%= i %></a></li>
+	        <%}%>
 			</ul>
 		</nav>
 		<nav class="header-smart-menu">
-    		
-    			
-    			<a q-on="click: openSlider(e, 'innerArchive')" href="javascript:void(0)">所有文章</a>
-    			
-            
-    			
-    			<a q-on="click: openSlider(e, 'friends')" href="javascript:void(0)">友链</a>
-    			
-            
-    			
-    			<a q-on="click: openSlider(e, 'aboutme')" href="javascript:void(0)">关于我</a>
-    			
-            
+    		<% for (var i in theme.smart_menu){ %>
+    			<% if(theme.smart_menu[i]){ %>
+    			<a q-on="click: openSlider(e, '<%-i%>')" href="javascript:void(0)"><%= theme.smart_menu[i] %></a>
+    			<% } %>
+            <%}%>
 		</nav>
 		<nav class="header-nav">
 			<div class="social">
-				
-					<a class="github" target="_blank" href="#" title="github"><i class="icon-github"></i></a>
-		        
-					<a class="weibo" target="_blank" href="#" title="weibo"><i class="icon-weibo"></i></a>
-		        
-					<a class="rss" target="_blank" href="#" title="rss"><i class="icon-rss"></i></a>
-		        
-					<a class="zhihu" target="_blank" href="#" title="zhihu"><i class="icon-zhihu"></i></a>
-		        
+				<% for (var i in theme.subnav){ %>
+					<a class="<%= i %>" target="_blank" href="<%- url_for(theme.subnav[i]) %>" title="<%= i %>"><i class="icon-<%= i %>"></i></a>
+		        <%}%>
 			</div>
 		</nav>
 	</header>
@@ -239,7 +223,8 @@
 <ol>
 <li>线程thread1、thread2、thread3分别进行tansfer(a)、tansfer(b)、tansfer(c)<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/LinkedTransferQueue2.png" height="200" width="300"><br><img src="https://kkewwei.github.io/elasticsearch_learning/img/LinkedTransferQueue3.png" height="200" width="350"><br><img src="https://kkewwei.github.io/elasticsearch_learning/img/LinkedTransferQueue4.png" height="200" width="400"><br>tansfer()主要是将节点尾插法进入队列; 若tail离最后的节点相差大于2, 则移动tail满足需求。</li>
 <li>线程thread4、thread5、thread6分别进行take()、take()、take()<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/LinkedTransferQueue5.png" height="400" width="650"><br>线程thread4执行take()时, 找到匹配的节点, 置位null。 并唤醒thread1; thread1还会将item=this, waiter=null<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/LinkedTransferQueue6.png" height="400" width="700"><br>线程thread5执行take()时, 找到匹配的节点, 置位null, 并唤醒thread2. 发现当前匹配节点不是head节点, 那么则移动head节点直到松弛距离为2。 thread2还会将item=this, waiter=null。<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/LinkedTransferQueue7.png" height="350" width="600"><br>线程thread4执行take()时, 找到匹配的节点, 置位null。 并唤醒thread1; thread1还会将item=this, waiter=null</li>
-<li>若此时线程thread7进行了tansfer(c)<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/LinkedTransferQueue8.png" height="250" width="500"><br>若此时线程thread7进行了take(), 此时也添加到了末尾, 注意此时队列模式发生了变化。<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/LinkedTransferQueue9.png" height="250" width="500"></li>
+<li>若此时线程thread7进行了tansfer(c)<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/LinkedTransferQueue8.png" height="250" width="600"><br>若此时线程thread7进行了take(), 此时也添加到了末尾, 注意此时队列模式发生了变化。<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/LinkedTransferQueue9.png" height="250" width="600"></li>
+<li>可能有人会好奇, 队列真正的头结点无法遍历, 这样会不会存在内存泄露的问题? 我们大可不必担心, 仍然以例子来说明, 在thread7进行了take()的基础上, thread8线程进行了put(4)操作:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/LinkedTransferQueue10.png" height="250" width="600"><br>可以看到, 队列头两个无用的节点会自动脱离队列, 自然会被回收。</li>
 </ol>
 <h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>LinkedTransferQueue与其他阻塞队列相比, 比较大的区别就是也可以阻塞put线程, 当take()操作时, take线程不会进入队列, 而是直接将put()线程唤醒。 结构上采取松弛距离&lt;2来达到在高并发下减少互斥锁的操作而加快了效率。</p>
 <h1 id="参考"><a href="#参考" class="headerlink" title="参考"></a>参考</h1><p><a href="https://segmentfault.com/a/1190000016460411" target="_blank" rel="external">https://segmentfault.com/a/1190000016460411</a><br><a href="https://www.zybuluo.com/eric1989/note/698826" target="_blank" rel="external">https://www.zybuluo.com/eric1989/note/698826</a></p>
