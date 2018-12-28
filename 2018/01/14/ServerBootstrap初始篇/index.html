@@ -20,7 +20,7 @@
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/PipeLine.png">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/PipeLine2.png">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/PipeLine1.png">
-<meta property="og:updated_time" content="2018-12-26T02:45:22.000Z">
+<meta property="og:updated_time" content="2018-12-27T01:57:20.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="ServerBootstrap初始篇">
 <meta name="twitter:description" content="&amp;emsp;本文将以一个最简单的netty服务器端代码进行讲解。 服务器示例 123456789101112131415161718192021222324252627282930313233343536373839404142434445464748495051525354 public class HelloServer &amp;#123;    /**     * 服务端监听的端口地址     *">
@@ -48,55 +48,39 @@
   <div id="container" q-class="show:isCtnShow">
     <canvas id="anm-canvas" class="anm-canvas"></canvas>
     <div class="left-col" q-class="show:isShow">
-      
-<div class="overlay" style="background: #4d4d4d"></div>
+      <% var defaultBg = '#4d4d4d'; %>
+<div class="overlay" style="background: <%= theme.style && theme.style.header ? theme.style.header : defaultBg %>"></div>
 <div class="intrude-less">
 	<header id="header" class="inner">
-		<a href="/" class="profilepic">
-      <img src="https://kkewwei.github.io/elasticsearch_learning/img/myself.png" class="js-avatar">
+		<a href="<%=theme.root%>" class="profilepic">
+			<img src="<%=theme.avatar%>" class="js-avatar">
 		</a>
 		<hgroup>
-		  <h1 class="header-author"><a href="/">xiaoyu</a></h1>
+		  <h1 class="header-author"><a href="<%=theme.root%>"><%=theme.author%></a></h1>
 		</hgroup>
-		
-		<p class="header-subtitle">往事随风</p>
-		
+		<% if (theme.subtitle){ %>
+		<p class="header-subtitle"><%=theme.subtitle%></p>
+		<%}%>
 
 		<nav class="header-menu">
 			<ul>
-			
-				<li><a href="/elasticsearch_learning/">主页</a></li>
-	        
-				<li><a href="/elasticsearch_learning/tags/随笔/">随笔</a></li>
-	        
+			<% for (var i in theme.menu){ %>
+				<li><a href="<%- url_for(theme.menu[i]) %>"><%= i %></a></li>
+	        <%}%>
 			</ul>
 		</nav>
 		<nav class="header-smart-menu">
-    		
-    			
-    			<a q-on="click: openSlider(e, 'innerArchive')" href="javascript:void(0)">所有文章</a>
-    			
-            
-    			
-    			<a q-on="click: openSlider(e, 'friends')" href="javascript:void(0)">友链</a>
-    			
-            
-    			
-    			<a q-on="click: openSlider(e, 'aboutme')" href="javascript:void(0)">关于我</a>
-    			
-            
+    		<% for (var i in theme.smart_menu){ %>
+    			<% if(theme.smart_menu[i]){ %>
+    			<a q-on="click: openSlider(e, '<%-i%>')" href="javascript:void(0)"><%= theme.smart_menu[i] %></a>
+    			<% } %>
+            <%}%>
 		</nav>
 		<nav class="header-nav">
 			<div class="social">
-				
-					<a class="github" target="_blank" href="#" title="github"><i class="icon-github"></i></a>
-		        
-					<a class="weibo" target="_blank" href="#" title="weibo"><i class="icon-weibo"></i></a>
-		        
-					<a class="rss" target="_blank" href="#" title="rss"><i class="icon-rss"></i></a>
-		        
-					<a class="zhihu" target="_blank" href="#" title="zhihu"><i class="icon-zhihu"></i></a>
-		        
+				<% for (var i in theme.subnav){ %>
+					<a class="<%= i %>" target="_blank" href="<%- url_for(theme.subnav[i]) %>" title="<%= i %>"><i class="icon-<%= i %>"></i></a>
+		        <%}%>
 			</div>
 		</nav>
 	</header>
@@ -227,8 +211,8 @@
 <li><p>如果NioServerSocketChannel并没有注册到对应的selector上(代码见AbstractChannel.register0()), 那么将生成PendingHandlerAddedTask, 并将该task线程放入pendingHandlerCallbackHead(属于Pipeline), 等待NioServerSocketChannel被注册到对应的selector时执行(见NioMessageUnsafe.register());<br>若注册了, 那么调用callHandlerAdded0()-&gt;ChannelInitializer.initChannel(ChannelHandlerContext ctx)函数中,如下:</p>
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div></pre></td><td class="code"><pre><div class="line">@SuppressWarnings(&quot;unchecked&quot;)</div><div class="line">  private boolean initChannel(ChannelHandlerContext ctx) throws Exception &#123;</div><div class="line">      if (initMap.putIfAbsent(ctx, Boolean.TRUE) == null) &#123; // Guard against re-entrance.</div><div class="line">          try &#123;</div><div class="line">              initChannel((C) ctx.channel());</div><div class="line">          &#125; catch (Throwable cause) &#123;</div><div class="line">              // Explicitly call exceptionCaught(...) as we removed the handler before calling initChannel(...).</div><div class="line">              // We do so to prevent multiple calls to initChannel(...).</div><div class="line">              exceptionCaught(ctx, cause);</div><div class="line">          &#125; finally &#123;</div><div class="line">              remove(ctx); //初始化完善后，删除自身。又要把最开始注册的HelloServerInitializer删掉，也是ChannelInboundHandler类型</div><div class="line">          &#125;</div><div class="line">          return true;</div><div class="line">      &#125;</div><div class="line">      return false;</div><div class="line">  &#125;</div></pre></td></tr></table></figure>
 <ul>
-<li>这里会进入ChannelInitializer.initChannel(final Channel ch)(详见ServerBootstrap.init()), 会向pipeLine添加ServerBootstrapAcceptor, 传递的参数也可以注意下, 有childGroup、以及自定义的HelloServerInitializer。之后新建立的连接请求SocketChannel, 将根据这两个参数创建, 之后会详解(见NioEventLoop篇)。</li>
-<li>这里还需要注意remove(ctx), 在对channel之后, 会将该匿名ChannelInitializer(见ServerBootstrap.init())从NioServerSocketChannel的pipeline中删掉。这样pipeline里的handler包含(head-&gt;tail),和可能已经放进来的的ServerBootstrapAcceptor。此时NioServerSocketChannel对应的pipeline结构如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/PipeLine2.png" height="200" width="650"></li>
+<li>这里会进入ChannelInitializer.initChannel(final Channel ch)(详见ServerBootstrap.init()), 把会向pipeLine添加ServerBootstrapAcceptor的操作当成一个task, 传递给NilEventLoop, 等待执行形成一个最终的handler链。 传递的参数也可以注意下, 有childGroup、以及自定义的HelloServerInitializer。之后新建立的连接请求SocketChannel, 将根据这两个参数创建, 之后会详解(见NioEventLoop篇)。</li>
+<li>这里还需要注意ChannelInitializer.remove(ctx)会将该匿名ChannelInitializer(见ServerBootstrap.init())从NioServerSocketChannel的pipeline中删掉。这样NioServerSocketChannel对应的pipeline结构如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/PipeLine2.png" height="200" width="650"></li>
 </ul>
 </li>
 </ul>
@@ -240,7 +224,7 @@
 <p>继续回到register()上,  channel与selector完成register之后:</p>
 <ol>
 <li>执行一些挂起的任务(invokeHandlerAddedIfNeeded()), 比如p.addLast所介绍的, 此时pileline对应的的handler链如下:HEAD-&gt;ServerBootstrapAcceptor-&gt;TAIL</li>
-<li>执行safeSetSuccess(promise), 最终会去调用AbstractBootstrap.doBind()里面介绍的ChannelFutureListener.operationComplete()函数, 注意doBind0()函数, 这里将完成channel与port的绑定和channel感兴趣事件为OP_ACCEPT,具体代码见AbstractChannel.bin(), 代码如下:<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div></pre></td><td class="code"><pre><div class="line">boolean wasActive = isActive();</div><div class="line">           try &#123;</div><div class="line">               doBind(localAddress); //doBind0最终调用channel.bind方法对执行端口进行绑定</div><div class="line">           &#125; catch (Throwable t) &#123;</div><div class="line">               safeSetFailure(promise, t);</div><div class="line">               closeIfClosed();</div><div class="line">               return;</div><div class="line">           &#125;</div><div class="line">           if (!wasActive &amp;&amp; isActive()) &#123; //之前没有绑定，现在绑定了，绑定的意思是NioServerSocketChannel里面的SocketChannel的Address有值了</div><div class="line">               invokeLater(new Runnable() &#123;</div><div class="line">                   @Override</div><div class="line">                   public void run() &#123;</div><div class="line">                       pipeline.fireChannelActive(); //最终修改的是NioServerSocketChannel的可读属性</div><div class="line">                   &#125;</div><div class="line">               &#125;);</div><div class="line">           &#125;</div></pre></td></tr></table></figure>
+<li>执行safeSetSuccess(promise), 最终会去调用AbstractBootstrap.doBind()里面介绍的ChannelFutureListener.operationComplete()函数, 注意doBind0()函数, 这里将完成channel与port的绑定和channel感兴趣事件为OP_ACCEPT,具体代码见AbstractChannel.bin(), 代码如下:<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div></pre></td><td class="code"><pre><div class="line">boolean wasActive = isActive();</div><div class="line">           try &#123;</div><div class="line">                //doBind0最终调用channel.bind方法对执行端口进行绑定</div><div class="line">               doBind(localAddress);</div><div class="line">           &#125; catch (Throwable t) &#123;</div><div class="line">               safeSetFailure(promise, t);</div><div class="line">               closeIfClosed();</div><div class="line">               return;</div><div class="line">           &#125;</div><div class="line">           //之前没有绑定，现在绑定了，绑定的意思是NioServerSocketChannel里面的SocketChannel的Address有值了</div><div class="line">           if (!wasActive &amp;&amp; isActive()) &#123;</div><div class="line">               invokeLater(new Runnable() &#123;</div><div class="line">                   @Override</div><div class="line">                   public void run() &#123;</div><div class="line">                       //最终修改的是NioServerSocketChannel的可读属性</div><div class="line">                       pipeline.fireChannelActive();</div><div class="line">                   &#125;</div><div class="line">               &#125;);</div><div class="line">           &#125;</div></pre></td></tr></table></figure>
 </li>
 </ol>
 <p>自此NioServerSocketChannel已经初始化完成, NioServerSocketChannel拥有的pipeLine的里面的上下文:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/PipeLine1.png" height="200" width="450"><br>其中第二个Context的handler为ServerBootstrapAcceptor, 它的构造时的代码如下:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">new ServerBootstrapAcceptor(ch, currentChildGroup, currentChildHandler, currentChildOptions, currentChildAttrs)</div></pre></td></tr></table></figure></p>
@@ -394,21 +378,22 @@
   
 
   
-  <div id="gitment-ctn"></div> 
+  <div id="gitment-ctn"></div>
 <link rel="stylesheet" href="//imsun.github.io/gitment/style/default.css">
-<script src="//imsun.github.io/gitment/dist/gitment.browser.js"></script>
+<script src="//www.wenjunjiang.win/js/gitment.js "></script>
 <script>
 var gitment = new Gitment({
-  id: "<%=url%>",
-  owner: '<%=theme.gitment_owner%>',
-  repo: '<%=theme.gitment_repo%>',
+  id: "ServerBootstrap初始篇",
+  owner: 'kkewwei',
+  repo: 'comments',
   oauth: {
-    client_id: '<%=theme.gitment_oauth.client_id%>',
-    client_secret: '<%=theme.gitment_oauth.client_secret%>',
+    client_id: '9391e497d6b288887f33',
+    client_secret: 'db733731bff4ee2811d9530b1ac4cfc6767e8183',
   },
 })
 gitment.render('gitment-ctn')
 </script>
+
   
 
 
