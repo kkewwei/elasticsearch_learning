@@ -15,10 +15,12 @@
 <meta property="og:url" content="https://kkewwei.github.io/elasticsearch_learning/2018/01/22/NioEventLoop篇/index.html">
 <meta property="og:site_name" content="Hexo">
 <meta property="og:description" content="介绍在ServerBootstrap初始篇初始篇中说过, 每个NioEventLoop里面, 都拥有属性thread, 用来执行对应channel产生的所有task, 该thread最早在register的时候被生成, 首先调用如下代码:1234ch.eventLoop().execute(new Runnable() &amp;#123;        @Override        public v">
-<meta property="og:updated_time" content="2018-05-02T12:20:50.000Z">
+<meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/NioEventLoop1.png">
+<meta property="og:updated_time" content="2018-12-28T02:40:04.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="NioEventLoop篇">
 <meta name="twitter:description" content="介绍在ServerBootstrap初始篇初始篇中说过, 每个NioEventLoop里面, 都拥有属性thread, 用来执行对应channel产生的所有task, 该thread最早在register的时候被生成, 首先调用如下代码:1234ch.eventLoop().execute(new Runnable() &amp;#123;        @Override        public v">
+<meta name="twitter:image" content="https://kkewwei.github.io/elasticsearch_learning/img/NioEventLoop1.png">
   
     <link rel="alternative" href="/atom.xml" title="Hexo" type="application/atom+xml">
   
@@ -182,8 +184,14 @@
 <p>调用NioEventLoop.execute(), 然后进入到SingleThreadEventExecutor.execute(NioEventLoop的父类), 执行如下代码:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div></pre></td><td class="code"><pre><div class="line">public void execute(Runnable task) &#123;</div><div class="line">       boolean inEventLoop = inEventLoop();</div><div class="line">       if (inEventLoop) &#123;</div><div class="line">           addTask(task);</div><div class="line">       &#125; else &#123;</div><div class="line">           startThread();</div><div class="line">           addTask(task);</div><div class="line">           if (isShutdown() &amp;&amp; removeTask(task)) &#123;</div><div class="line">               reject();</div><div class="line">           &#125;</div><div class="line">       &#125;</div><div class="line">       if (!addTaskWakesUp &amp;&amp; wakesUpForTask(task)) &#123;</div><div class="line">           wakeup(inEventLoop);</div><div class="line">       &#125;</div><div class="line">   &#125;</div></pre></td></tr></table></figure></p>
 <p>首先判断NioEventLoop里面的那个线程是否启动, 若是的话, 就将当前task放进任务队列; 否则说明NioEventLoop里面执行task的那个唯一线程还没有启动, 调用startThread来启动。</p>
 <h2 id="startThread"><a href="#startThread" class="headerlink" title="startThread"></a>startThread</h2><p>startThread用来启动NioEventLoop里面的执行线程,代码如下:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div></pre></td><td class="code"><pre><div class="line">executor.execute(new Runnable() &#123; //就是一个执行器，ThreadPerTaskExecutor。只要想，可以一直启动</div><div class="line">          @Override</div><div class="line">          public void run() &#123;</div><div class="line">              thread = Thread.currentThread(); //获取当前这个线程</div><div class="line">              if (interrupted) &#123;</div><div class="line">                  thread.interrupt();</div><div class="line">              &#125;</div><div class="line">              boolean success = false;</div><div class="line">              updateLastExecutionTime();</div><div class="line">              try &#123;</div><div class="line">                  SingleThreadEventExecutor.this.run(); //调用NioEventLoop里面run,进行无限循环</div><div class="line">                  success = true;</div><div class="line">              &#125; catch (Throwable t) &#123;</div><div class="line">              &#125;</div></pre></td></tr></table></figure></p>
-<p>executor仅仅是一个执行器, 唤醒了一个线程后, 这个线程就是NioEventLoop线程的核心部分, 该线程生命周期很长, 即使执行发生异常, 也不会主动退出。</p>
-<h1 id="NioEventLoop"><a href="#NioEventLoop" class="headerlink" title="NioEventLoop"></a>NioEventLoop</h1><p>task分为两类任务: 非IO型和IO型, 它们的执行时间比例由ioRatio参数控制, 默认50%,非IO型执行时间 = IO型执行时间。</p>
+<p>executor实际是ThreadPerTaskExecutor, execute将跑到ThreadPerTaskExecutor.execute():<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line">@Override</div><div class="line">   public void execute(Runnable command) &#123;</div><div class="line">       threadFactory.newThread(command).start();</div><div class="line">   &#125;</div></pre></td></tr></table></figure></p>
+<p>这里真正唤醒了线程new Runnable()后, 这个线程就是NioEventLoop线程的核心部分, 该线程生命周期很长, 即使执行发生异常, 也不会主动退出。<br>因为NioEventLoop对应的线程比较重要, 弄清楚如何启动该线程对我们了解很有帮助, 我们来捋一捋这个过程,下图是涉及到的类及函数<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/NioEventLoop1.png" height="400" width="450"></p>
+<ol>
+<li>首先eventLoop.execute(), 主函数返回。</li>
+<li>进入了SingleThreadEventExecutor.execute(), 首先检查thread变量是否为null, 若为空并且检查state状态为not_started, 代表没有启动, 则调用executor.execute()</li>
+<li>调用executor.execute()后, 产生线程并启动, 线程的run()如上所示, 会对thread赋值, 然后调用NioEventLoop.run()开始死循环执行。</li>
+</ol>
+<h1 id="NioEventLoop"><a href="#NioEventLoop" class="headerlink" title="NioEventLoop"></a>NioEventLoop</h1><p>NioEventLoop作为Netty多线程的重要类, 我们可以将其看成一个只有一个线程的线程池<br>task分为两类任务: 非IO型和IO型, 它们的执行时间比例由ioRatio参数控制, 默认50%,非IO型执行时间 = IO型执行时间。</p>
 <ul>
 <li>非IO型: 本进程内, 别的线程发送的请求, 比如将新的Context(hanlder)添加到Pipieline中等等(代码见文章开头<code>ch.eventLoop().execute</code>)</li>
 <li>IO型: Accetp、Write、read等从远程节点发送过来的请求。</li>
