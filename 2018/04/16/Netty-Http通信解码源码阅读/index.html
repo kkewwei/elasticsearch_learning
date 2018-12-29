@@ -16,7 +16,7 @@
 <meta property="og:site_name" content="Hexo">
 <meta property="og:description" content="首先给出一个http server pipiLine里面的处理器的组成结构的示例:123456789101112@Overrideprotected void initChannel(Channel ch) throws Exception &amp;#123;    final HttpRequestDecoder decoder = new HttpRequestDecoder(4096, 8192,">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/DefaultLastHttpContent.png">
-<meta property="og:updated_time" content="2018-12-17T01:18:16.000Z">
+<meta property="og:updated_time" content="2018-12-29T02:41:29.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Netty Http通信源码一(解码)分析">
 <meta name="twitter:description" content="首先给出一个http server pipiLine里面的处理器的组成结构的示例:123456789101112@Overrideprotected void initChannel(Channel ch) throws Exception &amp;#123;    final HttpRequestDecoder decoder = new HttpRequestDecoder(4096, 8192,">
@@ -181,7 +181,7 @@
     <div class="article-entry" itemprop="articleBody">
       
         <p>首先给出一个http server pipiLine里面的处理器的组成结构的示例:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div></pre></td><td class="code"><pre><div class="line">@Override</div><div class="line">protected void initChannel(Channel ch) throws Exception &#123;</div><div class="line">    final HttpRequestDecoder decoder = new HttpRequestDecoder(4096, 8192, 8192);</div><div class="line">    decoder.setCumulator(ByteToMessageDecoder.COMPOSITE_CUMULATOR);  //默认是另一个</div><div class="line">    ch.pipeline().addLast(&quot;decoder&quot;, decoder);</div><div class="line">    ch.pipeline().addLast(&quot;encoder&quot;, new HttpResponseEncoder());</div><div class="line">    final HttpObjectAggregator aggregator = new HttpObjectAggregator(Math.toIntExact(transport.maxContentLength.getBytes()));</div><div class="line">    ch.pipeline().addLast(&quot;aggregator&quot;, aggregator);  //包的聚合</div><div class="line">    ch.pipeline().addLast(&quot;encoder_compress&quot;, new HttpContentCompressor(transport.compressionLevel));</div><div class="line">    ch.pipeline().addLast(&quot;pipelining&quot;, new HttpPipeliningHandler(transport.logger, transport.pipeliningMaxEvents));</div><div class="line">    ch.pipeline().addLast(&quot;handler&quot;, requestHandler);</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
-<p>其中只有HttpRequestDecoder属于ByteToMessageDecoder类型, 主要作用是从byte中拼接处每一个帧, 其余处理器大部分是根据自定义的语义对这个帧转化, 本文将以示例中的重要的handler为处理器, 以POST请求解析过程为串分析下去。<br>http处理方式是每次将缓冲池放满(默认65536个), 然后将65536个字符按照虚拟的chunk分片(默认一个HttpChunk 8192个字符),通过handler, 最后在HttpObjectAggregator聚合, 然后发向后面。<br>这里有一个问题:<br><code>为什么不将65536个字符一下发送到最终handler, 而需要先分解成虚拟的chunked, 一个一个发送到后面再聚合起来?</code></p>
+<p>其中只有HttpRequestDecoder属于ByteToMessageDecoder类型, 主要作用是从byte中拼接处每一个帧, 其余处理器大部分是根据自定义的语义对这个帧转化, 本文将以示例中的重要的handler为处理器, 以POST请求解析过程为串分析下去。<br>http处理方式是每次将缓冲池放满(默认65536个), 然后将65536个字符按照虚拟的chunk分片(默认一个HttpChunk 8192个字符),通过handler, 最后在HttpObjectAggregator聚合, 然后发向后面。<br>这里有一个问题:<br><code>为什么不将65536个字符一下发送到最终handler, 而需要先分解成虚拟的chunked, 一个一个发送到后面再聚合起来?</code><br>服务器端数据真正接收到客户端网络的数据是在NioSocketChannel里面的NioByteUnsafe(NioSocketChannelUnsafe父类)里面的read()里面。</p>
 <h1 id="HttpObjectDecoder和HttpRequestDecoder"><a href="#HttpObjectDecoder和HttpRequestDecoder" class="headerlink" title="HttpObjectDecoder和HttpRequestDecoder"></a>HttpObjectDecoder和HttpRequestDecoder</h1><p>首先需要知道, Rquest请求由FullHttpRequest构成, 主要分为两部分:</p>
 <ul>
 <li>HttpRequest: 主要存放inital, head等。</li>
@@ -364,22 +364,21 @@
   
 
   
-  <div id="gitment-ctn"></div>
+  <div id="gitment-ctn"></div> 
 <link rel="stylesheet" href="//imsun.github.io/gitment/style/default.css">
-<script src="//www.wenjunjiang.win/js/gitment.js "></script>
+<script src="//imsun.github.io/gitment/dist/gitment.browser.js"></script>
 <script>
 var gitment = new Gitment({
-  id: "Netty Http通信源码一(解码)分析",
-  owner: 'kkewwei',
-  repo: 'comments',
+  id: "<%=url%>",
+  owner: '<%=theme.gitment_owner%>',
+  repo: '<%=theme.gitment_repo%>',
   oauth: {
-    client_id: '9391e497d6b288887f33',
-    client_secret: 'db733731bff4ee2811d9530b1ac4cfc6767e8183',
+    client_id: '<%=theme.gitment_oauth.client_id%>',
+    client_secret: '<%=theme.gitment_oauth.client_secret%>',
   },
 })
 gitment.render('gitment-ctn')
 </script>
-
   
 
 

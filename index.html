@@ -814,7 +814,7 @@
 <ul>
 <li>调用JdkZlibEncoder.encode()进行压缩。</li>
 <li>将数据写入ChannelOutboundBuffer对象并刷新, 写入的时候也会受限制于高水位,但是实际并不起什么作用, 后面在真正发送数据的时候会详细讲解这部分。</li>
-<li>在finishEncode()中会产生DefaultHttpContent, 里面存放的是gzip压缩的footer(可读才10 byte), 具体byte见JdkZlibEncoder.finishEncode里面描述。<br>7.2.向out中写入LastHttpContent.EMPTY_LAST_CONTENT, 代表这个帧内容结束。<br>这样整个输出帧的内容存放在out中, 拥有的对象如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/HttpOutPutResponse.png"><br>其中:</li>
+<li>在finishEncode()中会产生DefaultHttpContent, 里面存放的是gzip压缩的footer(可读才10 byte), 具体byte见JdkZlibEncoder.finishEncode里面描述。<br>7.2.向out中写入LastHttpContent.EMPTY_LAST_CONTENT, 代表这个帧内容结束。<br>这样整个输出帧的内容存放在out中, 拥有的对象如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/HttpOutPutResponse.png" height="250" width="400"><br>其中:</li>
 <li>DefaultHttpResponse: 存放的是Http/1.1 status, Header等</li>
 <li>第一个DefaultHttpContent存放的是压缩的内容。</li>
 <li>第二个DefaultHttpContent存放的是压缩器gzip的尾部标识部分。</li>
@@ -842,7 +842,7 @@
 </ul>
 <p>1) 可以看出实际编码后存放的是 key: value\r\n; 注意冒号后面是空格<br>2) 通过CharsetUtil.US_ASCII编码key和value</p>
 <ul>
-<li>再接着写入[CRLF]。 其实可以看出, http response byte每部分内容都是以[CRLF]作为分隔符, 格式如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/HttpResponse_Byte.png"></li>
+<li>再接着写入[CRLF]。 其实可以看出, http response byte每部分内容都是以[CRLF]作为分隔符, 格式如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/HttpResponse_Byte.png" height="250" width="450"></li>
 </ul>
 <p>然后根据header部分来改变state状态, 一般state会被置为ST_CONTENT_NON_CHUNK。根据MessageToMessageEncoder.write()可知, 编码完DefaultHttpResponse, 就调用DefalueChannalHadlerContext.write继续向外写, 后面会详细讲些该部分。<br>2.第二、三次、四次传递过来的是DefaltHttpContent, 将进入ST_CONTENT_NON_CHUNK部分。</p>
 <ul>
@@ -946,7 +946,7 @@
     <div class="article-entry" itemprop="articleBody">
       
         <p>首先给出一个http server pipiLine里面的处理器的组成结构的示例:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div></pre></td><td class="code"><pre><div class="line">@Override</div><div class="line">protected void initChannel(Channel ch) throws Exception &#123;</div><div class="line">    final HttpRequestDecoder decoder = new HttpRequestDecoder(4096, 8192, 8192);</div><div class="line">    decoder.setCumulator(ByteToMessageDecoder.COMPOSITE_CUMULATOR);  //默认是另一个</div><div class="line">    ch.pipeline().addLast(&quot;decoder&quot;, decoder);</div><div class="line">    ch.pipeline().addLast(&quot;encoder&quot;, new HttpResponseEncoder());</div><div class="line">    final HttpObjectAggregator aggregator = new HttpObjectAggregator(Math.toIntExact(transport.maxContentLength.getBytes()));</div><div class="line">    ch.pipeline().addLast(&quot;aggregator&quot;, aggregator);  //包的聚合</div><div class="line">    ch.pipeline().addLast(&quot;encoder_compress&quot;, new HttpContentCompressor(transport.compressionLevel));</div><div class="line">    ch.pipeline().addLast(&quot;pipelining&quot;, new HttpPipeliningHandler(transport.logger, transport.pipeliningMaxEvents));</div><div class="line">    ch.pipeline().addLast(&quot;handler&quot;, requestHandler);</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
-<p>其中只有HttpRequestDecoder属于ByteToMessageDecoder类型, 主要作用是从byte中拼接处每一个帧, 其余处理器大部分是根据自定义的语义对这个帧转化, 本文将以示例中的重要的handler为处理器, 以POST请求解析过程为串分析下去。<br>http处理方式是每次将缓冲池放满(默认65536个), 然后将65536个字符按照虚拟的chunk分片(默认一个HttpChunk 8192个字符),通过handler, 最后在HttpObjectAggregator聚合, 然后发向后面。<br>这里有一个问题:<br><code>为什么不将65536个字符一下发送到最终handler, 而需要先分解成虚拟的chunked, 一个一个发送到后面再聚合起来?</code></p>
+<p>其中只有HttpRequestDecoder属于ByteToMessageDecoder类型, 主要作用是从byte中拼接处每一个帧, 其余处理器大部分是根据自定义的语义对这个帧转化, 本文将以示例中的重要的handler为处理器, 以POST请求解析过程为串分析下去。<br>http处理方式是每次将缓冲池放满(默认65536个), 然后将65536个字符按照虚拟的chunk分片(默认一个HttpChunk 8192个字符),通过handler, 最后在HttpObjectAggregator聚合, 然后发向后面。<br>这里有一个问题:<br><code>为什么不将65536个字符一下发送到最终handler, 而需要先分解成虚拟的chunked, 一个一个发送到后面再聚合起来?</code><br>服务器端数据真正接收到客户端网络的数据是在NioSocketChannel里面的NioByteUnsafe(NioSocketChannelUnsafe父类)里面的read()里面。</p>
 <h1 id="HttpObjectDecoder和HttpRequestDecoder"><a href="#HttpObjectDecoder和HttpRequestDecoder" class="headerlink" title="HttpObjectDecoder和HttpRequestDecoder"></a>HttpObjectDecoder和HttpRequestDecoder</h1><p>首先需要知道, Rquest请求由FullHttpRequest构成, 主要分为两部分:</p>
 <ul>
 <li>HttpRequest: 主要存放inital, head等。</li>

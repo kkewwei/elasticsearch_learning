@@ -20,7 +20,7 @@
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/HttpOutPutResponse.png">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/HttpResponse_Byte.png">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/ChannelOutboundBuffer.png">
-<meta property="og:updated_time" content="2018-12-29T02:06:36.000Z">
+<meta property="og:updated_time" content="2018-12-29T02:44:01.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Netty Http通信源码二(编码)分析">
 <meta name="twitter:description" content="解码过程仍以Netty Http通信源码一(解码)阅读提供的示例为例, 编码发送的主体DefaultFullHttpResponse如下:涉及到的ChannelOutboundHandler类有:HttpContentCompressor、HttpObjectEncoder, 及其父类。 本wiki仍然以数据的流向作为引导线。开始向外发送数据时, 如下:1234567891011121314151">
@@ -215,7 +215,7 @@
 <ul>
 <li>调用JdkZlibEncoder.encode()进行压缩。</li>
 <li>将数据写入ChannelOutboundBuffer对象并刷新, 写入的时候也会受限制于高水位,但是实际并不起什么作用, 后面在真正发送数据的时候会详细讲解这部分。</li>
-<li>在finishEncode()中会产生DefaultHttpContent, 里面存放的是gzip压缩的footer(可读才10 byte), 具体byte见JdkZlibEncoder.finishEncode里面描述。<br>7.2.向out中写入LastHttpContent.EMPTY_LAST_CONTENT, 代表这个帧内容结束。<br>这样整个输出帧的内容存放在out中, 拥有的对象如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/HttpOutPutResponse.png"><br>其中:</li>
+<li>在finishEncode()中会产生DefaultHttpContent, 里面存放的是gzip压缩的footer(可读才10 byte), 具体byte见JdkZlibEncoder.finishEncode里面描述。<br>7.2.向out中写入LastHttpContent.EMPTY_LAST_CONTENT, 代表这个帧内容结束。<br>这样整个输出帧的内容存放在out中, 拥有的对象如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/HttpOutPutResponse.png" height="250" width="400"><br>其中:</li>
 <li>DefaultHttpResponse: 存放的是Http/1.1 status, Header等</li>
 <li>第一个DefaultHttpContent存放的是压缩的内容。</li>
 <li>第二个DefaultHttpContent存放的是压缩器gzip的尾部标识部分。</li>
@@ -243,7 +243,7 @@
 </ul>
 <p>1) 可以看出实际编码后存放的是 key: value\r\n; 注意冒号后面是空格<br>2) 通过CharsetUtil.US_ASCII编码key和value</p>
 <ul>
-<li>再接着写入[CRLF]。 其实可以看出, http response byte每部分内容都是以[CRLF]作为分隔符, 格式如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/HttpResponse_Byte.png"></li>
+<li>再接着写入[CRLF]。 其实可以看出, http response byte每部分内容都是以[CRLF]作为分隔符, 格式如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/HttpResponse_Byte.png" height="250" width="450"></li>
 </ul>
 <p>然后根据header部分来改变state状态, 一般state会被置为ST_CONTENT_NON_CHUNK。根据MessageToMessageEncoder.write()可知, 编码完DefaultHttpResponse, 就调用DefalueChannalHadlerContext.write继续向外写, 后面会详细讲些该部分。<br>2.第二、三次、四次传递过来的是DefaltHttpContent, 将进入ST_CONTENT_NON_CHUNK部分。</p>
 <ul>
@@ -422,22 +422,21 @@
   
 
   
-  <div id="gitment-ctn"></div>
+  <div id="gitment-ctn"></div> 
 <link rel="stylesheet" href="//imsun.github.io/gitment/style/default.css">
-<script src="//www.wenjunjiang.win/js/gitment.js "></script>
+<script src="//imsun.github.io/gitment/dist/gitment.browser.js"></script>
 <script>
 var gitment = new Gitment({
-  id: "Netty Http通信源码二(编码)分析",
-  owner: 'kkewwei',
-  repo: 'comments',
+  id: "<%=url%>",
+  owner: '<%=theme.gitment_owner%>',
+  repo: '<%=theme.gitment_repo%>',
   oauth: {
-    client_id: '9391e497d6b288887f33',
-    client_secret: 'db733731bff4ee2811d9530b1ac4cfc6767e8183',
+    client_id: '<%=theme.gitment_oauth.client_id%>',
+    client_secret: '<%=theme.gitment_oauth.client_secret%>',
   },
 })
 gitment.render('gitment-ctn')
 </script>
-
   
 
 
