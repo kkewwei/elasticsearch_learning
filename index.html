@@ -240,7 +240,7 @@
 <li>可能有人会好奇, 队列真正的头结点无法遍历, 这样会不会存在内存泄露的问题? 我们大可不必担心, 仍然以例子来说明, 在thread7进行了take()的基础上, thread8线程进行了put(4)操作:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/LinkedTransferQueue10.png" height="400" width="900"><br>可以看到, 队列头两个无用的节点会自动脱离队列, 自然会被回收。</li>
 </ol>
 <h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>LinkedTransferQueue与其他阻塞队列相比, 比较大的区别就是也可以阻塞put线程, 此时当有当take()操作时, take线程是不会进入队列的, 而是直接将put()线程唤醒。 结构上采取松弛距离&lt;2来达到在高并发下减少互斥锁的操作而加快了效率。</p>
-<h1 id="参考"><a href="#参考" class="headerlink" title="参考"></a>参考</h1><p><a href="https://segmentfault.com/a/1190000016460411" target="_blank" rel="external">https://segmentfault.com/a/1190000016460411</a><br><a href="https://www.zybuluo.com/eric1989/note/698826" target="_blank" rel="external">https://www.zybuluo.com/eric1989/note/698826</a></p>
+<h1 id="参考"><a href="#参考" class="headerlink" title="参考"></a>参考</h1><p><a href="https://segmentfault.com/a/1190000016460411" target="_blank" rel="external">https://segmentfault.com/a/1190000016460411</a><br><a href="https://www.zybuluo.com/eric1989/note/698826" target="_blank" rel="external">https://www.zybuluo.com/eric1989/note/698826</a><br><a href="http://ifeve.com/buglinkedtransferqueue-bug/" target="_blank" rel="external">http://ifeve.com/buglinkedtransferqueue-bug/</a></p>
 
       
 
@@ -677,12 +677,12 @@
     
     <div class="article-entry" itemprop="articleBody">
       
-        <h1 id="简介"><a href="#简介" class="headerlink" title="简介"></a>简介</h1><p>Netty内存主要分为两种: DirectByteBuf和HeapByteBuf, 实际上就是堆外内存和堆内内存。堆外内存又称直接内存。 自从JDK1.4开始, 增加了NIO, 可以直接Native函数在堆外构建直接内存。Netty作为服务器架构技术, 拥有大量的网络数据传输, 当我们进行网络传输时, 必须将数据拷贝到直接内存, 合理利用好直接内存, 能够大量减少堆内数据和直接内存考虑, 显著地提高性能。 但是堆外内存也有一定的缺点, 它进程主动垃圾回收,垃圾回收效率也极低, 因此, netty主动创建了Pool和Unpool的概念。</p>
+        <h1 id="简介"><a href="#简介" class="headerlink" title="简介"></a>简介</h1><p>Netty内存主要分为两种: DirectByteBuf和HeapByteBuf, 实际上就是堆外内存和堆内内存。堆外内存又称直接内存, 通过io.netty.noPreferDirect参数设置。 自从JDK1.4开始, 增加了NIO, 可以直接Native函数在堆外构建直接内存。Netty作为服务器架构技术, 拥有大量的网络数据传输, 当我们进行网络传输时, 必须将数据拷贝到直接内存, 合理利用好直接内存, 能够大量减少堆内数据和直接内存考虑, 显著地提高性能。 但是堆外内存也有一定的缺点, 它进程主动垃圾回收,垃圾回收效率也极低, 因此, netty主动创建了Pool和Unpool的概念。</p>
 <h2 id="Pool和Unpool区别"><a href="#Pool和Unpool区别" class="headerlink" title="Pool和Unpool区别"></a>Pool和Unpool区别</h2><p>字面意思, 分别是池化内存和非池化内存。<code>池化内存</code>的管理方式是首先申请一大块内存, 然后再慢慢使用, 当使用完成释放后, 再将该部分内存放入池子中, 等待下一次的使用, 这样的话, 可以减少垃圾回收次数, 提高处理性能。<code>非池化内存</code>就是普通的内存使用, 需要时直接申请, 释放时直接释放。 可以通过参数<code>Dio.netty.allocator.type</code>确定netty默认使用内存的方式, 目前netty针对pool做了大量的支持, 这样内存使用直接交给了netty管理, 减轻了直接内存回收的压力。 所以在netty4时候, 默认使用pool方式。<br>这样的话, 内存分为四种: PoolDireBuf、UnpoolDireBuf、PoolHeapBuf、UnpoolHeapBuf。netty底层默认使用的PoolDireBuf类型的内存, 这些内存主要由PoolArea管理, 这也是本文的重点。</p>
 <h1 id="内存分配"><a href="#内存分配" class="headerlink" title="内存分配"></a>内存分配</h1><p>线程调用如下接口来获取内存:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div></pre></td><td class="code"><pre><div class="line">protected ByteBuf newDirectBuffer(int initialCapacity, int maxCapacity) &#123;</div><div class="line">    PoolThreadCache cache = threadCache.get();</div><div class="line">    PoolArena&lt;ByteBuffer&gt; directArena = cache.directArena;</div><div class="line"></div><div class="line">    final ByteBuf buf;</div><div class="line">    if (directArena != null) &#123;</div><div class="line">        buf = directArena.allocate(cache, initialCapacity, maxCapacity);</div><div class="line">    &#125; else &#123;</div><div class="line">        buf = PlatformDependent.hasUnsafe() ?</div><div class="line">                UnsafeByteBufUtil.newUnsafeDirectByteBuf(this, initialCapacity, maxCapacity) :</div><div class="line">                new UnpooledDirectByteBuf(this, initialCapacity, maxCapacity);</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    return toLeakAwareBuffer(buf);</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
 <p>主要做的事:</p>
 <ul>
-<li>获取该线程绑定的PoolThreadCache(可参考<a href="https://kkewwei.github.io/elasticsearch_learning/2018/07/14/Netty-PoolThreadCache%E6%BA%90%E7%A0%81%E6%8E%A2%E7%A9%B6/">Netty PoolArea内存原理探究</a>)</li>
+<li>获取该线程绑定的PoolThreadCache(可参考<a href="https://kkewwei.github.io/elasticsearch_learning/2018/07/14/Netty-PoolThreadCache%E6%BA%90%E7%A0%81%E6%8E%A2%E7%A9%B6/">Netty PoolThreadCache原理探究</a>)</li>
 <li>从绑定的PoolThreadCache中获取PoolArena, 从PoolArena中开始真正分配内存。</li>
 </ul>
 <h1 id="PoolArena"><a href="#PoolArena" class="headerlink" title="PoolArena"></a>PoolArena</h1><p>PoolArena作为Netty底层内存池核心管理类, 主要原理是首先申请一些内存块, 不同的成员变量来完成不同大小的内存块分配。下图描述了Netty最重要的成员变量:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/PoolArea.png" height="400" width="450"><br>netty将池化内存块划分为3个类型:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div></pre></td><td class="code"><pre><div class="line">enum SizeClass &#123;</div><div class="line">    Tiny,</div><div class="line">    Small,</div><div class="line">    Normal</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
@@ -1313,7 +1313,7 @@
   <div class="outer">
     <div id="footer-info">
     	<div class="footer-left">
-    		&copy; 2018 xiaoyu
+    		&copy; 2019 xiaoyu
     	</div>
       	<div class="footer-right">
       		<a href="http://hexo.io/" target="_blank">Hexo</a>  Theme <a href="https://github.com/litten/hexo-theme-yilia" target="_blank">Yilia</a> by Litten
@@ -1418,11 +1418,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">netty4, ServerBootstrap, Initiale</a>
+                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
+                <a href="javascript:void(0)" class="js-tag color4">netty4, ServerBootstrap, Initiale</a>
               </li>
             
             <div class="clearfix"></div>

@@ -25,7 +25,7 @@
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/LinkedTransferQueue8.png">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/LinkedTransferQueue9.png">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/LinkedTransferQueue10.png">
-<meta property="og:updated_time" content="2018-12-24T02:46:11.000Z">
+<meta property="og:updated_time" content="2018-12-31T02:30:38.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="LinkedTransferQueue原理分析">
 <meta name="twitter:description" content="LinkedTransferQueue作为无边界的阻塞队列, 同时继承了TransferQueue和AbstractQueue。 相较于其他的阻塞队列:  LinkedTransferQueue特殊之处在于TransferQueue接口。 TransferQueue说明如下:   Transfers the element to a waiting consumer immediately, if">
@@ -250,7 +250,7 @@
 <li>可能有人会好奇, 队列真正的头结点无法遍历, 这样会不会存在内存泄露的问题? 我们大可不必担心, 仍然以例子来说明, 在thread7进行了take()的基础上, thread8线程进行了put(4)操作:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/LinkedTransferQueue10.png" height="400" width="900"><br>可以看到, 队列头两个无用的节点会自动脱离队列, 自然会被回收。</li>
 </ol>
 <h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>LinkedTransferQueue与其他阻塞队列相比, 比较大的区别就是也可以阻塞put线程, 此时当有当take()操作时, take线程是不会进入队列的, 而是直接将put()线程唤醒。 结构上采取松弛距离&lt;2来达到在高并发下减少互斥锁的操作而加快了效率。</p>
-<h1 id="参考"><a href="#参考" class="headerlink" title="参考"></a>参考</h1><p><a href="https://segmentfault.com/a/1190000016460411" target="_blank" rel="external">https://segmentfault.com/a/1190000016460411</a><br><a href="https://www.zybuluo.com/eric1989/note/698826" target="_blank" rel="external">https://www.zybuluo.com/eric1989/note/698826</a></p>
+<h1 id="参考"><a href="#参考" class="headerlink" title="参考"></a>参考</h1><p><a href="https://segmentfault.com/a/1190000016460411" target="_blank" rel="external">https://segmentfault.com/a/1190000016460411</a><br><a href="https://www.zybuluo.com/eric1989/note/698826" target="_blank" rel="external">https://www.zybuluo.com/eric1989/note/698826</a><br><a href="http://ifeve.com/buglinkedtransferqueue-bug/" target="_blank" rel="external">http://ifeve.com/buglinkedtransferqueue-bug/</a></p>
 
       
 
@@ -405,7 +405,7 @@ gitment.render('gitment-ctn')
   <div class="outer">
     <div id="footer-info">
     	<div class="footer-left">
-    		&copy; 2018 xiaoyu
+    		&copy; 2019 xiaoyu
     	</div>
       	<div class="footer-right">
       		<a href="http://hexo.io/" target="_blank">Hexo</a>  Theme <a href="https://github.com/litten/hexo-theme-yilia" target="_blank">Yilia</a> by Litten
@@ -510,11 +510,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">netty4, ServerBootstrap, Initiale</a>
+                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
+                <a href="javascript:void(0)" class="js-tag color4">netty4, ServerBootstrap, Initiale</a>
               </li>
             
             <div class="clearfix"></div>
