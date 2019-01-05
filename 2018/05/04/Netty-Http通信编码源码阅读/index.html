@@ -19,7 +19,7 @@
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/HttpOutPutResponse.png">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/HttpResponse_Byte.png">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/ChannelOutboundBuffer.png">
-<meta property="og:updated_time" content="2019-01-03T08:59:41.000Z">
+<meta property="og:updated_time" content="2019-01-03T12:03:12.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Netty Http通信源码二(编码)分析">
 <meta name="twitter:description" content="解码过程仍以Netty Http通信源码一(解码)阅读提供的示例为例, 编码发送的主体DefaultFullHttpResponse如下:涉及到的ChannelOutboundHandler类有:HttpContentCompressor、HttpObjectEncoder, 及其父类。 本wiki仍然以数据的流向作为引导线。开始向外发送数据时, 如下:1234567891011121314151">
@@ -47,55 +47,39 @@
   <div id="container" q-class="show:isCtnShow">
     <canvas id="anm-canvas" class="anm-canvas"></canvas>
     <div class="left-col" q-class="show:isShow">
-      
-<div class="overlay" style="background: #4d4d4d"></div>
+      <% var defaultBg = '#4d4d4d'; %>
+<div class="overlay" style="background: <%= theme.style && theme.style.header ? theme.style.header : defaultBg %>"></div>
 <div class="intrude-less">
 	<header id="header" class="inner">
-		<a href="/" class="profilepic">
-      <img src="https://kkewwei.github.io/elasticsearch_learning/img/myself.png" class="js-avatar">
+		<a href="<%=theme.root%>" class="profilepic">
+			<img src="<%=theme.avatar%>" class="js-avatar">
 		</a>
 		<hgroup>
-		  <h1 class="header-author"><a href="/">xiaoyu</a></h1>
+		  <h1 class="header-author"><a href="<%=theme.root%>"><%=theme.author%></a></h1>
 		</hgroup>
-		
-		<p class="header-subtitle">往事随风</p>
-		
+		<% if (theme.subtitle){ %>
+		<p class="header-subtitle"><%=theme.subtitle%></p>
+		<%}%>
 
 		<nav class="header-menu">
 			<ul>
-			
-				<li><a href="/elasticsearch_learning/">主页</a></li>
-	        
-				<li><a href="/elasticsearch_learning/tags/随笔/">随笔</a></li>
-	        
+			<% for (var i in theme.menu){ %>
+				<li><a href="<%- url_for(theme.menu[i]) %>"><%= i %></a></li>
+	        <%}%>
 			</ul>
 		</nav>
 		<nav class="header-smart-menu">
-    		
-    			
-    			<a q-on="click: openSlider(e, 'innerArchive')" href="javascript:void(0)">所有文章</a>
-    			
-            
-    			
-    			<a q-on="click: openSlider(e, 'friends')" href="javascript:void(0)">友链</a>
-    			
-            
-    			
-    			<a q-on="click: openSlider(e, 'aboutme')" href="javascript:void(0)">关于我</a>
-    			
-            
+    		<% for (var i in theme.smart_menu){ %>
+    			<% if(theme.smart_menu[i]){ %>
+    			<a q-on="click: openSlider(e, '<%-i%>')" href="javascript:void(0)"><%= theme.smart_menu[i] %></a>
+    			<% } %>
+            <%}%>
 		</nav>
 		<nav class="header-nav">
 			<div class="social">
-				
-					<a class="github" target="_blank" href="#" title="github"><i class="icon-github"></i></a>
-		        
-					<a class="weibo" target="_blank" href="#" title="weibo"><i class="icon-weibo"></i></a>
-		        
-					<a class="rss" target="_blank" href="#" title="rss"><i class="icon-rss"></i></a>
-		        
-					<a class="zhihu" target="_blank" href="#" title="zhihu"><i class="icon-zhihu"></i></a>
-		        
+				<% for (var i in theme.subnav){ %>
+					<a class="<%= i %>" target="_blank" href="<%- url_for(theme.subnav[i]) %>" title="<%= i %>"><i class="icon-<%= i %>"></i></a>
+		        <%}%>
 			</div>
 		</nav>
 	</header>
@@ -183,7 +167,7 @@
     
     <div class="article-entry" itemprop="articleBody">
       
-        <p>解码过程仍以<a href="https://kkewwei.github.io/elasticsearch_learning/2018/04/16/Netty-Http%E9%80%9A%E4%BF%A1%E8%A7%A3%E7%A0%81%E6%BA%90%E7%A0%81%E9%98%85%E8%AF%BB/">Netty Http通信源码一(解码)阅读</a>提供的示例为例, 编码发送的主体DefaultFullHttpResponse如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/DefaultFullHttpResponse.png" height="250" width="350"><br>涉及到的ChannelOutboundHandler类有:HttpContentCompressor、HttpObjectEncoder, 及其父类。 本wiki仍然以数据的流向作为引导线。<br>开始向外发送数据时, 如下:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div></pre></td><td class="code"><pre><div class="line">private void write(Object msg, boolean flush, ChannelPromise promise) &#123;</div><div class="line">        AbstractChannelHandlerContext next = findContextOutbound(); //向外发送，找到一个拥有out的context</div><div class="line">        final Object m = pipeline.touch(msg, next);</div><div class="line">        EventExecutor executor = next.executor();</div><div class="line">        if (executor.inEventLoop()) &#123;</div><div class="line">            if (flush) &#123;</div><div class="line">                next.invokeWriteAndFlush(m, promise);</div><div class="line">            &#125; else &#123;</div><div class="line">                next.invokeWrite(m, promise);</div><div class="line">            &#125;</div><div class="line">        &#125; else &#123;</div><div class="line">            AbstractWriteTask task;</div><div class="line">            if (flush) &#123;</div><div class="line">                task = WriteAndFlushTask.newInstance(next, m, promise); //这个task是一个Runnable, 只需要向里面放， 后期自然会执行</div><div class="line">            &#125;  else &#123;</div><div class="line">                task = WriteTask.newInstance(next, m, promise);</div><div class="line">            &#125;</div><div class="line">            safeExecute(executor, task, promise, m);</div><div class="line">        &#125;</div><div class="line">    &#125;</div></pre></td></tr></table></figure></p>
+        <p>解码过程仍以<a href="https://kkewwei.github.io/elasticsearch_learning/2018/04/16/Netty-Http%E9%80%9A%E4%BF%A1%E8%A7%A3%E7%A0%81%E6%BA%90%E7%A0%81%E9%98%85%E8%AF%BB/">Netty Http通信源码一(解码)阅读</a>提供的示例为例, 编码发送的主体DefaultFullHttpResponse如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/DefaultFullHttpResponse.png" height="250" width="500"><br>涉及到的ChannelOutboundHandler类有:HttpContentCompressor、HttpObjectEncoder, 及其父类。 本wiki仍然以数据的流向作为引导线。<br>开始向外发送数据时, 如下:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div></pre></td><td class="code"><pre><div class="line">private void write(Object msg, boolean flush, ChannelPromise promise) &#123;</div><div class="line">        AbstractChannelHandlerContext next = findContextOutbound(); //向外发送，找到一个拥有out的context</div><div class="line">        final Object m = pipeline.touch(msg, next);</div><div class="line">        EventExecutor executor = next.executor();</div><div class="line">        if (executor.inEventLoop()) &#123;</div><div class="line">            if (flush) &#123;</div><div class="line">                next.invokeWriteAndFlush(m, promise);</div><div class="line">            &#125; else &#123;</div><div class="line">                next.invokeWrite(m, promise);</div><div class="line">            &#125;</div><div class="line">        &#125; else &#123;</div><div class="line">            AbstractWriteTask task;</div><div class="line">            if (flush) &#123;</div><div class="line">                task = WriteAndFlushTask.newInstance(next, m, promise); //这个task是一个Runnable, 只需要向里面放， 后期自然会执行</div><div class="line">            &#125;  else &#123;</div><div class="line">                task = WriteTask.newInstance(next, m, promise);</div><div class="line">            &#125;</div><div class="line">            safeExecute(executor, task, promise, m);</div><div class="line">        &#125;</div><div class="line">    &#125;</div></pre></td></tr></table></figure></p>
 <p>当自定义handler向外发送数据时, 走的是else部分; 若我们调用了flush()方法, 此时, 会产生WriteAndFlushTask对象,  其为Runnable类, 在run函数中, 会直接调用write(), write定义如下:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div></pre></td><td class="code"><pre><div class="line">@Override</div><div class="line">public void write(AbstractChannelHandlerContext ctx, Object msg, ChannelPromise promise) &#123;</div><div class="line">    super.write(ctx, msg, promise); //一般只是存放在缓存中</div><div class="line">    ctx.invokeFlush(); //真正的调用write,</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
 <p>可以看出, 写数据分为两个过程:write()和flush():</p>
 <ul>
@@ -214,7 +198,7 @@
 <ul>
 <li>调用JdkZlibEncoder.encode()进行压缩。</li>
 <li>将数据写入ChannelOutboundBuffer对象并刷新, 写入的时候也会受限制于高水位,但是实际并不起什么作用, 后面在真正发送数据的时候会详细讲解这部分。</li>
-<li>在finishEncode()中会产生DefaultHttpContent, 里面存放的是gzip压缩的footer(可读才10 byte), 具体byte见JdkZlibEncoder.finishEncode里面描述。<br>7.2.向out中写入LastHttpContent.EMPTY_LAST_CONTENT, 代表这个帧内容结束。<br>这样整个输出帧的内容存放在out中, 拥有的对象如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/HttpOutPutResponse.png" height="250" width="400"><br>其中:</li>
+<li>在finishEncode()中会产生DefaultHttpContent, 里面存放的是gzip压缩的footer(可读才10 byte), 具体byte见JdkZlibEncoder.finishEncode里面描述。<br>7.2.向out中写入LastHttpContent.EMPTY_LAST_CONTENT, 代表这个帧内容结束。<br>这样整个输出帧的内容存放在out中, 拥有的对象如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/HttpOutPutResponse.png" height="250" width="500"><br>其中:</li>
 <li>DefaultHttpResponse: 存放的是Http/1.1 status, Header等</li>
 <li>第一个DefaultHttpContent存放的是压缩的内容。</li>
 <li>第二个DefaultHttpContent存放的是压缩器gzip的尾部标识部分。</li>
@@ -242,7 +226,7 @@
 </ul>
 <p>1) 可以看出实际编码后存放的是 key: value\r\n; 注意冒号后面是空格<br>2) 通过CharsetUtil.US_ASCII编码key和value</p>
 <ul>
-<li>再接着写入[CRLF]。 其实可以看出, http response byte每部分内容都是以[CRLF]作为分隔符, 格式如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/HttpResponse_Byte.png" height="250" width="450"></li>
+<li>再接着写入[CRLF]。 其实可以看出, http response byte每部分内容都是以[CRLF]作为分隔符, 格式如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/HttpResponse_Byte.png" height="250" width="600"></li>
 </ul>
 <p>然后根据header部分来改变state状态, 一般state会被置为ST_CONTENT_NON_CHUNK。根据MessageToMessageEncoder.write()可知, 编码完DefaultHttpResponse, 就调用DefalueChannalHadlerContext.write继续向外写, 后面会详细讲些该部分。<br>2.第二、三次、四次传递过来的是DefaltHttpContent, 将进入ST_CONTENT_NON_CHUNK部分。</p>
 <ul>
@@ -252,7 +236,7 @@
 <h1 id="Netty水位"><a href="#Netty水位" class="headerlink" title="Netty水位"></a>Netty水位</h1><p>向外写的最外层为HeadContext, 其write直接调用unsafe.write(msg, promise), 实际调用的是AbstractChannel$AbstractSafeUnSafe.write(), 如下:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div></pre></td><td class="code"><pre><div class="line">@Override</div><div class="line">     public final void write(Object msg, ChannelPromise promise) &#123;</div><div class="line">         ChannelOutboundBuffer outboundBuffer = this.outboundBuffer;//每个管道都有一个高水位和低水位</div><div class="line">         int size;</div><div class="line">         try &#123;</div><div class="line">             msg = filterOutboundMessage(msg); //自定义, 在真正写出的时候, msg必须转变为直接内存heap</div><div class="line">             size = pipeline.estimatorHandle().size(msg);</div><div class="line">             if (size &lt; 0) &#123;</div><div class="line">                 size = 0;</div><div class="line">             &#125;</div><div class="line">         &#125; catch (Throwable t) &#123;</div><div class="line">             safeSetFailure(promise, t);</div><div class="line">             ReferenceCountUtil.release(msg);</div><div class="line">             return;</div><div class="line">         &#125;</div><div class="line">         outboundBuffer.addMessage(msg, size, promise);//ChannelOutboundBuffer</div><div class="line">     &#125;</div></pre></td></tr></table></figure></p>
 <ul>
 <li>在这个函数中, 我们需要了解的是: 若直接是最外层发送, 那么filterOutboundMessage将会把msg转变为直接内存buf。</li>
-<li>通过ChannelOutboundBuffer.addMessage(msg, size, promise), 将输出结果暂时缓存起来, 形成一个链再批量发送。<br>我们需要了解下ChannelOutboundBuffer这个类, 它作为输出内容暂时缓存的地方, 维护着输出数据组成的链, 结构如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/ChannelOutboundBuffer.png" height="250" width="400"><br>flushEntry 表示即将刷新的位置<br>unflushEntry: 每次调用addFlush()将unflushEntry赋值给flushEntry, 才算真正开始flush数据了。<br>tailEntry: 当前缓存message时, 新增message都是尾部追加。 我们需要知道, 尾部追加并没有限制, 也就是说, netty本身并不会为我们做限制写入, 它只是负责通知我们达到内存使用水位上限了。 我们需要自己在函数中控制写入数据, 比如在发送数据时, 当且仅当channel.isWritable()为true才继续发送数据。<br>当把message通过尾部追加添加到输出list之后, 会同时调用incrementPendingOutboundBytes(), 记录当前已缓存的数据量:<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line">long newWriteBufferSize = TOTAL_PENDING_SIZE_UPDATER.addAndGet(this, size);////原子更新一下当前的水位，并获取最新的水位信息</div><div class="line">if (newWriteBufferSize &gt; channel.config().getWriteBufferHighWaterMark()) &#123;//如果当前的水位高于配置的高水位，那么就要调用setUnwriteable方法</div><div class="line">    setUnwritable(invokeLater);</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<li>通过ChannelOutboundBuffer.addMessage(msg, size, promise), 将输出结果暂时缓存起来, 形成一个链再批量发送。<br>我们需要了解下ChannelOutboundBuffer这个类, 它作为输出内容暂时缓存的地方, 维护着输出数据组成的链, 结构如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/ChannelOutboundBuffer.png" height="250" width="480"><br>flushEntry 表示即将刷新的位置<br>unflushEntry: 每次调用addFlush()将unflushEntry赋值给flushEntry, 才算真正开始flush数据了。<br>tailEntry: 当前缓存message时, 新增message都是尾部追加。 我们需要知道, 尾部追加并没有限制, 也就是说, netty本身并不会为我们做限制写入, 它只是负责通知我们达到内存使用水位上限了。 我们需要自己在函数中控制写入数据, 比如在发送数据时, 当且仅当channel.isWritable()为true才继续发送数据。<br>当把message通过尾部追加添加到输出list之后, 会同时调用incrementPendingOutboundBytes(), 记录当前已缓存的数据量:<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line">long newWriteBufferSize = TOTAL_PENDING_SIZE_UPDATER.addAndGet(this, size);////原子更新一下当前的水位，并获取最新的水位信息</div><div class="line">if (newWriteBufferSize &gt; channel.config().getWriteBufferHighWaterMark()) &#123;//如果当前的水位高于配置的高水位，那么就要调用setUnwriteable方法</div><div class="line">    setUnwritable(invokeLater);</div><div class="line">&#125;</div></pre></td></tr></table></figure>
 </li>
 </ul>
 <p>所以向ChannelOutboundBuffer添加content不能太快了, 否则若来不及发送的话, 都是堆积在直接内存中, 容易造成内存OOM, 这里是如何限处理存数据大小的呢?<br>在netty启动时, 只需要添加如下参数即可:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line">ServerBootstrap bootstrap = new ServerBootstrap();</div><div class="line">bootstrap.childOption(ChannelOption.WRITE_BUFFER_HIGH_WATER_MARK, 64 * 1024);</div><div class="line">bootstrap.childOption(ChannelOption.WRITE_BUFFER_LOW_WATER_MARK, 32 * 1024);</div></pre></td></tr></table></figure></p>
@@ -421,21 +405,22 @@
   
 
   
-  <div id="gitment-ctn"></div> 
+  <div id="gitment-ctn"></div>
 <link rel="stylesheet" href="//imsun.github.io/gitment/style/default.css">
-<script src="//imsun.github.io/gitment/dist/gitment.browser.js"></script>
+<script src="//www.wenjunjiang.win/js/gitment.js "></script>
 <script>
 var gitment = new Gitment({
-  id: "<%=url%>",
-  owner: '<%=theme.gitment_owner%>',
-  repo: '<%=theme.gitment_repo%>',
+  id: "Netty Http通信源码二(编码)分析",
+  owner: 'kkewwei',
+  repo: 'comments',
   oauth: {
-    client_id: '<%=theme.gitment_oauth.client_id%>',
-    client_secret: '<%=theme.gitment_oauth.client_secret%>',
+    client_id: '9391e497d6b288887f33',
+    client_secret: 'db733731bff4ee2811d9530b1ac4cfc6767e8183',
   },
 })
 gitment.render('gitment-ctn')
 </script>
+
   
 
 
@@ -547,15 +532,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
           <ul class="article-tag-list" q-show="showTags">
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">ReentrantLock</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">netty4, ServerBootstrap, Initiale</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">ReentrantLock</a>
               </li>
             
             <div class="clearfix"></div>
