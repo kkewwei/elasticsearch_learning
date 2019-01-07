@@ -17,13 +17,14 @@
 <meta property="og:site_name" content="Hexo">
 <meta property="og:description" content="rebase, cherry-pick、merge等都有一个概念:提交commit, 就以下图为例, 把当一次提交D合并到另外一个提交E, 产生E’, 这里的提交D指的当前D的所有全量代码, 去和E合并, 并不是由C commit到D时产生的增量代码去和E合并。一般在公共分支上操作,不能修改分支的提交记录, 但是可以使用cherry-pick, revert这样的可以使用, 而rebase, re">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/git_rebase3.png">
+<meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/git_rebase2.png">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/git_rebase5.png">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/git_rebase6.png">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/git_rebase7.png">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/git_rebase10.png">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/git_revert1.png">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/git_reset.png">
-<meta property="og:updated_time" content="2018-12-15T05:17:24.000Z">
+<meta property="og:updated_time" content="2019-01-07T04:25:29.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="git 基本命令学习心得-1">
 <meta name="twitter:description" content="rebase, cherry-pick、merge等都有一个概念:提交commit, 就以下图为例, 把当一次提交D合并到另外一个提交E, 产生E’, 这里的提交D指的当前D的所有全量代码, 去和E合并, 并不是由C commit到D时产生的增量代码去和E合并。一般在公共分支上操作,不能修改分支的提交记录, 但是可以使用cherry-pick, revert这样的可以使用, 而rebase, re">
@@ -51,55 +52,39 @@
   <div id="container" q-class="show:isCtnShow">
     <canvas id="anm-canvas" class="anm-canvas"></canvas>
     <div class="left-col" q-class="show:isShow">
-      
-<div class="overlay" style="background: #4d4d4d"></div>
+      <% var defaultBg = '#4d4d4d'; %>
+<div class="overlay" style="background: <%= theme.style && theme.style.header ? theme.style.header : defaultBg %>"></div>
 <div class="intrude-less">
 	<header id="header" class="inner">
-		<a href="/" class="profilepic">
-      <img src="https://kkewwei.github.io/elasticsearch_learning/img/myself.png" class="js-avatar">
+		<a href="<%=theme.root%>" class="profilepic">
+			<img src="<%=theme.avatar%>" class="js-avatar">
 		</a>
 		<hgroup>
-		  <h1 class="header-author"><a href="/">xiaoyu</a></h1>
+		  <h1 class="header-author"><a href="<%=theme.root%>"><%=theme.author%></a></h1>
 		</hgroup>
-		
-		<p class="header-subtitle">往事随风</p>
-		
+		<% if (theme.subtitle){ %>
+		<p class="header-subtitle"><%=theme.subtitle%></p>
+		<%}%>
 
 		<nav class="header-menu">
 			<ul>
-			
-				<li><a href="/elasticsearch_learning/">主页</a></li>
-	        
-				<li><a href="/elasticsearch_learning/tags/随笔/">随笔</a></li>
-	        
+			<% for (var i in theme.menu){ %>
+				<li><a href="<%- url_for(theme.menu[i]) %>"><%= i %></a></li>
+	        <%}%>
 			</ul>
 		</nav>
 		<nav class="header-smart-menu">
-    		
-    			
-    			<a q-on="click: openSlider(e, 'innerArchive')" href="javascript:void(0)">所有文章</a>
-    			
-            
-    			
-    			<a q-on="click: openSlider(e, 'friends')" href="javascript:void(0)">友链</a>
-    			
-            
-    			
-    			<a q-on="click: openSlider(e, 'aboutme')" href="javascript:void(0)">关于我</a>
-    			
-            
+    		<% for (var i in theme.smart_menu){ %>
+    			<% if(theme.smart_menu[i]){ %>
+    			<a q-on="click: openSlider(e, '<%-i%>')" href="javascript:void(0)"><%= theme.smart_menu[i] %></a>
+    			<% } %>
+            <%}%>
 		</nav>
 		<nav class="header-nav">
 			<div class="social">
-				
-					<a class="github" target="_blank" href="#" title="github"><i class="icon-github"></i></a>
-		        
-					<a class="weibo" target="_blank" href="#" title="weibo"><i class="icon-weibo"></i></a>
-		        
-					<a class="rss" target="_blank" href="#" title="rss"><i class="icon-rss"></i></a>
-		        
-					<a class="zhihu" target="_blank" href="#" title="zhihu"><i class="icon-zhihu"></i></a>
-		        
+				<% for (var i in theme.subnav){ %>
+					<a class="<%= i %>" target="_blank" href="<%- url_for(theme.subnav[i]) %>" title="<%= i %>"><i class="icon-<%= i %>"></i></a>
+		        <%}%>
 			</div>
 		</nav>
 	</header>
@@ -188,7 +173,8 @@
     <div class="article-entry" itemprop="articleBody">
       
         <p>rebase, cherry-pick、merge等都有一个概念:提交commit, 就以下图为例, 把当一次提交D合并到另外一个提交E, 产生E’, 这里的提交D指的当前D的所有全量代码, 去和E合并, 并不是由C commit到D时产生的增量代码去和E合并。一般在公共分支上操作,不能修改分支的提交记录, 但是可以使用cherry-pick, revert这样的可以使用, 而rebase, reset这样的命令一般在私有分支上才可用。</p>
-<h1 id="rebase"><a href="#rebase" class="headerlink" title="rebase"></a>rebase</h1><p>git rebase是用来更改提交的基, 通过重新在当前分支提交一连串的commit来实现的, 比如dev分支从master A提交产生的, 在master分支又进行了B、C、D提交, 在dev分支进行了E、F、G提交, 此时为了保证D能够合并到master最新的D提交上, 那么就使用rebase。<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/git_rebase3.png" height="300" width="500"><br><code>git:(dev) git rebase master</code>,变基是以共同祖先节点开始变的。 执行后就像放电影一样, 会将E、F、G的所有内容顺序与D合并。比如基于D与E合并后变成D’, 基于D’与F合并变成F’, 基于F’和G合并变成G’。箭头代表着基于哪些commit进行了merge。 完成rebase操作后, 提交链路被就改了。<br>用法:1.git rebase master 2. 通过vim解决冲突, 3.使用git add .保存 4.git rebase –continue继续解决下一个冲突<br>注意: 并没有要求修改comment, commit不变</p>
+<h1 id="rebase"><a href="#rebase" class="headerlink" title="rebase"></a>rebase</h1><p>git rebase是用来更改提交的基, 通过重新在当前分支提交一连串的commit来实现的, 比如dev分支从master A提交产生的, 在master分支又进行了B、C、D提交, 在dev分支进行了E、F、G提交, 此时为了保证D能够合并到master最新的D提交上, 那么就使用rebase。<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/git_rebase3.png" height="300" width="500"><br><code>git:(dev) git rebase master</code>, 此时处于G(最新提交)操作。变基是以共同祖先节点开始变的, 执行后就像放电影一样, 会将E、F、G的所有内容顺序与D合并。比如基于D与E合并后变成D’, 基于D’与F合并变成F’, 基于F’和G合并变成G’。箭头代表着基于哪些commit进行了merge。 完成rebase操作后, 提交链路被就改了。<br>用法:1.git rebase master 2. 通过vim解决冲突, 3.使用git add .保存 4.git rebase –continue继续解决下一个冲突<br>注意: 并没有要求修改comment, commit不变</p>
+<h2 id="半路rebase"><a href="#半路rebase" class="headerlink" title="半路rebase"></a>半路rebase</h2><p>以上示例是我们在dev分支的最新提交H上进行rebase的, 假如我们不在最新G上操作, 而是在F上进行rebase操作, 会出现什么结果呢?<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/git_rebase2.png" height="300" width="500"><br>可以看到dev分支没有任何变化, 而是将EF提交分别与D提交合并, 使EF部分变基到master分支上。</p>
 <h2 id="rebase-i-参数"><a href="#rebase-i-参数" class="headerlink" title="rebase -i 参数"></a>rebase -i 参数</h2><p>-i参数使rebase将于用户交互的形式完成merge, 根据这个参数, 用户可以完成多次提交顺序的复制、删除、编辑commit、修改提交顺序等一系列操作。<br><code>git:(dev): git rebase -i master</code>之后, 将弹出这样的界面:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/git_rebase5.png" height="350" width="450"></p>
 <p>红框1说明dev分支从master分支产生之后, 进行了三次提交, 这三次提交会和master最新的提交分别顺序进行合并。 红框1里面每行分为三部分:</p>
 <ul>
@@ -363,21 +349,22 @@
   
 
   
-  <div id="gitment-ctn"></div> 
+  <div id="gitment-ctn"></div>
 <link rel="stylesheet" href="//imsun.github.io/gitment/style/default.css">
-<script src="//imsun.github.io/gitment/dist/gitment.browser.js"></script>
+<script src="//www.wenjunjiang.win/js/gitment.js "></script>
 <script>
 var gitment = new Gitment({
-  id: "<%=url%>",
-  owner: '<%=theme.gitment_owner%>',
-  repo: '<%=theme.gitment_repo%>',
+  id: "git 基本命令学习心得-1",
+  owner: 'kkewwei',
+  repo: 'comments',
   oauth: {
-    client_id: '<%=theme.gitment_oauth.client_id%>',
-    client_secret: '<%=theme.gitment_oauth.client_secret%>',
+    client_id: '9391e497d6b288887f33',
+    client_secret: 'db733731bff4ee2811d9530b1ac4cfc6767e8183',
   },
 })
 gitment.render('gitment-ctn')
 </script>
+
   
 
 

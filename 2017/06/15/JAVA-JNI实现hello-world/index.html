@@ -15,7 +15,7 @@
 <meta property="og:url" content="https://kkewwei.github.io/elasticsearch_learning/2017/06/15/JAVA-JNI实现hello-world/index.html">
 <meta property="og:site_name" content="Hexo">
 <meta property="og:description" content="jvm作为扩平台执行的环境, 屏蔽了代码与底层操作系统打交道, 这样代码就可以在不同平台下无缝迁移。但是也有一个坏处, java不能访问底层硬件资源并且执行速度相对c/c++很慢, 要是可以在java代码中调用c/c++语言, 那就可以弥补这方面的不足。 JNI(java native interface)就是来作为沟通桥梁的。 当函数被定义为native, 就说明本函数不是用java语言编写的。">
-<meta property="og:updated_time" content="2019-01-06T13:46:54.000Z">
+<meta property="og:updated_time" content="2019-01-06T13:48:30.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="JAVA JNI实现hello world">
 <meta name="twitter:description" content="jvm作为扩平台执行的环境, 屏蔽了代码与底层操作系统打交道, 这样代码就可以在不同平台下无缝迁移。但是也有一个坏处, java不能访问底层硬件资源并且执行速度相对c/c++很慢, 要是可以在java代码中调用c/c++语言, 那就可以弥补这方面的不足。 JNI(java native interface)就是来作为沟通桥梁的。 当函数被定义为native, 就说明本函数不是用java语言编写的。">
@@ -42,55 +42,39 @@
   <div id="container" q-class="show:isCtnShow">
     <canvas id="anm-canvas" class="anm-canvas"></canvas>
     <div class="left-col" q-class="show:isShow">
-      
-<div class="overlay" style="background: #4d4d4d"></div>
+      <% var defaultBg = '#4d4d4d'; %>
+<div class="overlay" style="background: <%= theme.style && theme.style.header ? theme.style.header : defaultBg %>"></div>
 <div class="intrude-less">
 	<header id="header" class="inner">
-		<a href="/" class="profilepic">
-      <img src="https://kkewwei.github.io/elasticsearch_learning/img/myself.png" class="js-avatar">
+		<a href="<%=theme.root%>" class="profilepic">
+			<img src="<%=theme.avatar%>" class="js-avatar">
 		</a>
 		<hgroup>
-		  <h1 class="header-author"><a href="/">xiaoyu</a></h1>
+		  <h1 class="header-author"><a href="<%=theme.root%>"><%=theme.author%></a></h1>
 		</hgroup>
-		
-		<p class="header-subtitle">往事随风</p>
-		
+		<% if (theme.subtitle){ %>
+		<p class="header-subtitle"><%=theme.subtitle%></p>
+		<%}%>
 
 		<nav class="header-menu">
 			<ul>
-			
-				<li><a href="/elasticsearch_learning/">主页</a></li>
-	        
-				<li><a href="/elasticsearch_learning/tags/随笔/">随笔</a></li>
-	        
+			<% for (var i in theme.menu){ %>
+				<li><a href="<%- url_for(theme.menu[i]) %>"><%= i %></a></li>
+	        <%}%>
 			</ul>
 		</nav>
 		<nav class="header-smart-menu">
-    		
-    			
-    			<a q-on="click: openSlider(e, 'innerArchive')" href="javascript:void(0)">所有文章</a>
-    			
-            
-    			
-    			<a q-on="click: openSlider(e, 'friends')" href="javascript:void(0)">友链</a>
-    			
-            
-    			
-    			<a q-on="click: openSlider(e, 'aboutme')" href="javascript:void(0)">关于我</a>
-    			
-            
+    		<% for (var i in theme.smart_menu){ %>
+    			<% if(theme.smart_menu[i]){ %>
+    			<a q-on="click: openSlider(e, '<%-i%>')" href="javascript:void(0)"><%= theme.smart_menu[i] %></a>
+    			<% } %>
+            <%}%>
 		</nav>
 		<nav class="header-nav">
 			<div class="social">
-				
-					<a class="github" target="_blank" href="#" title="github"><i class="icon-github"></i></a>
-		        
-					<a class="weibo" target="_blank" href="#" title="weibo"><i class="icon-weibo"></i></a>
-		        
-					<a class="rss" target="_blank" href="#" title="rss"><i class="icon-rss"></i></a>
-		        
-					<a class="zhihu" target="_blank" href="#" title="zhihu"><i class="icon-zhihu"></i></a>
-		        
+				<% for (var i in theme.subnav){ %>
+					<a class="<%= i %>" target="_blank" href="<%- url_for(theme.subnav[i]) %>" title="<%= i %>"><i class="icon-<%= i %>"></i></a>
+		        <%}%>
 			</div>
 		</nav>
 	</header>
@@ -191,7 +175,7 @@
 <p>头文件指明了Native1.h。这里主要定义了Java_Native1_sayHello函数。</p>
 <ol>
 <li>生成动态链接库libhelloworld.jnilib<br><code>gcc -I/Library/Java/JavaVirtualMachines/jdk1.8.0_74.jdk/Contents/Home/include/darwin -I/Library/Java/JavaVirtualMachines/jdk1.8.0_74.jdk/Contents/Home/include -dynamiclib /Users/xiaoyu/TEST/c++/Native1.c -o libhelloworld.jnilib</code><br>这样的话, 会生成一个动态链接库文件:libhelloworld.jnilib 注意这里的名称不是随便起的。在mac系统上, 库名必须libXXX.jnilib这种结构, 我们在代码中加上这句:System.loadLibrary(“hellworld”); 系统才能正常识别。</li>
-<li>执行java -Djava.library.path=$path{libhelloworld.jnilib} Native1, 获得如下结果。<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">Hello，JNI%</div></pre></td></tr></table></figure>
+<li>执行java -Djava.library.path=$path{libhelloworld.jnilib} Native1, 获得如下结果(这里需要声明动态文件库位置)。<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">Hello，JNI%</div></pre></td></tr></table></figure>
 </li>
 </ol>
 <h1 id="参考"><a href="#参考" class="headerlink" title="参考"></a>参考</h1><p><a href="https://www.chilkatsoft.com/java-loadLibrary-MacOSX.asp" target="_blank" rel="external">https://www.chilkatsoft.com/java-loadLibrary-MacOSX.asp</a><br><a href="https://blog.csdn.net/createchance/article/details/53783490" target="_blank" rel="external">https://blog.csdn.net/createchance/article/details/53783490</a><br><a href="https://blog.csdn.net/abc5382334/article/details/18052757" target="_blank" rel="external">https://blog.csdn.net/abc5382334/article/details/18052757</a></p>
@@ -333,21 +317,22 @@
   
 
   
-  <div id="gitment-ctn"></div> 
+  <div id="gitment-ctn"></div>
 <link rel="stylesheet" href="//imsun.github.io/gitment/style/default.css">
-<script src="//imsun.github.io/gitment/dist/gitment.browser.js"></script>
+<script src="//www.wenjunjiang.win/js/gitment.js "></script>
 <script>
 var gitment = new Gitment({
-  id: "<%=url%>",
-  owner: '<%=theme.gitment_owner%>',
-  repo: '<%=theme.gitment_repo%>',
+  id: "JAVA JNI实现hello world",
+  owner: 'kkewwei',
+  repo: 'comments',
   oauth: {
-    client_id: '<%=theme.gitment_oauth.client_id%>',
-    client_secret: '<%=theme.gitment_oauth.client_secret%>',
+    client_id: '9391e497d6b288887f33',
+    client_secret: 'db733731bff4ee2811d9530b1ac4cfc6767e8183',
   },
 })
 gitment.render('gitment-ctn')
 </script>
+
   
 
 
