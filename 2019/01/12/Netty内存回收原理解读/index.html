@@ -16,7 +16,7 @@
 <meta property="og:site_name" content="Hexo">
 <meta property="og:description" content="Netty堆外内存通过DirectByteBuffer实现管理, 它会首先申请16M的直接内存块大小, 放入DirectByteBuffer, 依靠PoolChunk来管理该直接内存块使用与释放, 然后根据请求按需分配内存, 当直接内存使用完后, 会将直接内存释放到内存池中, 而不是彻底释放。 可以看出, netty释放每次释放直接内存并没有使用DirectByteBuffer自带Cleaner来">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/Netty堆外内存回收.png">
-<meta property="og:updated_time" content="2019-01-15T01:35:57.000Z">
+<meta property="og:updated_time" content="2019-01-15T01:37:25.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Netty堆外内存回收原理解读">
 <meta name="twitter:description" content="Netty堆外内存通过DirectByteBuffer实现管理, 它会首先申请16M的直接内存块大小, 放入DirectByteBuffer, 依靠PoolChunk来管理该直接内存块使用与释放, 然后根据请求按需分配内存, 当直接内存使用完后, 会将直接内存释放到内存池中, 而不是彻底释放。 可以看出, netty释放每次释放直接内存并没有使用DirectByteBuffer自带Cleaner来">
@@ -214,7 +214,7 @@
 </ol>
 <p>freeChunk做了如下检查:<br>调用free来释放PoolChunkList中对应的节点<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div></pre></td><td class="code"><pre><div class="line">boolean free(PoolChunk&lt;T&gt; chunk, long handle) &#123;</div><div class="line">    chunk.free(handle);</div><div class="line">    if (chunk.usage() &lt; minUsage) &#123;</div><div class="line">        //若当前PoolChunk使用率不满足当前链节点最低使用率要求, 从当前PoolchunkList中删掉chunk</div><div class="line">        remove(chunk);</div><div class="line">        // 根据目前PoolChunk使用率, 逐次检查q100-&gt;qinit的节点, 直到找到一个满足条件的节点</div><div class="line">        return move0(chunk);</div><div class="line">    &#125;</div><div class="line">    return true;</div><div class="line">&#125;</div><div class="line"> private boolean move0(PoolChunk&lt;T&gt; chunk) &#123;</div><div class="line">     //若找到当前链节点是qinit链， 那么说明该节点使用为0, PoolChunk对应的16MB内存完全空闲, 将会释放该直接内存块</div><div class="line">    if (prevList == null) &#123;</div><div class="line">        // There is no previous PoolChunkList so return false which result in having the PoolChunk destroyed and</div><div class="line">        // all memory associated with the PoolChunk will be released.</div><div class="line">        assert chunk.usage() == 0;</div><div class="line">        return false;</div><div class="line">    &#125;</div><div class="line">    return prevList.move(chunk); //移动到前面的链中</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
 <p>释放PoolChunk对应的16M的内存块的过程如下:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div></pre></td><td class="code"><pre><div class="line">protected void destroyChunk(PoolChunk&lt;ByteBuffer&gt; chunk) &#123;</div><div class="line">    if (PlatformDependent.useDirectBufferNoCleaner()) &#123;</div><div class="line">        //将直接通过显示调用UNSAFE.freeMemory(address)方式释放内存, 并修改DIRECT_MEMORY_COUNTER值</div><div class="line">        PlatformDependent.freeDirectNoCleaner(chunk.memory);</div><div class="line">    &#125; else &#123;</div><div class="line">        //如果用cleaner回收内存, 将调用CleanerJava6.freeDirectBuffer()释放内存</div><div class="line">        PlatformDependent.freeDirectBuffer(chunk.memory);</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
-<p>总结整个netty池化内存回收过程如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/Netty堆外内存回收.png" height="400" width="650"></p>
+<p>总结整个netty池化内存回收过程如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/Netty堆外内存回收.png" height="400" width="850"></p>
 
       
 
@@ -344,22 +344,21 @@
   
 
   
-  <div id="gitment-ctn"></div>
+  <div id="gitment-ctn"></div> 
 <link rel="stylesheet" href="//imsun.github.io/gitment/style/default.css">
-<script src="//www.wenjunjiang.win/js/gitment.js "></script>
+<script src="//imsun.github.io/gitment/dist/gitment.browser.js"></script>
 <script>
 var gitment = new Gitment({
-  id: "Netty堆外内存回收原理解读",
-  owner: 'kkewwei',
-  repo: 'comments',
+  id: "<%=url%>",
+  owner: '<%=theme.gitment_owner%>',
+  repo: '<%=theme.gitment_repo%>',
   oauth: {
-    client_id: '9391e497d6b288887f33',
-    client_secret: 'db733731bff4ee2811d9530b1ac4cfc6767e8183',
+    client_id: '<%=theme.gitment_oauth.client_id%>',
+    client_secret: '<%=theme.gitment_oauth.client_secret%>',
   },
 })
 gitment.render('gitment-ctn')
 </script>
-
   
 
 
