@@ -17,7 +17,7 @@
 <meta property="og:description" content="Netty堆外内存通过DirectByteBuffer实现管理, 它会首先申请16M的直接内存块大小, 放入DirectByteBuffer, 由PoolChunk映射这16MB的内存块, 通过PoolChunk的分配来完成该直接内存块使用与释放。 每当用户申请小块内存时, 都从这16M的内存中分配, 当该部分内存使用完后, 会释放到PoolChunk内存池中, 而不是彻底释放。 可以看出, ne">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/Netty堆外内存回收.png">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/Netty堆外内存回收.png">
-<meta property="og:updated_time" content="2019-01-15T02:08:40.000Z">
+<meta property="og:updated_time" content="2019-01-15T02:09:45.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Netty堆外内存回收原理解读">
 <meta name="twitter:description" content="Netty堆外内存通过DirectByteBuffer实现管理, 它会首先申请16M的直接内存块大小, 放入DirectByteBuffer, 由PoolChunk映射这16MB的内存块, 通过PoolChunk的分配来完成该直接内存块使用与释放。 每当用户申请小块内存时, 都从这16M的内存中分配, 当该部分内存使用完后, 会释放到PoolChunk内存池中, 而不是彻底释放。 可以看出, ne">
@@ -45,39 +45,55 @@
   <div id="container" q-class="show:isCtnShow">
     <canvas id="anm-canvas" class="anm-canvas"></canvas>
     <div class="left-col" q-class="show:isShow">
-      <% var defaultBg = '#4d4d4d'; %>
-<div class="overlay" style="background: <%= theme.style && theme.style.header ? theme.style.header : defaultBg %>"></div>
+      
+<div class="overlay" style="background: #4d4d4d"></div>
 <div class="intrude-less">
 	<header id="header" class="inner">
-		<a href="<%=theme.root%>" class="profilepic">
-			<img src="<%=theme.avatar%>" class="js-avatar">
+		<a href="/" class="profilepic">
+      <img src="https://kkewwei.github.io/elasticsearch_learning/img/myself.png" class="js-avatar">
 		</a>
 		<hgroup>
-		  <h1 class="header-author"><a href="<%=theme.root%>"><%=theme.author%></a></h1>
+		  <h1 class="header-author"><a href="/">xiaoyu</a></h1>
 		</hgroup>
-		<% if (theme.subtitle){ %>
-		<p class="header-subtitle"><%=theme.subtitle%></p>
-		<%}%>
+		
+		<p class="header-subtitle">往事随风</p>
+		
 
 		<nav class="header-menu">
 			<ul>
-			<% for (var i in theme.menu){ %>
-				<li><a href="<%- url_for(theme.menu[i]) %>"><%= i %></a></li>
-	        <%}%>
+			
+				<li><a href="/elasticsearch_learning/">主页</a></li>
+	        
+				<li><a href="/elasticsearch_learning/tags/随笔/">随笔</a></li>
+	        
 			</ul>
 		</nav>
 		<nav class="header-smart-menu">
-    		<% for (var i in theme.smart_menu){ %>
-    			<% if(theme.smart_menu[i]){ %>
-    			<a q-on="click: openSlider(e, '<%-i%>')" href="javascript:void(0)"><%= theme.smart_menu[i] %></a>
-    			<% } %>
-            <%}%>
+    		
+    			
+    			<a q-on="click: openSlider(e, 'innerArchive')" href="javascript:void(0)">所有文章</a>
+    			
+            
+    			
+    			<a q-on="click: openSlider(e, 'friends')" href="javascript:void(0)">友链</a>
+    			
+            
+    			
+    			<a q-on="click: openSlider(e, 'aboutme')" href="javascript:void(0)">关于我</a>
+    			
+            
 		</nav>
 		<nav class="header-nav">
 			<div class="social">
-				<% for (var i in theme.subnav){ %>
-					<a class="<%= i %>" target="_blank" href="<%- url_for(theme.subnav[i]) %>" title="<%= i %>"><i class="icon-<%= i %>"></i></a>
-		        <%}%>
+				
+					<a class="github" target="_blank" href="#" title="github"><i class="icon-github"></i></a>
+		        
+					<a class="weibo" target="_blank" href="#" title="weibo"><i class="icon-weibo"></i></a>
+		        
+					<a class="rss" target="_blank" href="#" title="rss"><i class="icon-rss"></i></a>
+		        
+					<a class="zhihu" target="_blank" href="#" title="zhihu"><i class="icon-zhihu"></i></a>
+		        
 			</div>
 		</nav>
 	</header>
@@ -183,7 +199,7 @@
 <p>主要做了两件事:</p>
 <ul>
 <li>释放直接内存DirectByteBuffer占用的内存。</li>
-<li>释放PooledUnsafeDirectByteBuf进入对象池。<br>我们接着看area.free()是怎么操作的<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div></pre></td><td class="code"><pre><div class="line">void free(PoolChunk&lt;T&gt; chunk, long handle, int normCapacity, PoolThreadCache cache) &#123;</div><div class="line">    if (chunk.unpooled) &#123;</div><div class="line">        int size = chunk.chunkSize();</div><div class="line">        destroyChunk(chunk);</div><div class="line">        activeBytesHuge.add(-size);</div><div class="line">        deallocationsHuge.increment();</div><div class="line">    &#125; else &#123;</div><div class="line">        SizeClass sizeClass = sizeClass(normCapacity);</div><div class="line">        if (cache != null &amp;&amp; cache.add(this, chunk, handle, normCapacity, sizeClass)) &#123;  //放入该cache的缓存队列</div><div class="line">            // cached so not free it.</div><div class="line">            return;</div><div class="line">        &#125;</div><div class="line"></div><div class="line">        freeChunk(chunk, handle, sizeClass);</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<li>释放PooledUnsafeDirectByteBuf对象, 使其回收进入对象池以便下次继续使用该对象。<br>我们接着看area.free()是怎么操作的<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div></pre></td><td class="code"><pre><div class="line">void free(PoolChunk&lt;T&gt; chunk, long handle, int normCapacity, PoolThreadCache cache) &#123;</div><div class="line">    if (chunk.unpooled) &#123;</div><div class="line">        int size = chunk.chunkSize();</div><div class="line">        destroyChunk(chunk);</div><div class="line">        activeBytesHuge.add(-size);</div><div class="line">        deallocationsHuge.increment();</div><div class="line">    &#125; else &#123;</div><div class="line">        SizeClass sizeClass = sizeClass(normCapacity);</div><div class="line">        if (cache != null &amp;&amp; cache.add(this, chunk, handle, normCapacity, sizeClass)) &#123;  //放入该cache的缓存队列</div><div class="line">            // cached so not free it.</div><div class="line">            return;</div><div class="line">        &#125;</div><div class="line"></div><div class="line">        freeChunk(chunk, handle, sizeClass);</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
 </li>
 </ul>
 <p>这里做判断, 针对该对象是否池化做了不同判断:</p>
