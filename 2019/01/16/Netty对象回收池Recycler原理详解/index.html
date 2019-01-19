@@ -6,20 +6,21 @@
   <meta name="renderer" content="webkit">
   <meta http-equiv="X-UA-Compatible" content="IE=edge" >
   <link rel="dns-prefetch" href="https://kkewwei.github.io/elasticsearch_learning">
-  <title>ReentrantReadWriteLock源码解读 | Hexo</title>
+  <title>Netty对象回收池Recycler原理详解 | Hexo</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
   <meta name="google-site-verification" content="sCUXxLczmZVJ1Fkt5jSJGE9xPpdVD25hYciudlUUVNQ" />
-  <meta name="description" content="首先回顾下ReentrantLock、CountDownLatch的区别: ReentrantLock是互斥锁, CountDownLatch是共享锁, 有没有哪种锁能够部分场景互斥, 部分场景共享呢, 那就是本文的主角:ReentrantReadWriteLock, 也是以AQS为基础实现的第三种应用。 要注意, ReentrantReadWriteLock与ReentrantLock没有一点关">
+  <meta name="description" content="同Netty内存池(可参考Netty PoolArea原理探究)一样, 为了增强Netty高性能并发能力, 减少通用对象分配的损耗, 也采用了对象池的概念。 当需要某个对象时, 首先从对象池中获取该对象, 当使用完成后, 将对象释放到对象池中, 这样达到重复使用对象的效果。基本使用如下:1234567891011121314151617181920212223242526272829303132p">
+<meta name="keywords" content="Cycler">
 <meta property="og:type" content="article">
-<meta property="og:title" content="ReentrantReadWriteLock源码解读">
-<meta property="og:url" content="https://kkewwei.github.io/elasticsearch_learning/2017/07/28/ReentrantReadWriteLock源码解读/index.html">
+<meta property="og:title" content="Netty对象回收池Recycler原理详解">
+<meta property="og:url" content="https://kkewwei.github.io/elasticsearch_learning/2019/01/16/Netty对象回收池Recycler原理详解/index.html">
 <meta property="og:site_name" content="Hexo">
-<meta property="og:description" content="首先回顾下ReentrantLock、CountDownLatch的区别: ReentrantLock是互斥锁, CountDownLatch是共享锁, 有没有哪种锁能够部分场景互斥, 部分场景共享呢, 那就是本文的主角:ReentrantReadWriteLock, 也是以AQS为基础实现的第三种应用。 要注意, ReentrantReadWriteLock与ReentrantLock没有一点关">
+<meta property="og:description" content="同Netty内存池(可参考Netty PoolArea原理探究)一样, 为了增强Netty高性能并发能力, 减少通用对象分配的损耗, 也采用了对象池的概念。 当需要某个对象时, 首先从对象池中获取该对象, 当使用完成后, 将对象释放到对象池中, 这样达到重复使用对象的效果。基本使用如下:1234567891011121314151617181920212223242526272829303132p">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/ReetrantReadWriteLock1.png">
-<meta property="og:updated_time" content="2018-12-09T11:29:34.000Z">
+<meta property="og:updated_time" content="2019-01-19T06:17:21.000Z">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="ReentrantReadWriteLock源码解读">
-<meta name="twitter:description" content="首先回顾下ReentrantLock、CountDownLatch的区别: ReentrantLock是互斥锁, CountDownLatch是共享锁, 有没有哪种锁能够部分场景互斥, 部分场景共享呢, 那就是本文的主角:ReentrantReadWriteLock, 也是以AQS为基础实现的第三种应用。 要注意, ReentrantReadWriteLock与ReentrantLock没有一点关">
+<meta name="twitter:title" content="Netty对象回收池Recycler原理详解">
+<meta name="twitter:description" content="同Netty内存池(可参考Netty PoolArea原理探究)一样, 为了增强Netty高性能并发能力, 减少通用对象分配的损耗, 也采用了对象池的概念。 当需要某个对象时, 首先从对象池中获取该对象, 当使用完成后, 将对象释放到对象池中, 这样达到重复使用对象的效果。基本使用如下:1234567891011121314151617181920212223242526272829303132p">
 <meta name="twitter:image" content="https://kkewwei.github.io/elasticsearch_learning/img/ReetrantReadWriteLock1.png">
   
     <link rel="alternative" href="/atom.xml" title="Hexo" type="application/atom+xml">
@@ -160,82 +161,34 @@
             <canvas data-colors="#eaeaea" data-sectionHeight="100" data-contentId="js-content" id="myCanvas1" class="anm-canvas"></canvas>
           </div>
           <div id="js-content" class="content-ll">
-            <article id="post-ReentrantReadWriteLock源码解读" class="article article-type-post " itemscope itemprop="blogPost">
+            <article id="post-Netty对象回收池Recycler原理详解" class="article article-type-post " itemscope itemprop="blogPost">
   <div class="article-inner">
     
       <header class="article-header">
         
   
     <h1 class="article-title" itemprop="name">
-      ReentrantReadWriteLock源码解读
+      Netty对象回收池Recycler原理详解
     </h1>
   
 
         
-        <a href="/elasticsearch_learning/2017/07/28/ReentrantReadWriteLock源码解读/" class="archive-article-date">
-  	<time datetime="2017-07-27T22:18:19.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-07-28</time>
+        <a href="/elasticsearch_learning/2019/01/16/Netty对象回收池Recycler原理详解/" class="archive-article-date">
+  	<time datetime="2019-01-16T01:09:39.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2019-01-16</time>
 </a>
         
       </header>
     
     <div class="article-entry" itemprop="articleBody">
       
-        <p>首先回顾下ReentrantLock、CountDownLatch的区别: ReentrantLock是互斥锁, CountDownLatch是共享锁, 有没有哪种锁能够部分场景互斥, 部分场景共享呢, 那就是本文的主角:ReentrantReadWriteLock, 也是以AQS为基础实现的第三种应用。 要注意, ReentrantReadWriteLock与ReentrantLock没有一点关系。基本使用如下:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div></pre></td><td class="code"><pre><div class="line">ReadWriteLock readWriteLock = new ReentrantReadWriteLock();</div><div class="line">//获取读锁</div><div class="line">readWriteLock.readLock().lock();</div><div class="line">//释放读锁</div><div class="line">readWriteLock.readLock().unlock();</div><div class="line">//获取写锁</div><div class="line">readWriteLock.writeLock().lock();</div><div class="line">//获取写锁</div><div class="line">readWriteLock.writeLock().lock();</div></pre></td></tr></table></figure></p>
-<p>根据锁的名称, 基本也能猜出大致互斥关系, 读锁与读锁共享, 读锁与写锁互斥, 写锁与写锁互斥。读锁和写锁分为公平锁和非公平锁, 默认为非公平锁, 读锁和写锁这么初始化:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div></pre></td><td class="code"><pre><div class="line">public ReentrantReadWriteLock(boolean fair) &#123;</div><div class="line">    sync = fair ? new FairSync() : new NonfairSync();</div><div class="line">    readerLock = new ReadLock(this);</div><div class="line">    writerLock = new WriteLock(this);</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
-<p>这里首先讲下state的含义: 读锁和写锁共享同一个state, 其为int, 高16位记录读共享的次数, 低16位记录写互斥的次数, 可能有人会问, 写不是互斥吗? 这里写锁也是可重入的。所以防止越界, 读写都不能超过2^16(65536)次。</p>
-<h1 id="读锁"><a href="#读锁" class="headerlink" title="读锁"></a>读锁</h1><h2 id="获取读锁"><a href="#获取读锁" class="headerlink" title="获取读锁"></a>获取读锁</h2><p>通过lock()获取读锁, 首先进入AQS.acquireShared(1), 如下:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line">public final void acquireShared(int arg) &#123;</div><div class="line">    if (tryAcquireShared(arg) &lt; 0)</div><div class="line">        doAcquireShared(arg);</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
-<p>首先尝试获取锁, 若获取到了, 则开始共享锁, 否则加入阻塞队列。</p>
-<h3 id="尝试获取锁"><a href="#尝试获取锁" class="headerlink" title="尝试获取锁:"></a>尝试获取锁:</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div></pre></td><td class="code"><pre><div class="line">protected final int tryAcquireShared(int unused) &#123;</div><div class="line">    /*</div><div class="line">     * Walkthrough:</div><div class="line">     * 1. If write lock held by another thread, fail.  先有别人写锁，直接排队</div><div class="line">     * 2. Otherwise, this thread is eligible for       自己写锁，自己读锁，检查排队的第一个不是写锁，获取到</div><div class="line">     *    lock wrt state, so ask if it should block    自己写锁，自己读锁，第一个排队的是写锁</div><div class="line">     *    because of queue policy. If not, try</div><div class="line">     *    to grant by CASing state and updating count.</div><div class="line">     *    Note that step does not check for reentrant</div><div class="line">     *    acquires, which is postponed to full version</div><div class="line">     *    to avoid having to check hold count in</div><div class="line">     *    the more typical non-reentrant case.</div><div class="line">     * 3. If step 2 fails either because thread</div><div class="line">     *    apparently not eligible or CAS fails or count</div><div class="line">     *    saturated, chain to version with full retry loop.</div><div class="line">     */</div><div class="line">    Thread current = Thread.currentThread();</div><div class="line">    int c = getState();</div><div class="line">    //同一个线程先写锁再读锁是可以获取锁的</div><div class="line">    if (exclusiveCount(c) != 0 &amp;&amp;</div><div class="line">        getExclusiveOwnerThread() != current)</div><div class="line">         //当前获取写锁的线程不是本身</div><div class="line">        return -1;</div><div class="line">    int r = sharedCount(c);</div><div class="line">    //阻塞队列队列第一个不是写锁，</div><div class="line">    if (!readerShouldBlock() &amp;&amp;</div><div class="line">        r &lt; MAX_COUNT &amp;&amp;</div><div class="line">        //会左移动16位</div><div class="line">        compareAndSetState(c, c + SHARED_UNIT)) &#123;</div><div class="line">        if (r == 0) &#123;//若是第一个读锁</div><div class="line">            firstReader = current;</div><div class="line">            firstReaderHoldCount = 1;</div><div class="line">        &#125; else if (firstReader == current) &#123;//就是本身线程</div><div class="line">            firstReaderHoldCount++;</div><div class="line">        &#125; else &#123; //不是第一个获取读锁的线程</div><div class="line">            HoldCounter rh = cachedHoldCounter;</div><div class="line">            //上一个节点不存在，或者存在了不是自己的</div><div class="line">            if (rh == null || rh.tid != getThreadId(current))</div><div class="line">                //那就生成自己的，并且缓存起来</div><div class="line">                cachedHoldCounter = rh = readHolds.get();</div><div class="line">            else if (rh.count == 0) //若上一个获取的节点就是自己，</div><div class="line">                readHolds.set(rh);</div><div class="line">            rh.count++; //上一次获取锁+1</div><div class="line">        &#125;</div><div class="line">        return 1;</div><div class="line">    &#125;</div><div class="line">    //不该获取到锁（有第一个写锁在阻塞、读达到最大值，status设置不成功）</div><div class="line">    return fullTryAcquireShared(current);</div><div class="line">&#125;</div></pre></td></tr></table></figure>
-<p>做了做了如下事情:</p>
+        <p>同Netty内存池(可参考<a href="https://kkewwei.github.io/elasticsearch_learning/2018/05/23/Netty%E5%86%85%E5%AD%98%E5%AD%A6%E4%B9%A0/">Netty PoolArea原理探究</a>)一样, 为了增强Netty高性能并发能力, 减少通用对象分配的损耗, 也采用了对象池的概念。 当需要某个对象时, 首先从对象池中获取该对象, 当使用完成后, 将对象释放到对象池中, 这样达到重复使用对象的效果。<br>基本使用如下:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div></pre></td><td class="code"><pre><div class="line">public class Cycli &#123;</div><div class="line">    private static final Recycler&lt;Cycler&gt; CyclerRecycler = new Recycler&lt;Cycler&gt;() &#123;</div><div class="line">        @Override</div><div class="line">        protected Cycler newObject(Handle&lt;Cycler&gt; handle) &#123;</div><div class="line">            return new Cycler(handle);</div><div class="line">        &#125;</div><div class="line">    &#125;;</div><div class="line">    static final class Cycler &#123;</div><div class="line">        private String value;</div><div class="line">        public void setValue(String value) &#123;</div><div class="line">            this.value = value;</div><div class="line">        &#125;</div><div class="line">        private Recycler.Handle&lt;Cycler&gt; handle;</div><div class="line">        public Cycler(Recycler.Handle&lt;Cycler&gt; handle) &#123;</div><div class="line">            this.handle = handle;</div><div class="line">        &#125;</div><div class="line">        public void recycle() &#123;</div><div class="line">            handle.recycle(this);</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line">    public static void  main(String[] args) &#123;</div><div class="line">        // 1、从回收池获取对象</div><div class="line">        Cycler Cycler1 = CyclerRecycler.get();</div><div class="line">        // 2、设置对象并使用</div><div class="line">        Cycler1.setValue(&quot;hello,java&quot;);</div><div class="line">        // 3、回收对象到对象池</div><div class="line">        Cycler1.recycle();</div><div class="line">        // 4、从回收池获取对象</div><div class="line">        Cycler Cycler2 = CyclerRecycler.get();</div><div class="line">        System.out.print(Cycler1 == Cycler2);</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>使用比较简单, 主要定义了如下几个对象:</p>
 <ul>
-<li>首先检查是不是已经有写锁获取到锁, 同时这个获取写锁的不是自己, 那么获取锁失败</li>
-<li>做些检查工作, 若都满足, 那么该线程就获还是可以取到了读锁的。<br>1.检查等待队列中, head节点不是写线程阻塞<br>2.再检查读锁没有达到65536的上限<br>3.同时尝试设置读锁+1, 因为读锁为高16位, compareAndSetState(c, c + SHARED_UNIT))的目的通过偏移来完成的。如果都符合条件且操作成功,  同时还需要做如下工作:<br>3.1 若本线程是第一个获取到读锁的, 那么firstReader记录下该线程, firstReaderHoldCount记录了该线程获取读锁的可重入次数, 记录这些变量,是为了某种情况下读线程的可重入操作, 后面会介绍。<br>3.2 若本线程是第一个获取读锁的那个线程, 重入次数+1<br>3.3 若本节点不是第一个获取读锁的线程,  那么根据LocalThread记录本线程可重入的次数。 cachedHoldCounter缓存的是上次获取读锁线程的信息, 既然有了LocalThread:readHolds, 此变量不是显得多此一举? 存在的意义就是为了减少通过LocalThread.get()获取当前线程重入信息, 以减轻该操作对性能的影响。<br>如果上述检查和操作没有成功的话, 那么进入fullTryAcquireShared()进一步再次尝试获取锁。<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div></pre></td><td class="code"><pre><div class="line">final int fullTryAcquireShared(Thread current) &#123;//（有写锁在等待、读达到最大值，status设置不成功）</div><div class="line">    /*</div><div class="line">     * This code is in part redundant with that in</div><div class="line">     * tryAcquireShared but is simpler overall by not</div><div class="line">     * complicating tryAcquireShared with interactions between</div><div class="line">     * retries and lazily reading hold counts.</div><div class="line">     */</div><div class="line">    HoldCounter rh = null;</div><div class="line">    for (;;) &#123;</div><div class="line">        int c = getState();</div><div class="line">        if (exclusiveCount(c) != 0) &#123;//有写锁</div><div class="line">            //写锁是本身？</div><div class="line">            if (getExclusiveOwnerThread() != current)</div><div class="line">                return -1;</div><div class="line">                //当前获取写锁的是本线程，那么直接返回（降级锁）</div><div class="line">            // else we hold the exclusive lock; blocking here</div><div class="line">            // would cause deadlock.</div><div class="line">        &#125; else if (readerShouldBlock()) &#123; //是否下一个要唤醒的是写锁</div><div class="line">            // Make sure we&apos;re not acquiring read lock reentrantly</div><div class="line">            if (firstReader == current) &#123;//当前读锁线程第一个获取了读锁，那么继续可以读</div><div class="line">                // assert firstReaderHoldCount &gt; 0;</div><div class="line">            &#125; else &#123; //当前有第一个写阻塞，而第一个读锁又不是自己</div><div class="line">                //已经有写锁等待了，获取当前（这里说的意思呢，就是检查当前是第几次可重入，如果一次都没有可重入过，那就直接失败，若不是第一个可重入，那就获取到锁）</div><div class="line">                if (rh == null) &#123;</div><div class="line">                    //一般最后一次获取所得，就是当前线程</div><div class="line">                    rh = cachedHoldCounter;</div><div class="line">                    if (rh == null || rh.tid != getThreadId(current)) &#123;</div><div class="line">                        rh = readHolds.get();//当前线程信息</div><div class="line">                        //当前线程非可重入，在阻塞之前，要清空记录</div><div class="line">                        if (rh.count == 0)</div><div class="line">                            readHolds.remove();</div><div class="line">                    &#125;</div><div class="line">                &#125;</div><div class="line">                //该线程若是第一次可重入，那么就也去排队吧，如果不是第第一个次可重入，那就去排队吧</div><div class="line">                if (rh.count == 0)</div><div class="line">                    return -1;</div><div class="line">            &#125;</div><div class="line">        &#125;</div><div class="line">        if (sharedCount(c) == MAX_COUNT) //是否达到了最大值，这里是可以读取超过65536的</div><div class="line">            throw new Error(&quot;Maximum lock count exceeded&quot;);</div><div class="line">        if (compareAndSetState(c, c + SHARED_UNIT)) &#123; //那么去设置</div><div class="line">            if (sharedCount(c) == 0) &#123; //第一次获取读锁</div><div class="line">                firstReader = current;</div><div class="line">                firstReaderHoldCount = 1;</div><div class="line">            &#125; else if (firstReader == current) &#123;</div><div class="line">                firstReaderHoldCount++;</div><div class="line">            &#125; else &#123; //不是自己首先申请的读锁</div><div class="line">                if (rh == null)</div><div class="line">                    rh = cachedHoldCounter;</div><div class="line">                if (rh == null || rh.tid != getThreadId(current))</div><div class="line">                    rh = readHolds.get(); //获取到本线程的锁记录</div><div class="line">                else if (rh.count == 0)//为0的时候都已经从线程中删掉了</div><div class="line">                    readHolds.set(rh);</div><div class="line">                rh.count++;</div><div class="line">                cachedHoldCounter = rh; // cache for release最后获取锁的线程</div><div class="line">            &#125;</div><div class="line">            return 1;</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
-</li>
+<li>定义CyclerRecycler, 作为对象池的入口, 定义newObject()函数, 若对象池中没有可用对象, 则新建对象。</li>
+<li>定义被回收的对象Cycler, 包含成员变量handle, 该handler与该对象即stack绑定的。</li>
+<li>通过CyclerRecycler.get()从对象池中获取对象; 通过Cycler1.recycle()释放该对象到对象池<h1 id="Recycler、WeakOrderQueue、Stack变量讲解"><a href="#Recycler、WeakOrderQueue、Stack变量讲解" class="headerlink" title="Recycler、WeakOrderQueue、Stack变量讲解"></a>Recycler、WeakOrderQueue、Stack变量讲解</h1>对象池通过Recycler里面WeakOrderQueue、Stack 2个类来实现。 首先放一张图来展示两者的关系:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/ReetrantReadWriteLock1.png" height="250" width="350"></li>
 </ul>
-<p>此函数的前提条件是:要么阻塞队列第一个线程为写线程, 要么原子更新读state失败, 次函数循环执行, 就是是保证原子操作失败后的重试。</p>
-<ul>
-<li>首先检查是否有写锁, 如果存在写锁, 再检查获取写锁的线程是否是当前线程, 若是的话, 那么会获取到锁, 这里实现了锁降级(由写锁降为读锁)的功能。</li>
-<li>反之, 检查是否有写线程在阻塞, 若是, 若这个阻塞的线程是本身, 那么不影响获取锁。 若不是, 这里就要详细分类了, 此时的场景是别的线程获取了读锁, 而有写线程被阻塞。</li>
-</ul>
-<ol>
-<li>若本线程是第一次获取读锁, 本次获取读锁不是可重入的, 那么为了防止获取写锁的线程饿死, 禁止新的线程获取读锁, 新的读锁线程将也处于阻塞队列。 同时将本线程从readHolds中删掉。</li>
-<li>若该线程之前获取了锁, 并且还没有释放, 那么此时获取锁是允许的, 那么同意继续获取读锁, 此时算是该线程读锁的可重入。</li>
-</ol>
-<ul>
-<li>检查读锁线程是否超过阈值65536</li>
-<li>设置读锁的state.<br>尝试获取流程如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/ReetrantReadWriteLock1.png" height="250" width="700"><h3 id="加入阻塞队列"><a href="#加入阻塞队列" class="headerlink" title="加入阻塞队列"></a>加入阻塞队列</h3>加入阻塞队列调用的是doAcquireShared, 大致实现可参考<a href="https://kkewwei.github.io/elasticsearch_learning/2017/08/24/CountDownLatch%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB/">CountDownLatch源码解读</a>doAcquireSharedInterruptibly(), 这里添加的节点的nextWaiter为SHARED, 表示该节点唤醒换后, 会继续向后继节点传播该信号<h2 id="unlock"><a href="#unlock" class="headerlink" title="unlock()"></a>unlock()</h2>通过unlock()释放读锁, 首先进入sync.releaseShared(1)释放:<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div></pre></td><td class="code"><pre><div class="line">public final boolean releaseShared(int arg) &#123;</div><div class="line">    if (tryReleaseShared(arg)) &#123; //如果status彻底为0， 那么就说明可以唤醒await()了</div><div class="line">        doReleaseShared();</div><div class="line">        return true;</div><div class="line">    &#125;</div><div class="line">    return false;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
-</li>
-</ul>
-<p>主要做了两件事:</p>
-<ul>
-<li>首先尝试释放读锁, 并检查读锁线程state是否为0</li>
-<li><p>若读锁线程state为0, 那么唤醒阻塞队列线程。<br>尝试释放锁的过程如下:</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div></pre></td><td class="code"><pre><div class="line">protected final boolean tryReleaseShared(int unused) &#123;</div><div class="line">    Thread current = Thread.currentThread();</div><div class="line">    if (firstReader == current) &#123; //本节点是第一个读取数据的线程</div><div class="line">        // assert firstReaderHoldCount &gt; 0;</div><div class="line">        if (firstReaderHoldCount == 1)</div><div class="line">            firstReader = null;  //最开始获取读锁的线程，去掉</div><div class="line">        else</div><div class="line">            firstReaderHoldCount--;</div><div class="line">    &#125; else &#123;  //不是第一个读取数据的线程</div><div class="line">        HoldCounter rh = cachedHoldCounter;</div><div class="line">        if (rh == null || rh.tid != getThreadId(current))</div><div class="line">            rh = readHolds.get();</div><div class="line">        int count = rh.count;</div><div class="line">        if (count &lt;= 1) &#123; //把本线程访问记录从Localhost中去掉</div><div class="line">            readHolds.remove();</div><div class="line">            if (count &lt;= 0)</div><div class="line">                throw unmatchedUnlockException();</div><div class="line">        &#125;</div><div class="line">        --rh.count;</div><div class="line">    &#125;</div><div class="line">    for (;;) &#123;</div><div class="line">        int c = getState();</div><div class="line">        int nextc = c - SHARED_UNIT; //</div><div class="line">        if (compareAndSetState(c, nextc))</div><div class="line">            // Releasing the read lock has no effect on readers,</div><div class="line">            // but it may allow waiting writers to proceed if</div><div class="line">            // both read and write locks are now free.</div><div class="line">            return nextc == 0;</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
-</li>
-<li><p>检查本线程是否是第一个获取读锁的线程, 若是的话, 分别修改firstReaderHoldCount及firstReader对应的值。</p>
-</li>
-<li>反之, 修改readHolds里面关于当前线程的获取锁情况, cachedHoldCounter是为了减少ThreadLocal.get()的访问次数。</li>
-<li>开始修改state读锁的标志, 这里使用for是为了保证失败后的尝试。<br>若此时读锁已经全部释放, 那么返回true, 表明可以唤醒阻塞队列的线程了。<br>唤醒阻塞队列的线程过程doReleaseShared, 具体过程请看<a href="https://kkewwei.github.io/elasticsearch_learning/2017/08/24/CountDownLatch%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB/">CountDownLatch源码解读</a>doReleaseShared(), 主要做的工作就是检查后续阻塞队列, 若是signal, 那么就唤醒阻塞线程。<br>可以看出, readLock的获取与释放主要过程与CountDownLatch操作及其相似的, 不同的是尝试获取锁的步骤不同。<h1 id="写锁"><a href="#写锁" class="headerlink" title="写锁"></a>写锁</h1><h2 id="lock"><a href="#lock" class="headerlink" title="lock()"></a>lock()</h2>写锁获取主要通过 sync.acquire(1)尝试获取:<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div></pre></td><td class="code"><pre><div class="line">public final void acquire(int arg) &#123;</div><div class="line">    if (!tryAcquire(arg) &amp;&amp;</div><div class="line">        acquireQueued(addWaiter(Node.EXCLUSIVE), arg))</div><div class="line">        selfInterrupt();</div><div class="line">&#125;</div></pre></td></tr></table></figure>
-</li>
-</ul>
-<p>该函数主要分为三步:</p>
-<ul>
-<li>尝试去获取写锁, 若获取到了, 就直接退出。</li>
-<li>若没有获取到写锁, 那么将当前线程构成一个Node, 放入线程阻塞队列, 线程进入睡眠等待。</li>
-<li><p>若本次没有获取到锁、从阻塞队列中被唤醒, 并且acquireQueued()返回true, 那么说明该线程被别人调用了中断, 我们需要将该中断再置位向外传递。<br>来看第一步:</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div></pre></td><td class="code"><pre><div class="line">protected final boolean tryAcquire(int acquires) &#123;</div><div class="line">    /*</div><div class="line">     * Walkthrough:</div><div class="line">     * 1. If read count nonzero or write count nonzero</div><div class="line">     *    and owner is a different thread, fail.</div><div class="line">     * 2. If count would saturate, fail. (This can only</div><div class="line">     *    happen if count is already nonzero.)</div><div class="line">     * 3. Otherwise, this thread is eligible for lock if</div><div class="line">     *    it is either a reentrant acquire or</div><div class="line">     *    queue policy allows it. If so, update state</div><div class="line">     *    and set owner.</div><div class="line">     */</div><div class="line">    Thread current = Thread.currentThread();</div><div class="line">    //当前锁个数</div><div class="line">    int c = getState();</div><div class="line">    //写锁个数</div><div class="line">    int w = exclusiveCount(c);</div><div class="line">     ////当前锁个数 != 0（是否已经有线程持有锁），线程重入</div><div class="line">    if (c != 0) &#123;</div><div class="line">        // (Note: if c != 0 and w == 0 then shared count != 0)</div><div class="line">        //w == 0,表示写线程数为0， 有读锁； 有写锁，但是不是当前线程，也退出</div><div class="line">        if (w == 0 || current != getExclusiveOwnerThread())</div><div class="line">            return false;</div><div class="line">        //当前写锁， 是本身线程，可重入，但是不能超过65536个</div><div class="line">        if (w + exclusiveCount(acquires) &gt; MAX_COUNT)</div><div class="line">            throw new Error(&quot;Maximum lock count exceeded&quot;);</div><div class="line">        // Reentrant acquire</div><div class="line">        //写锁可重入</div><div class="line">        setState(c + acquires);</div><div class="line">        return true;</div><div class="line">    &#125;   //当前没有锁</div><div class="line">    //是否该阻塞， 公平锁考考虑等待队列的线程。非公平锁就不用考虑等待队列的线程，直接false</div><div class="line">    if (writerShouldBlock() ||</div><div class="line">        !compareAndSetState(c, c + acquires))</div><div class="line">        return false;</div><div class="line">    setExclusiveOwnerThread(current);</div><div class="line">    return true;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
-</li>
-<li><p>首先检查是否锁不为0(读+写)。 若读+写不为0, 而写锁为0, 说明有读锁, 本线程获取锁失败; 或者写锁也不为0, 并且获取写锁的那个线程不是本线程, 说明不是写线程的重入,也获取锁失败。 若以上两步有成功的话, 则获取锁成功。</p>
-</li>
-<li><p>反正则说明当前state=0(没有读+写线程), 那么成功获取到锁。 writerShouldBlock()对于写锁始终未false。<br>再来看第二步, 也就是说明本线程没有获取到锁, 那么将本线程加入阻塞队里等待唤醒, nextWaiter设置为EXCLUSIVE,  acquireQueued(addWaiter(Node.EXCLUSIVE), arg))具体怎么实现请去查看<a href="https://kkewwei.github.io/elasticsearch_learning/2017/07/23/ReentrantLock%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB/">ReentrantLock源码解读</a>acquireQueued()<br>第三步也很简单, 就是把中断信号向外传递。</p>
-<h2 id="unlock-1"><a href="#unlock-1" class="headerlink" title="unlock()"></a>unlock()</h2><p>写锁释放时,调用release()方法, 如下:</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div></pre></td><td class="code"><pre><div class="line">public final boolean release(int arg) &#123;</div><div class="line">    if (tryRelease(arg)) &#123;</div><div class="line">        Node h = head;</div><div class="line">        //当前节点为signal状态，需要唤醒后继节点</div><div class="line">        if (h != null &amp;&amp; h.waitStatus != 0)</div><div class="line">            unparkSuccessor(h);</div><div class="line">        return true;</div><div class="line">    &#125;</div><div class="line">    return false;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
-</li>
-<li><p>释放锁时tryRelease会做最基本的检查, 比如记录的那个获取写锁的线程是否是本线程。</p>
-</li>
-<li>若成功释放, 唤醒下一个阻塞的线程,  unparkSuccessor实现可见<a href="https://kkewwei.github.io/elasticsearch_learning/2017/07/23/ReentrantLock%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB/">ReentrantLock源码解读</a>。<br>也可以看出, writedLock的获取与释放主要过程与ReentrantLock操作及其相似的, 不同的是尝试获取锁的函数不同。</li>
-</ul>
-<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>ReentrantReadWriteLock读锁与写锁可以认为分别是ReentrantLock、CountDownLatch的实现, 不同的是对state赋予的含义不同。</p>
+<h3 id="Stack"><a href="#Stack" class="headerlink" title="Stack"></a>Stack</h3><p>每个线程都拥有自己的Stack, 作为对象池的核心, 通过FastThreadLocal来实现每个线程的本地化, 通过如下对象来获取<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div></pre></td><td class="code"><pre><div class="line"> private final FastThreadLocal&lt;Stack&lt;T&gt;&gt; threadLocal = new FastThreadLocal&lt;Stack&lt;T&gt;&gt;() &#123;</div><div class="line">    protected Stack&lt;T&gt; initialValue() &#123;</div><div class="line">        return new Stack&lt;T&gt;(Recycler.this, Thread.currentThread(), maxCapacityPerThread, maxSharedCapacityFactor,</div><div class="line">                ratioMask, maxDelayedQueuesPerThread);</div><div class="line">    &#125;</div><div class="line">&#125;;</div></pre></td></tr></table></figure></p>
 
       
 
@@ -265,6 +218,17 @@
     <div class="article-info article-info-index">
       
       
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color2">Cycler</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
       
 
       
@@ -315,7 +279,7 @@
     <a class="close js-modal-close" href="javascript:;"><i class="icon icon-close"></i></a>
     <p>扫一扫，分享到微信</p>
     <div class="wx-qrcode">
-      <img src="//pan.baidu.com/share/qrcode?url=https://kkewwei.github.io/elasticsearch_learning/2017/07/28/ReentrantReadWriteLock源码解读/" alt="微信分享二维码">
+      <img src="//pan.baidu.com/share/qrcode?url=https://kkewwei.github.io/elasticsearch_learning/2019/01/16/Netty对象回收池Recycler原理详解/" alt="微信分享二维码">
     </div>
 </div>
 
@@ -329,18 +293,9 @@
   
 <nav id="article-nav">
   
-    <a href="/elasticsearch_learning/2017/08/15/Semaphore源码解读/" id="article-nav-newer" class="article-nav-link-wrap">
-      <i class="icon-circle-left"></i>
-      <div class="article-nav-title">
-        
-          Semaphore源码分析
-        
-      </div>
-    </a>
   
-  
-    <a href="/elasticsearch_learning/2017/07/23/ReentrantLock源码解读/" id="article-nav-older" class="article-nav-link-wrap">
-      <div class="article-nav-title">ReentrantLock源码解读</div>
+    <a href="/elasticsearch_learning/2019/01/12/Netty内存回收原理解读/" id="article-nav-older" class="article-nav-link-wrap">
+      <div class="article-nav-title">Netty堆外内存回收原理详解</div>
       <i class="icon-circle-right"></i>
     </a>
   
@@ -379,7 +334,7 @@
 <script src="//www.wenjunjiang.win/js/gitment.js "></script>
 <script>
 var gitment = new Gitment({
-  id: "ReentrantReadWriteLock源码解读",
+  id: "Netty对象回收池Recycler原理详解",
   owner: 'kkewwei',
   repo: 'comments',
   oauth: {
