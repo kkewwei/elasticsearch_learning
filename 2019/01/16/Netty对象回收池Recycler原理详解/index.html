@@ -16,12 +16,12 @@
 <meta property="og:url" content="https://kkewwei.github.io/elasticsearch_learning/2019/01/16/Netty对象回收池Recycler原理详解/index.html">
 <meta property="og:site_name" content="Hexo">
 <meta property="og:description" content="同Netty内存池(可参考Netty PoolArea原理探究)一样, 为了增强Netty高性能并发能力, 减少通用对象分配的损耗, 也采用了对象池的概念。 当需要某个对象时, 首先从对象池中获取该对象, 当使用完成后, 将对象释放到对象池中, 这样达到重复使用对象的效果。基本使用如下:1234567891011121314151617181920212223242526272829303132p">
-<meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/ReetrantReadWriteLock1.png">
-<meta property="og:updated_time" content="2019-01-19T06:17:21.000Z">
+<meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/Netty_Cycler1.png">
+<meta property="og:updated_time" content="2019-01-19T06:44:20.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Netty对象回收池Recycler原理详解">
 <meta name="twitter:description" content="同Netty内存池(可参考Netty PoolArea原理探究)一样, 为了增强Netty高性能并发能力, 减少通用对象分配的损耗, 也采用了对象池的概念。 当需要某个对象时, 首先从对象池中获取该对象, 当使用完成后, 将对象释放到对象池中, 这样达到重复使用对象的效果。基本使用如下:1234567891011121314151617181920212223242526272829303132p">
-<meta name="twitter:image" content="https://kkewwei.github.io/elasticsearch_learning/img/ReetrantReadWriteLock1.png">
+<meta name="twitter:image" content="https://kkewwei.github.io/elasticsearch_learning/img/Netty_Cycler1.png">
   
     <link rel="alternative" href="/atom.xml" title="Hexo" type="application/atom+xml">
   
@@ -186,9 +186,12 @@
 <ul>
 <li>定义CyclerRecycler, 作为对象池的入口, 定义newObject()函数, 若对象池中没有可用对象, 则新建对象。</li>
 <li>定义被回收的对象Cycler, 包含成员变量handle, 该handler与该对象即stack绑定的。</li>
-<li>通过CyclerRecycler.get()从对象池中获取对象; 通过Cycler1.recycle()释放该对象到对象池<h1 id="Recycler、WeakOrderQueue、Stack变量讲解"><a href="#Recycler、WeakOrderQueue、Stack变量讲解" class="headerlink" title="Recycler、WeakOrderQueue、Stack变量讲解"></a>Recycler、WeakOrderQueue、Stack变量讲解</h1>对象池通过Recycler里面WeakOrderQueue、Stack 2个类来实现。 首先放一张图来展示两者的关系:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/ReetrantReadWriteLock1.png" height="250" width="350"></li>
+<li>通过CyclerRecycler.get()从对象池中获取对象; 通过Cycler1.recycle()释放该对象到对象池<h1 id="Recycler、WeakOrderQueue、Stack变量讲解"><a href="#Recycler、WeakOrderQueue、Stack变量讲解" class="headerlink" title="Recycler、WeakOrderQueue、Stack变量讲解"></a>Recycler、WeakOrderQueue、Stack变量讲解</h1>对象池通过Recycler里面WeakOrderQueue、Stack 2个类来实现。 首先放一张图来展示两者的关系:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/Netty_Cycler1.png" height="550" width="750"></li>
+<li>每个线程都拥有自己的Stack及WeakOrderQueue链串, stack作为本线程对象池的核心, 通过FastThreadLocal来实现每个线程的本地化</li>
+<li>本线程回收本线程产生的对象时, 会将对象以DefaultHandle的形式存放在stack的elements数组中(默认长度阈值32768)</li>
+<li>当前线程首先会从</li>
 </ul>
-<h3 id="Stack"><a href="#Stack" class="headerlink" title="Stack"></a>Stack</h3><p>每个线程都拥有自己的Stack, 作为对象池的核心, 通过FastThreadLocal来实现每个线程的本地化, 通过如下对象来获取<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div></pre></td><td class="code"><pre><div class="line"> private final FastThreadLocal&lt;Stack&lt;T&gt;&gt; threadLocal = new FastThreadLocal&lt;Stack&lt;T&gt;&gt;() &#123;</div><div class="line">    protected Stack&lt;T&gt; initialValue() &#123;</div><div class="line">        return new Stack&lt;T&gt;(Recycler.this, Thread.currentThread(), maxCapacityPerThread, maxSharedCapacityFactor,</div><div class="line">                ratioMask, maxDelayedQueuesPerThread);</div><div class="line">    &#125;</div><div class="line">&#125;;</div></pre></td></tr></table></figure></p>
+<p> 作为对象池的核心, 通过FastThreadLocal来实现每个线程的本地化, 通过如下对象来获取<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div></pre></td><td class="code"><pre><div class="line"> private final FastThreadLocal&lt;Stack&lt;T&gt;&gt; threadLocal = new FastThreadLocal&lt;Stack&lt;T&gt;&gt;() &#123;</div><div class="line">    protected Stack&lt;T&gt; initialValue() &#123;</div><div class="line">        return new Stack&lt;T&gt;(Recycler.this, Thread.currentThread(), maxCapacityPerThread, maxSharedCapacityFactor,</div><div class="line">                ratioMask, maxDelayedQueuesPerThread);</div><div class="line">    &#125;</div><div class="line">&#125;;</div></pre></td></tr></table></figure></p>
 
       
 
@@ -329,22 +332,21 @@
   
 
   
-  <div id="gitment-ctn"></div>
+  <div id="gitment-ctn"></div> 
 <link rel="stylesheet" href="//imsun.github.io/gitment/style/default.css">
-<script src="//www.wenjunjiang.win/js/gitment.js "></script>
+<script src="//imsun.github.io/gitment/dist/gitment.browser.js"></script>
 <script>
 var gitment = new Gitment({
-  id: "Netty对象回收池Recycler原理详解",
-  owner: 'kkewwei',
-  repo: 'comments',
+  id: "<%=url%>",
+  owner: '<%=theme.gitment_owner%>',
+  repo: '<%=theme.gitment_repo%>',
   oauth: {
-    client_id: '9391e497d6b288887f33',
-    client_secret: 'db733731bff4ee2811d9530b1ac4cfc6767e8183',
+    client_id: '<%=theme.gitment_oauth.client_id%>',
+    client_secret: '<%=theme.gitment_oauth.client_secret%>',
   },
 })
 gitment.render('gitment-ctn')
 </script>
-
   
 
 
@@ -456,15 +458,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
           <ul class="article-tag-list" q-show="showTags">
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">Cycler</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
+                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">netty4, ServerBootstrap, Initiale</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -472,7 +474,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">netty4, ServerBootstrap, Initiale</a>
+                <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
               </li>
              
               <li class="article-tag-list-item">
