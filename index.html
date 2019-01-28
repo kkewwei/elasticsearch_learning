@@ -41,55 +41,39 @@
   <div id="container" q-class="show:isCtnShow">
     <canvas id="anm-canvas" class="anm-canvas"></canvas>
     <div class="left-col" q-class="show:isShow">
-      
-<div class="overlay" style="background: #4d4d4d"></div>
+      <% var defaultBg = '#4d4d4d'; %>
+<div class="overlay" style="background: <%= theme.style && theme.style.header ? theme.style.header : defaultBg %>"></div>
 <div class="intrude-less">
 	<header id="header" class="inner">
-		<a href="/" class="profilepic">
-      <img src="https://kkewwei.github.io/elasticsearch_learning/img/myself.png" class="js-avatar">
+		<a href="<%=theme.root%>" class="profilepic">
+			<img src="<%=theme.avatar%>" class="js-avatar">
 		</a>
 		<hgroup>
-		  <h1 class="header-author"><a href="/">xiaoyu</a></h1>
+		  <h1 class="header-author"><a href="<%=theme.root%>"><%=theme.author%></a></h1>
 		</hgroup>
-		
-		<p class="header-subtitle">往事随风</p>
-		
+		<% if (theme.subtitle){ %>
+		<p class="header-subtitle"><%=theme.subtitle%></p>
+		<%}%>
 
 		<nav class="header-menu">
 			<ul>
-			
-				<li><a href="/elasticsearch_learning/">主页</a></li>
-	        
-				<li><a href="/elasticsearch_learning/tags/随笔/">随笔</a></li>
-	        
+			<% for (var i in theme.menu){ %>
+				<li><a href="<%- url_for(theme.menu[i]) %>"><%= i %></a></li>
+	        <%}%>
 			</ul>
 		</nav>
 		<nav class="header-smart-menu">
-    		
-    			
-    			<a q-on="click: openSlider(e, 'innerArchive')" href="javascript:void(0)">所有文章</a>
-    			
-            
-    			
-    			<a q-on="click: openSlider(e, 'friends')" href="javascript:void(0)">友链</a>
-    			
-            
-    			
-    			<a q-on="click: openSlider(e, 'aboutme')" href="javascript:void(0)">关于我</a>
-    			
-            
+    		<% for (var i in theme.smart_menu){ %>
+    			<% if(theme.smart_menu[i]){ %>
+    			<a q-on="click: openSlider(e, '<%-i%>')" href="javascript:void(0)"><%= theme.smart_menu[i] %></a>
+    			<% } %>
+            <%}%>
 		</nav>
 		<nav class="header-nav">
 			<div class="social">
-				
-					<a class="github" target="_blank" href="#" title="github"><i class="icon-github"></i></a>
-		        
-					<a class="weibo" target="_blank" href="#" title="weibo"><i class="icon-weibo"></i></a>
-		        
-					<a class="rss" target="_blank" href="#" title="rss"><i class="icon-rss"></i></a>
-		        
-					<a class="zhihu" target="_blank" href="#" title="zhihu"><i class="icon-zhihu"></i></a>
-		        
+				<% for (var i in theme.subnav){ %>
+					<a class="<%= i %>" target="_blank" href="<%- url_for(theme.subnav[i]) %>" title="<%= i %>"><i class="icon-<%= i %>"></i></a>
+		        <%}%>
 			</div>
 		</nav>
 	</header>
@@ -212,7 +196,7 @@
 <h1 id="向对象池中存放对象"><a href="#向对象池中存放对象" class="headerlink" title="向对象池中存放对象"></a>向对象池中存放对象</h1><p>如上例所示, 释放对象时调用cycler1.recycle()即可, 最终会调用与当前对象绑定的stack.push():<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div></pre></td><td class="code"><pre><div class="line">void push(DefaultHandle&lt;?&gt; item) &#123;</div><div class="line">    Thread currentThread = Thread.currentThread();</div><div class="line">    //如果本线程就是产生对象的那个县城，那么直接把该对象放到stack的elements数组里</div><div class="line">    if (thread == currentThread) &#123;</div><div class="line">        // The current Thread is the thread that belongs to the Stack, we can try to push the object now.</div><div class="line">        pushNow(item);</div><div class="line">    &#125; else &#123;</div><div class="line">        // The current Thread is not the one that belongs to the Stack, we need to signal that the push</div><div class="line">        // happens later.</div><div class="line">        //如果该stack不是本线程的stack，那么把该DefaultHandle放到该stack的WeakOrderQueue中</div><div class="line">        pushLater(item, currentThread);</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
 <p>若回收对象的线程就是产生对象的线程, 那么直接将对象放到本stack对应的elements中。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div></pre></td><td class="code"><pre><div class="line">private void pushNow(DefaultHandle&lt;?&gt; item) &#123;</div><div class="line">    if ((item.recycleId | item.lastRecycledId) != 0) &#123;</div><div class="line">        throw new IllegalStateException(&quot;recycled already&quot;);</div><div class="line">    &#125;</div><div class="line">    #俩都直接赋值相等, 则说明对象处于stack的elements中等待被读取。</div><div class="line">    item.recycleId = item.lastRecycledId = OWN_THREAD_ID;</div><div class="line">    int size = this.size;</div><div class="line">    //在push到对象池时, 也会丢弃7/8的元素</div><div class="line">    if (size &gt;= maxCapacity || dropHandle(item)) &#123;</div><div class="line">        // Hit the maximum capacity or should drop - drop the possibly youngest object.</div><div class="line">        return;</div><div class="line">    &#125;</div><div class="line">    //直接把DefaultHandle放到stack的数组里，如果数组满了那么扩展该数组为当前2倍大小</div><div class="line">    if (size == elements.length) &#123;</div><div class="line">        elements = Arrays.copyOf(elements, min(size &lt;&lt; 1, maxCapacity));</div><div class="line">    &#125;</div><div class="line">    elements[size] = item;</div><div class="line">    this.size = size + 1;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
 <p>直接存放对象时, 对象池也会丢弃7/8的对象。<br>若回收对象的线程不是产生对象的线程, 我们来看下是如何将对象放到Link的数组中的:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div></pre></td><td class="code"><pre><div class="line">private void pushLater(DefaultHandle&lt;?&gt; item, Thread thread) &#123;</div><div class="line">         // we don&apos;t want to have a ref to the queue as the value in our weak map</div><div class="line">         // so we null it out; to ensure there are no races with restoring it later</div><div class="line">         // we impose a memory ordering here (no-op on x86)</div><div class="line">         //DELAYED_RECYCLED里存放了当前线程向所有stack中插入的WeakOrderQueue的映射关系</div><div class="line">         Map&lt;Stack&lt;?&gt;, WeakOrderQueue&gt; delayedRecycled = DELAYED_RECYCLED.get();</div><div class="line">         //获取到当前线程向stack插入的WeakOrderQueue节点</div><div class="line">         WeakOrderQueue queue = delayedRecycled.get(this);</div><div class="line">         if (queue == null) &#123;</div><div class="line">             //每个stack/线程最多能向maxDelayedQueues（2*cpu）个线程的WeakOrderQueue队列添加回收的的对象</div><div class="line">             if (delayedRecycled.size() &gt;= maxDelayedQueues) &#123;//如果已经向maxDelayedQueues个线程插入过数据, 那么将1个伪造的WeakOrderQueue（DUMMY）放到delayedRecycled中，并丢弃该对象（DefaultHandle）</div><div class="line">                 // Add a dummy queue so we know we should drop the object</div><div class="line">                 delayedRecycled.put(this, WeakOrderQueue.DUMMY);</div><div class="line">                 return;</div><div class="line">             &#125;</div><div class="line">             // Check if we already reached the maximum number of delayed queues and if we can allocate at all.</div><div class="line">            //别的线程最多向这个stack的WeakOrderQueue插入16384个对象, 检查是否可以插入, 若可以插入, 就向这个stack头插法新建WeakOrderQueue对象</div><div class="line">             if ((queue = WeakOrderQueue.allocate(this, thread)) == null) &#123;</div><div class="line">                 // drop object</div><div class="line">                 return;</div><div class="line">             &#125;</div><div class="line">             delayedRecycled.put(this, queue);</div><div class="line">          //已经插入满了</div><div class="line">         &#125; else if (queue == WeakOrderQueue.DUMMY) &#123;</div><div class="line">             // drop object</div><div class="line">             return;</div><div class="line">         &#125;</div><div class="line">         queue.add(item); //向WeakOrderQueue对应的Link插入对象</div><div class="line">     &#125;</div></pre></td></tr></table></figure></p>
-<p>DELAYED_RECYCLED实际保存的是每个线程向别的stack插入WeakOrderQueue的对应关系, 下图是一个线程保存向别的stack插入WeakOrderQueue的映射关系。<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/Netty_Cycler2.png" height="400" width="550"><br>找到对应的WeakOrderQueue后, 调用add向对应的Link中插入对象:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div></pre></td><td class="code"><pre><div class="line">void add(DefaultHandle&lt;?&gt; handle) &#123;</div><div class="line">    //这里仅仅修改lastRecycledId值, recycledId的修改时从WeakOrderQueue的link迁移到stack的elements的时候</div><div class="line">    handle.lastRecycledId = id;</div><div class="line">    Link tail = this.tail;</div><div class="line">    int writeIndex;</div><div class="line">    //若当前Link已经写满了, 那么我们再新一个Link存放对象</div><div class="line">    if ((writeIndex = tail.get()) == LINK_CAPACITY) &#123;</div><div class="line">        if (!reserveSpace(availableSharedCapacity, LINK_CAPACITY)) &#123;</div><div class="line">            // Drop it.</div><div class="line">            return;</div><div class="line">        &#125;</div><div class="line">        // We allocate a Link so reserve the space</div><div class="line">        this.tail = tail = tail.next = new Link();</div><div class="line">        writeIndex = tail.get();</div><div class="line">    &#125;</div><div class="line">    tail.elements[writeIndex] = handle;</div><div class="line">    //本Link所处的stack即为handle.stack。在对象池中可以清空, 在被转移到stack的elements时重新赋值。</div><div class="line">    handle.stack = null;</div><div class="line">    // we lazy set to ensure that setting stack to null appears before we unnull it in the owning thread;</div><div class="line">    // this also means we guarantee visibility of an element in the queue if we see the index updated</div><div class="line">   //修改内存偏移地址为8的值，但是修改后不保证立马能被其他的线程看到。</div><div class="line">    tail.lazySet(writeIndex + 1);  //https://github.com/netty/netty/issues/8215</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>DELAYED_RECYCLED实际保存的是每个线程向别的stack插入WeakOrderQueue的对应关系, 下图是一个线程保存向别的stack插入WeakOrderQueue的映射关系。<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/Netty_Cycler2.png" height="350" width="450"><br>找到对应的WeakOrderQueue后, 调用add向对应的Link中插入对象:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div></pre></td><td class="code"><pre><div class="line">void add(DefaultHandle&lt;?&gt; handle) &#123;</div><div class="line">    //这里仅仅修改lastRecycledId值, recycledId的修改时从WeakOrderQueue的link迁移到stack的elements的时候</div><div class="line">    handle.lastRecycledId = id;</div><div class="line">    Link tail = this.tail;</div><div class="line">    int writeIndex;</div><div class="line">    //若当前Link已经写满了, 那么我们再新一个Link存放对象</div><div class="line">    if ((writeIndex = tail.get()) == LINK_CAPACITY) &#123;</div><div class="line">        if (!reserveSpace(availableSharedCapacity, LINK_CAPACITY)) &#123;</div><div class="line">            // Drop it.</div><div class="line">            return;</div><div class="line">        &#125;</div><div class="line">        // We allocate a Link so reserve the space</div><div class="line">        this.tail = tail = tail.next = new Link();</div><div class="line">        writeIndex = tail.get();</div><div class="line">    &#125;</div><div class="line">    tail.elements[writeIndex] = handle;</div><div class="line">    //本Link所处的stack即为handle.stack。在对象池中可以清空, 在被转移到stack的elements时重新赋值。</div><div class="line">    handle.stack = null;</div><div class="line">    // we lazy set to ensure that setting stack to null appears before we unnull it in the owning thread;</div><div class="line">    // this also means we guarantee visibility of an element in the queue if we see the index updated</div><div class="line">   //修改内存偏移地址为8的值，但是修改后不保证立马能被其他的线程看到。</div><div class="line">    tail.lazySet(writeIndex + 1);  //https://github.com/netty/netty/issues/8215</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
 <p>可以看到, 向Link中插入对象时, 仅改变对象的lastRecycledId值, 而没有改变recycledId值。</p>
 <h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>Netty回收对象也不是把所有对象全部回收, 为了防止回收对象过多, 会在直接存入stack的elements和从Link转移到stack的elements时会丢弃7/8的废弃对象。Netty中使用对象回收的地方很多, 一个高频使用就是PooledUnsafeDirectByteBuf, 首先申请16M内存作为内存池时, 按需分配小的内存块, 这些小内存块都会被PooledUnsafeDirectByteBuf管理着。 而减少PooledUnsafeDirectByteBuf对象创建次数, 也增强了netty高性能传输数据的能力。</p>
 
@@ -550,6 +534,17 @@
     <div class="article-info article-info-index">
       
       
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color2">LockSupport</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
       
 
       
@@ -1336,6 +1331,10 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
           <ul class="article-tag-list" q-show="showTags">
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">LockSupport</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
               </li>
              
@@ -1344,11 +1343,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
+                <a href="javascript:void(0)" class="js-tag color4">ReentrantLock</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">ReentrantLock</a>
+                <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
               </li>
              
               <li class="article-tag-list-item">

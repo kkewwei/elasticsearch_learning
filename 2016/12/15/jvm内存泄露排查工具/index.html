@@ -6,21 +6,22 @@
   <meta name="renderer" content="webkit">
   <meta http-equiv="X-UA-Compatible" content="IE=edge" >
   <link rel="dns-prefetch" href="https://kkewwei.github.io/elasticsearch_learning">
-  <title>Netty-PoolSubpage原理探究 | Hexo</title>
+  <title>jvm内存泄露排查工具 | Hexo</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
   <meta name="google-site-verification" content="sCUXxLczmZVJ1Fkt5jSJGE9xPpdVD25hYciudlUUVNQ" />
-  <meta name="description" content="Netty中大于8K的内存是通过PoolChunk来分配的, 小于8k的内存是通过PoolSubpage分配的, 本章将详细描述如何通过PoolSubpage分配小于8K的内存。当申请小于8K的内存时, 会从分配一个8k的叶子节点, 若用不完的话, 存在很大的浪费, 所以通过PoolSubpage来管理8K的内存, 如下图每一个PoolSubpage都会与PoolChunk里面的一个叶子节点映射起">
+  <meta name="description" content="本文介绍几个不常用的内存泄露排查工具:perftools、pmap、jcmd。 perftools安装perftools安装需要依赖:libunwind, 首先安装libunwind:  wget https://github.com/libunwind/libunwind/releases/download/v1.2.1/libunwind-1.2.1.tar.gz tar -xvf libun">
 <meta property="og:type" content="article">
-<meta property="og:title" content="Netty-PoolSubpage原理探究">
-<meta property="og:url" content="https://kkewwei.github.io/elasticsearch_learning/2018/07/22/Netty-PoolSubpage原理探究/index.html">
+<meta property="og:title" content="jvm内存泄露排查工具">
+<meta property="og:url" content="https://kkewwei.github.io/elasticsearch_learning/2016/12/15/jvm内存泄露排查工具/index.html">
 <meta property="og:site_name" content="Hexo">
-<meta property="og:description" content="Netty中大于8K的内存是通过PoolChunk来分配的, 小于8k的内存是通过PoolSubpage分配的, 本章将详细描述如何通过PoolSubpage分配小于8K的内存。当申请小于8K的内存时, 会从分配一个8k的叶子节点, 若用不完的话, 存在很大的浪费, 所以通过PoolSubpage来管理8K的内存, 如下图每一个PoolSubpage都会与PoolChunk里面的一个叶子节点映射起">
-<meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/PoolSubpage.png">
-<meta property="og:updated_time" content="2018-11-20T02:15:14.000Z">
+<meta property="og:description" content="本文介绍几个不常用的内存泄露排查工具:perftools、pmap、jcmd。 perftools安装perftools安装需要依赖:libunwind, 首先安装libunwind:  wget https://github.com/libunwind/libunwind/releases/download/v1.2.1/libunwind-1.2.1.tar.gz tar -xvf libun">
+<meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/jvm_memory_leak.png">
+<meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/jvm_memory_leak1.png">
+<meta property="og:updated_time" content="2019-01-28T02:49:21.000Z">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="Netty-PoolSubpage原理探究">
-<meta name="twitter:description" content="Netty中大于8K的内存是通过PoolChunk来分配的, 小于8k的内存是通过PoolSubpage分配的, 本章将详细描述如何通过PoolSubpage分配小于8K的内存。当申请小于8K的内存时, 会从分配一个8k的叶子节点, 若用不完的话, 存在很大的浪费, 所以通过PoolSubpage来管理8K的内存, 如下图每一个PoolSubpage都会与PoolChunk里面的一个叶子节点映射起">
-<meta name="twitter:image" content="https://kkewwei.github.io/elasticsearch_learning/img/PoolSubpage.png">
+<meta name="twitter:title" content="jvm内存泄露排查工具">
+<meta name="twitter:description" content="本文介绍几个不常用的内存泄露排查工具:perftools、pmap、jcmd。 perftools安装perftools安装需要依赖:libunwind, 首先安装libunwind:  wget https://github.com/libunwind/libunwind/releases/download/v1.2.1/libunwind-1.2.1.tar.gz tar -xvf libun">
+<meta name="twitter:image" content="https://kkewwei.github.io/elasticsearch_learning/img/jvm_memory_leak.png">
   
     <link rel="alternative" href="/atom.xml" title="Hexo" type="application/atom+xml">
   
@@ -144,49 +145,45 @@
             <canvas data-colors="#eaeaea" data-sectionHeight="100" data-contentId="js-content" id="myCanvas1" class="anm-canvas"></canvas>
           </div>
           <div id="js-content" class="content-ll">
-            <article id="post-Netty-PoolSubpage原理探究" class="article article-type-post " itemscope itemprop="blogPost">
+            <article id="post-jvm内存泄露排查工具" class="article article-type-post " itemscope itemprop="blogPost">
   <div class="article-inner">
     
       <header class="article-header">
         
   
     <h1 class="article-title" itemprop="name">
-      Netty-PoolSubpage原理探究
+      jvm内存泄露排查工具
     </h1>
   
 
         
-        <a href="/elasticsearch_learning/2018/07/22/Netty-PoolSubpage原理探究/" class="archive-article-date">
-  	<time datetime="2018-07-21T17:02:45.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2018-07-22</time>
+        <a href="/elasticsearch_learning/2016/12/15/jvm内存泄露排查工具/" class="archive-article-date">
+  	<time datetime="2016-12-15T13:12:10.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2016-12-15</time>
 </a>
         
       </header>
     
     <div class="article-entry" itemprop="articleBody">
       
-        <p>Netty中大于8K的内存是通过PoolChunk来分配的, 小于8k的内存是通过PoolSubpage分配的, 本章将详细描述如何通过PoolSubpage分配小于8K的内存。当申请小于8K的内存时, 会从分配一个8k的叶子节点, 若用不完的话, 存在很大的浪费, 所以通过PoolSubpage来管理8K的内存, 如下图<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/PoolSubpage.png" height="400" width="450"><br>每一个PoolSubpage都会与PoolChunk里面的一个叶子节点映射起来, 然后将PoolSubpage根据用户申请的ElementSize化成几等分, 之后只要再次申请ElementSize大小的内存, 将直接从这个PoolSubpage中分配。<br>下面是PoolSubpage的构造函数:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div></pre></td><td class="code"><pre><div class="line">PoolSubpage(PoolSubpage&lt;T&gt; head, PoolChunk&lt;T&gt; chunk, int memoryMapIdx, int runOffset, int pageSize, int elemSize) &#123;</div><div class="line">     this.chunk = chunk;</div><div class="line">     //与PoolChunkPage中哪个节点映射一起来</div><div class="line">     this.memoryMapIdx = memoryMapIdx;</div><div class="line">     this.runOffset = runOffset;</div><div class="line">     //该叶子节点的大小</div><div class="line">     this.pageSize = pageSize;</div><div class="line">     //bitmap的每一位都描述的是一个element的使用情况</div><div class="line">     bitmap = new long[pageSize &gt;&gt;&gt; 10];</div><div class="line">     init(head, elemSize);</div><div class="line"> &#125;</div><div class="line"> //init根据当前需要分配的内存大小，确定需要多少个bitmap元素</div><div class="line"> void init(PoolSubpage&lt;T&gt; head, int elemSize) &#123;   ///elemSize代表此次申请的大小，比如申请64byte，那么这个page被分成了8k/64=2^7=128个</div><div class="line">     doNotDestroy = true;</div><div class="line">     this.elemSize = elemSize;</div><div class="line">     if (elemSize != 0) &#123;</div><div class="line">         maxNumElems = numAvail = pageSize / elemSize; //被分成了128份64大小的内存</div><div class="line">         nextAvail = 0;</div><div class="line">         bitmapLength = maxNumElems &gt;&gt;&gt; 6;  //6代表着long长度 = 2</div><div class="line">         if ((maxNumElems &amp; 63) != 0) &#123;//低6位</div><div class="line">             bitmapLength ++;</div><div class="line">         &#125;</div><div class="line"></div><div class="line">         for (int i = 0; i &lt; bitmapLength; i ++) &#123;</div><div class="line">             bitmap[i] = 0;</div><div class="line">         &#125;</div><div class="line">     &#125;</div><div class="line">     addToPool(head);</div><div class="line"> &#125;</div></pre></td></tr></table></figure></p>
-<p>有人会有疑问: 为啥bitmap = new long[pageSize &gt;&gt;&gt; 10], 因为小于8K的内存, 最小是以16b为单位来分配的, 一个long类型为64位, 最多需要pageSize/(16*64)个long就可以将一个PoolSubpage中所有element是否分配描述清楚了, log2(16*64)=10。<br>然后再调用init来对PoolSubpage结构进行初始化:</p>
-<ol>
-<li>总共可以分成<code>pageSize/elemSize</code>个element。 bitmap所有元素也不一定需要全部用上, 实际会用<code>maxNumElems &gt;&gt;&gt; 6</code>个long就可以了。</li>
-<li>然后根据头插法将该PoolSubpage插入tinySubpagePools或者smallSubpagePools(参考<a href="https://kkewwei.github.io/elasticsearch_learning/2018/05/23/Netty%E5%86%85%E5%AD%98%E5%AD%A6%E4%B9%A0/">Netty PoolArea原理探究</a>)对应级别的链中。</li>
-</ol>
-<h1 id="PoolSubpage的内存分配"><a href="#PoolSubpage的内存分配" class="headerlink" title="PoolSubpage的内存分配"></a>PoolSubpage的内存分配</h1><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div></pre></td><td class="code"><pre><div class="line">long allocate() &#123; //找到一位</div><div class="line">    if (elemSize == 0) &#123;</div><div class="line">        return toHandle(0);</div><div class="line">    &#125;</div><div class="line">    if (numAvail == 0 || !doNotDestroy) &#123;</div><div class="line">        return -1;</div><div class="line">    &#125;</div><div class="line">    final int bitmapIdx = getNextAvail(); //64进制</div><div class="line">    int q = bitmapIdx &gt;&gt;&gt; 6;//第几位long</div><div class="line">    int r = bitmapIdx &amp; 63; //这个long第几位</div><div class="line">    assert (bitmap[q] &gt;&gt;&gt; r &amp; 1) == 0;</div><div class="line">    bitmap[q] |= 1L &lt;&lt; r;  //将相关位置置为1</div><div class="line">    if (-- numAvail == 0) &#123; //这个page没有再能够提供的bit位</div><div class="line">        removeFromPool(); //从可分配链中去掉</div><div class="line">    &#125;</div><div class="line">    return toHandle(bitmapIdx);</div><div class="line">&#125;</div></pre></td></tr></table></figure>
-<p>若可分配的element个数为0, 则将相应可分配链中去掉(该链结构可参考<a href="https://kkewwei.github.io/elasticsearch_learning/2018/05/23/Netty%E5%86%85%E5%AD%98%E5%AD%A6%E4%B9%A0/">Netty PoolArea原理探究</a>)。 PoolSubpage在初始化时候已经规定了可分配内存块的大小, 所以调用的函数中不需要告诉需要分配的内存大小, 在PoolSubpage中查找可用的element通过findNextAvail0实现的:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div></pre></td><td class="code"><pre><div class="line">private int findNextAvail0(int i, long bits) &#123;</div><div class="line">    final int maxNumElems = this.maxNumElems; //包含的段个数</div><div class="line">    final int baseVal = i &lt;&lt; 6; //64进制，第2位，最大数也只是8*64 + 64</div><div class="line"></div><div class="line">    for (int j = 0; j &lt; 64; j ++) &#123;</div><div class="line">        if ((bits &amp; 1) == 0) &#123; //bits哪位为0，局说明哪位可用</div><div class="line">            int val = baseVal | j; //第4个long+9  i&lt;&lt;6 + j</div><div class="line">            if (val &lt; maxNumElems) &#123; //不能大于总段数</div><div class="line">                return val;</div><div class="line">            &#125; else &#123;</div><div class="line">                break;</div><div class="line">            &#125;</div><div class="line">        &#125;</div><div class="line">        bits &gt;&gt;&gt;= 1;  //一位位找，直到找到某位为0</div><div class="line">    &#125;</div><div class="line">    return -1;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
-<p>主要做了如下事情:</p>
-<ol>
-<li>遍历bitmap中所有元素, 找到一个bit为0的元素, 说明还有element没有分配出去。</li>
-<li>检查该元素每一个bit是否为0, 找到后, 返回值为<code>i &lt;&lt; 6 | j</code>, 包含第几个元素 + 元素内第几个bit位。<br>再返回到allocate函数中, 将该元素对应的bit置为1, 并构造handle:<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line">private long toHandle(int bitmapIdx) &#123;</div><div class="line">    ////高32放着一个PoolSubpage里面哪段的哪个，低32位放着哪个叶子节点</div><div class="line">    return 0x4000000000000000L | (long) bitmapIdx &lt;&lt; 32 | memoryMapIdx;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
-</li>
-</ol>
-<p>可以得知针对小于8K的分配, 返回的handle一定是大于int类型的数据, 若handle高位不为0, 则该handle映射的内存块一定是小于8K的内存块。该handle将page、element的位置信息全部编码进去了, 这些信息也很容易解码出来。</p>
-<h1 id="PoolSubpage的内存释放"><a href="#PoolSubpage的内存释放" class="headerlink" title="PoolSubpage的内存释放"></a>PoolSubpage的内存释放</h1><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div></pre></td><td class="code"><pre><div class="line">boolean free(PoolSubpage&lt;T&gt; head, int bitmapIdx) &#123;</div><div class="line">    if (elemSize == 0) &#123;</div><div class="line">        return true;</div><div class="line">    &#125;</div><div class="line">    int q = bitmapIdx &gt;&gt;&gt; 6;</div><div class="line">    int r = bitmapIdx &amp; 63;</div><div class="line">    assert (bitmap[q] &gt;&gt;&gt; r &amp; 1) != 0;</div><div class="line">    bitmap[q] ^= 1L &lt;&lt; r;</div><div class="line"></div><div class="line">    setNextAvail(bitmapIdx);</div><div class="line"></div><div class="line">    if (numAvail ++ == 0) &#123;</div><div class="line">        addToPool(head);</div><div class="line">        return true;</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    if (numAvail != maxNumElems) &#123;</div><div class="line">        return true;</div><div class="line">    &#125; else &#123;</div><div class="line">        // Subpage not in use (numAvail == maxNumElems)</div><div class="line">        if (prev == next) &#123;</div><div class="line">            // Do not remove if this subpage is the only one left in the pool.</div><div class="line">            return true;</div><div class="line">        &#125;</div><div class="line"></div><div class="line">        // Remove this subpage from the pool if there are other subpages left in the pool.</div><div class="line">        doNotDestroy = false;</div><div class="line">        removeFromPool();</div><div class="line">        return false;</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
-<p>释放的时候并不会将该PoolSubpage从subpages(见<a href="https://kkewwei.github.io/elasticsearch_learning/2018/07/20/Netty-PoolChunk%E5%8E%9F%E7%90%86%E6%8E%A2%E7%A9%B6/">Netty PoolChunk原理探究</a>)中取出, 释放逻辑也比较简单, 除了将bitmap中相应long置为0, 别的工作就是检查该PoolSubpage是否需要加入对应的链或者从对应的链中取出:</p>
-<ol>
-<li>若当前可用的element为0, 则说明已经从相应可分配链中去掉了, 此时再通过头插法加入对应的可分配链中, 说明还在使用。</li>
-<li>若目前剩余可用element小于最大剩余可用的, 同样说明还在使用。</li>
-<li>反之说明该PoolSubpage没有element被分配出去。 若该级别的链大于1个PoolSubpage还在使用, 则返回该链可以释放了; 只剩余这个PoolSubpage还没有释放, 那暂时先不释放等待之后的内存分配。</li>
-</ol>
-<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>PoolSubpage主要管理小于8K的内存分配, 内存返回的handle可以唯一确定PoolChunk、poolSubpage中具体哪个element。 当PoolSubpage没有使用的内存时, 可能从对应的链中取出。同时一定没有从subpages中去掉。</p>
+        <p>本文介绍几个不常用的内存泄露排查工具:perftools、pmap、jcmd。</p>
+<h2 id="perftools"><a href="#perftools" class="headerlink" title="perftools"></a>perftools</h2><h4 id="安装"><a href="#安装" class="headerlink" title="安装"></a>安装</h4><p>perftools安装需要依赖:libunwind, 首先安装libunwind:</p>
+<ul>
+<li>wget <a href="https://github.com/libunwind/libunwind/releases/download/v1.2.1/libunwind-1.2.1.tar.gz" target="_blank" rel="external">https://github.com/libunwind/libunwind/releases/download/v1.2.1/libunwind-1.2.1.tar.gz</a></li>
+<li>tar -xvf libunwind-1.2.1.tar.gz</li>
+<li>cd libunwind-1.2.1</li>
+<li>./configure  –prefix=/home/target/libunwind</li>
+<li>make</li>
+<li>make install<br>其次安装perftools:</li>
+<li>wget <a href="https://github.com/gperftools/gperftools/releases/download/gperftools-2.6.1/gperftools-2.6.1.tar.gz" target="_blank" rel="external">https://github.com/gperftools/gperftools/releases/download/gperftools-2.6.1/gperftools-2.6.1.tar.gz</a></li>
+<li>tar -xvf gperftools-2.6.1.tar.gz</li>
+<li>cd gperftools-2.6.1</li>
+<li>./configure –prefix=/home/target/gperftools</li>
+<li>make (安装时候, 可能会报g++: command not found, 切换到root: yum -y install gcc+ gcc-c++, 需要再次执行上一步, 否则会报异常)</li>
+<li>make install<br>我们还需要设置一些环境变量:<br>export LD_PRELOAD=/home/sankuai/gperftools/lib/libtcmalloc.so<br>目的：在程序启动时自动链接libtcmalloc.so<br>export HEAPPROFILE=/opt/meituan/version/test/heap.hprof<br>目的: 内存才能监控将产生很多.heap, 设置文件存放位置<br>export HEAP_PROFILE_ALLOCATION_INTERVAL=10000000<br>目的: 内存使用多少, 会产生一个.heap文件, 默认每使用1G, 产生一个<h4 id="使用"><a href="#使用" class="headerlink" title="使用"></a>使用</h4></li>
+<li>直接启动jvm进程, perftools会监控内存使用<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/jvm_memory_leak.png" height="250" width="650"></li>
+<li>查看产生的heap.hprof.0001.heap文件<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/jvm_memory_leak1.png" height="350" width="650"><br>其中对每列的介绍如下:<br>The first column contains the direct memory use in MB.<br>The fourth column contains memory use by the procedure and all of its callees.<br>The second and fifth columns are just percentage representations of the numbers in the first and fifth columns.<br>The third column is a cumulative sum of the second column (i.e., the kth entry in the third column is the sum of the first k entries in the second column.)</li>
+</ul>
+<h1 id="参考"><a href="#参考" class="headerlink" title="参考"></a>参考</h1><p><a href="http://goog-perftools.sourceforge.net/doc/heap_profiler.html" target="_blank" rel="external">http://goog-perftools.sourceforge.net/doc/heap_profiler.html</a></p>
 
       
 
@@ -266,7 +263,7 @@
     <a class="close js-modal-close" href="javascript:;"><i class="icon icon-close"></i></a>
     <p>扫一扫，分享到微信</p>
     <div class="wx-qrcode">
-      <img src="//pan.baidu.com/share/qrcode?url=https://kkewwei.github.io/elasticsearch_learning/2018/07/22/Netty-PoolSubpage原理探究/" alt="微信分享二维码">
+      <img src="//pan.baidu.com/share/qrcode?url=https://kkewwei.github.io/elasticsearch_learning/2016/12/15/jvm内存泄露排查工具/" alt="微信分享二维码">
     </div>
 </div>
 
@@ -280,18 +277,18 @@
   
 <nav id="article-nav">
   
-    <a href="/elasticsearch_learning/2018/07/27/DirectByteBuffer堆外内存详解/" id="article-nav-newer" class="article-nav-link-wrap">
+    <a href="/elasticsearch_learning/2017/03/08/git-基本命令学习心得/" id="article-nav-newer" class="article-nav-link-wrap">
       <i class="icon-circle-left"></i>
       <div class="article-nav-title">
         
-          DirectByteBuffer堆外内存详解
+          git 基本命令学习心得-1
         
       </div>
     </a>
   
   
-    <a href="/elasticsearch_learning/2018/07/20/Netty-PoolChunk原理探究/" id="article-nav-older" class="article-nav-link-wrap">
-      <div class="article-nav-title">Netty PoolChunk原理探究</div>
+    <a href="/elasticsearch_learning/2016/10/27/Java线程知识小结/" id="article-nav-older" class="article-nav-link-wrap">
+      <div class="article-nav-title">Java 线程知识小结(-)</div>
       <i class="icon-circle-right"></i>
     </a>
   
@@ -330,7 +327,7 @@
 <script src="//www.wenjunjiang.win/js/gitment.js "></script>
 <script>
 var gitment = new Gitment({
-  id: "Netty-PoolSubpage原理探究",
+  id: "jvm内存泄露排查工具",
   owner: 'kkewwei',
   repo: 'comments',
   oauth: {
