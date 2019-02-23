@@ -17,7 +17,7 @@
 <meta property="og:description" content="本文介绍几个不常用的内存泄露排查工具:perftools、pmap、jcmd。 perftoolsperftools是一款比较好的分析堆外内存泄漏的工具, 原理: 通过使用自己实现的libtcmalloc.so来替换原有的内存分配函数, 来达到监控内存分配的目的 安装perftools安装需要依赖:libunwind, 首先安装libunwind:  wget https://github.com">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/jvm_memory_leak.png">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/jvm_memory_leak1.png">
-<meta property="og:updated_time" content="2019-02-23T09:31:49.000Z">
+<meta property="og:updated_time" content="2019-02-23T09:32:48.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="jvm内存泄露排查工具">
 <meta name="twitter:description" content="本文介绍几个不常用的内存泄露排查工具:perftools、pmap、jcmd。 perftoolsperftools是一款比较好的分析堆外内存泄漏的工具, 原理: 通过使用自己实现的libtcmalloc.so来替换原有的内存分配函数, 来达到监控内存分配的目的 安装perftools安装需要依赖:libunwind, 首先安装libunwind:  wget https://github.com">
@@ -203,8 +203,39 @@
 <li>查看产生的heap.hprof.0001.heap文件<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/jvm_memory_leak1.png" height="450" width="850"><br>其中对每列的介绍如下:<br>The first column contains the direct memory use in MB(当前函数目前使用的直接内存大小).<br>The fourth column contains memory use by the procedure and all of its callees(当前函数及其调用者使用的直接内存).<br>The second and fifth columns are just percentage representations of the numbers in the first and fifth columns.<br>The third column is a cumulative sum of the second column (i.e., the kth entry in the third column is the sum of the first k entries in the second column.)(目前占用的总堆外内存大小)</li>
 </ul>
 <h2 id="jcmd"><a href="#jcmd" class="headerlink" title="jcmd"></a>jcmd</h2><p>jcm是一个多功能工具, 功能如下:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div></pre></td><td class="code"><pre><div class="line">$user@host: /usr/local/java18/bin/jcmd 25266 help</div><div class="line">25266:</div><div class="line">The following commands are available:</div><div class="line">JFR.stop</div><div class="line">JFR.start</div><div class="line">JFR.dump</div><div class="line">JFR.check</div><div class="line">VM.native_memory</div><div class="line">VM.check_commercial_features</div><div class="line">VM.unlock_commercial_features</div><div class="line">ManagementAgent.stop</div><div class="line">ManagementAgent.start_local</div><div class="line">ManagementAgent.start</div><div class="line">GC.rotate_log</div><div class="line">Thread.print         // 与jstack功能相同</div><div class="line">GC.class_stats</div><div class="line">GC.class_histogram    // 与jmap -histo功能相同</div><div class="line">GC.heap_dump         //与jmap -dump功能相同</div><div class="line">GC.run_finalization</div><div class="line">GC.run</div><div class="line">VM.uptime</div><div class="line">VM.flags                   //查看更完整的启动命令, 包括默认的参数, 比如垃圾回收器</div><div class="line">VM.system_properties      //查看系统参数</div><div class="line">VM.command_line          //查看启动命令</div><div class="line">VM.version</div><div class="line">help</div></pre></td></tr></table></figure></p>
-<p>我们将着重介绍VM.native_memory, 该参数可以支持我们追踪堆内内存的申请。 不过我们必须在进程启动时添加-XX:NativeMemoryTracking=detail参数才可用。 开启该参数将导致jvm进程5-10%性能损耗。<br>其参数如下:<br>|参数|介绍|<br>|:-|:-|<br>|summary| 汇总的内存展示|<br>|detail| 详细的内存展示, 不仅包括summary, 还包括每个内存块地址及具体分配者|<br>|baseline|当前节点所拥有的线程| 作为内存块增量对比的基准线, 在detail.diff summary.diff比较将以该点为基准|<br>|detail.diff| 内存增量的详情|<br>|summary.diff|  内存增量的汇总情况|</p>
-<p>VM.native_memoryj显示的内存包含堆内内存、Code区域、通过unsafe.allocateMemory(DirectByteBuffer实际也是由前者产生)，但是不包含其他Native Code（C代码）申请的堆外内存</p>
+<p>我们将着重介绍VM.native_memory, 该参数可以支持我们追踪堆内内存的申请。 不过我们必须在进程启动时添加-XX:NativeMemoryTracking=detail参数才可用。 开启该参数将导致jvm进程5-10%性能损耗。<br>其参数如下:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">参数</th>
+<th style="text-align:left">介绍</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left">summary</td>
+<td style="text-align:left">汇总的内存展示</td>
+</tr>
+<tr>
+<td style="text-align:left">detail</td>
+<td style="text-align:left">详细的内存展示, 不仅包括summary, 还包括每个内存块地址及具体分配者</td>
+</tr>
+<tr>
+<td style="text-align:left">baseline</td>
+<td style="text-align:left">当前节点所拥有的线程</td>
+<td>作为内存块增量对比的基准线, 在detail.diff summary.diff比较将以该点为基准</td>
+</tr>
+<tr>
+<td style="text-align:left">detail.diff</td>
+<td style="text-align:left">内存增量的详情</td>
+</tr>
+<tr>
+<td style="text-align:left">summary.diff</td>
+<td style="text-align:left">内存增量的汇总情况</td>
+</tr>
+</tbody>
+</table>
+<p>VM.native_memory显示的内存包含堆内内存、Code区域、通过unsafe.allocateMemory(DirectByteBuffer实际也是由前者产生)，但是不包含其他Native Code（C代码）申请的堆外内存</p>
 <table>
 <thead>
 <tr>
@@ -526,11 +557,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">ReentrantLock</a>
+                <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
+                <a href="javascript:void(0)" class="js-tag color4">ReentrantLock</a>
               </li>
              
               <li class="article-tag-list-item">
