@@ -18,7 +18,7 @@
 <meta property="og:description" content="本文介绍几个不常用的内存泄露排查工具:perftools、pmap、jcmd。 perftoolsperftools是一款比较好的分析堆外内存泄漏的工具, 原理: 通过使用自己实现的libtcmalloc.so来替换原有的内存分配函数, 来达到监控内存分配的目的 安装perftools安装需要依赖:libunwind, 首先安装libunwind:  wget https://github.com">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/jvm_memory_leak.png">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/jvm_memory_leak1.png">
-<meta property="og:updated_time" content="2019-02-23T09:39:06.000Z">
+<meta property="og:updated_time" content="2019-02-23T13:43:50.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="jvm内存泄露排查工具">
 <meta name="twitter:description" content="本文介绍几个不常用的内存泄露排查工具:perftools、pmap、jcmd。 perftoolsperftools是一款比较好的分析堆外内存泄漏的工具, 原理: 通过使用自己实现的libtcmalloc.so来替换原有的内存分配函数, 来达到监控内存分配的目的 安装perftools安装需要依赖:libunwind, 首先安装libunwind:  wget https://github.com">
@@ -228,8 +228,8 @@
 <li>/usr/local/java18/bin/jcmd 8202 VM.native_memory detail.diff 根据内存基准来比较增量<br>结果如下:<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div></pre></td><td class="code"><pre><div class="line">Native Memory Tracking:</div><div class="line">Total: reserved=1617492KB +13331KB, committed=319304KB +13331KB</div><div class="line">-                 Java Heap (reserved=102400KB, committed=102400KB)</div><div class="line">                            (mmap: reserved=102400KB, committed=102400KB)</div><div class="line">                          ......</div><div class="line">                 Internal (reserved=70999KB +13312KB, committed=70999KB +13312KB)</div><div class="line">                            (malloc=70967KB +13312KB #1914 +13)</div><div class="line">                            (mmap: reserved=32KB, committed=32KB)</div><div class="line"></div><div class="line">-                    Symbol (reserved=1374KB, committed=1374KB)</div><div class="line">                            (malloc=918KB #92)</div><div class="line">                            (arena=456KB #1)</div><div class="line"></div><div class="line">-    Native Memory Tracking (reserved=183KB +19KB, committed=183KB +19KB)</div><div class="line">                            (malloc=106KB +15KB #1628 +212)</div><div class="line">                            (tracking overhead=77KB +4KB)</div><div class="line"></div><div class="line">-               Arena Chunk (reserved=186KB, committed=186KB)</div><div class="line">                            (malloc=186KB)</div><div class="line"></div><div class="line">[0x00007f5c46ed7d2b] Unsafe_AllocateMemory+0x1db</div><div class="line">[0x00007f5c31015994]</div><div class="line">                             (malloc=35840KB +13312KB #35 +13)</div><div class="line"></div><div class="line">[0x00007f5c46cc4883] MemBaseline::aggregate_virtual_memory_allocation_sites()+0x173</div><div class="line">[0x00007f5c46cc4b08] MemBaseline::baseline_allocation_sites()+0x1d8</div><div class="line">[0x00007f5c46cc5185] MemBaseline::baseline(bool)+0x635</div><div class="line">[0x00007f5c46d34188] NMTDCmd::execute(DCmdSource, Thread*)+0x178</div><div class="line">                             (malloc=1KB +1KB #17 +17)</div></pre></td></tr></table></figure>
 </li>
 </ul>
-<p>如上图, 可以轻易发现Unsafe_AllocateMemory diff期间,增加了13个内存分配, 新增了13MB内存申请。</p>
-<h2 id="pmap"><a href="#pmap" class="headerlink" title="pmap"></a>pmap</h2><p>使用: pmap -x 9752 | sort -n -r -k 2, 并不需要root或者别的参数就可以执行, 查看进程的内存映射信息<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div></pre></td><td class="code"><pre><div class="line">mapped: 5341520K    writeable/private: 308668K    shared: 3836K</div><div class="line">Address           Kbytes       Mode   Offset Device  Mapping</div><div class="line">0000000100080000 1048064       0       0 -----    [ anon ]</div><div class="line">00007fb789360000  242304       0       0 -----    [ anon ]</div><div class="line">00000000f9c00000  102912   23776   23776 rw---    [ anon ]</div><div class="line">00007fb6a216c000   96848      44       0 r----  locale-archive</div><div class="line">00007fb784021000   65404       0       0 -----    [ anon ]</div><div class="line">00007fb780021000   65404       0       0 -----    [ anon ]</div><div class="line">00007fb77c021000   65404       0       0 -----    [ anon ]</div><div class="line">00007fb778021000   65404       0       0 -----    [ anon ]</div><div class="line">00007fb774021000   65404       0       0 -----    [ anon ]</div><div class="line">00007fb770021000   65404       0       0 -----    [ anon ]</div><div class="line">00007fb76c021000   65404       0       0 -----    [ anon ]</div><div class="line">00007fb768021000   65404       0       0 -----    [ anon ]</div><div class="line">00007fb764021000   65404       0       0 -----    [ anon ]</div><div class="line">00007fb760021000   65404       0       0 -----    [ anon ]</div><div class="line">00007fb75c021000   65404       0       0 -----    [ anon ]</div><div class="line">00007fb758021000   65404       0       0 -----    [ anon ]</div><div class="line">00007fb750021000   65404       0       0 -----    [ anon ]</div><div class="line">00007fb74c021000   65404       0       0 -----    [ anon ]</div><div class="line">00007fb748021000   65404       0       0 -----    [ anon ]</div><div class="line">00007fb740021000   65404       0       0 -----    [ anon ]</div><div class="line">00007fb738021000   65404       0       0 -----    [ anon ]</div><div class="line">00007fb730021000   65404       0       0 -----    [ anon ]</div><div class="line">00007fb728021000   65404       0       0 -----    [ anon ]</div><div class="line">00007fb720021000   65404       0       0 -----    [ anon ]</div><div class="line">00007fb718021000   65404       0       0 -----    [ anon ]</div><div class="line">00007fb710021000   65404       0       0 -----    [ anon ]</div><div class="line">00007fb708021000   65404       0       0 -----    [ anon ]</div><div class="line">00007fb700021000   65404       0       0 -----    [ anon ]</div><div class="line">00007fb7a1802000    2048       0       0 -----  libpthread-2.12.so</div><div class="line">00007fb7a15ea000    2048       0       0 -----  libjli.so</div></pre></td></tr></table></figure></p>
+<p>如上图, 可以轻易发现Unsafe_AllocateMemory diff期间,增加了13次内存分配, 新增了13MB内存申请。</p>
+<h2 id="pmap"><a href="#pmap" class="headerlink" title="pmap"></a>pmap</h2><p>pmap可以查看进程使用的内存分布, 包括所有堆内和堆外内存。<br>使用: pmap -x 9752 | sort -n -r -k 2, 并不需要root或者别的参数就可以执行, 查看进程的内存映射信息<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div></pre></td><td class="code"><pre><div class="line">mapped: 5341520K    writeable/private: 308668K    shared: 3836K</div><div class="line">Address           Kbytes       Mode   Offset Device  Mapping</div><div class="line">0000000100080000 1048064       0       0 -----    [ anon ]</div><div class="line">00007fb789360000  242304       0       0 -----    [ anon ]</div><div class="line">00000000f9c00000  102912   23776   23776 rw---    [ anon ]</div><div class="line">00007fb6a216c000   96848      44       0 r----  locale-archive</div><div class="line">00007fb784021000   65404       0       0 -----    [ anon ]</div><div class="line">00007fb780021000   65404       0       0 -----    [ anon ]</div><div class="line">00007fb77c021000   65404       0       0 -----    [ anon ]</div><div class="line">00007fb778021000   65404       0       0 -----    [ anon ]</div><div class="line">00007fb774021000   65404       0       0 -----    [ anon ]</div><div class="line">00007fb770021000   65404       0       0 -----    [ anon ]</div><div class="line">00007fb76c021000   65404       0       0 -----    [ anon ]</div><div class="line">00007fb768021000   65404       0       0 -----    [ anon ]</div><div class="line">00007fb764021000   65404       0       0 -----    [ anon ]</div><div class="line">00007fb760021000   65404       0       0 -----    [ anon ]</div><div class="line">00007fb75c021000   65404       0       0 -----    [ anon ]</div><div class="line">00007fb758021000   65404       0       0 -----    [ anon ]</div><div class="line">00007fb750021000   65404       0       0 -----    [ anon ]</div><div class="line">00007fb74c021000   65404       0       0 -----    [ anon ]</div><div class="line">00007fb748021000   65404       0       0 -----    [ anon ]</div><div class="line">00007fb740021000   65404       0       0 -----    [ anon ]</div><div class="line">00007fb738021000   65404       0       0 -----    [ anon ]</div><div class="line">00007fb730021000   65404       0       0 -----    [ anon ]</div><div class="line">00007fb728021000   65404       0       0 -----    [ anon ]</div><div class="line">00007fb720021000   65404       0       0 -----    [ anon ]</div><div class="line">00007fb718021000   65404       0       0 -----    [ anon ]</div><div class="line">00007fb710021000   65404       0       0 -----    [ anon ]</div><div class="line">00007fb708021000   65404       0       0 -----    [ anon ]</div><div class="line">00007fb700021000   65404       0       0 -----    [ anon ]</div><div class="line">00007fb7a1802000    2048       0       0 -----  libpthread-2.12.so</div><div class="line">00007fb7a15ea000    2048       0       0 -----  libjli.so</div></pre></td></tr></table></figure></p>
 <p>Address:  start address of map  映像起始地址, 就是真实内存地址<br>Kbytes:  size of map in kilobytes  映像大小<br>RSS:  resident set size in kilobytes  驻留集大小<br>Dirty:  dirty pages (both shared and private) in kilobytes  脏页大小<br>Mode:  permissions on map 映像权限: r=read, w=write, x=execute, s=shared, p=private (copy on write)<br>Mapping:  file backing the map , or ‘[ anon ]’ for allocated memory, or ‘[ stack ]’ for the program stack.  映像支持文件,[anon]为已分配内存 [stack]为程序堆栈<br>Offset:  offset into the file  文件偏移<br>Device:  device name (major:minor)  设备名<br>第一行的值:</p>
 <ul>
 <li>mapped 表示该进程映射的虚拟地址空间大小，也就是该进程预先分配的虚拟内存大小，即ps出的vsz</li>
@@ -342,11 +342,11 @@
   
 <nav id="article-nav">
   
-    <a href="/elasticsearch_learning/2017/03/08/git-基本命令学习心得/" id="article-nav-newer" class="article-nav-link-wrap">
+    <a href="/elasticsearch_learning/2016/12/20/gdb调试java基本用法/" id="article-nav-newer" class="article-nav-link-wrap">
       <i class="icon-circle-left"></i>
       <div class="article-nav-title">
         
-          git 基本命令学习心得-1
+          gdb调试java基本用法
         
       </div>
     </a>
@@ -387,22 +387,21 @@
   
 
   
-  <div id="gitment-ctn"></div>
+  <div id="gitment-ctn"></div> 
 <link rel="stylesheet" href="//imsun.github.io/gitment/style/default.css">
-<script src="//www.wenjunjiang.win/js/gitment.js "></script>
+<script src="//imsun.github.io/gitment/dist/gitment.browser.js"></script>
 <script>
 var gitment = new Gitment({
-  id: "jvm内存泄露排查工具",
-  owner: 'kkewwei',
-  repo: 'comments',
+  id: "<%=url%>",
+  owner: '<%=theme.gitment_owner%>',
+  repo: '<%=theme.gitment_repo%>',
   oauth: {
-    client_id: '9391e497d6b288887f33',
-    client_secret: 'db733731bff4ee2811d9530b1ac4cfc6767e8183',
+    client_id: '<%=theme.gitment_oauth.client_id%>',
+    client_secret: '<%=theme.gitment_oauth.client_secret%>',
   },
 })
 gitment.render('gitment-ctn')
 </script>
-
   
 
 
@@ -531,6 +530,10 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">gdb</a>
               </li>
              
               <li class="article-tag-list-item">
