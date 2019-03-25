@@ -18,7 +18,7 @@
 <meta property="og:description" content="本文介绍几个不常用的内存泄露排查工具:perftools、pmap、jcmd。 perftoolsperftools是一款比较好的分析堆外内存泄漏的工具, 原理: 通过使用自己实现的libtcmalloc.so来替换原有的内存分配函数, 来达到监控内存分配的目的 安装perftools安装需要依赖:libunwind, 首先安装libunwind:  wget https://github.com">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/jvm_memory_leak.png">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/jvm_memory_leak1.png">
-<meta property="og:updated_time" content="2019-02-23T13:43:50.000Z">
+<meta property="og:updated_time" content="2019-03-15T03:21:39.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="jvm内存泄露排查工具">
 <meta name="twitter:description" content="本文介绍几个不常用的内存泄露排查工具:perftools、pmap、jcmd。 perftoolsperftools是一款比较好的分析堆外内存泄漏的工具, 原理: 通过使用自己实现的libtcmalloc.so来替换原有的内存分配函数, 来达到监控内存分配的目的 安装perftools安装需要依赖:libunwind, 首先安装libunwind:  wget https://github.com">
@@ -197,7 +197,7 @@
 <li>cd gperftools-2.6.1</li>
 <li>./configure –prefix=/home/target/gperftools</li>
 <li>make (安装时候, 可能会报g++: command not found, 切换到root: yum -y install gcc+ gcc-c++, 需要再次执行上一步, 否则会报异常)</li>
-<li>make install<br>我们还需要设置一些环境变量:<br>export LD_PRELOAD=/home/sankuai/gperftools/lib/libtcmalloc.so<br>目的：在程序启动时自动链接libtcmalloc.so<br>export HEAPPROFILE=/opt/meituan/version/test/heap.hprof<br>目的: 内存才能监控将产生很多.heap, 设置文件存放位置<br>export HEAP_PROFILE_ALLOCATION_INTERVAL=10000000<br>目的: 内存使用多少, 会产生一个.heap文件。 默认每使用1G, 产生一个.bin文件。</li>
+<li>make install<br>我们还需要设置一些环境变量:<br>export LD_PRELOAD=/home/target/gperftools/lib/libtcmalloc.so<br>目的：在程序启动时自动链接libtcmalloc.so<br>export HEAPPROFILE=/you_directory/heap.hprof<br>目的: 内存才能监控将产生很多.heap, 设置文件存放位置<br>export HEAP_PROFILE_ALLOCATION_INTERVAL=10000000<br>目的: 内存使用多少, 会产生一个.heap文件。 默认每使用1G, 产生一个.bin文件。</li>
 </ul>
 <h4 id="使用"><a href="#使用" class="headerlink" title="使用"></a>使用</h4><ul>
 <li>直接启动jvm进程, perftools会监控内存使用<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/jvm_memory_leak.png" height="250" width="850"></li>
@@ -546,15 +546,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">gdb</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">netty4, ServerBootstrap, Initiale</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">gdb</a>
               </li>
              
               <li class="article-tag-list-item">
