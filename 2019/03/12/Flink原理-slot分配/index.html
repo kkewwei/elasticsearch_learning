@@ -6,20 +6,20 @@
   <meta name="renderer" content="webkit">
   <meta http-equiv="X-UA-Compatible" content="IE=edge" >
   <link rel="dns-prefetch" href="https://kkewwei.github.io/elasticsearch_learning">
-  <title>Flink原理-slot分配 | Hexo</title>
+  <title>Flink原理-Slot申请及Task部署 | Hexo</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
   <meta name="google-site-verification" content="sCUXxLczmZVJ1Fkt5jSJGE9xPpdVD25hYciudlUUVNQ" />
-  <meta name="description" content="本文将从ExecutionGraph开始向后将起JobManager是如何进行slot的分配及部署的, ExecutionGraph定义了TaskManager的并发分布结构, 作为任务执行的以后一层逻辑结构, 也是最核心数据结构本文先盗一张广为引用的Graph转换图:可以看到 # 参考文档https://ci.apache.org/projects/flink/flink-docs-releas">
+  <meta name="description" content="本文将从ExecutionGraph开始向后将起JobManager是如何进行slot的分配及部署的, ExecutionGraph定义了TaskManager的并发分布结构, 作为任务执行的以后一层逻辑结构, 也是最核心数据结构。为了让大家有全局的了解, 先盗一张广为引用的Graph转换图:本文将根据代码讲述这些Task是如何部署到TaskManager上的。 Task分配及部署代码将从Exec">
 <meta property="og:type" content="article">
-<meta property="og:title" content="Flink原理-slot分配">
+<meta property="og:title" content="Flink原理-Slot申请及Task部署">
 <meta property="og:url" content="https://kkewwei.github.io/elasticsearch_learning/2019/03/12/Flink原理-slot分配/index.html">
 <meta property="og:site_name" content="Hexo">
-<meta property="og:description" content="本文将从ExecutionGraph开始向后将起JobManager是如何进行slot的分配及部署的, ExecutionGraph定义了TaskManager的并发分布结构, 作为任务执行的以后一层逻辑结构, 也是最核心数据结构本文先盗一张广为引用的Graph转换图:可以看到 # 参考文档https://ci.apache.org/projects/flink/flink-docs-releas">
+<meta property="og:description" content="本文将从ExecutionGraph开始向后将起JobManager是如何进行slot的分配及部署的, ExecutionGraph定义了TaskManager的并发分布结构, 作为任务执行的以后一层逻辑结构, 也是最核心数据结构。为了让大家有全局的了解, 先盗一张广为引用的Graph转换图:本文将根据代码讲述这些Task是如何部署到TaskManager上的。 Task分配及部署代码将从Exec">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/Flink_Graph.png">
-<meta property="og:updated_time" content="2019-05-22T14:09:15.000Z">
+<meta property="og:updated_time" content="2019-05-31T07:48:48.000Z">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="Flink原理-slot分配">
-<meta name="twitter:description" content="本文将从ExecutionGraph开始向后将起JobManager是如何进行slot的分配及部署的, ExecutionGraph定义了TaskManager的并发分布结构, 作为任务执行的以后一层逻辑结构, 也是最核心数据结构本文先盗一张广为引用的Graph转换图:可以看到 # 参考文档https://ci.apache.org/projects/flink/flink-docs-releas">
+<meta name="twitter:title" content="Flink原理-Slot申请及Task部署">
+<meta name="twitter:description" content="本文将从ExecutionGraph开始向后将起JobManager是如何进行slot的分配及部署的, ExecutionGraph定义了TaskManager的并发分布结构, 作为任务执行的以后一层逻辑结构, 也是最核心数据结构。为了让大家有全局的了解, 先盗一张广为引用的Graph转换图:本文将根据代码讲述这些Task是如何部署到TaskManager上的。 Task分配及部署代码将从Exec">
 <meta name="twitter:image" content="https://kkewwei.github.io/elasticsearch_learning/img/Flink_Graph.png">
   
     <link rel="alternative" href="/atom.xml" title="Hexo" type="application/atom+xml">
@@ -167,7 +167,7 @@
         
   
     <h1 class="article-title" itemprop="name">
-      Flink原理-slot分配
+      Flink原理-Slot申请及Task部署
     </h1>
   
 
@@ -180,9 +180,23 @@
     
     <div class="article-entry" itemprop="articleBody">
       
-        <p>本文将从ExecutionGraph开始向后将起JobManager是如何进行slot的分配及部署的, ExecutionGraph定义了TaskManager的并发分布结构, 作为任务执行的以后一层逻辑结构, 也是最核心数据结构<br>本文先盗一张广为引用的Graph转换图:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/Flink_Graph.png" height="600" width="150"><br>可以看到</p>
-<p>#</p>
-<h1 id="参考文档"><a href="#参考文档" class="headerlink" title="参考文档"></a>参考文档</h1><p><a href="https://ci.apache.org/projects/flink/flink-docs-release-1.8/concepts/runtime.html" target="_blank" rel="external">https://ci.apache.org/projects/flink/flink-docs-release-1.8/concepts/runtime.html</a><br><a href="http://wuchong.me/blog/2016/05/03/flink-internals-overview/" target="_blank" rel="external">http://wuchong.me/blog/2016/05/03/flink-internals-overview/</a></p>
+        <p>本文将从ExecutionGraph开始向后将起JobManager是如何进行slot的分配及部署的, ExecutionGraph定义了TaskManager的并发分布结构, 作为任务执行的以后一层逻辑结构, 也是最核心数据结构。为了让大家有全局的了解, 先盗一张广为引用的Graph转换图:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/Flink_Graph.png" height="600" width="150"><br>本文将根据代码讲述这些Task是如何部署到TaskManager上的。</p>
+<h1 id="Task分配及部署"><a href="#Task分配及部署" class="headerlink" title="Task分配及部署"></a>Task分配及部署</h1><p>代码将从ExecutionGraph.scheduleExecutionGraph()开始讲解, 进入:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div></pre></td><td class="code"><pre><div class="line">public void scheduleForExecution() throws JobException &#123;</div><div class="line">	final long currentGlobalModVersion = globalModVersion;</div><div class="line">	if (transitionState(JobStatus.CREATED, JobStatus.RUNNING)) &#123;</div><div class="line">		final CompletableFuture&lt;Void&gt; newSchedulingFuture;</div><div class="line">		switch (scheduleMode) &#123;  //为EAGER</div><div class="line"></div><div class="line">			case LAZY_FROM_SOURCES:</div><div class="line">				newSchedulingFuture = scheduleLazy(slotProvider);</div><div class="line">				break;</div><div class="line">			case EAGER:</div><div class="line">				newSchedulingFuture = scheduleEager(slotProvider, allocationTimeout);</div><div class="line">				break;</div><div class="line">			default:</div><div class="line">				throw new JobException(&quot;Schedule mode is invalid.&quot;);</div><div class="line">		&#125;</div><div class="line">	&#125;</div><div class="line">	...</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>其中, scheduleMode为ScheduleMode.EAGER。(实际是从JobGraph.getScheduleMode()取值的, 为eager, 表示立刻去调度部署所有的Task。</p><br>我们再进入scheduleEager看是如何调度task的。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div></pre></td><td class="code"><pre><div class="line">private CompletableFuture&lt;Void&gt; scheduleEager(SlotProvider slotProvider, final Time timeout) &#123;</div><div class="line">	    ......</div><div class="line">		 //都是每个JobGraph</div><div class="line">		for (ExecutionJobVertex ejv : getVerticesTopologically()) &#123;</div><div class="line">			// these calls are not blocking, they only return futures</div><div class="line">			Collection&lt;CompletableFuture&lt;Execution&gt;&gt; allocationFutures = ejv.allocateResourcesForAll(</div><div class="line">				slotProvider, // SlotPool$ProviderAndOwner</div><div class="line">				queued,</div><div class="line">				LocationPreferenceConstraint.ALL,</div><div class="line">				allPreviousAllocationIds,</div><div class="line">				timeout);//超时申请，后面会进行超时检查</div><div class="line">			allAllocationFutures.addAll(allocationFutures);</div><div class="line">		&#125;</div><div class="line">		//只有当所有Execution都分配到了槽位才继续进行部署</div><div class="line">		final ConjunctFuture&lt;Collection&lt;Execution&gt;&gt; allAllocationsFuture = FutureUtils.combineAll(allAllocationFutures);</div><div class="line">		final CompletableFuture&lt;Void&gt; currentSchedulingFuture = allAllocationsFuture</div><div class="line">			.thenAccept(</div><div class="line">				(Collection&lt;Execution&gt; executionsToDeploy) -&gt; &#123;</div><div class="line">					for (Execution execution : executionsToDeploy) &#123; //executionsToDeploy为整个链所有的subTask</div><div class="line">						try &#123;</div><div class="line">							execution.deploy();   // 最后挨个调用execution.deploy()进行部署子task，部署的模式是发送命令到</div><div class="line">						&#125; catch (Throwable t) &#123;</div><div class="line">							throw new CompletionException(</div><div class="line">								new FlinkException(</div><div class="line">									String.format(&quot;Could not deploy execution %s.&quot;, execution),</div><div class="line">									t));</div><div class="line">						&#125;</div><div class="line">					&#125;</div><div class="line">				&#125;)</div><div class="line">			......</div><div class="line">		return currentSchedulingFuture;</div><div class="line">	&#125;`</div></pre></td></tr></table></figure><p></p>
+<p>scheduleEager主要做了两件事:</p>
+<ul>
+<li>通过allocateResourcesForAll确定每个subTask将要部署的slot。若没有合适的TaskManager, 那么通过yarn去申请TaskManager。</li>
+<li>当所有的subTask都确定好部署的TaskManager后, 通过execution.deploy()将subTask部署上去。</li>
+</ul>
+<h2 id="确定subTask部署的slot"><a href="#确定subTask部署的slot" class="headerlink" title="确定subTask部署的slot"></a>确定subTask部署的slot</h2><p>通过getVerticesTopologically()获取所有的JobVertex, 其中JobVertex以ExecutionGraph从source-&gt;sink顺序存放, 在确定每个</p>
+<h1 id="SlotSharingGroup"><a href="#SlotSharingGroup" class="headerlink" title="SlotSharingGroup"></a>SlotSharingGroup</h1><p>Flink 允许相同SlotSharingGroup的subTask共享同一个slot, 好处主要有俩:</p>
+<ul>
+<li>A Flink cluster needs exactly as many task slots as the highest parallelism used in the job. No need to calculate how many tasks (with varying parallelism) a program contains in total.</li>
+<li>It is easier to get better resource utilization. Without slot sharing, the non-intensive source/map() subtasks would block as many resources as the resource intensive window subtasks. With slot sharing, increasing the base parallelism in our example from two to six yields full utilization of the slotted resources, while making sure that the heavy subtasks are fairly distributed among the TaskManagers.<br>默认情况下, SubTask使用相同的slot共享组: Default, task共享slot过程可以参考:<a href="https://ci.apache.org/projects/flink/flink-docs-release-1.8/concepts/runtime.html#task-slots-and-resources" target="_blank" rel="external">如何共享slot</a><br>这里将阐述SlotSharingGroup是如何生成并起作用的:<br>在JobGraph产生的时候调用setSlotSharingAndCoLocation()函数:<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div></pre></td><td class="code"><pre><div class="line">private void setSlotSharingAndCoLocation() &#123;</div><div class="line">	final HashMap&lt;String, SlotSharingGroup&gt; slotSharingGroups = new HashMap&lt;&gt;();</div><div class="line">	for (Entry&lt;Integer, JobVertex&gt; entry : jobVertices.entrySet()) &#123;</div><div class="line">		final StreamNode node = streamGraph.getStreamNode(entry.getKey());</div><div class="line">		final JobVertex vertex = entry.getValue();</div><div class="line">		// slotSharingGroupKey为默认值default</div><div class="line">		final String slotSharingGroupKey = node.getSlotSharingGroup();</div><div class="line">		final SlotSharingGroup sharingGroup;</div><div class="line">		if (slotSharingGroupKey != null) &#123;</div><div class="line">		    // 可以看到, 所有的task的group都为default, 都将放入到同一个SlotSharingGroup中</div><div class="line">			sharingGroup = slotSharingGroups.computeIfAbsent(slotSharingGroupKey, (k) -&gt; new SlotSharingGroup());</div><div class="line">			vertex.setSlotSharingGroup(sharingGroup);</div><div class="line">		&#125; else &#123;</div><div class="line">			sharingGroup = null;</div><div class="line">		&#125;</div></pre></td></tr></table></figure>
+</li>
+</ul>
+<p>这样, 所有的JobVertex都引用了同一个SlotSharingGroup。 而<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div></pre></td><td class="code"><pre><div class="line">   public void setSlotSharingGroup(SlotSharingGroup grp) &#123;</div><div class="line">	if (this.slotSharingGroup != null) &#123;</div><div class="line">		this.slotSharingGroup.removeVertexFromGroup(id);</div><div class="line">	&#125;</div><div class="line">	this.slotSharingGroup = grp;</div><div class="line">	if (grp != null) &#123;</div><div class="line">		grp.addVertexToGroup(id);</div><div class="line">	&#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<h1 id="参考文档"><a href="#参考文档" class="headerlink" title="参考文档"></a>参考文档</h1><p><a href="https://ci.apache.org/projects/flink/flink-docs-release-1.8/concepts/runtime.html" target="_blank" rel="external">https://ci.apache.org/projects/flink/flink-docs-release-1.8/concepts/runtime.html</a><br><a href="https://ci.apache.org/projects/flink/flink-docs-release-1.8/internals/job_scheduling.html" target="_blank" rel="external">https://ci.apache.org/projects/flink/flink-docs-release-1.8/internals/job_scheduling.html</a><br><a href="http://wuchong.me/blog/2016/05/03/flink-internals-overview/" target="_blank" rel="external">http://wuchong.me/blog/2016/05/03/flink-internals-overview/</a><br><a href="http://wuchong.me/blog/2016/05/09/flink-internals-understanding-execution-resources/" target="_blank" rel="external">http://wuchong.me/blog/2016/05/09/flink-internals-understanding-execution-resources/</a></p>
 
       
 
@@ -317,7 +331,7 @@
 <script src="//www.wenjunjiang.win/js/gitment.js "></script>
 <script>
 var gitment = new Gitment({
-  id: "Flink原理-slot分配",
+  id: "Flink原理-Slot申请及Task部署",
   owner: 'kkewwei',
   repo: 'comments',
   oauth: {
@@ -451,11 +465,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">ReentrantLock</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">ReentrantLock</a>
+                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -464,10 +482,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">gdb</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
               </li>
              
               <li class="article-tag-list-item">
