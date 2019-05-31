@@ -16,7 +16,7 @@
 <meta property="og:site_name" content="Hexo">
 <meta property="og:description" content="本文将从ExecutionGraph开始向后讲起, 关于JobManager是如何进行slot的分配及部署的, ExecutionGraph定义了TaskManager的并发分布结构, 作为任务执行的以后一层逻辑结构, 也是最核心数据结构。为了让大家有全局的了解, 先盗一张广为引用的Graph转换图:具体来说, 本文讲述这些Task是如何部署到TaskManager上的。 Task分配及部署代码将">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/Flink_Graph.png">
-<meta property="og:updated_time" content="2019-05-31T15:09:04.000Z">
+<meta property="og:updated_time" content="2019-05-31T15:52:30.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Flink原理-Slot申请及Task部署">
 <meta name="twitter:description" content="本文将从ExecutionGraph开始向后讲起, 关于JobManager是如何进行slot的分配及部署的, ExecutionGraph定义了TaskManager的并发分布结构, 作为任务执行的以后一层逻辑结构, 也是最核心数据结构。为了让大家有全局的了解, 先盗一张广为引用的Graph转换图:具体来说, 本文讲述这些Task是如何部署到TaskManager上的。 Task分配及部署代码将">
@@ -44,55 +44,39 @@
   <div id="container" q-class="show:isCtnShow">
     <canvas id="anm-canvas" class="anm-canvas"></canvas>
     <div class="left-col" q-class="show:isShow">
-      
-<div class="overlay" style="background: #4d4d4d"></div>
+      <% var defaultBg = '#4d4d4d'; %>
+<div class="overlay" style="background: <%= theme.style && theme.style.header ? theme.style.header : defaultBg %>"></div>
 <div class="intrude-less">
 	<header id="header" class="inner">
-		<a href="/" class="profilepic">
-      <img src="https://kkewwei.github.io/elasticsearch_learning/img/myself.png" class="js-avatar">
+		<a href="<%=theme.root%>" class="profilepic">
+			<img src="<%=theme.avatar%>" class="js-avatar">
 		</a>
 		<hgroup>
-		  <h1 class="header-author"><a href="/">xiaoyu</a></h1>
+		  <h1 class="header-author"><a href="<%=theme.root%>"><%=theme.author%></a></h1>
 		</hgroup>
-		
-		<p class="header-subtitle">往事随风</p>
-		
+		<% if (theme.subtitle){ %>
+		<p class="header-subtitle"><%=theme.subtitle%></p>
+		<%}%>
 
 		<nav class="header-menu">
 			<ul>
-			
-				<li><a href="/elasticsearch_learning/">主页</a></li>
-	        
-				<li><a href="/elasticsearch_learning/tags/随笔/">随笔</a></li>
-	        
+			<% for (var i in theme.menu){ %>
+				<li><a href="<%- url_for(theme.menu[i]) %>"><%= i %></a></li>
+	        <%}%>
 			</ul>
 		</nav>
 		<nav class="header-smart-menu">
-    		
-    			
-    			<a q-on="click: openSlider(e, 'innerArchive')" href="javascript:void(0)">所有文章</a>
-    			
-            
-    			
-    			<a q-on="click: openSlider(e, 'friends')" href="javascript:void(0)">友链</a>
-    			
-            
-    			
-    			<a q-on="click: openSlider(e, 'aboutme')" href="javascript:void(0)">关于我</a>
-    			
-            
+    		<% for (var i in theme.smart_menu){ %>
+    			<% if(theme.smart_menu[i]){ %>
+    			<a q-on="click: openSlider(e, '<%-i%>')" href="javascript:void(0)"><%= theme.smart_menu[i] %></a>
+    			<% } %>
+            <%}%>
 		</nav>
 		<nav class="header-nav">
 			<div class="social">
-				
-					<a class="github" target="_blank" href="#" title="github"><i class="icon-github"></i></a>
-		        
-					<a class="weibo" target="_blank" href="#" title="weibo"><i class="icon-weibo"></i></a>
-		        
-					<a class="rss" target="_blank" href="#" title="rss"><i class="icon-rss"></i></a>
-		        
-					<a class="zhihu" target="_blank" href="#" title="zhihu"><i class="icon-zhihu"></i></a>
-		        
+				<% for (var i in theme.subnav){ %>
+					<a class="<%= i %>" target="_blank" href="<%- url_for(theme.subnav[i]) %>" title="<%= i %>"><i class="icon-<%= i %>"></i></a>
+		        <%}%>
 			</div>
 		</nav>
 	</header>
@@ -178,6 +162,35 @@
         
       </header>
     
+
+    <!-- 目录内容 -->
+    
+      <p class="show-toc-btn" id="show-toc-btn" onclick="showToc();" style="display:none">
+        <span class="btn-bg"></span>
+        <span class="btn-text">文章导航</span>
+      </p>
+	    <div id="toc-article" class="toc-article">
+	      <span id="toc-close" class="toc-close" title="隐藏导航" onclick="showBtn();">×</span>
+		      <strong class="toc-title">文章目录</strong>
+        <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#Task分配及部署"><span class="toc-number">1.</span> <span class="toc-text">Task分配及部署</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#确定subTask部署的slot"><span class="toc-number">1.1.</span> <span class="toc-text">确定subTask部署的slot</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#SlotSharingGroup"><span class="toc-number">2.</span> <span class="toc-text">SlotSharingGroup</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#参考文档"><span class="toc-number">3.</span> <span class="toc-text">参考文档</span></a></li></ol>
+         </div>
+   <script type="text/javascript">
+	function showToc(){
+		var toc_article = document.getElementById("toc-article");
+		var show_toc_btn = document.getElementById("show-toc-btn");
+		toc_article.setAttribute("style","display:block");
+		show_toc_btn.setAttribute("style","display:none");
+		};
+	function showBtn(){
+		var toc_article = document.getElementById("toc-article");
+		var show_toc_btn = document.getElementById("show-toc-btn");
+		toc_article.setAttribute("style","display:none");
+		show_toc_btn.setAttribute("style","display:block");
+		};
+   </script>
+      
+    <!-- 目录内容结束 -->
+
     <div class="article-entry" itemprop="articleBody">
       
         <p>本文将从ExecutionGraph开始向后讲起, 关于JobManager是如何进行slot的分配及部署的, ExecutionGraph定义了TaskManager的并发分布结构, 作为任务执行的以后一层逻辑结构, 也是最核心数据结构。为了让大家有全局的了解, 先盗一张广为引用的Graph转换图:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/Flink_Graph.png" height="900" width="800"><br>具体来说, 本文讲述这些Task是如何部署到TaskManager上的。</p>
@@ -189,7 +202,11 @@
 <li>当所有的subTask都确定好部署的TaskManager后, 通过execution.deploy()将subTask部署上去。<br>接下来, 将分别围绕这两件事讲解。<h2 id="确定subTask部署的slot"><a href="#确定subTask部署的slot" class="headerlink" title="确定subTask部署的slot"></a>确定subTask部署的slot</h2>通过getVerticesTopologically()获取所有的ExecutionJobVertex, 然后依次轮询给每个ExecutionJobVertex都分配一个slot, 其中轮询的ExecutionJobVertex是有先后顺序的, 从source开始确定, 直到sink。也就是说上游分配到哪个tm上, 会影响下游的slot分配。 我们进入allocateResourcesForAll看下是如何分配给一个ExecutionJobVertex所有的subTask分配slot的。<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div></pre></td><td class="code"><pre><div class="line">   public Collection&lt;CompletableFuture&lt;Execution&gt;&gt; allocateResourcesForAll(</div><div class="line">		SlotProvider resourceProvider, // SlotPool$ProviderAndOwner</div><div class="line">		boolean queued,  //true</div><div class="line">		LocationPreferenceConstraint locationPreferenceConstraint, //ALL</div><div class="line">		@Nonnull Set&lt;AllocationID&gt; allPreviousExecutionGraphAllocationIds,</div><div class="line">		Time allocationTimeout) &#123;</div><div class="line">	final ExecutionVertex[] vertices = this.taskVertices;</div><div class="line">	final CompletableFuture&lt;Execution&gt;[] slots = new CompletableFuture[vertices.length];</div><div class="line">	for (int i = 0; i &lt; vertices.length; i++) &#123;</div><div class="line">		final Execution exec = vertices[i].getCurrentExecutionAttempt();</div><div class="line">		final CompletableFuture&lt;Execution&gt; allocationFuture = exec.allocateAndAssignSlotForExecution(</div><div class="line">			resourceProvider,</div><div class="line">			queued,</div><div class="line">			locationPreferenceConstraint,</div><div class="line">			allPreviousExecutionGraphAllocationIds,</div><div class="line">			allocationTimeout);</div><div class="line">		slots[i] = allocationFuture;</div><div class="line">	&#125;</div><div class="line">	return Arrays.asList(slots);</div><div class="line">&#125;</div></pre></td></tr></table></figure>
 </li>
 </ul>
-<p>每一个ExecutionJobVertex都对应着一批ExecutionVertex(也就是subTask), 可以看到, 这里轮询每个ExecutionVertex进行分配。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div><div class="line">61</div><div class="line">62</div><div class="line">63</div><div class="line">64</div><div class="line">65</div><div class="line">66</div><div class="line">67</div></pre></td><td class="code"><pre><div class="line">   public CompletableFuture&lt;Execution&gt; allocateAndAssignSlotForExecution(</div><div class="line">		SlotProvider slotProvider, //SlotPool$ProviderAndOwner</div><div class="line">		boolean queued,</div><div class="line">		LocationPreferenceConstraint locationPreferenceConstraint,  //ALL</div><div class="line">		@Nonnull Set&lt;AllocationID&gt; allPreviousExecutionGraphAllocationIds,</div><div class="line">		Time allocationTimeout) throws IllegalExecutionStateException &#123;</div><div class="line">	/** 获取在构建JobVertex时已经赋值好的SlotSharingGroup实例和CoLocationConstraint实例，如果有的话 */</div><div class="line">	final SlotSharingGroup sharingGroup = vertex.getJobVertex().getSlotSharingGroup();</div><div class="line">	final CoLocationConstraint locationConstraint = vertex.getLocationConstraint(); // null</div><div class="line">	// this method only works if the execution is in the state &apos;CREATED&apos;</div><div class="line">	if (transitionState(CREATED, SCHEDULED)) &#123;</div><div class="line">		final SlotSharingGroupId slotSharingGroupId = sharingGroup != null ? sharingGroup.getSlotSharingGroupId() : null;</div><div class="line">		/** ScheduleUnit 实例就是在这里构造出来的 */</div><div class="line">		ScheduledUnit toSchedule = locationConstraint == null ?</div><div class="line">				new ScheduledUnit(this, slotSharingGroupId) :</div><div class="line">				new ScheduledUnit(this, slotSharingGroupId, locationConstraint);</div><div class="line">		// try to extract previous allocation ids, if applicable, so that we can reschedule to the same slot</div><div class="line">		ExecutionVertex executionVertex = getVertex();</div><div class="line">		AllocationID lastAllocation = executionVertex.getLatestPriorAllocation(); // null</div><div class="line">		Collection&lt;AllocationID&gt; previousAllocationIDs =</div><div class="line">			lastAllocation != null ? Collections.singletonList(lastAllocation) : Collections.emptyList();</div><div class="line">		/** 获取当前任务分配槽位所在节点的&quot;偏好位置集合&quot;，也就是分配时，优先考虑分配在这些节点上，一般是input节点所在节点 */</div><div class="line">		// calculate the preferred locations</div><div class="line">		final CompletableFuture&lt;Collection&lt;TaskManagerLocation&gt;&gt; preferredLocationsFuture =</div><div class="line">			calculatePreferredLocations(locationPreferenceConstraint);</div><div class="line">	    //上游子task地方全部确定了，才能继续确定下游子task位置</div><div class="line">		final SlotRequestId slotRequestId = new SlotRequestId();</div><div class="line">		final CompletableFuture&lt;LogicalSlot&gt; logicalSlotFuture = preferredLocationsFuture</div><div class="line">			.thenCompose(</div><div class="line">				(Collection&lt;TaskManagerLocation&gt; preferredLocations) -&gt;</div><div class="line">					slotProvider.allocateSlot(//SlotPool$ProviderAndOwner</div><div class="line">						slotRequestId,</div><div class="line">						toSchedule,</div><div class="line">						queued,</div><div class="line">						new SlotProfile(</div><div class="line">							ResourceProfile.UNKNOWN,</div><div class="line">							preferredLocations,</div><div class="line">							previousAllocationIDs,</div><div class="line">							allPreviousExecutionGraphAllocationIds),</div><div class="line">						allocationTimeout));</div><div class="line">		// register call back to cancel slot request in case that the execution gets canceled</div><div class="line">		releaseFuture.whenComplete(</div><div class="line">			(Object ignored, Throwable throwable) -&gt; &#123;</div><div class="line">				if (logicalSlotFuture.cancel(false)) &#123;</div><div class="line">					slotProvider.cancelSlotRequest(</div><div class="line">						slotRequestId,</div><div class="line">						slotSharingGroupId,</div><div class="line">						new FlinkException(&quot;Execution &quot; + this + &quot; was released.&quot;));</div><div class="line">				&#125;</div><div class="line">			&#125;);</div><div class="line">		return logicalSlotFuture.thenApply(</div><div class="line">			(LogicalSlot logicalSlot) -&gt; &#123;</div><div class="line">			    //</div><div class="line">				if (tryAssignResource(logicalSlot)) &#123;</div><div class="line">					return this;</div><div class="line">				&#125; else &#123;</div><div class="line">					// release the slot</div><div class="line">					logicalSlot.releaseSlot(new FlinkException(&quot;Could not assign logical slot to execution &quot; + this + &apos;.&apos;));</div><div class="line">					throw new CompletionException(new FlinkException(&quot;Could not assign slot &quot; + logicalSlot + &quot; to execution &quot; + this + &quot; because it has already been assigned &quot;));</div><div class="line">				&#125;</div><div class="line">			&#125;);</div><div class="line">	&#125;</div><div class="line">	else &#123;</div><div class="line">		// call race, already deployed, or already done</div><div class="line">		throw new IllegalExecutionStateException(this, CREATED, state);</div><div class="line">	&#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>每一个ExecutionJobVertex都对应着一批ExecutionVertex(也就是subTask), 可以看到, 这里轮询每个ExecutionVertex进行分配。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div></pre></td><td class="code"><pre><div class="line">   public CompletableFuture&lt;Execution&gt; allocateAndAssignSlotForExecution(</div><div class="line">		SlotProvider slotProvider, //SlotPool$ProviderAndOwner</div><div class="line">		boolean queued,</div><div class="line">		LocationPreferenceConstraint locationPreferenceConstraint,  //ALL</div><div class="line">		@Nonnull Set&lt;AllocationID&gt; allPreviousExecutionGraphAllocationIds,</div><div class="line">		Time allocationTimeout) throws IllegalExecutionStateException &#123;</div><div class="line">	final SlotSharingGroup sharingGroup = vertex.getJobVertex().getSlotSharingGroup();</div><div class="line">	if (transitionState(CREATED, SCHEDULED)) &#123;</div><div class="line">	    // 默认情况下, 所有的subTask的共享组均为default</div><div class="line">		final SlotSharingGroupId slotSharingGroupId = sharingGroup != null ? sharingGroup.getSlotSharingGroupId() : null;</div><div class="line">		lastAllocation != null ? Collections.singletonList(lastAllocation) : Collections.emptyList();</div><div class="line">		/** 获取当前任务分配槽位所在节点的&quot;偏好位置集合&quot;，也就是分配时，优先考虑分配在这些节点上，一般是input节点所在节点 */</div><div class="line">		// calculate the preferred locations</div><div class="line">		final CompletableFuture&lt;Collection&lt;TaskManagerLocation&gt;&gt; preferredLocationsFuture = calculatePreferredLocations(locationPreferenceConstraint);</div><div class="line">	    //上游子task地方全部确定了，才能继续确定下游子task位置</div><div class="line">		final SlotRequestId slotRequestId = new SlotRequestId();</div><div class="line">		final CompletableFuture&lt;LogicalSlot&gt; logicalSlotFuture = preferredLocationsFuture</div><div class="line">			.thenCompose(</div><div class="line">				(Collection&lt;TaskManagerLocation&gt; preferredLocations) -&gt;</div><div class="line">					slotProvider.allocateSlot(//SlotPool$ProviderAndOwner</div><div class="line">						slotRequestId,</div><div class="line">						toSchedule,</div><div class="line">						queued,</div><div class="line">						new SlotProfile(</div><div class="line">							ResourceProfile.UNKNOWN,</div><div class="line">							preferredLocations,</div><div class="line">							previousAllocationIDs,</div><div class="line">							allPreviousExecutionGraphAllocationIds),</div><div class="line">						allocationTimeout));</div><div class="line">		return logicalSlotFuture.thenApply(</div><div class="line">			(LogicalSlot logicalSlot) -&gt; &#123;</div><div class="line">			    //</div><div class="line">				if (tryAssignResource(logicalSlot)) &#123;</div><div class="line">					return this;</div><div class="line">				&#125;</div><div class="line">			&#125;);</div><div class="line">	&#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>该函数主要做了两件事情:</p>
+<ul>
+<li>在calculatePreferredLocations中确定该subTask对应的上游所有subTask的分配情况,</li>
+</ul>
 <h1 id="SlotSharingGroup"><a href="#SlotSharingGroup" class="headerlink" title="SlotSharingGroup"></a>SlotSharingGroup</h1><p>Flink 允许相同SlotSharingGroup的subTask共享同一个slot, 好处主要有俩:</p>
 <ul>
 <li>A Flink cluster needs exactly as many task slots as the highest parallelism used in the job. No need to calculate how many tasks (with varying parallelism) a program contains in total.</li>
@@ -313,13 +330,26 @@
         </div>
         
         
+        <div class="toc-container tooltip-left">
+            <i class="icon-font icon-category"></i>
+            <div class="tooltip tooltip-east">
+                <span class="tooltip-item">
+                </span>
+                <span class="tooltip-content">
+                    <div class="toc-article">
+                    <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#Task分配及部署"><span class="toc-number">1.</span> <span class="toc-text">Task分配及部署</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#确定subTask部署的slot"><span class="toc-number">1.1.</span> <span class="toc-text">确定subTask部署的slot</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#SlotSharingGroup"><span class="toc-number">2.</span> <span class="toc-text">SlotSharingGroup</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#参考文档"><span class="toc-number">3.</span> <span class="toc-text">参考文档</span></a></li></ol>
+                    </div>
+                </span>
+            </div>
+        </div>
+        
     </div>
 </aside>
 
 
 
   
-  
+
   
 
   
@@ -477,11 +507,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">gdb</a>
+                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
+                <a href="javascript:void(0)" class="js-tag color4">gdb</a>
               </li>
              
               <li class="article-tag-list-item">
