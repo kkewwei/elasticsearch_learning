@@ -19,7 +19,7 @@
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/HttpOutPutResponse.png">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/HttpResponse_Byte.png">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/ChannelOutboundBuffer.png">
-<meta property="og:updated_time" content="2019-01-03T12:03:12.000Z">
+<meta property="og:updated_time" content="2019-05-31T15:57:23.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Netty Http通信源码二(编码)分析">
 <meta name="twitter:description" content="解码过程仍以Netty Http通信源码一(解码)阅读提供的示例为例, 编码发送的主体DefaultFullHttpResponse如下:涉及到的ChannelOutboundHandler类有:HttpContentCompressor、HttpObjectEncoder, 及其父类。 本wiki仍然以数据的流向作为引导线。开始向外发送数据时, 如下:1234567891011121314151">
@@ -184,6 +184,30 @@
 
     <!-- 目录内容 -->
     
+      <p class="show-toc-btn" id="show-toc-btn" onclick="showToc();" style="display:none">
+        <span class="btn-bg"></span>
+        <span class="btn-text">文章导航</span>
+      </p>
+	    <div id="toc-article" class="toc-article">
+	      <span id="toc-close" class="toc-close" title="隐藏导航" onclick="showBtn();">×</span>
+		      <strong class="toc-title">文章目录</strong>
+        <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#HttpContentCompressor及父类HttpContentEncoder、MessageToMessageCodec"><span class="toc-number">1.</span> <span class="toc-text">HttpContentCompressor及父类HttpContentEncoder、MessageToMessageCodec</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#HttpContentEncoder的encode-函数"><span class="toc-number">1.1.</span> <span class="toc-text">HttpContentEncoder的encode()函数</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#JdkZlibEncoder压缩"><span class="toc-number">1.2.</span> <span class="toc-text">JdkZlibEncoder压缩</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#DefalueChannalHadlerContext-write"><span class="toc-number">1.3.</span> <span class="toc-text">DefalueChannalHadlerContext.write()</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#Netty水位"><span class="toc-number">2.</span> <span class="toc-text">Netty水位</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#setUnwritable设置不可写"><span class="toc-number">2.1.</span> <span class="toc-text">setUnwritable设置不可写</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#Flush"><span class="toc-number">3.</span> <span class="toc-text">Flush</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#内部flush0"><span class="toc-number">3.1.</span> <span class="toc-text">内部flush0</span></a></li></ol></li></ol>
+         </div>
+   <script type="text/javascript">
+	function showToc(){
+		var toc_article = document.getElementById("toc-article");
+		var show_toc_btn = document.getElementById("show-toc-btn");
+		toc_article.setAttribute("style","display:block");
+		show_toc_btn.setAttribute("style","display:none");
+		};
+	function showBtn(){
+		var toc_article = document.getElementById("toc-article");
+		var show_toc_btn = document.getElementById("show-toc-btn");
+		toc_article.setAttribute("style","display:none");
+		show_toc_btn.setAttribute("style","display:block");
+		};
+   </script>
+      
     <!-- 目录内容结束 -->
 
     <div class="article-entry" itemprop="articleBody">
@@ -411,6 +435,19 @@
             </div>
         </div>
         
+        
+        <div class="toc-container tooltip-left">
+            <i class="icon-font icon-category"></i>
+            <div class="tooltip tooltip-east">
+                <span class="tooltip-item">
+                </span>
+                <span class="tooltip-content">
+                    <div class="toc-article">
+                    <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#HttpContentCompressor及父类HttpContentEncoder、MessageToMessageCodec"><span class="toc-number">1.</span> <span class="toc-text">HttpContentCompressor及父类HttpContentEncoder、MessageToMessageCodec</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#HttpContentEncoder的encode-函数"><span class="toc-number">1.1.</span> <span class="toc-text">HttpContentEncoder的encode()函数</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#JdkZlibEncoder压缩"><span class="toc-number">1.2.</span> <span class="toc-text">JdkZlibEncoder压缩</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#DefalueChannalHadlerContext-write"><span class="toc-number">1.3.</span> <span class="toc-text">DefalueChannalHadlerContext.write()</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#Netty水位"><span class="toc-number">2.</span> <span class="toc-text">Netty水位</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#setUnwritable设置不可写"><span class="toc-number">2.1.</span> <span class="toc-text">setUnwritable设置不可写</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#Flush"><span class="toc-number">3.</span> <span class="toc-text">Flush</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#内部flush0"><span class="toc-number">3.1.</span> <span class="toc-text">内部flush0</span></a></li></ol></li></ol>
+                    </div>
+                </span>
+            </div>
+        </div>
         
     </div>
 </aside>

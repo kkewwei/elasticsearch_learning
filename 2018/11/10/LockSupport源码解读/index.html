@@ -17,7 +17,7 @@
 <meta property="og:site_name" content="Hexo">
 <meta property="og:description" content="LockSupport作为并发的基础, 在CountDownLatch、ReentrantLock、Semaphore、ReentrantReadWriteLock中都是作为阻塞/唤醒线程的基本工具, 因此, 很有必要了解LockSupport的用法及原理, 本文将从LockSupport基本用法、 类主要函数及相关知识、底层基本原理三方面分别描述。 使用基本用法:1234567891011121">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/LockSupport1.png">
-<meta property="og:updated_time" content="2019-01-21T01:22:18.000Z">
+<meta property="og:updated_time" content="2019-05-31T15:57:23.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="LockSupport原理分析">
 <meta name="twitter:description" content="LockSupport作为并发的基础, 在CountDownLatch、ReentrantLock、Semaphore、ReentrantReadWriteLock中都是作为阻塞/唤醒线程的基本工具, 因此, 很有必要了解LockSupport的用法及原理, 本文将从LockSupport基本用法、 类主要函数及相关知识、底层基本原理三方面分别描述。 使用基本用法:1234567891011121">
@@ -182,6 +182,30 @@
 
     <!-- 目录内容 -->
     
+      <p class="show-toc-btn" id="show-toc-btn" onclick="showToc();" style="display:none">
+        <span class="btn-bg"></span>
+        <span class="btn-text">文章导航</span>
+      </p>
+	    <div id="toc-article" class="toc-article">
+	      <span id="toc-close" class="toc-close" title="隐藏导航" onclick="showBtn();">×</span>
+		      <strong class="toc-title">文章目录</strong>
+        <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#使用"><span class="toc-number">1.</span> <span class="toc-text">使用</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#LockSupport源码解析"><span class="toc-number">2.</span> <span class="toc-text">LockSupport源码解析</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#Unsafe"><span class="toc-number">2.1.</span> <span class="toc-text">Unsafe</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#parkBlockerOffset和parkBlocker"><span class="toc-number">2.2.</span> <span class="toc-text">parkBlockerOffset和parkBlocker</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#Unsafe底层park-unpark原理"><span class="toc-number">3.</span> <span class="toc-text">Unsafe底层park/unpark原理</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#thread和Parker"><span class="toc-number">3.1.</span> <span class="toc-text">thread和Parker</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#Parker-park"><span class="toc-number">3.2.</span> <span class="toc-text">Parker.park()</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#Parker-unpark"><span class="toc-number">3.3.</span> <span class="toc-text">Parker.unpark()</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#总结"><span class="toc-number">4.</span> <span class="toc-text">总结</span></a></li></ol>
+         </div>
+   <script type="text/javascript">
+	function showToc(){
+		var toc_article = document.getElementById("toc-article");
+		var show_toc_btn = document.getElementById("show-toc-btn");
+		toc_article.setAttribute("style","display:block");
+		show_toc_btn.setAttribute("style","display:none");
+		};
+	function showBtn(){
+		var toc_article = document.getElementById("toc-article");
+		var show_toc_btn = document.getElementById("show-toc-btn");
+		toc_article.setAttribute("style","display:none");
+		show_toc_btn.setAttribute("style","display:block");
+		};
+   </script>
+      
     <!-- 目录内容结束 -->
 
     <div class="article-entry" itemprop="articleBody">
@@ -353,6 +377,19 @@
             </div>
         </div>
         
+        
+        <div class="toc-container tooltip-left">
+            <i class="icon-font icon-category"></i>
+            <div class="tooltip tooltip-east">
+                <span class="tooltip-item">
+                </span>
+                <span class="tooltip-content">
+                    <div class="toc-article">
+                    <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#使用"><span class="toc-number">1.</span> <span class="toc-text">使用</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#LockSupport源码解析"><span class="toc-number">2.</span> <span class="toc-text">LockSupport源码解析</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#Unsafe"><span class="toc-number">2.1.</span> <span class="toc-text">Unsafe</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#parkBlockerOffset和parkBlocker"><span class="toc-number">2.2.</span> <span class="toc-text">parkBlockerOffset和parkBlocker</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#Unsafe底层park-unpark原理"><span class="toc-number">3.</span> <span class="toc-text">Unsafe底层park/unpark原理</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#thread和Parker"><span class="toc-number">3.1.</span> <span class="toc-text">thread和Parker</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#Parker-park"><span class="toc-number">3.2.</span> <span class="toc-text">Parker.park()</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#Parker-unpark"><span class="toc-number">3.3.</span> <span class="toc-text">Parker.unpark()</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#总结"><span class="toc-number">4.</span> <span class="toc-text">总结</span></a></li></ol>
+                    </div>
+                </span>
+            </div>
+        </div>
         
     </div>
 </aside>

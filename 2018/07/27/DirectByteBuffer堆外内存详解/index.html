@@ -15,7 +15,7 @@
 <meta property="og:url" content="https://kkewwei.github.io/elasticsearch_learning/2018/07/27/DirectByteBuffer堆外内存详解/index.html">
 <meta property="og:site_name" content="Hexo">
 <meta property="og:description" content="我们知道, 在使用IO传输数据时, 首先会将数据传输到堆外直接内存中, 然后才通过网络发送出去。这样的话, 数据多了次中间copy, 能否不经过copy而直接将数据发送出去呢, 其实是可以的, 存放的位置就是本文要讲的主角:DirectByteBuffer 。JVM内存主要分为heap内存和堆外内存(一般我们也会称呼为直接内存), heap内存我们不用care, jvm能自动帮我们管理, 而堆外内">
-<meta property="og:updated_time" content="2019-01-13T03:34:15.000Z">
+<meta property="og:updated_time" content="2019-05-31T15:57:23.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="DirectByteBuffer堆外内存详解">
 <meta name="twitter:description" content="我们知道, 在使用IO传输数据时, 首先会将数据传输到堆外直接内存中, 然后才通过网络发送出去。这样的话, 数据多了次中间copy, 能否不经过copy而直接将数据发送出去呢, 其实是可以的, 存放的位置就是本文要讲的主角:DirectByteBuffer 。JVM内存主要分为heap内存和堆外内存(一般我们也会称呼为直接内存), heap内存我们不用care, jvm能自动帮我们管理, 而堆外内">
@@ -179,6 +179,30 @@
 
     <!-- 目录内容 -->
     
+      <p class="show-toc-btn" id="show-toc-btn" onclick="showToc();" style="display:none">
+        <span class="btn-bg"></span>
+        <span class="btn-text">文章导航</span>
+      </p>
+	    <div id="toc-article" class="toc-article">
+	      <span id="toc-close" class="toc-close" title="隐藏导航" onclick="showBtn();">×</span>
+		      <strong class="toc-title">文章目录</strong>
+        <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#DirectByteBuffer使用"><span class="toc-number">1.</span> <span class="toc-text">DirectByteBuffer使用</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#堆外内存的回收"><span class="toc-number"></span> <span class="toc-text">堆外内存的回收</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#总结"><span class="toc-number"></span> <span class="toc-text">总结</span></a>
+         </div>
+   <script type="text/javascript">
+	function showToc(){
+		var toc_article = document.getElementById("toc-article");
+		var show_toc_btn = document.getElementById("show-toc-btn");
+		toc_article.setAttribute("style","display:block");
+		show_toc_btn.setAttribute("style","display:none");
+		};
+	function showBtn(){
+		var toc_article = document.getElementById("toc-article");
+		var show_toc_btn = document.getElementById("show-toc-btn");
+		toc_article.setAttribute("style","display:none");
+		show_toc_btn.setAttribute("style","display:block");
+		};
+   </script>
+      
     <!-- 目录内容结束 -->
 
     <div class="article-entry" itemprop="articleBody">
@@ -321,6 +345,19 @@
             </div>
         </div>
         
+        
+        <div class="toc-container tooltip-left">
+            <i class="icon-font icon-category"></i>
+            <div class="tooltip tooltip-east">
+                <span class="tooltip-item">
+                </span>
+                <span class="tooltip-content">
+                    <div class="toc-article">
+                    <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#DirectByteBuffer使用"><span class="toc-number">1.</span> <span class="toc-text">DirectByteBuffer使用</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#堆外内存的回收"><span class="toc-number"></span> <span class="toc-text">堆外内存的回收</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#总结"><span class="toc-number"></span> <span class="toc-text">总结</span></a>
+                    </div>
+                </span>
+            </div>
+        </div>
         
     </div>
 </aside>

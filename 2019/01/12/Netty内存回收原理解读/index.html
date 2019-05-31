@@ -17,7 +17,7 @@
 <meta property="og:description" content="Netty堆外内存通过DirectByteBuffer实现管理, 它会首先申请16M的直接内存块大小, 放入DirectByteBuffer, 由PoolChunk映射这16MB的内存块, 通过PoolChunk的分配来完成该直接内存块使用与释放。 每当用户申请小块内存时, 都从这16M的内存中分配, 当该部分内存使用完后, 会释放到PoolChunk内存池中, 而不是彻底释放。 可以看出, ne">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/Netty堆外内存回收1.png">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/Netty堆外内存回收.png">
-<meta property="og:updated_time" content="2019-01-16T01:05:34.000Z">
+<meta property="og:updated_time" content="2019-05-31T15:57:23.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Netty堆外内存回收原理详解">
 <meta name="twitter:description" content="Netty堆外内存通过DirectByteBuffer实现管理, 它会首先申请16M的直接内存块大小, 放入DirectByteBuffer, 由PoolChunk映射这16MB的内存块, 通过PoolChunk的分配来完成该直接内存块使用与释放。 每当用户申请小块内存时, 都从这16M的内存中分配, 当该部分内存使用完后, 会释放到PoolChunk内存池中, 而不是彻底释放。 可以看出, ne">
@@ -182,6 +182,30 @@
 
     <!-- 目录内容 -->
     
+      <p class="show-toc-btn" id="show-toc-btn" onclick="showToc();" style="display:none">
+        <span class="btn-bg"></span>
+        <span class="btn-text">文章导航</span>
+      </p>
+	    <div id="toc-article" class="toc-article">
+	      <span id="toc-close" class="toc-close" title="隐藏导航" onclick="showBtn();">×</span>
+		      <strong class="toc-title">文章目录</strong>
+        <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#PlatformDependent及PlatformDependent0简介"><span class="toc-number">1.</span> <span class="toc-text">PlatformDependent及PlatformDependent0简介</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#PlatformDependent"><span class="toc-number">1.0.1.</span> <span class="toc-text">PlatformDependent</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#PlatformDependent0"><span class="toc-number">1.0.2.</span> <span class="toc-text">PlatformDependent0</span></a></li></ol></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#直接内存的释放"><span class="toc-number">2.</span> <span class="toc-text">直接内存的释放</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#总结"><span class="toc-number">3.</span> <span class="toc-text">总结</span></a></li></ol>
+         </div>
+   <script type="text/javascript">
+	function showToc(){
+		var toc_article = document.getElementById("toc-article");
+		var show_toc_btn = document.getElementById("show-toc-btn");
+		toc_article.setAttribute("style","display:block");
+		show_toc_btn.setAttribute("style","display:none");
+		};
+	function showBtn(){
+		var toc_article = document.getElementById("toc-article");
+		var show_toc_btn = document.getElementById("show-toc-btn");
+		toc_article.setAttribute("style","display:none");
+		show_toc_btn.setAttribute("style","display:block");
+		};
+   </script>
+      
     <!-- 目录内容结束 -->
 
     <div class="article-entry" itemprop="articleBody">
@@ -344,6 +368,19 @@
             </div>
         </div>
         
+        
+        <div class="toc-container tooltip-left">
+            <i class="icon-font icon-category"></i>
+            <div class="tooltip tooltip-east">
+                <span class="tooltip-item">
+                </span>
+                <span class="tooltip-content">
+                    <div class="toc-article">
+                    <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#PlatformDependent及PlatformDependent0简介"><span class="toc-number">1.</span> <span class="toc-text">PlatformDependent及PlatformDependent0简介</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#PlatformDependent"><span class="toc-number">1.0.1.</span> <span class="toc-text">PlatformDependent</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#PlatformDependent0"><span class="toc-number">1.0.2.</span> <span class="toc-text">PlatformDependent0</span></a></li></ol></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#直接内存的释放"><span class="toc-number">2.</span> <span class="toc-text">直接内存的释放</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#总结"><span class="toc-number">3.</span> <span class="toc-text">总结</span></a></li></ol>
+                    </div>
+                </span>
+            </div>
+        </div>
         
     </div>
 </aside>

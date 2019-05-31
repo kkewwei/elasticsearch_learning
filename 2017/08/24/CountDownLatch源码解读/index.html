@@ -18,7 +18,7 @@
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/CountDownLatch3.png">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/CountDownLatch1.png">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/CountDownLatch4.png">
-<meta property="og:updated_time" content="2018-12-17T01:18:16.000Z">
+<meta property="og:updated_time" content="2019-05-31T15:57:23.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="CountDownLatch源码分析">
 <meta name="twitter:description" content="CountDownLatch也是线程同步的一个工具, 底层也是使用AQS(参考ReentrantLock源码解读)来进行锁的互斥。CountDownLatch与ReentrantLock的主要区别是:  CountDownLatch是一个共享锁, ReentrantLock是一个独占锁。 CountDownLatch中state初始值为n, 代表一个锁被分成了n份。 好比门钥匙, 有一个门需要n份">
@@ -183,6 +183,30 @@
 
     <!-- 目录内容 -->
     
+      <p class="show-toc-btn" id="show-toc-btn" onclick="showToc();" style="display:none">
+        <span class="btn-bg"></span>
+        <span class="btn-text">文章导航</span>
+      </p>
+	    <div id="toc-article" class="toc-article">
+	      <span id="toc-close" class="toc-close" title="隐藏导航" onclick="showBtn();">×</span>
+		      <strong class="toc-title">文章目录</strong>
+        <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#countDown"><span class="toc-number">1.</span> <span class="toc-text">countDown()</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#await"><span class="toc-number">2.</span> <span class="toc-text">await()</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#超时等待"><span class="toc-number">3.</span> <span class="toc-text">超时等待</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#ReentrantLock和CountDownLatch对比"><span class="toc-number">4.</span> <span class="toc-text">ReentrantLock和CountDownLatch对比</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#总结"><span class="toc-number">5.</span> <span class="toc-text">总结</span></a></li></ol>
+         </div>
+   <script type="text/javascript">
+	function showToc(){
+		var toc_article = document.getElementById("toc-article");
+		var show_toc_btn = document.getElementById("show-toc-btn");
+		toc_article.setAttribute("style","display:block");
+		show_toc_btn.setAttribute("style","display:none");
+		};
+	function showBtn(){
+		var toc_article = document.getElementById("toc-article");
+		var show_toc_btn = document.getElementById("show-toc-btn");
+		toc_article.setAttribute("style","display:none");
+		show_toc_btn.setAttribute("style","display:block");
+		};
+   </script>
+      
     <!-- 目录内容结束 -->
 
     <div class="article-entry" itemprop="articleBody">
@@ -357,6 +381,19 @@
             </div>
         </div>
         
+        
+        <div class="toc-container tooltip-left">
+            <i class="icon-font icon-category"></i>
+            <div class="tooltip tooltip-east">
+                <span class="tooltip-item">
+                </span>
+                <span class="tooltip-content">
+                    <div class="toc-article">
+                    <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#countDown"><span class="toc-number">1.</span> <span class="toc-text">countDown()</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#await"><span class="toc-number">2.</span> <span class="toc-text">await()</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#超时等待"><span class="toc-number">3.</span> <span class="toc-text">超时等待</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#ReentrantLock和CountDownLatch对比"><span class="toc-number">4.</span> <span class="toc-text">ReentrantLock和CountDownLatch对比</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#总结"><span class="toc-number">5.</span> <span class="toc-text">总结</span></a></li></ol>
+                    </div>
+                </span>
+            </div>
+        </div>
         
     </div>
 </aside>

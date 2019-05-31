@@ -21,7 +21,7 @@
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/PipeLine2.png">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/ServerBootstrap1.png">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/PipeLine1.png">
-<meta property="og:updated_time" content="2018-12-29T02:42:12.000Z">
+<meta property="og:updated_time" content="2019-05-31T15:57:23.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="ServerBootstrap初始篇">
 <meta name="twitter:description" content="&amp;emsp;本文将以一个最简单的netty服务器端代码进行讲解。 服务器示例 123456789101112131415161718192021222324252627282930313233343536373839404142434445464748495051525354 public class HelloServer &amp;#123;    /**     * 服务端监听的端口地址     *">
@@ -186,6 +186,30 @@
 
     <!-- 目录内容 -->
     
+      <p class="show-toc-btn" id="show-toc-btn" onclick="showToc();" style="display:none">
+        <span class="btn-bg"></span>
+        <span class="btn-text">文章导航</span>
+      </p>
+	    <div id="toc-article" class="toc-article">
+	      <span id="toc-close" class="toc-close" title="隐藏导航" onclick="showBtn();">×</span>
+		      <strong class="toc-title">文章目录</strong>
+        <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#服务器示例"><span class="toc-number">1.</span> <span class="toc-text">服务器示例</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#NioEventLoop和NioEventLoopGroup分析"><span class="toc-number">2.</span> <span class="toc-text">NioEventLoop和NioEventLoopGroup分析</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#一些概念对应关系"><span class="toc-number">3.</span> <span class="toc-text">一些概念对应关系</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#具体过程分析"><span class="toc-number">4.</span> <span class="toc-text">具体过程分析</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#首先分析AbstractBootstrap-doBind"><span class="toc-number">4.1.</span> <span class="toc-text">首先分析AbstractBootstrap.doBind()</span></a></li></ol></li></ol>
+         </div>
+   <script type="text/javascript">
+	function showToc(){
+		var toc_article = document.getElementById("toc-article");
+		var show_toc_btn = document.getElementById("show-toc-btn");
+		toc_article.setAttribute("style","display:block");
+		show_toc_btn.setAttribute("style","display:none");
+		};
+	function showBtn(){
+		var toc_article = document.getElementById("toc-article");
+		var show_toc_btn = document.getElementById("show-toc-btn");
+		toc_article.setAttribute("style","display:none");
+		show_toc_btn.setAttribute("style","display:block");
+		};
+   </script>
+      
     <!-- 目录内容结束 -->
 
     <div class="article-entry" itemprop="articleBody">
@@ -390,6 +414,19 @@
             </div>
         </div>
         
+        
+        <div class="toc-container tooltip-left">
+            <i class="icon-font icon-category"></i>
+            <div class="tooltip tooltip-east">
+                <span class="tooltip-item">
+                </span>
+                <span class="tooltip-content">
+                    <div class="toc-article">
+                    <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#服务器示例"><span class="toc-number">1.</span> <span class="toc-text">服务器示例</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#NioEventLoop和NioEventLoopGroup分析"><span class="toc-number">2.</span> <span class="toc-text">NioEventLoop和NioEventLoopGroup分析</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#一些概念对应关系"><span class="toc-number">3.</span> <span class="toc-text">一些概念对应关系</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#具体过程分析"><span class="toc-number">4.</span> <span class="toc-text">具体过程分析</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#首先分析AbstractBootstrap-doBind"><span class="toc-number">4.1.</span> <span class="toc-text">首先分析AbstractBootstrap.doBind()</span></a></li></ol></li></ol>
+                    </div>
+                </span>
+            </div>
+        </div>
         
     </div>
 </aside>

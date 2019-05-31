@@ -16,7 +16,7 @@
 <meta property="og:site_name" content="Hexo">
 <meta property="og:description" content="首先给出一个http server pipiLine里面的处理器的组成结构的示例:123456789101112@Overrideprotected void initChannel(Channel ch) throws Exception &amp;#123;    final HttpRequestDecoder decoder = new HttpRequestDecoder(4096, 8192,">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/DefaultLastHttpContent.png">
-<meta property="og:updated_time" content="2018-12-29T02:41:29.000Z">
+<meta property="og:updated_time" content="2019-05-31T15:57:23.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Netty Http通信源码一(解码)分析">
 <meta name="twitter:description" content="首先给出一个http server pipiLine里面的处理器的组成结构的示例:123456789101112@Overrideprotected void initChannel(Channel ch) throws Exception &amp;#123;    final HttpRequestDecoder decoder = new HttpRequestDecoder(4096, 8192,">
@@ -181,6 +181,30 @@
 
     <!-- 目录内容 -->
     
+      <p class="show-toc-btn" id="show-toc-btn" onclick="showToc();" style="display:none">
+        <span class="btn-bg"></span>
+        <span class="btn-text">文章导航</span>
+      </p>
+	    <div id="toc-article" class="toc-article">
+	      <span id="toc-close" class="toc-close" title="隐藏导航" onclick="showBtn();">×</span>
+		      <strong class="toc-title">文章目录</strong>
+        <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#HttpObjectDecoder和HttpRequestDecoder"><span class="toc-number">1.</span> <span class="toc-text">HttpObjectDecoder和HttpRequestDecoder</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#HttpObjectAggregator和-MessageAggregator"><span class="toc-number">2.</span> <span class="toc-text">HttpObjectAggregator和 MessageAggregator</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#附"><span class="toc-number">3.</span> <span class="toc-text">附</span></a></li></ol>
+         </div>
+   <script type="text/javascript">
+	function showToc(){
+		var toc_article = document.getElementById("toc-article");
+		var show_toc_btn = document.getElementById("show-toc-btn");
+		toc_article.setAttribute("style","display:block");
+		show_toc_btn.setAttribute("style","display:none");
+		};
+	function showBtn(){
+		var toc_article = document.getElementById("toc-article");
+		var show_toc_btn = document.getElementById("show-toc-btn");
+		toc_article.setAttribute("style","display:none");
+		show_toc_btn.setAttribute("style","display:block");
+		};
+   </script>
+      
     <!-- 目录内容结束 -->
 
     <div class="article-entry" itemprop="articleBody">
@@ -354,6 +378,19 @@
             </div>
         </div>
         
+        
+        <div class="toc-container tooltip-left">
+            <i class="icon-font icon-category"></i>
+            <div class="tooltip tooltip-east">
+                <span class="tooltip-item">
+                </span>
+                <span class="tooltip-content">
+                    <div class="toc-article">
+                    <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#HttpObjectDecoder和HttpRequestDecoder"><span class="toc-number">1.</span> <span class="toc-text">HttpObjectDecoder和HttpRequestDecoder</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#HttpObjectAggregator和-MessageAggregator"><span class="toc-number">2.</span> <span class="toc-text">HttpObjectAggregator和 MessageAggregator</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#附"><span class="toc-number">3.</span> <span class="toc-text">附</span></a></li></ol>
+                    </div>
+                </span>
+            </div>
+        </div>
         
     </div>
 </aside>

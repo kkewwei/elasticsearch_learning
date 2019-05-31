@@ -16,7 +16,7 @@
 <meta property="og:site_name" content="Hexo">
 <meta property="og:description" content="Netty中大于8K的内存是通过PoolChunk来分配的, 小于8k的内存是通过PoolSubpage分配的, 本章将详细描述如何通过PoolSubpage分配小于8K的内存。当申请小于8K的内存时, 会从分配一个8k的叶子节点, 若用不完的话, 存在很大的浪费, 所以通过PoolSubpage来管理8K的内存, 如下图每一个PoolSubpage都会与PoolChunk里面的一个叶子节点映射起">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/PoolSubpage.png">
-<meta property="og:updated_time" content="2018-11-20T02:15:14.000Z">
+<meta property="og:updated_time" content="2019-05-31T15:57:23.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Netty-PoolSubpage原理探究">
 <meta name="twitter:description" content="Netty中大于8K的内存是通过PoolChunk来分配的, 小于8k的内存是通过PoolSubpage分配的, 本章将详细描述如何通过PoolSubpage分配小于8K的内存。当申请小于8K的内存时, 会从分配一个8k的叶子节点, 若用不完的话, 存在很大的浪费, 所以通过PoolSubpage来管理8K的内存, 如下图每一个PoolSubpage都会与PoolChunk里面的一个叶子节点映射起">
@@ -181,6 +181,30 @@
 
     <!-- 目录内容 -->
     
+      <p class="show-toc-btn" id="show-toc-btn" onclick="showToc();" style="display:none">
+        <span class="btn-bg"></span>
+        <span class="btn-text">文章导航</span>
+      </p>
+	    <div id="toc-article" class="toc-article">
+	      <span id="toc-close" class="toc-close" title="隐藏导航" onclick="showBtn();">×</span>
+		      <strong class="toc-title">文章目录</strong>
+        <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#PoolSubpage的内存分配"><span class="toc-number">1.</span> <span class="toc-text">PoolSubpage的内存分配</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#PoolSubpage的内存释放"><span class="toc-number">2.</span> <span class="toc-text">PoolSubpage的内存释放</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#总结"><span class="toc-number">3.</span> <span class="toc-text">总结</span></a></li></ol>
+         </div>
+   <script type="text/javascript">
+	function showToc(){
+		var toc_article = document.getElementById("toc-article");
+		var show_toc_btn = document.getElementById("show-toc-btn");
+		toc_article.setAttribute("style","display:block");
+		show_toc_btn.setAttribute("style","display:none");
+		};
+	function showBtn(){
+		var toc_article = document.getElementById("toc-article");
+		var show_toc_btn = document.getElementById("show-toc-btn");
+		toc_article.setAttribute("style","display:none");
+		show_toc_btn.setAttribute("style","display:block");
+		};
+   </script>
+      
     <!-- 目录内容结束 -->
 
     <div class="article-entry" itemprop="articleBody">
@@ -331,6 +355,19 @@
             </div>
         </div>
         
+        
+        <div class="toc-container tooltip-left">
+            <i class="icon-font icon-category"></i>
+            <div class="tooltip tooltip-east">
+                <span class="tooltip-item">
+                </span>
+                <span class="tooltip-content">
+                    <div class="toc-article">
+                    <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#PoolSubpage的内存分配"><span class="toc-number">1.</span> <span class="toc-text">PoolSubpage的内存分配</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#PoolSubpage的内存释放"><span class="toc-number">2.</span> <span class="toc-text">PoolSubpage的内存释放</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#总结"><span class="toc-number">3.</span> <span class="toc-text">总结</span></a></li></ol>
+                    </div>
+                </span>
+            </div>
+        </div>
         
     </div>
 </aside>

@@ -16,7 +16,7 @@
 <meta property="og:site_name" content="Hexo">
 <meta property="og:description" content="在平时项目中, 较多的使用了HashMap容器, 但是它是非线程安全的, 在多线程put的时候, 可能会导致HashMap产生环链而导致死锁。 在并发场景下, 我们就得换成ConcurrentHashMap, 采用分段、红黑树等结构体, 支持多线程同时插入, 又拥有较高的性能。本文章将围绕put的过程进行详细描述。首先放张大图, 对ConcurrentHashMap先有大致的了解。所有插入的值首先">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/ConcurrentHashMap2.png">
-<meta property="og:updated_time" content="2018-11-20T02:15:14.000Z">
+<meta property="og:updated_time" content="2019-05-31T15:57:23.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="ConcurrentHashMap Put源码介绍">
 <meta name="twitter:description" content="在平时项目中, 较多的使用了HashMap容器, 但是它是非线程安全的, 在多线程put的时候, 可能会导致HashMap产生环链而导致死锁。 在并发场景下, 我们就得换成ConcurrentHashMap, 采用分段、红黑树等结构体, 支持多线程同时插入, 又拥有较高的性能。本文章将围绕put的过程进行详细描述。首先放张大图, 对ConcurrentHashMap先有大致的了解。所有插入的值首先">
@@ -181,6 +181,30 @@
 
     <!-- 目录内容 -->
     
+      <p class="show-toc-btn" id="show-toc-btn" onclick="showToc();" style="display:none">
+        <span class="btn-bg"></span>
+        <span class="btn-text">文章导航</span>
+      </p>
+	    <div id="toc-article" class="toc-article">
+	      <span id="toc-close" class="toc-close" title="隐藏导航" onclick="showBtn();">×</span>
+		      <strong class="toc-title">文章目录</strong>
+        <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#成员变量介绍"><span class="toc-number">1.</span> <span class="toc-text">成员变量介绍</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#putVal插入数据"><span class="toc-number">2.</span> <span class="toc-text">putVal插入数据</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#initTable初始化"><span class="toc-number">2.1.</span> <span class="toc-text">initTable初始化</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#addCount"><span class="toc-number">2.2.</span> <span class="toc-text">addCount</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#总结"><span class="toc-number">3.</span> <span class="toc-text">总结</span></a></li></ol>
+         </div>
+   <script type="text/javascript">
+	function showToc(){
+		var toc_article = document.getElementById("toc-article");
+		var show_toc_btn = document.getElementById("show-toc-btn");
+		toc_article.setAttribute("style","display:block");
+		show_toc_btn.setAttribute("style","display:none");
+		};
+	function showBtn(){
+		var toc_article = document.getElementById("toc-article");
+		var show_toc_btn = document.getElementById("show-toc-btn");
+		toc_article.setAttribute("style","display:none");
+		show_toc_btn.setAttribute("style","display:block");
+		};
+   </script>
+      
     <!-- 目录内容结束 -->
 
     <div class="article-entry" itemprop="articleBody">
@@ -351,6 +375,19 @@
             </div>
         </div>
         
+        
+        <div class="toc-container tooltip-left">
+            <i class="icon-font icon-category"></i>
+            <div class="tooltip tooltip-east">
+                <span class="tooltip-item">
+                </span>
+                <span class="tooltip-content">
+                    <div class="toc-article">
+                    <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#成员变量介绍"><span class="toc-number">1.</span> <span class="toc-text">成员变量介绍</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#putVal插入数据"><span class="toc-number">2.</span> <span class="toc-text">putVal插入数据</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#initTable初始化"><span class="toc-number">2.1.</span> <span class="toc-text">initTable初始化</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#addCount"><span class="toc-number">2.2.</span> <span class="toc-text">addCount</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#总结"><span class="toc-number">3.</span> <span class="toc-text">总结</span></a></li></ol>
+                    </div>
+                </span>
+            </div>
+        </div>
         
     </div>
 </aside>

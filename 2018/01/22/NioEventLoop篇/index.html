@@ -17,7 +17,7 @@
 <meta property="og:site_name" content="Hexo">
 <meta property="og:description" content="介绍在ServerBootstrap初始篇初始篇中说过, 每个NioEventLoop里面, 都拥有属性thread, 用来执行对应channel产生的所有task, 该thread最早在register的时候被生成, 首先调用如下代码:1234ch.eventLoop().execute(new Runnable() &amp;#123;        @Override        public v">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/NioEventLoop1.png">
-<meta property="og:updated_time" content="2019-01-19T04:32:44.000Z">
+<meta property="og:updated_time" content="2019-05-31T15:57:23.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="NioEventLoop篇">
 <meta name="twitter:description" content="介绍在ServerBootstrap初始篇初始篇中说过, 每个NioEventLoop里面, 都拥有属性thread, 用来执行对应channel产生的所有task, 该thread最早在register的时候被生成, 首先调用如下代码:1234ch.eventLoop().execute(new Runnable() &amp;#123;        @Override        public v">
@@ -182,6 +182,30 @@
 
     <!-- 目录内容 -->
     
+      <p class="show-toc-btn" id="show-toc-btn" onclick="showToc();" style="display:none">
+        <span class="btn-bg"></span>
+        <span class="btn-text">文章导航</span>
+      </p>
+	    <div id="toc-article" class="toc-article">
+	      <span id="toc-close" class="toc-close" title="隐藏导航" onclick="showBtn();">×</span>
+		      <strong class="toc-title">文章目录</strong>
+        <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#介绍"><span class="toc-number">1.</span> <span class="toc-text">介绍</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#startThread"><span class="toc-number">1.1.</span> <span class="toc-text">startThread</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#NioEventLoop"><span class="toc-number">2.</span> <span class="toc-text">NioEventLoop</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#IO任务执行processSelectedKeysPlain"><span class="toc-number">2.1.</span> <span class="toc-text">IO任务执行processSelectedKeysPlain</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#SelectionKey-OP-ACCEPT部分"><span class="toc-number">2.1.1.</span> <span class="toc-text">SelectionKey.OP_ACCEPT部分</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#SelectionKey-OP-READ"><span class="toc-number">2.1.2.</span> <span class="toc-text">SelectionKey.OP_READ</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#执行非IO-Task"><span class="toc-number">2.2.</span> <span class="toc-text">执行非IO Task.</span></a></li></ol></li></ol>
+         </div>
+   <script type="text/javascript">
+	function showToc(){
+		var toc_article = document.getElementById("toc-article");
+		var show_toc_btn = document.getElementById("show-toc-btn");
+		toc_article.setAttribute("style","display:block");
+		show_toc_btn.setAttribute("style","display:none");
+		};
+	function showBtn(){
+		var toc_article = document.getElementById("toc-article");
+		var show_toc_btn = document.getElementById("show-toc-btn");
+		toc_article.setAttribute("style","display:none");
+		show_toc_btn.setAttribute("style","display:block");
+		};
+   </script>
+      
     <!-- 目录内容结束 -->
 
     <div class="article-entry" itemprop="articleBody">
@@ -414,6 +438,19 @@
             </div>
         </div>
         
+        
+        <div class="toc-container tooltip-left">
+            <i class="icon-font icon-category"></i>
+            <div class="tooltip tooltip-east">
+                <span class="tooltip-item">
+                </span>
+                <span class="tooltip-content">
+                    <div class="toc-article">
+                    <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#介绍"><span class="toc-number">1.</span> <span class="toc-text">介绍</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#startThread"><span class="toc-number">1.1.</span> <span class="toc-text">startThread</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#NioEventLoop"><span class="toc-number">2.</span> <span class="toc-text">NioEventLoop</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#IO任务执行processSelectedKeysPlain"><span class="toc-number">2.1.</span> <span class="toc-text">IO任务执行processSelectedKeysPlain</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#SelectionKey-OP-ACCEPT部分"><span class="toc-number">2.1.1.</span> <span class="toc-text">SelectionKey.OP_ACCEPT部分</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#SelectionKey-OP-READ"><span class="toc-number">2.1.2.</span> <span class="toc-text">SelectionKey.OP_READ</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#执行非IO-Task"><span class="toc-number">2.2.</span> <span class="toc-text">执行非IO Task.</span></a></li></ol></li></ol>
+                    </div>
+                </span>
+            </div>
+        </div>
         
     </div>
 </aside>
