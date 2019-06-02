@@ -18,7 +18,7 @@
 <meta property="og:description" content="本文将从ExecutionGraph开始向后讲起, 关于JobManager是如何进行slot的分配及部署的, ExecutionGraph定义了TaskManager的并发分布结构, 作为任务执行的以后一层逻辑结构, 也是最核心数据结构。为了让大家有全局的了解, 先盗一张广为引用的Graph转换图:具体来说, 本文讲述这些Task是如何部署到TaskManager上的。 Task分配及部署代码将">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/Flink_Graph.png">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/Flink_slot_allocate.png">
-<meta property="og:updated_time" content="2019-06-02T16:17:29.000Z">
+<meta property="og:updated_time" content="2019-06-02T16:51:53.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Flink原理-Slot申请及SubTask部署">
 <meta name="twitter:description" content="本文将从ExecutionGraph开始向后讲起, 关于JobManager是如何进行slot的分配及部署的, ExecutionGraph定义了TaskManager的并发分布结构, 作为任务执行的以后一层逻辑结构, 也是最核心数据结构。为了让大家有全局的了解, 先盗一张广为引用的Graph转换图:具体来说, 本文讲述这些Task是如何部署到TaskManager上的。 Task分配及部署代码将">
@@ -232,8 +232,10 @@
 <p>可以看到:</p>
 <ul>
 <li>首先查看resourceManagerGateway是否连接上, 若没有连接上, 将请求暂时缓存起来, 待连接上之后再申请。</li>
-<li>若已经初始化之后, 会去向ResourceManager申请TaskManager。<h3 id="缓存申请Slot的请求"><a href="#缓存申请Slot的请求" class="headerlink" title="缓存申请Slot的请求"></a>缓存申请Slot的请求</h3></li>
+<li>若已经初始化之后, 会去向ResourceManager申请TaskManager。<h3 id="缓存申请Slot的请求"><a href="#缓存申请Slot的请求" class="headerlink" title="缓存申请Slot的请求"></a>缓存申请Slot的请求</h3>我们首先去查看哪里开始对resourceManagerGateway进行初始化的。 首先回到最开始准备执行ExecutionGraph的时候:<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div></pre></td><td class="code"><pre><div class="line">    private Acknowledge startJobExecution(JobMasterId newJobMasterId) throws Exception &#123;</div><div class="line">	 //这里会开始尝试连接rm， 会去和resourceManager建立联系</div><div class="line">	startJobMasterServices();</div><div class="line">	resetAndScheduleExecutionGraph();</div><div class="line">    &#125;</div><div class="line">    private void startJobMasterServices() throws Exception &#123;</div><div class="line">	slotPool.start(getFencingToken(), getAddress());</div><div class="line">	reconnectToResourceManager(new FlinkException(&quot;Starting JobMaster component.&quot;));  // 这里比较重要，会进去启动申请tm的请求</div><div class="line">	resourceManagerLeaderRetriever.start(new ResourceManagerLeaderListener());   // StandaloneLeaderRetrievalService</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+</li>
 </ul>
+<p>在reconnectToResourceManager中, 会去尝试初始化</p>
 <h3 id="向ResourceManager申请slot"><a href="#向ResourceManager申请slot" class="headerlink" title="向ResourceManager申请slot"></a>向ResourceManager申请slot</h3><p>最终会进入registerSlotRequest<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div></pre></td><td class="code"><pre><div class="line">   public boolean registerSlotRequest(SlotRequest slotRequest) throws SlotManagerException &#123;</div><div class="line">    PendingSlotRequest pendingSlotRequest = new PendingSlotRequest(slotRequest);</div><div class="line">	pendingSlotRequests.put(slotRequest.getAllocationId(), pendingSlotRequest);</div><div class="line">	try &#123;</div><div class="line">	    internalRequestSlot(pendingSlotRequest);</div><div class="line">	&#125;</div><div class="line">	return true;</div><div class="line">   &#125;</div><div class="line">   private void internalRequestSlot(PendingSlotRequest pendingSlotRequest) throws ResourceManagerException &#123;</div><div class="line">	//是否发现目前拥有的slot</div><div class="line">	TaskManagerSlot taskManagerSlot = findMatchingSlot(pendingSlotRequest.getResourceProfile());</div><div class="line">	if (taskManagerSlot != null) &#123;</div><div class="line">		allocateSlot(taskManagerSlot, pendingSlotRequest);</div><div class="line">	&#125; else &#123;</div><div class="line">		resourceActions.allocateResource(pendingSlotRequest.getResourceProfile()); //跑到这里</div><div class="line">	&#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
 <p>internalRequestSlot做了做了如下逻辑:</p>
 <ul>
@@ -403,22 +405,21 @@
   
 
   
-  <div id="gitment-ctn"></div>
+  <div id="gitment-ctn"></div> 
 <link rel="stylesheet" href="//imsun.github.io/gitment/style/default.css">
-<script src="//www.wenjunjiang.win/js/gitment.js "></script>
+<script src="//imsun.github.io/gitment/dist/gitment.browser.js"></script>
 <script>
 var gitment = new Gitment({
-  id: "Flink原理-Slot申请及SubTask部署",
-  owner: 'kkewwei',
-  repo: 'comments',
+  id: "<%=url%>",
+  owner: '<%=theme.gitment_owner%>',
+  repo: '<%=theme.gitment_repo%>',
   oauth: {
-    client_id: '9391e497d6b288887f33',
-    client_secret: 'db733731bff4ee2811d9530b1ac4cfc6767e8183',
+    client_id: '<%=theme.gitment_oauth.client_id%>',
+    client_secret: '<%=theme.gitment_oauth.client_secret%>',
   },
 })
 gitment.render('gitment-ctn')
 </script>
-
   
 
 
@@ -538,15 +539,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">Cycler</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">ReentrantLock</a>
+                <a href="javascript:void(0)" class="js-tag color2">Cycler</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -554,7 +551,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
+                <a href="javascript:void(0)" class="js-tag color4">ReentrantLock</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -563,6 +560,10 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">gdb</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
               </li>
              
               <li class="article-tag-list-item">
