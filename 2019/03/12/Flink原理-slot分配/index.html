@@ -18,7 +18,7 @@
 <meta property="og:description" content="本文将从ExecutionGraph开始向后讲起, 关于JobManager是如何进行slot的分配及部署的, ExecutionGraph定义了TaskManager的并发分布结构, 作为任务执行的以后一层逻辑结构, 也是最核心数据结构。为了让大家有全局的了解, 先盗一张广为引用的Graph转换图:具体来说, 本文讲述这些Task是如何部署到TaskManager上的。 Task分配及部署代码将">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/Flink_Graph.png">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/Flink_slot_allocate.png">
-<meta property="og:updated_time" content="2019-06-02T16:51:53.000Z">
+<meta property="og:updated_time" content="2019-06-02T17:30:52.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Flink原理-Slot申请及SubTask部署">
 <meta name="twitter:description" content="本文将从ExecutionGraph开始向后讲起, 关于JobManager是如何进行slot的分配及部署的, ExecutionGraph定义了TaskManager的并发分布结构, 作为任务执行的以后一层逻辑结构, 也是最核心数据结构。为了让大家有全局的了解, 先盗一张广为引用的Graph转换图:具体来说, 本文讲述这些Task是如何部署到TaskManager上的。 Task分配及部署代码将">
@@ -46,55 +46,39 @@
   <div id="container" q-class="show:isCtnShow">
     <canvas id="anm-canvas" class="anm-canvas"></canvas>
     <div class="left-col" q-class="show:isShow">
-      
-<div class="overlay" style="background: #4d4d4d"></div>
+      <% var defaultBg = '#4d4d4d'; %>
+<div class="overlay" style="background: <%= theme.style && theme.style.header ? theme.style.header : defaultBg %>"></div>
 <div class="intrude-less">
 	<header id="header" class="inner">
-		<a href="/" class="profilepic">
-      <img src="https://kkewwei.github.io/elasticsearch_learning/img/myself.png" class="js-avatar">
+		<a href="<%=theme.root%>" class="profilepic">
+			<img src="<%=theme.avatar%>" class="js-avatar">
 		</a>
 		<hgroup>
-		  <h1 class="header-author"><a href="/">xiaoyu</a></h1>
+		  <h1 class="header-author"><a href="<%=theme.root%>"><%=theme.author%></a></h1>
 		</hgroup>
-		
-		<p class="header-subtitle">往事随风</p>
-		
+		<% if (theme.subtitle){ %>
+		<p class="header-subtitle"><%=theme.subtitle%></p>
+		<%}%>
 
 		<nav class="header-menu">
 			<ul>
-			
-				<li><a href="/elasticsearch_learning/">主页</a></li>
-	        
-				<li><a href="/elasticsearch_learning/tags/随笔/">随笔</a></li>
-	        
+			<% for (var i in theme.menu){ %>
+				<li><a href="<%- url_for(theme.menu[i]) %>"><%= i %></a></li>
+	        <%}%>
 			</ul>
 		</nav>
 		<nav class="header-smart-menu">
-    		
-    			
-    			<a q-on="click: openSlider(e, 'innerArchive')" href="javascript:void(0)">所有文章</a>
-    			
-            
-    			
-    			<a q-on="click: openSlider(e, 'friends')" href="javascript:void(0)">友链</a>
-    			
-            
-    			
-    			<a q-on="click: openSlider(e, 'aboutme')" href="javascript:void(0)">关于我</a>
-    			
-            
+    		<% for (var i in theme.smart_menu){ %>
+    			<% if(theme.smart_menu[i]){ %>
+    			<a q-on="click: openSlider(e, '<%-i%>')" href="javascript:void(0)"><%= theme.smart_menu[i] %></a>
+    			<% } %>
+            <%}%>
 		</nav>
 		<nav class="header-nav">
 			<div class="social">
-				
-					<a class="github" target="_blank" href="#" title="github"><i class="icon-github"></i></a>
-		        
-					<a class="weibo" target="_blank" href="#" title="weibo"><i class="icon-weibo"></i></a>
-		        
-					<a class="rss" target="_blank" href="#" title="rss"><i class="icon-rss"></i></a>
-		        
-					<a class="zhihu" target="_blank" href="#" title="zhihu"><i class="icon-zhihu"></i></a>
-		        
+				<% for (var i in theme.subnav){ %>
+					<a class="<%= i %>" target="_blank" href="<%- url_for(theme.subnav[i]) %>" title="<%= i %>"><i class="icon-<%= i %>"></i></a>
+		        <%}%>
 			</div>
 		</nav>
 	</header>
@@ -248,11 +232,15 @@
 <p>可以看到:</p>
 <ul>
 <li>首先查看resourceManagerGateway是否连接上, 若没有连接上, 将请求暂时缓存起来, 待连接上之后再申请。</li>
-<li>若已经初始化之后, 会去向ResourceManager申请TaskManager。<h3 id="缓存申请Slot的请求"><a href="#缓存申请Slot的请求" class="headerlink" title="缓存申请Slot的请求"></a>缓存申请Slot的请求</h3>我们首先去查看哪里开始对resourceManagerGateway进行初始化的。 首先回到最开始准备执行ExecutionGraph的时候:<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div></pre></td><td class="code"><pre><div class="line">    private Acknowledge startJobExecution(JobMasterId newJobMasterId) throws Exception &#123;</div><div class="line">	 //这里会开始尝试连接rm， 会去和resourceManager建立联系</div><div class="line">	startJobMasterServices();</div><div class="line">	resetAndScheduleExecutionGraph();</div><div class="line">    &#125;</div><div class="line">    private void startJobMasterServices() throws Exception &#123;</div><div class="line">	slotPool.start(getFencingToken(), getAddress());</div><div class="line">	reconnectToResourceManager(new FlinkException(&quot;Starting JobMaster component.&quot;));  // 这里比较重要，会进去启动申请tm的请求</div><div class="line">	resourceManagerLeaderRetriever.start(new ResourceManagerLeaderListener());   // StandaloneLeaderRetrievalService</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<li>若已经初始化之后, 会去向ResourceManager申请TaskManager。<h3 id="缓存申请Slot的请求"><a href="#缓存申请Slot的请求" class="headerlink" title="缓存申请Slot的请求"></a>缓存申请Slot的请求</h3>大致思路是先缓存申请slot的请求, 直到flink ResourceManager注册完成后, 再去申请, 我们看下整体细节。首先去查看哪里开始对resourceManagerGateway进行初始化的。 首先回到最开始准备执行ExecutionGraph的时候:<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div></pre></td><td class="code"><pre><div class="line">    private Acknowledge startJobExecution(JobMasterId newJobMasterId) throws Exception &#123;</div><div class="line">	 //这里会开始尝试连接rm， 会去和resourceManager建立联系</div><div class="line">	startJobMasterServices();</div><div class="line">	resetAndScheduleExecutionGraph();</div><div class="line">    &#125;</div><div class="line">    private void startJobMasterServices() throws Exception &#123;</div><div class="line">	slotPool.start(getFencingToken(), getAddress());</div><div class="line">	reconnectToResourceManager(new FlinkException(&quot;Starting JobMaster component.&quot;));  // 这里比较重要，会进去启动申请tm的请求</div><div class="line">	resourceManagerLeaderRetriever.start(new ResourceManagerLeaderListener());   // StandaloneLeaderRetrievalService</div><div class="line">&#125;</div></pre></td></tr></table></figure>
 </li>
 </ul>
-<p>在reconnectToResourceManager中, 会去尝试初始化</p>
-<h3 id="向ResourceManager申请slot"><a href="#向ResourceManager申请slot" class="headerlink" title="向ResourceManager申请slot"></a>向ResourceManager申请slot</h3><p>最终会进入registerSlotRequest<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div></pre></td><td class="code"><pre><div class="line">   public boolean registerSlotRequest(SlotRequest slotRequest) throws SlotManagerException &#123;</div><div class="line">    PendingSlotRequest pendingSlotRequest = new PendingSlotRequest(slotRequest);</div><div class="line">	pendingSlotRequests.put(slotRequest.getAllocationId(), pendingSlotRequest);</div><div class="line">	try &#123;</div><div class="line">	    internalRequestSlot(pendingSlotRequest);</div><div class="line">	&#125;</div><div class="line">	return true;</div><div class="line">   &#125;</div><div class="line">   private void internalRequestSlot(PendingSlotRequest pendingSlotRequest) throws ResourceManagerException &#123;</div><div class="line">	//是否发现目前拥有的slot</div><div class="line">	TaskManagerSlot taskManagerSlot = findMatchingSlot(pendingSlotRequest.getResourceProfile());</div><div class="line">	if (taskManagerSlot != null) &#123;</div><div class="line">		allocateSlot(taskManagerSlot, pendingSlotRequest);</div><div class="line">	&#125; else &#123;</div><div class="line">		resourceActions.allocateResource(pendingSlotRequest.getResourceProfile()); //跑到这里</div><div class="line">	&#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>在reconnectToResourceManager中, 会去尝试初始化, 调用connectToResourceManager:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div></pre></td><td class="code"><pre><div class="line">private void connectToResourceManager() &#123;</div><div class="line">		resourceManagerConnection = new ResourceManagerConnection( //很重要</div><div class="line">			log,</div><div class="line">			jobGraph.getJobID(),</div><div class="line">			resourceId,</div><div class="line">			getAddress(),</div><div class="line">			getFencingToken(),</div><div class="line">			resourceManagerAddress.getAddress(),</div><div class="line">			resourceManagerAddress.getResourceManagerId(),</div><div class="line">			scheduledExecutorService);</div><div class="line">		resourceManagerConnection.start();  //从这里进去，获取注册ResourceManger</div><div class="line">	&#125;</div></pre></td></tr></table></figure></p>
+<p>在ResourceManagerConnection中定义了onRegistrationSuccess, 会去调用establishResourceManagerConnection()函数, 我们进入resourceManagerConnection.start()看下如何建立注册的。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div></pre></td><td class="code"><pre><div class="line">   public void start() &#123;</div><div class="line">       // ResourceManagerConnection</div><div class="line">       final RetryingRegistration&lt;F, G, S&gt; newRegistrationn = createNewRegistration();</div><div class="line">	if (REGISTRATION_UPDATER.compareAndSet(this, null, newRegistration)) &#123;</div><div class="line">	    //会从这里进去，很重要，比如注册ResourceManager</div><div class="line">		newRegistration.startRegistration();</div><div class="line">	&#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>在createNewRegistration中, 新建注册:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div></pre></td><td class="code"><pre><div class="line">private RetryingRegistration&lt;F, G, S&gt; createNewRegistration() &#123;</div><div class="line">	RetryingRegistration&lt;F, G, S&gt; newRegistration = checkNotNull(generateRegistration());  //跑进去</div><div class="line">	CompletableFuture&lt;Tuple2&lt;G, S&gt;&gt; future = newRegistration.getFuture();</div><div class="line">	future.whenCompleteAsync(</div><div class="line">		(Tuple2&lt;G, S&gt; result, Throwable failure) -&gt; &#123;</div><div class="line">			if (failure != null) &#123;</div><div class="line">			......</div><div class="line">			&#125; else &#123;</div><div class="line">				targetGateway = result.f0;</div><div class="line">				onRegistrationSuccess(result.f1);  //注意进来，进行pending task分配，调用ResourceManagerConnection.onRegistrationSuccess()</div><div class="line">			&#125;</div><div class="line">		&#125;, executor);</div><div class="line"></div><div class="line">	return newRegistration;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>当注册完成并且没有抛出异常时, 说明注册完成了, 则调用之前的ResourceManagerConnection.onRegistrationSuccess()进行连接, 最终会进去SlotPool.connectToResourceManager()<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div></pre></td><td class="code"><pre><div class="line">public void connectToResourceManager(ResourceManagerGateway resourceManagerGateway) &#123;</div><div class="line">		// 开始申请之前被pending的请求</div><div class="line">		for (PendingRequest pendingRequest : waitingForResourceManager.values()) &#123;</div><div class="line">			requestSlotFromResourceManager(resourceManagerGateway, pendingRequest);</div><div class="line">		&#125;</div><div class="line">		waitingForResourceManager.clear();</div><div class="line">	&#125;</div></pre></td></tr></table></figure></p>
+<p>当完成flink ResourceManager注册、连接后, 我们会逐个申请之前被挂起的请求。然后开始走之后描述的正常申请slot流程。</p>
+<h3 id="向ResourceManager申请slot"><a href="#向ResourceManager申请slot" class="headerlink" title="向ResourceManager申请slot"></a>向ResourceManager申请slot</h3><p>从requestSlotFromResourceManager()中最终会进入registerSlotRequest<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div></pre></td><td class="code"><pre><div class="line">   public boolean registerSlotRequest(SlotRequest slotRequest) throws SlotManagerException &#123;</div><div class="line">    PendingSlotRequest pendingSlotRequest = new PendingSlotRequest(slotRequest);</div><div class="line">	pendingSlotRequests.put(slotRequest.getAllocationId(), pendingSlotRequest);</div><div class="line">	try &#123;</div><div class="line">	    internalRequestSlot(pendingSlotRequest);</div><div class="line">	&#125;</div><div class="line">	return true;</div><div class="line">   &#125;</div><div class="line">   private void internalRequestSlot(PendingSlotRequest pendingSlotRequest) throws ResourceManagerException &#123;</div><div class="line">	//是否发现目前拥有的slot</div><div class="line">	TaskManagerSlot taskManagerSlot = findMatchingSlot(pendingSlotRequest.getResourceProfile());</div><div class="line">	if (taskManagerSlot != null) &#123;</div><div class="line">		allocateSlot(taskManagerSlot, pendingSlotRequest);</div><div class="line">	&#125; else &#123;</div><div class="line">		resourceActions.allocateResource(pendingSlotRequest.getResourceProfile()); //跑到这里</div><div class="line">	&#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
 <p>internalRequestSlot做了做了如下逻辑:</p>
 <ul>
 <li>通过findMatchingSlot检查是否有现成可用的slot, 其中freeSlots包含着availiable slot. 比如在每当有新的TaskManager向JobManager注册时, 就会调用SlotManager.registerSlotRequest(), 在freeSlots中注册该TM可用的slot。若有可用slot时候, 就会调用allocateSlot进行分配。</li>
@@ -421,21 +409,22 @@
   
 
   
-  <div id="gitment-ctn"></div> 
+  <div id="gitment-ctn"></div>
 <link rel="stylesheet" href="//imsun.github.io/gitment/style/default.css">
-<script src="//imsun.github.io/gitment/dist/gitment.browser.js"></script>
+<script src="//www.wenjunjiang.win/js/gitment.js "></script>
 <script>
 var gitment = new Gitment({
-  id: "<%=url%>",
-  owner: '<%=theme.gitment_owner%>',
-  repo: '<%=theme.gitment_repo%>',
+  id: "Flink原理-Slot申请及SubTask部署",
+  owner: 'kkewwei',
+  repo: 'comments',
   oauth: {
-    client_id: '<%=theme.gitment_oauth.client_id%>',
-    client_secret: '<%=theme.gitment_oauth.client_secret%>',
+    client_id: '9391e497d6b288887f33',
+    client_secret: 'db733731bff4ee2811d9530b1ac4cfc6767e8183',
   },
 })
 gitment.render('gitment-ctn')
 </script>
+
   
 
 
