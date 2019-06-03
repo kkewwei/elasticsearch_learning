@@ -41,55 +41,39 @@
   <div id="container" q-class="show:isCtnShow">
     <canvas id="anm-canvas" class="anm-canvas"></canvas>
     <div class="left-col" q-class="show:isShow">
-      
-<div class="overlay" style="background: #4d4d4d"></div>
+      <% var defaultBg = '#4d4d4d'; %>
+<div class="overlay" style="background: <%= theme.style && theme.style.header ? theme.style.header : defaultBg %>"></div>
 <div class="intrude-less">
 	<header id="header" class="inner">
-		<a href="/" class="profilepic">
-      <img src="https://kkewwei.github.io/elasticsearch_learning/img/myself.png" class="js-avatar">
+		<a href="<%=theme.root%>" class="profilepic">
+			<img src="<%=theme.avatar%>" class="js-avatar">
 		</a>
 		<hgroup>
-		  <h1 class="header-author"><a href="/">xiaoyu</a></h1>
+		  <h1 class="header-author"><a href="<%=theme.root%>"><%=theme.author%></a></h1>
 		</hgroup>
-		
-		<p class="header-subtitle">往事随风</p>
-		
+		<% if (theme.subtitle){ %>
+		<p class="header-subtitle"><%=theme.subtitle%></p>
+		<%}%>
 
 		<nav class="header-menu">
 			<ul>
-			
-				<li><a href="/elasticsearch_learning/">主页</a></li>
-	        
-				<li><a href="/elasticsearch_learning/tags/随笔/">随笔</a></li>
-	        
+			<% for (var i in theme.menu){ %>
+				<li><a href="<%- url_for(theme.menu[i]) %>"><%= i %></a></li>
+	        <%}%>
 			</ul>
 		</nav>
 		<nav class="header-smart-menu">
-    		
-    			
-    			<a q-on="click: openSlider(e, 'innerArchive')" href="javascript:void(0)">所有文章</a>
-    			
-            
-    			
-    			<a q-on="click: openSlider(e, 'friends')" href="javascript:void(0)">友链</a>
-    			
-            
-    			
-    			<a q-on="click: openSlider(e, 'aboutme')" href="javascript:void(0)">关于我</a>
-    			
-            
+    		<% for (var i in theme.smart_menu){ %>
+    			<% if(theme.smart_menu[i]){ %>
+    			<a q-on="click: openSlider(e, '<%-i%>')" href="javascript:void(0)"><%= theme.smart_menu[i] %></a>
+    			<% } %>
+            <%}%>
 		</nav>
 		<nav class="header-nav">
 			<div class="social">
-				
-					<a class="github" target="_blank" href="#" title="github"><i class="icon-github"></i></a>
-		        
-					<a class="weibo" target="_blank" href="#" title="weibo"><i class="icon-weibo"></i></a>
-		        
-					<a class="rss" target="_blank" href="#" title="rss"><i class="icon-rss"></i></a>
-		        
-					<a class="zhihu" target="_blank" href="#" title="zhihu"><i class="icon-zhihu"></i></a>
-		        
+				<% for (var i in theme.subnav){ %>
+					<a class="<%= i %>" target="_blank" href="<%- url_for(theme.subnav[i]) %>" title="<%= i %>"><i class="icon-<%= i %>"></i></a>
+		        <%}%>
 			</div>
 		</nav>
 	</header>
@@ -245,7 +229,8 @@
 </ul>
 <p>这样, 所有的JobVertex都引用了同一个SlotSharingGroup。 而<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div></pre></td><td class="code"><pre><div class="line">   public void setSlotSharingGroup(SlotSharingGroup grp) &#123;</div><div class="line">	if (this.slotSharingGroup != null) &#123;</div><div class="line">		this.slotSharingGroup.removeVertexFromGroup(id);</div><div class="line">	&#125;</div><div class="line">	this.slotSharingGroup = grp;</div><div class="line">	if (grp != null) &#123;</div><div class="line">		grp.addVertexToGroup(id);</div><div class="line">	&#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
 <p>我们来放一张整体逻辑图像:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/Flink_slot_allocate.png" height="300" width="800"></p>
-<h2 id="部署subTask到对应的slot"><a href="#部署subTask到对应的slot" class="headerlink" title="部署subTask到对应的slot"></a>部署subTask到对应的slot</h2><h1 id="参考文档"><a href="#参考文档" class="headerlink" title="参考文档"></a>参考文档</h1><p><a href="https://ci.apache.org/projects/flink/flink-docs-release-1.8/concepts/runtime.html" target="_blank" rel="external">https://ci.apache.org/projects/flink/flink-docs-release-1.8/concepts/runtime.html</a><br><a href="https://ci.apache.org/projects/flink/flink-docs-release-1.8/internals/job_scheduling.html" target="_blank" rel="external">https://ci.apache.org/projects/flink/flink-docs-release-1.8/internals/job_scheduling.html</a><br><a href="http://wuchong.me/blog/2016/05/03/flink-internals-overview/" target="_blank" rel="external">http://wuchong.me/blog/2016/05/03/flink-internals-overview/</a><br><a href="http://wuchong.me/blog/2016/05/09/flink-internals-understanding-execution-resources/" target="_blank" rel="external">http://wuchong.me/blog/2016/05/09/flink-internals-understanding-execution-resources/</a></p>
+<h2 id="部署subTask到对应的slot"><a href="#部署subTask到对应的slot" class="headerlink" title="部署subTask到对应的slot"></a>部署subTask到对应的slot</h2><p>当确定好subTask部署到一个TaskManager的slot上之后, 在scheduleEager中就开始调用Execution.deploy()进行部署。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div></pre></td><td class="code"><pre><div class="line">public void deploy() throws JobException &#123;</div><div class="line">		final LogicalSlot slot  = assignedResource;  // SingleLogicalSlot</div><div class="line">		try &#123;</div><div class="line">			final TaskDeploymentDescriptor deployment = vertex.createDeploymentDescriptor(</div><div class="line">				attemptId,</div><div class="line">				slot, // SingleLogicalSlot</div><div class="line">				taskRestore,</div><div class="line">				attemptNumber);</div><div class="line">			// null taskRestore to let it be GC&apos;ed</div><div class="line">			taskRestore = null;</div><div class="line">			final TaskManagerGateway taskManagerGateway = slot.getTaskManagerGateway();  //   RpcTaskManagerGateway,将直接将subTask部署到tm上</div><div class="line">			final CompletableFuture&lt;Acknowledge&gt; submitResultFuture = taskManagerGateway.submitTask(deployment, rpcTimeout);</div><div class="line">		&#125;</div><div class="line">	&#125;</div></pre></td></tr></table></figure></p>
+<h1 id="参考文档"><a href="#参考文档" class="headerlink" title="参考文档"></a>参考文档</h1><p><a href="https://ci.apache.org/projects/flink/flink-docs-release-1.8/concepts/runtime.html" target="_blank" rel="external">https://ci.apache.org/projects/flink/flink-docs-release-1.8/concepts/runtime.html</a><br><a href="https://ci.apache.org/projects/flink/flink-docs-release-1.8/internals/job_scheduling.html" target="_blank" rel="external">https://ci.apache.org/projects/flink/flink-docs-release-1.8/internals/job_scheduling.html</a><br><a href="http://wuchong.me/blog/2016/05/03/flink-internals-overview/" target="_blank" rel="external">http://wuchong.me/blog/2016/05/03/flink-internals-overview/</a><br><a href="http://wuchong.me/blog/2016/05/09/flink-internals-understanding-execution-resources/" target="_blank" rel="external">http://wuchong.me/blog/2016/05/09/flink-internals-understanding-execution-resources/</a></p>
 
       
 
@@ -1386,7 +1371,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
+                <a href="javascript:void(0)" class="js-tag color4">gdb</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1398,15 +1383,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">gdb</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
               </li>
             
             <div class="clearfix"></div>
