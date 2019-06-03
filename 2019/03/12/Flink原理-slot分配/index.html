@@ -9,20 +9,20 @@
   <title>Flink原理-SubTask申请slot及部署 | Hexo</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
   <meta name="google-site-verification" content="sCUXxLczmZVJ1Fkt5jSJGE9xPpdVD25hYciudlUUVNQ" />
-  <meta name="description" content="本文将从ExecutionGraph开始向后讲起, 关于JobManager是如何进行slot的分配及部署的, ExecutionGraph定义了TaskManager的并发分布结构, 作为任务执行的以后一层逻辑结构, 也是最核心数据结构。为了让大家有全局的了解, 先盗一张广为引用的Graph转换图:具体来说, 本文讲述这些Task是如何部署到TaskManager上的。 Task分配及部署代码将">
+  <meta name="description" content="本文将从ExecutionGraph开始向后讲起, ExecutionGraph定义了Job的并发逻辑结构, 作为任务执行的以后一层逻辑结构, 也是最核心数据结构。为了让大家有全局的了解, 先盗一张广为引用的Graph转换图:具体来说, 本文讲述subTask申请slot以及, 部署到TaskManager上的过程。 Task分配及部署代码将从ExecutionGraph.scheduleExec">
 <meta name="keywords" content="Flink、Slot分配、SubTask申请slot, SubTask部署">
 <meta property="og:type" content="article">
 <meta property="og:title" content="Flink原理-SubTask申请slot及部署">
 <meta property="og:url" content="https://kkewwei.github.io/elasticsearch_learning/2019/03/12/Flink原理-slot分配/index.html">
 <meta property="og:site_name" content="Hexo">
-<meta property="og:description" content="本文将从ExecutionGraph开始向后讲起, 关于JobManager是如何进行slot的分配及部署的, ExecutionGraph定义了TaskManager的并发分布结构, 作为任务执行的以后一层逻辑结构, 也是最核心数据结构。为了让大家有全局的了解, 先盗一张广为引用的Graph转换图:具体来说, 本文讲述这些Task是如何部署到TaskManager上的。 Task分配及部署代码将">
+<meta property="og:description" content="本文将从ExecutionGraph开始向后讲起, ExecutionGraph定义了Job的并发逻辑结构, 作为任务执行的以后一层逻辑结构, 也是最核心数据结构。为了让大家有全局的了解, 先盗一张广为引用的Graph转换图:具体来说, 本文讲述subTask申请slot以及, 部署到TaskManager上的过程。 Task分配及部署代码将从ExecutionGraph.scheduleExec">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/Flink_Graph.png">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/Flink_slot_allocate.png">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/Flink_slot_allocate1.png">
-<meta property="og:updated_time" content="2019-06-03T04:59:00.000Z">
+<meta property="og:updated_time" content="2019-06-03T07:38:24.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Flink原理-SubTask申请slot及部署">
-<meta name="twitter:description" content="本文将从ExecutionGraph开始向后讲起, 关于JobManager是如何进行slot的分配及部署的, ExecutionGraph定义了TaskManager的并发分布结构, 作为任务执行的以后一层逻辑结构, 也是最核心数据结构。为了让大家有全局的了解, 先盗一张广为引用的Graph转换图:具体来说, 本文讲述这些Task是如何部署到TaskManager上的。 Task分配及部署代码将">
+<meta name="twitter:description" content="本文将从ExecutionGraph开始向后讲起, ExecutionGraph定义了Job的并发逻辑结构, 作为任务执行的以后一层逻辑结构, 也是最核心数据结构。为了让大家有全局的了解, 先盗一张广为引用的Graph转换图:具体来说, 本文讲述subTask申请slot以及, 部署到TaskManager上的过程。 Task分配及部署代码将从ExecutionGraph.scheduleExec">
 <meta name="twitter:image" content="https://kkewwei.github.io/elasticsearch_learning/img/Flink_Graph.png">
   
     <link rel="alternative" href="/atom.xml" title="Hexo" type="application/atom+xml">
@@ -47,55 +47,39 @@
   <div id="container" q-class="show:isCtnShow">
     <canvas id="anm-canvas" class="anm-canvas"></canvas>
     <div class="left-col" q-class="show:isShow">
-      
-<div class="overlay" style="background: #4d4d4d"></div>
+      <% var defaultBg = '#4d4d4d'; %>
+<div class="overlay" style="background: <%= theme.style && theme.style.header ? theme.style.header : defaultBg %>"></div>
 <div class="intrude-less">
 	<header id="header" class="inner">
-		<a href="/" class="profilepic">
-      <img src="https://kkewwei.github.io/elasticsearch_learning/img/myself.png" class="js-avatar">
+		<a href="<%=theme.root%>" class="profilepic">
+			<img src="<%=theme.avatar%>" class="js-avatar">
 		</a>
 		<hgroup>
-		  <h1 class="header-author"><a href="/">xiaoyu</a></h1>
+		  <h1 class="header-author"><a href="<%=theme.root%>"><%=theme.author%></a></h1>
 		</hgroup>
-		
-		<p class="header-subtitle">往事随风</p>
-		
+		<% if (theme.subtitle){ %>
+		<p class="header-subtitle"><%=theme.subtitle%></p>
+		<%}%>
 
 		<nav class="header-menu">
 			<ul>
-			
-				<li><a href="/elasticsearch_learning/">主页</a></li>
-	        
-				<li><a href="/elasticsearch_learning/tags/随笔/">随笔</a></li>
-	        
+			<% for (var i in theme.menu){ %>
+				<li><a href="<%- url_for(theme.menu[i]) %>"><%= i %></a></li>
+	        <%}%>
 			</ul>
 		</nav>
 		<nav class="header-smart-menu">
-    		
-    			
-    			<a q-on="click: openSlider(e, 'innerArchive')" href="javascript:void(0)">所有文章</a>
-    			
-            
-    			
-    			<a q-on="click: openSlider(e, 'friends')" href="javascript:void(0)">友链</a>
-    			
-            
-    			
-    			<a q-on="click: openSlider(e, 'aboutme')" href="javascript:void(0)">关于我</a>
-    			
-            
+    		<% for (var i in theme.smart_menu){ %>
+    			<% if(theme.smart_menu[i]){ %>
+    			<a q-on="click: openSlider(e, '<%-i%>')" href="javascript:void(0)"><%= theme.smart_menu[i] %></a>
+    			<% } %>
+            <%}%>
 		</nav>
 		<nav class="header-nav">
 			<div class="social">
-				
-					<a class="github" target="_blank" href="#" title="github"><i class="icon-github"></i></a>
-		        
-					<a class="weibo" target="_blank" href="#" title="weibo"><i class="icon-weibo"></i></a>
-		        
-					<a class="rss" target="_blank" href="#" title="rss"><i class="icon-rss"></i></a>
-		        
-					<a class="zhihu" target="_blank" href="#" title="zhihu"><i class="icon-zhihu"></i></a>
-		        
+				<% for (var i in theme.subnav){ %>
+					<a class="<%= i %>" target="_blank" href="<%- url_for(theme.subnav[i]) %>" title="<%= i %>"><i class="icon-<%= i %>"></i></a>
+		        <%}%>
 			</div>
 		</nav>
 	</header>
@@ -212,7 +196,7 @@
 
     <div class="article-entry" itemprop="articleBody">
       
-        <p>本文将从ExecutionGraph开始向后讲起, 关于JobManager是如何进行slot的分配及部署的, ExecutionGraph定义了TaskManager的并发分布结构, 作为任务执行的以后一层逻辑结构, 也是最核心数据结构。为了让大家有全局的了解, 先盗一张广为引用的Graph转换图:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/Flink_Graph.png" height="900" width="800"><br>具体来说, 本文讲述这些Task是如何部署到TaskManager上的。</p>
+        <p>本文将从ExecutionGraph开始向后讲起, ExecutionGraph定义了Job的并发逻辑结构, 作为任务执行的以后一层逻辑结构, 也是最核心数据结构。为了让大家有全局的了解, 先盗一张广为引用的Graph转换图:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/Flink_Graph.png" height="900" width="800"><br>具体来说, 本文讲述subTask申请slot以及, 部署到TaskManager上的过程。</p>
 <h1 id="Task分配及部署"><a href="#Task分配及部署" class="headerlink" title="Task分配及部署"></a>Task分配及部署</h1><p>代码将从ExecutionGraph.scheduleExecutionGraph()开始讲解, 进入:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div></pre></td><td class="code"><pre><div class="line">public void scheduleForExecution() throws JobException &#123;</div><div class="line">	final long currentGlobalModVersion = globalModVersion;</div><div class="line">	if (transitionState(JobStatus.CREATED, JobStatus.RUNNING)) &#123;</div><div class="line">		final CompletableFuture&lt;Void&gt; newSchedulingFuture;</div><div class="line">		switch (scheduleMode) &#123;</div><div class="line">			case LAZY_FROM_SOURCES:</div><div class="line">				newSchedulingFuture = scheduleLazy(slotProvider);</div><div class="line">				break;</div><div class="line">			case EAGER:</div><div class="line">				newSchedulingFuture = scheduleEager(slotProvider, allocationTimeout);</div><div class="line">				break;</div><div class="line">			default:</div><div class="line">				throw new JobException(&quot;Schedule mode is invalid.&quot;);</div><div class="line">		&#125;</div><div class="line">	&#125;</div><div class="line">	...</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
 <p>其中, scheduleMode分EAGER和LAZY_FROM_SOURCES, EAGER表示立刻去调度部署所有的Task。实际scheduleMode是从JobGraph.getScheduleMode()取值的, 为eager。</p><br>我们再进入scheduleEager看是如何调度task的。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div></pre></td><td class="code"><pre><div class="line">   private CompletableFuture&lt;Void&gt; scheduleEager(SlotProvider slotProvider, final Time timeout) &#123;</div><div class="line">    ......</div><div class="line">	 //都是每个JobGraph</div><div class="line">	for (ExecutionJobVertex ejv : getVerticesTopologically()) &#123;</div><div class="line">		// these calls are not blocking, they only return futures</div><div class="line">		Collection&lt;CompletableFuture&lt;Execution&gt;&gt; allocationFutures = ejv.allocateResourcesForAll(</div><div class="line">			slotProvider, // SlotPool$ProviderAndOwner</div><div class="line">			queued,</div><div class="line">			LocationPreferenceConstraint.ALL,</div><div class="line">			allPreviousAllocationIds,</div><div class="line">			timeout);</div><div class="line">		allAllocationFutures.addAll(allocationFutures);</div><div class="line">	&#125;</div><div class="line">	//只有当所有Execution都分配到了槽位才继续进行部署</div><div class="line">	final ConjunctFuture&lt;Collection&lt;Execution&gt;&gt; allAllocationsFuture = FutureUtils.combineAll(allAllocationFutures);</div><div class="line">	final CompletableFuture&lt;Void&gt; currentSchedulingFuture = allAllocationsFuture</div><div class="line">		.thenAccept(</div><div class="line">			(Collection&lt;Execution&gt; executionsToDeploy) -&gt; &#123;</div><div class="line">				for (Execution execution : executionsToDeploy) &#123;</div><div class="line">					try &#123;</div><div class="line">					   // 最后挨个调用execution.deploy()进行部署子task，部署的模式是发送命令到</div><div class="line">					   execution.deploy();</div><div class="line">					&#125; catch (Throwable t) &#123;</div><div class="line">					   ......</div><div class="line">					&#125;</div><div class="line">				&#125;</div><div class="line">			&#125;)</div><div class="line">		......</div><div class="line">	return currentSchedulingFuture;</div><div class="line">&#125;`</div></pre></td></tr></table></figure><p></p>
 <p>scheduleEager主要做了两件事:</p>
@@ -568,23 +552,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">Cycler</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
+                <a href="javascript:void(0)" class="js-tag color2">Cycler</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">ReentrantLock</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">netty4, ServerBootstrap, Initiale</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -593,6 +569,14 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">gdb</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">netty4, ServerBootstrap, Initiale</a>
               </li>
              
               <li class="article-tag-list-item">
