@@ -238,11 +238,11 @@
 </ul>
 <h3 id="申请container成功"><a href="#申请container成功" class="headerlink" title="申请container成功"></a>申请container成功</h3><p>当向yarn成功申请到container之后, 会回调YarnResourceManager.onContainersAllocated通知jobManager。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div></pre></td><td class="code"><pre><div class="line">public void onContainersAllocated(List&lt;Container&gt; containers) &#123;</div><div class="line">	runAsync(() -&gt; &#123;</div><div class="line">		for (Container container : containers) &#123;</div><div class="line">			if (numPendingContainerRequests &gt; 0) &#123;</div><div class="line">				numPendingContainerRequests--;</div><div class="line">				final String containerIdStr = container.getId().toString();</div><div class="line">				final ResourceID resourceId = new ResourceID(containerIdStr);</div><div class="line">				workerNodeMap.put(resourceId, new YarnWorkerNode(container));</div><div class="line">				try &#123;</div><div class="line">					// 产生tm启动命令</div><div class="line">					ContainerLaunchContext taskExecutorLaunchContext = createTaskExecutorLaunchContext(</div><div class="line">						container.getResource(),</div><div class="line">						containerIdStr,</div><div class="line">						container.getNodeId().getHost());</div><div class="line">                      // 启动TaskManager</div><div class="line">					nodeManagerClient.startContainer(container, taskExecutorLaunchContext);</div><div class="line">				&#125;</div><div class="line">			&#125;</div><div class="line">		&#125;</div><div class="line">		// if we are waiting for no further containers, we can go to the</div><div class="line">		// regular heartbeat interval</div><div class="line">		if (numPendingContainerRequests &lt;= 0) &#123;</div><div class="line">			resourceManagerClient.setHeartbeatInterval(yarnHeartbeatIntervalMillis);</div><div class="line">		&#125;</div><div class="line">	&#125;);</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
 <p>我们来放一张整体逻辑图像:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/Flink_slot_allocate1.png" height="300" width="800"></p>
-<h2 id="部署subTask到对应的slot"><a href="#部署subTask到对应的slot" class="headerlink" title="部署subTask到对应的slot"></a>部署subTask到对应的slot</h2><p>当确定好subTask部署到一个TaskManager的slot上之后, 在scheduleEager中就开始调用Execution.deploy()进行部署。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div></pre></td><td class="code"><pre><div class="line">public void deploy() throws JobException &#123;</div><div class="line">		final LogicalSlot slot  = assignedResource;  // SingleLogicalSlot</div><div class="line">		try &#123;</div><div class="line">			final TaskDeploymentDescriptor deployment = vertex.createDeploymentDescriptor(</div><div class="line">				attemptId,</div><div class="line">				slot, // SingleLogicalSlot</div><div class="line">				taskRestore,</div><div class="line">				attemptNumber);</div><div class="line">			// null taskRestore to let it be GC&apos;ed</div><div class="line">			taskRestore = null;</div><div class="line">			final TaskManagerGateway taskManagerGateway = slot.getTaskManagerGateway();</div><div class="line">			final CompletableFuture&lt;Acknowledge&gt; submitResultFuture = taskManagerGateway.submitTask(deployment, rpcTimeout);</div><div class="line">		&#125;</div><div class="line">	&#125;</div><div class="line">    public CompletableFuture&lt;Acknowledge&gt; submitTask(TaskDeploymentDescriptor tdd, Time timeout) &#123;</div><div class="line">        // // AkkaInvocationHandler  集群模式的话，这里实际会去调用AkkaInvocationHandler，而去和tm通信，而不是跑到TaskExecutor.submitTask</div><div class="line">		return taskExecutorGateway.submitTask(tdd, jobMasterId, timeout);</div><div class="line">    &#125;</div></pre></td></tr></table></figure></p>
+<h2 id="部署subTask到对应的slot"><a href="#部署subTask到对应的slot" class="headerlink" title="部署subTask到对应的slot"></a>部署subTask到对应的slot</h2><p>当确定好subTask部署到一个TaskManager的slot上之后, 在scheduleEager中就开始调用Execution.deploy()进行部署。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div></pre></td><td class="code"><pre><div class="line">public void deploy() throws JobException &#123;</div><div class="line">		final LogicalSlot slot  = assignedResource;  // SingleLogicalSlot</div><div class="line">		try &#123;</div><div class="line">			final TaskDeploymentDescriptor deployment = vertex.createDeploymentDescriptor(</div><div class="line">				attemptId,</div><div class="line">				slot, // SingleLogicalSlot</div><div class="line">				taskRestore,</div><div class="line">				attemptNumber);</div><div class="line">			// null taskRestore to let it be GC&apos;ed</div><div class="line">			taskRestore = null;</div><div class="line">			final TaskManagerGateway taskManagerGateway = slot.getTaskManagerGateway();</div><div class="line">			final CompletableFuture&lt;Acknowledge&gt; submitResultFuture = taskManagerGateway.submitTask(deployment, rpcTimeout);</div><div class="line">		&#125;</div><div class="line">	&#125;</div><div class="line">    public CompletableFuture&lt;Acknowledge&gt; submitTask(TaskDeploymentDescriptor tdd, Time timeout) &#123;</div><div class="line">        // // AkkaInvocationHandler, 实际会去调用AkkaInvocationHandler，而去和tm通信，而不是跑到TaskExecutor.submitTask</div><div class="line">		return taskExecutorGateway.submitTask(tdd, jobMasterId, timeout);</div><div class="line">    &#125;</div></pre></td></tr></table></figure></p>
 <p>可以看到:</p>
 <ul>
 <li>首先生成TaskDeploymentDescriptor, 包含部署subTask的所有信息</li>
-<li>调用taskManagerGateway.submitTask(deployment, rpcTimeout)进行部署subTask</li>
+<li>调用taskManagerGateway.submitTask(deployment, rpcTimeout)进行部署subTask。<br>TaskManager端通过TaskExecutor.subTask()接受到JobManager发出的部署SubTask的申请, 这样就完成SubTask部署了。</li>
 </ul>
 <h1 id="SlotSharingGroup"><a href="#SlotSharingGroup" class="headerlink" title="SlotSharingGroup"></a>SlotSharingGroup</h1><p>Flink 允许相同SlotSharingGroup的subTask共享同一个slot, 好处主要有俩:</p>
 <ul>
@@ -1384,15 +1384,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">Cycler</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">ReentrantLock</a>
+                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1400,7 +1396,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">gdb</a>
+                <a href="javascript:void(0)" class="js-tag color4">ReentrantLock</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1409,6 +1405,10 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">gdb</a>
               </li>
              
               <li class="article-tag-list-item">
