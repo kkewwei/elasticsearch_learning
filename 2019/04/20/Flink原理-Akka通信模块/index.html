@@ -6,19 +6,19 @@
   <meta name="renderer" content="webkit">
   <meta http-equiv="X-UA-Compatible" content="IE=edge" >
   <link rel="dns-prefetch" href="https://kkewwei.github.io/elasticsearch_learning">
-  <title>Flink原理-Akka通信模块 | Hexo</title>
+  <title>Flink原理-Akka通信模块详解 | Hexo</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
   <meta name="google-site-verification" content="sCUXxLczmZVJ1Fkt5jSJGE9xPpdVD25hYciudlUUVNQ" />
-  <meta name="description" content="无名小辈">
+  <meta name="description" content="Flink对于JobManager和TaskManager之间通信采用Akka remote实现, 本文将以tm和jm之间的一次远程通信为示例进行讲解。为了读者更好地理解, 本文首先介绍AKKa相关基本知识。 Akka基础学习本文首先以hello world为例进行讲解:1234567891011121314151617181920212223242526272829303132333435363">
 <meta property="og:type" content="article">
-<meta property="og:title" content="Flink原理-Akka通信模块">
+<meta property="og:title" content="Flink原理-Akka通信模块详解">
 <meta property="og:url" content="https://kkewwei.github.io/elasticsearch_learning/2019/04/20/Flink原理-Akka通信模块/index.html">
 <meta property="og:site_name" content="Hexo">
-<meta property="og:description" content="无名小辈">
-<meta property="og:updated_time" content="2019-06-04T15:17:21.000Z">
+<meta property="og:description" content="Flink对于JobManager和TaskManager之间通信采用Akka remote实现, 本文将以tm和jm之间的一次远程通信为示例进行讲解。为了读者更好地理解, 本文首先介绍AKKa相关基本知识。 Akka基础学习本文首先以hello world为例进行讲解:1234567891011121314151617181920212223242526272829303132333435363">
+<meta property="og:updated_time" content="2019-06-04T16:42:18.000Z">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="Flink原理-Akka通信模块">
-<meta name="twitter:description" content="无名小辈">
+<meta name="twitter:title" content="Flink原理-Akka通信模块详解">
+<meta name="twitter:description" content="Flink对于JobManager和TaskManager之间通信采用Akka remote实现, 本文将以tm和jm之间的一次远程通信为示例进行讲解。为了读者更好地理解, 本文首先介绍AKKa相关基本知识。 Akka基础学习本文首先以hello world为例进行讲解:1234567891011121314151617181920212223242526272829303132333435363">
   
     <link rel="alternative" href="/atom.xml" title="Hexo" type="application/atom+xml">
   
@@ -42,55 +42,39 @@
   <div id="container" q-class="show:isCtnShow">
     <canvas id="anm-canvas" class="anm-canvas"></canvas>
     <div class="left-col" q-class="show:isShow">
-      
-<div class="overlay" style="background: #4d4d4d"></div>
+      <% var defaultBg = '#4d4d4d'; %>
+<div class="overlay" style="background: <%= theme.style && theme.style.header ? theme.style.header : defaultBg %>"></div>
 <div class="intrude-less">
 	<header id="header" class="inner">
-		<a href="/" class="profilepic">
-      <img src="https://kkewwei.github.io/elasticsearch_learning/img/myself.png" class="js-avatar">
+		<a href="<%=theme.root%>" class="profilepic">
+			<img src="<%=theme.avatar%>" class="js-avatar">
 		</a>
 		<hgroup>
-		  <h1 class="header-author"><a href="/">xiaoyu</a></h1>
+		  <h1 class="header-author"><a href="<%=theme.root%>"><%=theme.author%></a></h1>
 		</hgroup>
-		
-		<p class="header-subtitle">往事随风</p>
-		
+		<% if (theme.subtitle){ %>
+		<p class="header-subtitle"><%=theme.subtitle%></p>
+		<%}%>
 
 		<nav class="header-menu">
 			<ul>
-			
-				<li><a href="/elasticsearch_learning/">主页</a></li>
-	        
-				<li><a href="/elasticsearch_learning/tags/随笔/">随笔</a></li>
-	        
+			<% for (var i in theme.menu){ %>
+				<li><a href="<%- url_for(theme.menu[i]) %>"><%= i %></a></li>
+	        <%}%>
 			</ul>
 		</nav>
 		<nav class="header-smart-menu">
-    		
-    			
-    			<a q-on="click: openSlider(e, 'innerArchive')" href="javascript:void(0)">所有文章</a>
-    			
-            
-    			
-    			<a q-on="click: openSlider(e, 'friends')" href="javascript:void(0)">友链</a>
-    			
-            
-    			
-    			<a q-on="click: openSlider(e, 'aboutme')" href="javascript:void(0)">关于我</a>
-    			
-            
+    		<% for (var i in theme.smart_menu){ %>
+    			<% if(theme.smart_menu[i]){ %>
+    			<a q-on="click: openSlider(e, '<%-i%>')" href="javascript:void(0)"><%= theme.smart_menu[i] %></a>
+    			<% } %>
+            <%}%>
 		</nav>
 		<nav class="header-nav">
 			<div class="social">
-				
-					<a class="github" target="_blank" href="#" title="github"><i class="icon-github"></i></a>
-		        
-					<a class="weibo" target="_blank" href="#" title="weibo"><i class="icon-weibo"></i></a>
-		        
-					<a class="rss" target="_blank" href="#" title="rss"><i class="icon-rss"></i></a>
-		        
-					<a class="zhihu" target="_blank" href="#" title="zhihu"><i class="icon-zhihu"></i></a>
-		        
+				<% for (var i in theme.subnav){ %>
+					<a class="<%= i %>" target="_blank" href="<%- url_for(theme.subnav[i]) %>" title="<%= i %>"><i class="icon-<%= i %>"></i></a>
+		        <%}%>
 			</div>
 		</nav>
 	</header>
@@ -165,7 +149,7 @@
         
   
     <h1 class="article-title" itemprop="name">
-      Flink原理-Akka通信模块
+      Flink原理-Akka通信模块详解
     </h1>
   
 
@@ -183,7 +167,14 @@
 
     <div class="article-entry" itemprop="articleBody">
       
-        
+        <p>Flink对于JobManager和TaskManager之间通信采用Akka remote实现, 本文将以tm和jm之间的一次远程通信为示例进行讲解。为了读者更好地理解, 本文首先介绍AKKa相关基本知识。</p>
+<h1 id="Akka基础学习"><a href="#Akka基础学习" class="headerlink" title="Akka基础学习"></a>Akka基础学习</h1><p>本文首先以hello world为例进行讲解:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div></pre></td><td class="code"><pre><div class="line">public class hello &#123;</div><div class="line">    public static void main(String[] args) &#123;</div><div class="line">        // 创建系统</div><div class="line">        final ActorSystem system = ActorSystem.create(&quot;hello&quot;);</div><div class="line">        // 创建消息角色(): greeter1, 接受消息处理类: Greeter</div><div class="line">        final ActorRef greeter1 = system.actorOf(Props.create(Greeter.class), &quot;Sender1&quot;);</div><div class="line">        final ActorRef greeter2 = system.actorOf(Props.create(Greeter.class), &quot;Sender2&quot;);</div><div class="line">        //消息发送greeter1 -&gt;  greeter2, 消息内容&quot;tell1&quot;</div><div class="line">        greeter2.tell(&quot;tell1&quot;, greeter1);</div><div class="line"></div><div class="line">        //通过ask, 表示角色发送完消息, 希望对方返回。</div><div class="line">        Future&lt;String&gt; future  = Patterns.ask(greeter1, &quot;ask1&quot;, 5000).&lt;String&gt;mapTo(ClassTag$.MODULE$.&lt;String&gt;apply(String.class));</div><div class="line">        future.onComplete(new OnComplete&lt;String&gt;() &#123;</div><div class="line">            public void onComplete(Throwable throwable, String o) throws Throwable &#123;</div><div class="line">                if (throwable == null) &#123;</div><div class="line">                    System.out.println(o);</div><div class="line">                &#125;</div><div class="line">            &#125;</div><div class="line">        &#125;, system.dispatcher());</div><div class="line"></div><div class="line">        //获取greeter1的绝对路径</div><div class="line">        String url = greeter1.path().parent().toString()+&quot;/&quot;+greeter1.path().name()+&quot;#&quot;+greeter1.path().uid();</div><div class="line">        // 通过actorSelection, 可以查找角色, 这个函数比较重要, 我们只知道某个角色的绝对路径, 我们通过该函数, 就可以获取到该角色。一般用于远程数据传输。</div><div class="line">        ActorSelection actorSelection = system.actorSelection(url);</div><div class="line">        Future&lt;ActorIdentity&gt; identify  = Patterns.ask(actorSelection, new Identify(1), 5000).&lt;ActorIdentity&gt;mapTo(ClassTag$.MODULE$.&lt;ActorIdentity&gt;apply(ActorIdentity.class));</div><div class="line">        identify.onComplete(new OnComplete&lt;ActorIdentity&gt;() &#123;</div><div class="line">            public void onComplete(Throwable throwable, ActorIdentity o) throws Throwable &#123;</div><div class="line">                if (throwable != null) &#123;</div><div class="line">                &#125; else &#123;</div><div class="line">                    // 我们可以对比发现, 之前那个角色通过绝对路径获取到了。</div><div class="line">                    ActorRef actorRef = o.getRef();</div><div class="line">                    System.out.println(&quot;system.actorSelection verify:&quot; + (actorRef==greeter1));</div><div class="line">                &#125;</div><div class="line">            &#125;</div><div class="line">        &#125;, system.dispatcher());</div><div class="line">    &#125;</div><div class="line">    //消息处理类, 必须继承UntypedActor</div><div class="line">    public static class Greeter extends UntypedActor &#123;</div><div class="line">        // 消息角色真正接收到数据的函数</div><div class="line">        public void onReceive(Object message) &#123;</div><div class="line">            if(message instanceof String &amp;&amp; ((String)message).equals(&quot;tell1&quot;)) &#123;</div><div class="line">                System.out.println(message);</div><div class="line">                getSender().tell(&quot;word2&quot;, getSelf());</div><div class="line">            &#125; else if(message instanceof String &amp;&amp; ((String)message).equals(&quot;ask1&quot;)) &#123;</div><div class="line">                System.out.println(message);</div><div class="line">                // getSelf()表示本角色</div><div class="line">                getSender().tell(&quot;Patterns.ask()&quot;, getSelf());</div><div class="line">            &#125; else &#123;</div><div class="line">                System.out.println(&quot;unhandled:&quot; + message);</div><div class="line">                unhandled(message);</div><div class="line">            &#125;</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>输出为:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div></pre></td><td class="code"><pre><div class="line">tell1</div><div class="line">unhandled:word2</div><div class="line">ask1</div><div class="line">Patterns.ask()</div><div class="line">system.actorSelection verify:true</div></pre></td></tr></table></figure></p>
+<ol>
+<li>在使用actorSelection函数的时候, 我们需要了解一个关键字<a href="https://doc.akka.io/docs/akka/2.3.6/java/untyped-actors.html#actorselection-java" target="_blank" rel="external">Identify</a>, 它代表着一个每个角色都知道其含义的消息, 当接收到Identify时, 角色自动回复ActorIdentity, 其中包含着对角色的引用。这样就可以获取到该角色了。</li>
+<li>ask和tell的区别是, ask希望对方角色返回结果, 而tell不需要返回结果。</li>
+</ol>
+<h1 id="Flink-AKKA-RPC通信过程"><a href="#Flink-AKKA-RPC通信过程" class="headerlink" title="Flink AKKA RPC通信过程"></a>Flink AKKA RPC通信过程</h1>
       
 
       
@@ -317,7 +308,7 @@
 <script src="//www.wenjunjiang.win/js/gitment.js "></script>
 <script>
 var gitment = new Gitment({
-  id: "Flink原理-Akka通信模块",
+  id: "Flink原理-Akka通信模块详解",
   owner: 'kkewwei',
   repo: 'comments',
   oauth: {
@@ -455,11 +446,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
+                <a href="javascript:void(0)" class="js-tag color4">ReentrantLock</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">ReentrantLock</a>
+                <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
               </li>
              
               <li class="article-tag-list-item">
