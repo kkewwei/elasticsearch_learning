@@ -159,6 +159,90 @@
           <div id="js-content" class="content-ll">
             
   
+    <article id="post-Netty-PoolThreadCache源码探究" class="article article-type-post  article-index" itemscope itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/elasticsearch_learning/2018/07/14/Netty-PoolThreadCache源码探究/">Netty PoolThreadCache原理探究</a>
+    </h1>
+  
+
+        
+        <a href="/elasticsearch_learning/2018/07/14/Netty-PoolThreadCache源码探究/" class="archive-article-date">
+  	<time datetime="2018-07-14T11:04:06.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2018-07-14</time>
+</a>
+        
+      </header>
+    
+
+    <!-- 目录内容 -->
+    
+    <!-- 目录内容结束 -->
+
+    <div class="article-entry" itemprop="articleBody">
+      
+        <p>NioEventLoop在为数据分配存放的内存时, 会首先尝试从线程本地缓存中去申请, 只有当本地缓存中申请失败, 才会考虑从全局内存中申请, 本地缓存的管理者就是PoolThreadCache对象。 Netty自己实现了类似LocalThread的类来充当线程缓存: PoolThreadLocalCache, 本节将充分围绕这两个类的源代码进行描述。</p>
+<h1 id="PoolThreadCache"><a href="#PoolThreadCache" class="headerlink" title="PoolThreadCache"></a>PoolThreadCache</h1><p>Netty自己进行内存管理, 将内存主要分为Tiny, small, normal等size不等的区间。 在PoolThreadCache中将缓存也按照size进行划分, 下图是PoolThreadCache的内部整体结构图:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/PoolThreadCache2.png" height="400" width="450"><br>图中只展示了small类型数组的大小(为4), 而tiny、normal数组的大小分别分32、 3。 每个数据元素代表着缓存不同类型大小的对象。 比如回收size为32B的对象, 将相应的内存块放在tiny类型数组、下标为1 (log(32&gt;&gt;4))的queue中。 本文章大量用到某一级别的缓存块, 举个例子:normal级别的缓存块有[8k, 16k, 32k]。<br>下面大致介绍下PoolThreadCache里面的属性作用:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div></pre></td><td class="code"><pre><div class="line">final PoolArena&lt;byte[]&gt; heapArena;</div><div class="line">final PoolArena&lt;ByteBuffer&gt; directArena;</div><div class="line"></div><div class="line">// Hold the caches for the different size classes, which are tiny, small and normal.</div><div class="line">//tiny内存缓存的个数。默认为512</div><div class="line">private final MemoryRegionCache&lt;byte[]&gt;[] tinySubPageHeapCaches;</div><div class="line">//small内存缓存的个数,默认为256个</div><div class="line">private final MemoryRegionCache&lt;byte[]&gt;[] smallSubPageHeapCaches;</div><div class="line">private final MemoryRegionCache&lt;ByteBuffer&gt;[] tinySubPageDirectCaches;</div><div class="line">private final MemoryRegionCache&lt;ByteBuffer&gt;[] smallSubPageDirectCaches;</div><div class="line">//normalCacheSize缓存的个数，默认为64</div><div class="line">private final MemoryRegionCache&lt;byte[]&gt;[] normalHeapCaches;</div><div class="line">private final MemoryRegionCache&lt;ByteBuffer&gt;[] normalDirectCaches;</div><div class="line"></div><div class="line">private final int freeSweepAllocationThreshold;</div><div class="line"></div><div class="line">private final Thread deathWatchThread;</div><div class="line">//线程消亡后，释放资源</div><div class="line">private final Runnable freeTask;</div><div class="line">//freeSweepAllocationThreshold  在本地线程每分配freeSweepAllocationThreshold 次内存后，检测一下是否需要释放内存。</div><div class="line">private int allocations;</div></pre></td></tr></table></figure></p>
+<p><code>heapArena</code>与<code>directArena</code>作用一样, 根据用户使用direct内存还是heap内存来确定使用哪个块。由构造函数可以看出directArena与PoolThreadCache绑定了, 同时PoolThreadCache也与某个NioEventLoop对应的线程绑定的, 所以该NioEventLoop线程都与唯一的directArena(&amp;heapArena)绑定着, 这样相对减轻了线程间申请内存导致互斥的发生。<code>smallSubPageHeapCaches</code>数组长度为4(如上图所示), 依次缓存[512K, 1024k, 2048k, 4096k]大小的缓存, 每个的元素对应的缓存queue个数不能超过256个; 而tinySubPageHeapCaches数组缓存的是[16B, 32B, … , 496B]大小的内存块, 每个元素对应的缓存queue个数不能超过512个。<code>normalHeapCaches</code>数组结构相同, 但是只缓存[8k, 16k, 32k]大小的内存块, 每个元素对应的缓存queue个数不超过64个。 normal最大内存块为16m, 而缓存仅仅缓存最大32k内存的原因是这是一种巨大的开销: 试想仅仅16m对应的级别存储, 就可缓存16M*64大小的内存块放在内存, 而这些内存块等着被新分配出去而没有主动释放, 存在巨大的浪费。 至于tiny、small、normal缓存每一等级划分规则, 可参考<a href="https://kkewwei.github.io/elasticsearch_learning/2018/07/14/Netty-PoolThreadCache%E6%BA%90%E7%A0%81%E6%8E%A2%E7%A9%B6/"> Netty PoolArea内存原理探究</a><br> 由于normalHeapCaches的特殊性, 如下展示该部分的代码实现:<br> <figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div></pre></td><td class="code"><pre><div class="line">private static &lt;T&gt; MemoryRegionCache&lt;T&gt;[] createNormalCaches(</div><div class="line">           int cacheSize, int maxCachedBufferCapacity, PoolArena&lt;T&gt; area) &#123;</div><div class="line">       if (cacheSize &gt; 0) &#123;</div><div class="line">           int max = Math.min(area.chunkSize, maxCachedBufferCapacity); //默认32k</div><div class="line">           //normalHeapCaches 数组中的元素的大小，是以2的幂倍pageSize递增的</div><div class="line">           int arraySize = Math.max(1, log2(max / area.pageSize) + 1);</div><div class="line">           //只缓存8k，16k，32k的缓存，太大的话，内存扛不住，若最大缓存32m的话，缓存64*32M个，太大了，扛不住</div><div class="line">           @SuppressWarnings(&quot;unchecked&quot;)</div><div class="line">           MemoryRegionCache&lt;T&gt;[] cache = new MemoryRegionCache[arraySize];</div><div class="line">           for (int i = 0; i &lt; cache.length; i++) &#123;</div><div class="line">               cache[i] = new NormalMemoryRegionCache&lt;T&gt;(cacheSize);</div><div class="line">           &#125;</div><div class="line">           return cache;</div><div class="line">       &#125; else &#123;</div><div class="line">           return null;</div><div class="line">       &#125;</div><div class="line">   &#125;</div></pre></td></tr></table></figure></p>
+<p> 最大缓存的大小由io.netty.allocator.maxCachedBufferCapacity来指定, 默认缓存最大32k。</p>
+<p>以下展示缓存中分配内存的过程, 以从normal级别缓存分配内存为例:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line"> boolean allocateNormal(PoolArena&lt;?&gt; area, PooledByteBuf&lt;?&gt; buf, int reqCapacity, int normCapacity) &#123;</div><div class="line">    return allocate(cacheForNormal(area, normCapacity), buf, reqCapacity);</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>在cacheForNormal中根据normCapacity确定从normalSubPageDirectCaches对应级别获取缓存内存块, 接着开始分配内存:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div></pre></td><td class="code"><pre><div class="line">@SuppressWarnings(&#123; &quot;unchecked&quot;, &quot;rawtypes&quot; &#125;)</div><div class="line">private boolean allocate(MemoryRegionCache&lt;?&gt; cache, PooledByteBuf buf, int reqCapacity) &#123;</div><div class="line">    if (cache == null) &#123;</div><div class="line">        // no cache found so just return false here</div><div class="line">        return false;</div><div class="line">    &#125;</div><div class="line">    boolean allocated = cache.allocate(buf, reqCapacity);</div><div class="line">    if (++ allocations &gt;= freeSweepAllocationThreshold) &#123;</div><div class="line">        allocations = 0;</div><div class="line">        trim();</div><div class="line">    &#125;</div><div class="line">    return allocated;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>做了如下事情:</p>
+<ul>
+<li>若没有该级别的缓存块, 则直接退出。</li>
+<li>若缓存有该级别的缓存块, 则将该缓存块分配出去, 同时判断从PoolThreadCache缓存中成功分配内存的次数是否达到阈值freeSweepAllocationThreshold(8192次), 若达到阈值, 则在trim()中尝试释放分配率很低的缓存块, 以免内存泄漏。</li>
+</ul>
+<p>trim()是如何确定哪些缓存块需要释放呢? 它会分别检查tiny、small、normal类型缓存块, 并轮训其中每一级别缓存块, 调用MemoryRegionCache.trim()检查是否需要释放, 以下以检查normal类型16k级别缓存块为例来说明:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div></pre></td><td class="code"><pre><div class="line">public final void trim() &#123;</div><div class="line">    int free = size - allocations;</div><div class="line">    allocations = 0;</div><div class="line"></div><div class="line">    // We not even allocated all the number that are</div><div class="line">     //只有从该级别分配大于预定值，tiny：512，small:256 , normal:64次</div><div class="line">    if (free &gt; 0) &#123;</div><div class="line">        free(free);//才不会释放该缓存</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p><code>size</code>表示该16K级别的queue单位十年内必须分配多少次, 才不会释放(默认64个)<br><code>allocations</code>表示在达到MemoryRegionCache成功分配freeSweepAllocationThreshold次缓存中、从16K级别的缓存块中分配的缓存次数。<br>free大于0表示成功分配freeSweepAllocationThreshold次缓存中时间内,从当前缓存中分配的次数allocations小于阈值size, 该缓存队列需要释放。 如果从16KB级缓存队列中成功分配的缓存次数超过size(64次), 则不会释放级别缓存queue。若没有从该级别缓存队列中成功分配一次, 那么该级别的缓存queue存放的缓存块将全部释放。</p>
+<h2 id="PoolThreadLocalCache"><a href="#PoolThreadLocalCache" class="headerlink" title="PoolThreadLocalCache"></a>PoolThreadLocalCache</h2><p>文章开头讲了, 线程首先从本地缓存分配内存。PoolThreadCache主要解决了了如何从本地缓存分配内存, 而本地缓存如何与该线程联系在一起的呢? 这就是PoolThreadLocalCache起的作用。<br>PoolThreadLocalCache是全局唯一的, 任何线程分配内存, 都会调用同一个PoolThreadLocalCache.get()获取PoolThreadCache。 PoolThreadLocalCache继承了FastThreadLocal, PoolThreadLocalCache.get()实际调用了FastThreadLocal.get()方法:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div></pre></td><td class="code"><pre><div class="line">public final V get() &#123;</div><div class="line">    return get(InternalThreadLocalMap.get());</div><div class="line">&#125;</div><div class="line"></div><div class="line">public final V get(InternalThreadLocalMap threadLocalMap) &#123;</div><div class="line">     //想得到该层级缓存，发现没有，那么只能去初始话一个</div><div class="line">    Object v = threadLocalMap.indexedVariable(index);</div><div class="line">    if (v != InternalThreadLocalMap.UNSET) &#123;</div><div class="line">        return (V) v;</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    return initialize(threadLocalMap);</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>在InternalThreadLocalMap中定义了slowThreadLocalMap属性, 该类型是我们熟悉的ThreadLocal。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">static final ThreadLocal&lt;InternalThreadLocalMap&gt; slowThreadLocalMap = new ThreadLocal&lt;InternalThreadLocalMap&gt;();</div></pre></td></tr></table></figure></p>
+<p>若从本地缓冲中获取不到PoolThreadCache, 则会调用PoolThreadLocalCache.initialize()初始一个:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div></pre></td><td class="code"><pre><div class="line">protected synchronized PoolThreadCache initialValue() &#123;</div><div class="line">    final PoolArena&lt;byte[]&gt; heapArena = leastUsedArena(heapArenas); //找出被别的NioEventLoop使用最少次数多PoolArea</div><div class="line">    final PoolArena&lt;ByteBuffer&gt; directArena = leastUsedArena(directArenas);</div><div class="line"></div><div class="line">    if (useCacheForAllThreads || Thread.currentThread() instanceof FastThreadLocalThread) &#123;</div><div class="line">        return new PoolThreadCache( //为每一级别增加缓存</div><div class="line">                heapArena, directArena, tinyCacheSize, smallCacheSize, normalCacheSize,</div><div class="line">                DEFAULT_MAX_CACHED_BUFFER_CAPACITY, DEFAULT_CACHE_TRIM_INTERVAL);</div><div class="line">    &#125;</div><div class="line">    // No caching for non FastThreadLocalThreads.</div><div class="line">    return new PoolThreadCache(heapArena, directArena, 0, 0, 0, 0, 0);</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>这里我们需要注意leastUsedArena()函数。 Netty默认会产生NioEventLoop |work|个PoolArea块, 至于该线程绑定哪个PoolArea呢, 是根据该PoolArea被多少线程绑定次数来依据的。 被越少的线程绑定到一起, 分配内存发生冲突的概率越小。 这里选择被绑定次数最低的那个PoolArea来构建PoolThreadCache。<br>至此, 线程与PoolThreadCache实现了一一绑定。 之后该线程分配内存, 都会利用PoolThreadLocalCache.get()获取PoolThreadCache, 然后利用里面的PoolArea来完成的。</p>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+      
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/elasticsearch_learning/2018/07/14/Netty-PoolThreadCache源码探究/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
     <article id="post-Netty内存学习" class="article article-type-post  article-index" itemscope itemprop="blogPost">
   <div class="article-inner">
     
@@ -1243,116 +1327,6 @@
 
 
   
-    <article id="post-ConcurrentHashMap-put过程介绍" class="article article-type-post  article-index" itemscope itemprop="blogPost">
-  <div class="article-inner">
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/elasticsearch_learning/2017/11/05/ConcurrentHashMap-put过程介绍/">ConcurrentHashMap Put源码介绍</a>
-    </h1>
-  
-
-        
-        <a href="/elasticsearch_learning/2017/11/05/ConcurrentHashMap-put过程介绍/" class="archive-article-date">
-  	<time datetime="2017-11-05T03:20:55.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-11-05</time>
-</a>
-        
-      </header>
-    
-
-    <!-- 目录内容 -->
-    
-    <!-- 目录内容结束 -->
-
-    <div class="article-entry" itemprop="articleBody">
-      
-        <p>在平时项目中, 较多的使用了HashMap容器, 但是它是非线程安全的, 在多线程put的时候, 可能会导致HashMap产生环链而导致死锁。 在并发场景下, 我们就得换成ConcurrentHashMap, 采用分段、红黑树等结构体, 支持多线程同时插入, 又拥有较高的性能。本文章将围绕put的过程进行详细描述。<br>首先放张大图, 对ConcurrentHashMap先有大致的了解。<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/ConcurrentHashMap2.png" height="400" width="450"><br>所有插入的值首先放在table的元素中, 当hash(key)冲突时, 将key-value存放在这个元素的后面, 形成一个链表, 当链表长度达到阈值时, 为减少索引时间, 将链表转变为一个红黑树; 当删除数据时, 红黑树可能会退化为链表; table由于负载高, 也可能会继续扩容。<br>ConcurrentHashMap系列将分为以下三个方面进行详细描述:<br><a href="https://kkewwei.github.io/elasticsearch_learning/2017/11/05/ConcurrentHashMap-put%E8%BF%87%E7%A8%8B%E4%BB%8B%E7%BB%8D/">ConcurrentHashMap Put源码介绍</a><br><a href="https://kkewwei.github.io/elasticsearch_learning/2017/11/14/ConcurrentHashMap%E6%89%A9%E5%AE%B9%E8%BF%87%E7%A8%8B%E4%BB%8B%E7%BB%8D/">ConcurrentHashMap扩容源码介绍</a><br><a href="https://kkewwei.github.io/elasticsearch_learning/2017/11/06/ConcurrentHashMap%E7%BA%A2%E9%BB%91%E6%A0%91%E5%8E%9F%E7%90%86%E4%BB%8B%E7%BB%8D/">ConcurrentHashMap红黑树原理介绍</a></p>
-<h1 id="成员变量介绍"><a href="#成员变量介绍" class="headerlink" title="成员变量介绍"></a>成员变量介绍</h1><p>ConcurrentHashMap拥有出色的性能, 在真正掌握内部结构时, 先要掌握比较重要的成员:</p>
-<ul>
-<li>LOAD_FACTOR: 负载因子, 默认75%, 当table使用率达到75%时, 为减少table的hash碰撞, tabel长度将扩容一倍。负载因子计算: 元素总个数%table.lengh</li>
-<li>TREEIFY_THRESHOLD: 默认8, 当链表长度达到8时, 将结构转变为红黑树。</li>
-<li>UNTREEIFY_THRESHOLD: 默认6, 红黑树转变为链表的阈值。</li>
-<li>MIN_TRANSFER_STRIDE: 默认16, table扩容时, 每个线程最少迁移table的槽位个数。</li>
-<li>MOVED: 值为-1, 当Node.hash为MOVED时, 代表着table正在扩容</li>
-<li>TREEBIN, 置为-2, 代表此元素后接红黑树。</li>
-<li>nextTable: table迁移过程临时变量, 在迁移过程中将元素全部迁移到nextTable上。</li>
-<li>sizeCtl: 用来标志table初始化和扩容的,不同的取值代表着不同的含义:<br>  0: table还没有被初始化<br>  -1: table正在初始化<br>  小于-1: 实际值为resizeStamp(n)&lt;&lt;RESIZE_STAMP_SHIFT+2, 表明table正在扩容<br>  大于0: 初始化完成后, 代表table最大存放元素的个数, 默认为0.75*n</li>
-<li>transferIndex: table容量从n扩到2n时, 是从索引n-&gt;1的元素开始迁移, transferIndex代表当前已经迁移的元素下标</li>
-<li>ForwardingNode: 一个特殊的Node节点, 其hashcode=MOVED, 代表着此时table正在做扩容操作。扩容期间, 若table某个元素为null, 那么该元素设置为ForwardingNode, 当下个线程向这个元素插入数据时, 检查hashcode=MOVED, 就会帮着扩容。</li>
-</ul>
-<h1 id="putVal插入数据"><a href="#putVal插入数据" class="headerlink" title="putVal插入数据"></a>putVal插入数据</h1><p>下面真正开始写入数据:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div><div class="line">61</div><div class="line">62</div><div class="line">63</div><div class="line">64</div><div class="line">65</div><div class="line">66</div><div class="line">67</div><div class="line">68</div><div class="line">69</div><div class="line">70</div><div class="line">71</div><div class="line">72</div><div class="line">73</div><div class="line">74</div><div class="line">75</div><div class="line">76</div><div class="line">77</div><div class="line">78</div><div class="line">79</div></pre></td><td class="code"><pre><div class="line">/** Implementation for put and putIfAbsent */</div><div class="line">final V putVal(K key, V value, boolean onlyIfAbsent) &#123;</div><div class="line">    if (key == null || value == null) throw new NullPointerException();</div><div class="line">    // 定位到table[]中的i</div><div class="line">    int hash = spread(key.hashCode());</div><div class="line">    int binCount = 0;</div><div class="line">    for (Node&lt;K,V&gt;[] tab = table;;) &#123;</div><div class="line">        Node&lt;K,V&gt; f; int n, i, fh;</div><div class="line">        //若table为0， 则初始化这个table</div><div class="line">        if (tab == null || (n = tab.length) == 0)</div><div class="line">            tab = initTable(); //首先初始化</div><div class="line">        //根据hash值计算出在table里面的位置</div><div class="line">        else if ((f = tabAt(tab, i = (n - 1) &amp; hash)) == null) &#123;</div><div class="line">            //如果没有，则向这个位置添加一个节点</div><div class="line">            if (casTabAt(tab, i, null,</div><div class="line">                         new Node&lt;K,V&gt;(hash, key, value, null)))</div><div class="line">                break;                   // no lock when adding to empty bin</div><div class="line">        &#125;</div><div class="line">        //整个table正在扩容</div><div class="line">        else if ((fh = f.hash) == MOVED)</div><div class="line">            //帮着一起扩容</div><div class="line">            tab = helpTransfer(tab, f);</div><div class="line">        //真正插入数据</div><div class="line">        else &#123;</div><div class="line">            V oldVal = null;</div><div class="line">            //那么这个点先禁止别的线程插入数据，若整个table迁移还没有处理到这个元素，此时锁住后，迁移到这里后会被卡主</div><div class="line">            synchronized (f) &#123;</div><div class="line">                if (tabAt(tab, i) == f) &#123;</div><div class="line">                     //普通的数组</div><div class="line">                    if (fh &gt;= 0) &#123;</div><div class="line">                        binCount = 1;</div><div class="line">                        for (Node&lt;K,V&gt; e = f;; ++binCount) &#123;</div><div class="line">                            K ek;</div><div class="line">                            //找到key一样的，则直接替换并退出</div><div class="line">                            if (e.hash == hash &amp;&amp;</div><div class="line">                                ((ek = e.key) == key ||</div><div class="line">                                 (ek != null &amp;&amp; key.equals(ek)))) &#123;</div><div class="line">                                oldVal = e.val;</div><div class="line">                                if (!onlyIfAbsent)</div><div class="line">                                    e.val = value;</div><div class="line">                                break;</div><div class="line">                            &#125;</div><div class="line">                            Node&lt;K,V&gt; pred = e;</div><div class="line">                            //继续找下一个节点，若数组找到最后都没有找到合适的，那么就进行尾插法加入</div><div class="line">                            if ((e = e.next) == null) &#123;</div><div class="line">                                pred.next = new Node&lt;K,V&gt;(hash, key,</div><div class="line">                                                          value, null);</div><div class="line">                                break;</div><div class="line">                            &#125;</div><div class="line">                        &#125;</div><div class="line">                    &#125;</div><div class="line">                    //如果是红合树</div><div class="line">                    else if (f instanceof TreeBin) &#123;</div><div class="line">                        Node&lt;K,V&gt; p;</div><div class="line">                        //赋值固定，就不会再去转变了，只要小于TREEIFY_THRESHOLD就行</div><div class="line">                        binCount = 2;</div><div class="line">                        if ((p = ((TreeBin&lt;K,V&gt;)f).putTreeVal(hash, key,</div><div class="line">                                                       value)) != null) &#123;</div><div class="line">                            oldVal = p.val;</div><div class="line">                            if (!onlyIfAbsent)</div><div class="line">                                p.val = value;</div><div class="line">                        &#125;</div><div class="line">                    &#125;</div><div class="line">                &#125;</div><div class="line">            &#125;</div><div class="line">            if (binCount != 0) &#123;</div><div class="line">                if (binCount &gt;= TREEIFY_THRESHOLD)</div><div class="line">                    //开始将table中元素为i的数组转变为二叉树</div><div class="line">                    treeifyBin(tab, i);</div><div class="line">                if (oldVal != null)</div><div class="line">                    return oldVal;</div><div class="line">                break;</div><div class="line">            &#125;</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line">    //链表或者红黑树不应该增加table的负载</div><div class="line">    addCount(1L, binCount);</div><div class="line">    return null;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
-<p>主要做了如下事情:</p>
-<ul>
-<li>根据spread确定key-value的hash值, hash计算过程如下: (h ^ (h &gt;&gt;&gt; 16)) &amp; HASH_BITS, h=key.hashCode(), HASH_BITS=0x7fffffff, 由此可见, 计算出来的hash&gt;0一定成立, 若node.hash&lt;0是, -1(Moved)代表table正在扩容, -2(TREEBIN)代表此元素后接红黑树</li>
-<li>检查table是否初始化, 若没有初始化,则开始初始化initTable()。 这里可以看出ConcurrentHashMap使用懒性初始化, 只有在真正插入数据时候才进行扩容。</li>
-<li>根据i = (n - 1) &amp; hash))确定需要插入table的位置i:</li>
-</ul>
-<ol>
-<li>若table[i]没有元素, 则将key-value存放进去。</li>
-<li>若table[i].hash为MOVED, 那么说明table正在进行扩容, 则通过helpTransfer()进行扩容(具体参考<a href="https://kkewwei.github.io/elasticsearch_learning/2017/11/14/ConcurrentHashMap%E6%89%A9%E5%AE%B9%E8%BF%87%E7%A8%8B%E4%BB%8B%E7%BB%8D/">ConcurrentHashMap扩容源码介绍</a>)</li>
-<li>否则开始真正插入数据, 插入数据前, 先将table[i]锁住, 插入数据前, 检查table[i].hash, 若大于0, 说明此元素后接的是链表, 或者是个红黑树。 链表插入采取尾插法, 比较简单; 红黑树的插入详见后续描述。</li>
-<li>在链表插入时, 统计当前链表长度, 若长度超过TREEIFY_THRESHOLD(默认值为8), 则需要将链表转变为红黑树结构(具体参考<a href="https://kkewwei.github.io/elasticsearch_learning/2017/11/06/ConcurrentHashMap%E7%BA%A2%E9%BB%91%E6%A0%91%E5%8E%9F%E7%90%86%E4%BB%8B%E7%BB%8D/">ConcurrentHashMap红黑树原理介绍</a>)</li>
-<li>修改table存放所有元素个数、检查table是否需要扩容等, 详见addCount。 这里感觉代码有些问题, 插入任何一个元素, 无论插在table元素上、还是链表或者红黑树上, 都对table容量增加了1, 增加table容量的结果就是可能导致table扩容。 实际上插入链表或者红黑树, 并不会增加table的负载, 这两种情况下, 不应该增加table的负载、而去检查扩容。</li>
-</ol>
-<h2 id="initTable初始化"><a href="#initTable初始化" class="headerlink" title="initTable初始化"></a>initTable初始化</h2><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div></pre></td><td class="code"><pre><div class="line">private final Node&lt;K,V&gt;[] initTable() &#123;</div><div class="line">    Node&lt;K,V&gt;[] tab; int sc;</div><div class="line">    while ((tab = table) == null || tab.length == 0) &#123;//只要没有成功，就一定重新尝试</div><div class="line">        if ((sc = sizeCtl) &lt; 0)  //正在初始化，本节点先尝试放弃cpu的使用</div><div class="line">            Thread.yield(); // lost initialization race; just spin</div><div class="line">        else if (U.compareAndSwapInt(this, SIZECTL, sc, -1)) &#123; //这里应该是个原子操作，将sizeCtl设置为-1</div><div class="line">            try &#123;</div><div class="line">                if ((tab = table) == null || tab.length == 0) &#123; //</div><div class="line">                    int n = (sc &gt; 0) ? sc : DEFAULT_CAPACITY;//sc 大于零说明容量已经初始化了，否则使用默认容量</div><div class="line">                    @SuppressWarnings(&quot;unchecked&quot;)</div><div class="line">                    Node&lt;K,V&gt;[] nt = (Node&lt;K,V&gt;[])new Node&lt;?,?&gt;[n];</div><div class="line">                    table = tab = nt;</div><div class="line">                    sc = n - (n &gt;&gt;&gt; 2);//  //计算阈值，等效于 n*0.75，就是n-0.25*n</div><div class="line">                &#125;</div><div class="line">            &#125; finally &#123;</div><div class="line">                sizeCtl = sc;</div><div class="line">            &#125;</div><div class="line">            break;</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line">    return tab;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
-<p>初始化table主要做了如下事情:</p>
-<ul>
-<li>检查sizeCtl, 若发现&lt;0, 那么说明已经有线程正在初始化, 本线程先放弃cpu使用等待初始化完成</li>
-<li>若本线程是第一个初始化table, 那么原子操作, 将sizeCtl设置为-1, 表明有线程正在对table正在初始化。</li>
-<li>初始化table</li>
-<li>设置sizeCtl= table.length*0.75, 规定了table最大存放元素的个数<h2 id="addCount"><a href="#addCount" class="headerlink" title="addCount"></a>addCount</h2>addCount主要做两个事情: 并发环境下统计ConcurrentHashMap里属性的个数、检查table是否需要扩容。<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div></pre></td><td class="code"><pre><div class="line">private final void addCount(long x, int check) &#123;  //若小于0，则不检查扩容</div><div class="line">    CounterCell[] as; long b, s=baseCount+x;</div><div class="line">    .......//更新元素个数metrics</div><div class="line">    &#125;</div><div class="line">    if (check &gt;= 0) &#123; //s是当前table长度</div><div class="line">        Node&lt;K,V&gt;[] tab, nt; int n, sc;</div><div class="line">        while (s &gt;= (long)(sc = sizeCtl) &amp;&amp; (tab = table) != null &amp;&amp;//达到容积上限，</div><div class="line">               (n = tab.length) &lt; MAXIMUM_CAPACITY) &#123;</div><div class="line">            int rs = resizeStamp(n); //根据目前table长度做一个标识</div><div class="line">            if (sc &lt; 0) &#123; //说明table正在扩容</div><div class="line">                if ((sc &gt;&gt;&gt; RESIZE_STAMP_SHIFT) != rs || sc == rs + 1 ||</div><div class="line">                    sc == rs + MAX_RESIZERS || (nt = nextTable) == null ||</div><div class="line">                    transferIndex &lt;= 0)</div><div class="line">                    break;</div><div class="line">                if (U.compareAndSwapInt(this, SIZECTL, sc, sc + 1))</div><div class="line">                    transfer(tab, nt);</div><div class="line">            &#125; //第一个线程开始扩容，sizeCtl = resizeStamp(n)&lt;&lt;16 + 2</div><div class="line">            else if (U.compareAndSwapInt(this, SIZECTL, sc, //sc = rs &lt;&lt; 16 + 2</div><div class="line">                                         (rs &lt;&lt; RESIZE_STAMP_SHIFT) + 2))//rs &gt; 2^15,rs &lt;&lt; RESIZE_STAMP_SHIFT) + 2) &gt; 2^31+n,int类型的数就是负数了。</div><div class="line">                transfer(tab, null);</div><div class="line">            s = sumCount();</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
-</li>
-</ul>
-<p>主要介绍检查是否需要扩容, 若ConcurrentHashMap总个数s+x达到了最大元素阈值sizeCtl, 那么开始进行扩容, 这里扩容应该分下场景, 链表和红黑树结构体的插入, 不应该进行扩容的。</p>
-<ul>
-<li>若sizeCtl<0, 那么检查是否扩容完成,="" 若扩容完成了,="" 退出;="" 否则将sizectl加1,="" 并进行扩容操作transfer(),="" 详见<a="" href="https://kkewwei.github.io/elasticsearch_learning/2017/11/14/ConcurrentHashMap%E6%89%A9%E5%AE%B9%E8%BF%87%E7%A8%8B%E4%BB%8B%E7%BB%8D/">ConcurrentHashMap扩容源码介绍</0,></li>
-<li>若sizeCtl&gt;0, 那么本线程是第一个开始对table进行扩容的, 将sizeCtl=resizeStamp(n)&lt;&lt;16 + 2, 并进行扩容transfer()</li>
-</ul>
-<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>ConcurrentHashMap为了加快索引速度和插入并发, 采用由数组+链表+红黑树来存储数据,  数据结构之间能够相互转变。 插入数据时, 会检查table是否初始化, 是否在扩容, 插入的元素位置是否为链表、红黑树, 针对不同的情况采取不同的插入方法。</p>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-      
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/elasticsearch_learning/2017/11/05/ConcurrentHashMap-put过程介绍/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
   
     <nav id="page-nav">
       <a class="extend prev" rel="prev" href="/elasticsearch_learning/">&laquo; Prev</a><a class="page-number" href="/elasticsearch_learning/">1</a><span class="page-number current">2</span><a class="page-number" href="/elasticsearch_learning/page/3/">3</a><a class="page-number" href="/elasticsearch_learning/page/4/">4</a><a class="extend next" rel="next" href="/elasticsearch_learning/page/3/">Next &raquo;</a>
@@ -1496,11 +1470,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">gdb</a>
+                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
+                <a href="javascript:void(0)" class="js-tag color4">gdb</a>
               </li>
              
               <li class="article-tag-list-item">

@@ -159,6 +159,116 @@
           <div id="js-content" class="content-ll">
             
   
+    <article id="post-ConcurrentHashMap-put过程介绍" class="article article-type-post  article-index" itemscope itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/elasticsearch_learning/2017/11/05/ConcurrentHashMap-put过程介绍/">ConcurrentHashMap Put源码介绍</a>
+    </h1>
+  
+
+        
+        <a href="/elasticsearch_learning/2017/11/05/ConcurrentHashMap-put过程介绍/" class="archive-article-date">
+  	<time datetime="2017-11-05T03:20:55.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-11-05</time>
+</a>
+        
+      </header>
+    
+
+    <!-- 目录内容 -->
+    
+    <!-- 目录内容结束 -->
+
+    <div class="article-entry" itemprop="articleBody">
+      
+        <p>在平时项目中, 较多的使用了HashMap容器, 但是它是非线程安全的, 在多线程put的时候, 可能会导致HashMap产生环链而导致死锁。 在并发场景下, 我们就得换成ConcurrentHashMap, 采用分段、红黑树等结构体, 支持多线程同时插入, 又拥有较高的性能。本文章将围绕put的过程进行详细描述。<br>首先放张大图, 对ConcurrentHashMap先有大致的了解。<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/ConcurrentHashMap2.png" height="400" width="450"><br>所有插入的值首先放在table的元素中, 当hash(key)冲突时, 将key-value存放在这个元素的后面, 形成一个链表, 当链表长度达到阈值时, 为减少索引时间, 将链表转变为一个红黑树; 当删除数据时, 红黑树可能会退化为链表; table由于负载高, 也可能会继续扩容。<br>ConcurrentHashMap系列将分为以下三个方面进行详细描述:<br><a href="https://kkewwei.github.io/elasticsearch_learning/2017/11/05/ConcurrentHashMap-put%E8%BF%87%E7%A8%8B%E4%BB%8B%E7%BB%8D/">ConcurrentHashMap Put源码介绍</a><br><a href="https://kkewwei.github.io/elasticsearch_learning/2017/11/14/ConcurrentHashMap%E6%89%A9%E5%AE%B9%E8%BF%87%E7%A8%8B%E4%BB%8B%E7%BB%8D/">ConcurrentHashMap扩容源码介绍</a><br><a href="https://kkewwei.github.io/elasticsearch_learning/2017/11/06/ConcurrentHashMap%E7%BA%A2%E9%BB%91%E6%A0%91%E5%8E%9F%E7%90%86%E4%BB%8B%E7%BB%8D/">ConcurrentHashMap红黑树原理介绍</a></p>
+<h1 id="成员变量介绍"><a href="#成员变量介绍" class="headerlink" title="成员变量介绍"></a>成员变量介绍</h1><p>ConcurrentHashMap拥有出色的性能, 在真正掌握内部结构时, 先要掌握比较重要的成员:</p>
+<ul>
+<li>LOAD_FACTOR: 负载因子, 默认75%, 当table使用率达到75%时, 为减少table的hash碰撞, tabel长度将扩容一倍。负载因子计算: 元素总个数%table.lengh</li>
+<li>TREEIFY_THRESHOLD: 默认8, 当链表长度达到8时, 将结构转变为红黑树。</li>
+<li>UNTREEIFY_THRESHOLD: 默认6, 红黑树转变为链表的阈值。</li>
+<li>MIN_TRANSFER_STRIDE: 默认16, table扩容时, 每个线程最少迁移table的槽位个数。</li>
+<li>MOVED: 值为-1, 当Node.hash为MOVED时, 代表着table正在扩容</li>
+<li>TREEBIN, 置为-2, 代表此元素后接红黑树。</li>
+<li>nextTable: table迁移过程临时变量, 在迁移过程中将元素全部迁移到nextTable上。</li>
+<li>sizeCtl: 用来标志table初始化和扩容的,不同的取值代表着不同的含义:<br>  0: table还没有被初始化<br>  -1: table正在初始化<br>  小于-1: 实际值为resizeStamp(n)&lt;&lt;RESIZE_STAMP_SHIFT+2, 表明table正在扩容<br>  大于0: 初始化完成后, 代表table最大存放元素的个数, 默认为0.75*n</li>
+<li>transferIndex: table容量从n扩到2n时, 是从索引n-&gt;1的元素开始迁移, transferIndex代表当前已经迁移的元素下标</li>
+<li>ForwardingNode: 一个特殊的Node节点, 其hashcode=MOVED, 代表着此时table正在做扩容操作。扩容期间, 若table某个元素为null, 那么该元素设置为ForwardingNode, 当下个线程向这个元素插入数据时, 检查hashcode=MOVED, 就会帮着扩容。</li>
+</ul>
+<h1 id="putVal插入数据"><a href="#putVal插入数据" class="headerlink" title="putVal插入数据"></a>putVal插入数据</h1><p>下面真正开始写入数据:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div><div class="line">61</div><div class="line">62</div><div class="line">63</div><div class="line">64</div><div class="line">65</div><div class="line">66</div><div class="line">67</div><div class="line">68</div><div class="line">69</div><div class="line">70</div><div class="line">71</div><div class="line">72</div><div class="line">73</div><div class="line">74</div><div class="line">75</div><div class="line">76</div><div class="line">77</div><div class="line">78</div><div class="line">79</div></pre></td><td class="code"><pre><div class="line">/** Implementation for put and putIfAbsent */</div><div class="line">final V putVal(K key, V value, boolean onlyIfAbsent) &#123;</div><div class="line">    if (key == null || value == null) throw new NullPointerException();</div><div class="line">    // 定位到table[]中的i</div><div class="line">    int hash = spread(key.hashCode());</div><div class="line">    int binCount = 0;</div><div class="line">    for (Node&lt;K,V&gt;[] tab = table;;) &#123;</div><div class="line">        Node&lt;K,V&gt; f; int n, i, fh;</div><div class="line">        //若table为0， 则初始化这个table</div><div class="line">        if (tab == null || (n = tab.length) == 0)</div><div class="line">            tab = initTable(); //首先初始化</div><div class="line">        //根据hash值计算出在table里面的位置</div><div class="line">        else if ((f = tabAt(tab, i = (n - 1) &amp; hash)) == null) &#123;</div><div class="line">            //如果没有，则向这个位置添加一个节点</div><div class="line">            if (casTabAt(tab, i, null,</div><div class="line">                         new Node&lt;K,V&gt;(hash, key, value, null)))</div><div class="line">                break;                   // no lock when adding to empty bin</div><div class="line">        &#125;</div><div class="line">        //整个table正在扩容</div><div class="line">        else if ((fh = f.hash) == MOVED)</div><div class="line">            //帮着一起扩容</div><div class="line">            tab = helpTransfer(tab, f);</div><div class="line">        //真正插入数据</div><div class="line">        else &#123;</div><div class="line">            V oldVal = null;</div><div class="line">            //那么这个点先禁止别的线程插入数据，若整个table迁移还没有处理到这个元素，此时锁住后，迁移到这里后会被卡主</div><div class="line">            synchronized (f) &#123;</div><div class="line">                if (tabAt(tab, i) == f) &#123;</div><div class="line">                     //普通的数组</div><div class="line">                    if (fh &gt;= 0) &#123;</div><div class="line">                        binCount = 1;</div><div class="line">                        for (Node&lt;K,V&gt; e = f;; ++binCount) &#123;</div><div class="line">                            K ek;</div><div class="line">                            //找到key一样的，则直接替换并退出</div><div class="line">                            if (e.hash == hash &amp;&amp;</div><div class="line">                                ((ek = e.key) == key ||</div><div class="line">                                 (ek != null &amp;&amp; key.equals(ek)))) &#123;</div><div class="line">                                oldVal = e.val;</div><div class="line">                                if (!onlyIfAbsent)</div><div class="line">                                    e.val = value;</div><div class="line">                                break;</div><div class="line">                            &#125;</div><div class="line">                            Node&lt;K,V&gt; pred = e;</div><div class="line">                            //继续找下一个节点，若数组找到最后都没有找到合适的，那么就进行尾插法加入</div><div class="line">                            if ((e = e.next) == null) &#123;</div><div class="line">                                pred.next = new Node&lt;K,V&gt;(hash, key,</div><div class="line">                                                          value, null);</div><div class="line">                                break;</div><div class="line">                            &#125;</div><div class="line">                        &#125;</div><div class="line">                    &#125;</div><div class="line">                    //如果是红合树</div><div class="line">                    else if (f instanceof TreeBin) &#123;</div><div class="line">                        Node&lt;K,V&gt; p;</div><div class="line">                        //赋值固定，就不会再去转变了，只要小于TREEIFY_THRESHOLD就行</div><div class="line">                        binCount = 2;</div><div class="line">                        if ((p = ((TreeBin&lt;K,V&gt;)f).putTreeVal(hash, key,</div><div class="line">                                                       value)) != null) &#123;</div><div class="line">                            oldVal = p.val;</div><div class="line">                            if (!onlyIfAbsent)</div><div class="line">                                p.val = value;</div><div class="line">                        &#125;</div><div class="line">                    &#125;</div><div class="line">                &#125;</div><div class="line">            &#125;</div><div class="line">            if (binCount != 0) &#123;</div><div class="line">                if (binCount &gt;= TREEIFY_THRESHOLD)</div><div class="line">                    //开始将table中元素为i的数组转变为二叉树</div><div class="line">                    treeifyBin(tab, i);</div><div class="line">                if (oldVal != null)</div><div class="line">                    return oldVal;</div><div class="line">                break;</div><div class="line">            &#125;</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line">    //链表或者红黑树不应该增加table的负载</div><div class="line">    addCount(1L, binCount);</div><div class="line">    return null;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>主要做了如下事情:</p>
+<ul>
+<li>根据spread确定key-value的hash值, hash计算过程如下: (h ^ (h &gt;&gt;&gt; 16)) &amp; HASH_BITS, h=key.hashCode(), HASH_BITS=0x7fffffff, 由此可见, 计算出来的hash&gt;0一定成立, 若node.hash&lt;0是, -1(Moved)代表table正在扩容, -2(TREEBIN)代表此元素后接红黑树</li>
+<li>检查table是否初始化, 若没有初始化,则开始初始化initTable()。 这里可以看出ConcurrentHashMap使用懒性初始化, 只有在真正插入数据时候才进行扩容。</li>
+<li>根据i = (n - 1) &amp; hash))确定需要插入table的位置i:</li>
+</ul>
+<ol>
+<li>若table[i]没有元素, 则将key-value存放进去。</li>
+<li>若table[i].hash为MOVED, 那么说明table正在进行扩容, 则通过helpTransfer()进行扩容(具体参考<a href="https://kkewwei.github.io/elasticsearch_learning/2017/11/14/ConcurrentHashMap%E6%89%A9%E5%AE%B9%E8%BF%87%E7%A8%8B%E4%BB%8B%E7%BB%8D/">ConcurrentHashMap扩容源码介绍</a>)</li>
+<li>否则开始真正插入数据, 插入数据前, 先将table[i]锁住, 插入数据前, 检查table[i].hash, 若大于0, 说明此元素后接的是链表, 或者是个红黑树。 链表插入采取尾插法, 比较简单; 红黑树的插入详见后续描述。</li>
+<li>在链表插入时, 统计当前链表长度, 若长度超过TREEIFY_THRESHOLD(默认值为8), 则需要将链表转变为红黑树结构(具体参考<a href="https://kkewwei.github.io/elasticsearch_learning/2017/11/06/ConcurrentHashMap%E7%BA%A2%E9%BB%91%E6%A0%91%E5%8E%9F%E7%90%86%E4%BB%8B%E7%BB%8D/">ConcurrentHashMap红黑树原理介绍</a>)</li>
+<li>修改table存放所有元素个数、检查table是否需要扩容等, 详见addCount。 这里感觉代码有些问题, 插入任何一个元素, 无论插在table元素上、还是链表或者红黑树上, 都对table容量增加了1, 增加table容量的结果就是可能导致table扩容。 实际上插入链表或者红黑树, 并不会增加table的负载, 这两种情况下, 不应该增加table的负载、而去检查扩容。</li>
+</ol>
+<h2 id="initTable初始化"><a href="#initTable初始化" class="headerlink" title="initTable初始化"></a>initTable初始化</h2><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div></pre></td><td class="code"><pre><div class="line">private final Node&lt;K,V&gt;[] initTable() &#123;</div><div class="line">    Node&lt;K,V&gt;[] tab; int sc;</div><div class="line">    while ((tab = table) == null || tab.length == 0) &#123;//只要没有成功，就一定重新尝试</div><div class="line">        if ((sc = sizeCtl) &lt; 0)  //正在初始化，本节点先尝试放弃cpu的使用</div><div class="line">            Thread.yield(); // lost initialization race; just spin</div><div class="line">        else if (U.compareAndSwapInt(this, SIZECTL, sc, -1)) &#123; //这里应该是个原子操作，将sizeCtl设置为-1</div><div class="line">            try &#123;</div><div class="line">                if ((tab = table) == null || tab.length == 0) &#123; //</div><div class="line">                    int n = (sc &gt; 0) ? sc : DEFAULT_CAPACITY;//sc 大于零说明容量已经初始化了，否则使用默认容量</div><div class="line">                    @SuppressWarnings(&quot;unchecked&quot;)</div><div class="line">                    Node&lt;K,V&gt;[] nt = (Node&lt;K,V&gt;[])new Node&lt;?,?&gt;[n];</div><div class="line">                    table = tab = nt;</div><div class="line">                    sc = n - (n &gt;&gt;&gt; 2);//  //计算阈值，等效于 n*0.75，就是n-0.25*n</div><div class="line">                &#125;</div><div class="line">            &#125; finally &#123;</div><div class="line">                sizeCtl = sc;</div><div class="line">            &#125;</div><div class="line">            break;</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line">    return tab;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>初始化table主要做了如下事情:</p>
+<ul>
+<li>检查sizeCtl, 若发现&lt;0, 那么说明已经有线程正在初始化, 本线程先放弃cpu使用等待初始化完成</li>
+<li>若本线程是第一个初始化table, 那么原子操作, 将sizeCtl设置为-1, 表明有线程正在对table正在初始化。</li>
+<li>初始化table</li>
+<li>设置sizeCtl= table.length*0.75, 规定了table最大存放元素的个数<h2 id="addCount"><a href="#addCount" class="headerlink" title="addCount"></a>addCount</h2>addCount主要做两个事情: 并发环境下统计ConcurrentHashMap里属性的个数、检查table是否需要扩容。<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div></pre></td><td class="code"><pre><div class="line">private final void addCount(long x, int check) &#123;  //若小于0，则不检查扩容</div><div class="line">    CounterCell[] as; long b, s=baseCount+x;</div><div class="line">    .......//更新元素个数metrics</div><div class="line">    &#125;</div><div class="line">    if (check &gt;= 0) &#123; //s是当前table长度</div><div class="line">        Node&lt;K,V&gt;[] tab, nt; int n, sc;</div><div class="line">        while (s &gt;= (long)(sc = sizeCtl) &amp;&amp; (tab = table) != null &amp;&amp;//达到容积上限，</div><div class="line">               (n = tab.length) &lt; MAXIMUM_CAPACITY) &#123;</div><div class="line">            int rs = resizeStamp(n); //根据目前table长度做一个标识</div><div class="line">            if (sc &lt; 0) &#123; //说明table正在扩容</div><div class="line">                if ((sc &gt;&gt;&gt; RESIZE_STAMP_SHIFT) != rs || sc == rs + 1 ||</div><div class="line">                    sc == rs + MAX_RESIZERS || (nt = nextTable) == null ||</div><div class="line">                    transferIndex &lt;= 0)</div><div class="line">                    break;</div><div class="line">                if (U.compareAndSwapInt(this, SIZECTL, sc, sc + 1))</div><div class="line">                    transfer(tab, nt);</div><div class="line">            &#125; //第一个线程开始扩容，sizeCtl = resizeStamp(n)&lt;&lt;16 + 2</div><div class="line">            else if (U.compareAndSwapInt(this, SIZECTL, sc, //sc = rs &lt;&lt; 16 + 2</div><div class="line">                                         (rs &lt;&lt; RESIZE_STAMP_SHIFT) + 2))//rs &gt; 2^15,rs &lt;&lt; RESIZE_STAMP_SHIFT) + 2) &gt; 2^31+n,int类型的数就是负数了。</div><div class="line">                transfer(tab, null);</div><div class="line">            s = sumCount();</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+</li>
+</ul>
+<p>主要介绍检查是否需要扩容, 若ConcurrentHashMap总个数s+x达到了最大元素阈值sizeCtl, 那么开始进行扩容, 这里扩容应该分下场景, 链表和红黑树结构体的插入, 不应该进行扩容的。</p>
+<ul>
+<li>若sizeCtl<0, 那么检查是否扩容完成,="" 若扩容完成了,="" 退出;="" 否则将sizectl加1,="" 并进行扩容操作transfer(),="" 详见<a="" href="https://kkewwei.github.io/elasticsearch_learning/2017/11/14/ConcurrentHashMap%E6%89%A9%E5%AE%B9%E8%BF%87%E7%A8%8B%E4%BB%8B%E7%BB%8D/">ConcurrentHashMap扩容源码介绍</0,></li>
+<li>若sizeCtl&gt;0, 那么本线程是第一个开始对table进行扩容的, 将sizeCtl=resizeStamp(n)&lt;&lt;16 + 2, 并进行扩容transfer()</li>
+</ul>
+<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>ConcurrentHashMap为了加快索引速度和插入并发, 采用由数组+链表+红黑树来存储数据,  数据结构之间能够相互转变。 插入数据时, 会检查table是否初始化, 是否在扩容, 插入的元素位置是否为链表、红黑树, 针对不同的情况采取不同的插入方法。</p>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+      
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/elasticsearch_learning/2017/11/05/ConcurrentHashMap-put过程介绍/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
     <article id="post-Condition原理解读" class="article article-type-post  article-index" itemscope itemprop="blogPost">
   <div class="article-inner">
     
@@ -1232,156 +1342,6 @@
 
 
   
-    <article id="post-jvm内存泄露排查工具" class="article article-type-post  article-index" itemscope itemprop="blogPost">
-  <div class="article-inner">
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/elasticsearch_learning/2016/12/15/jvm内存泄露排查工具/">jvm内存泄露排查工具</a>
-    </h1>
-  
-
-        
-        <a href="/elasticsearch_learning/2016/12/15/jvm内存泄露排查工具/" class="archive-article-date">
-  	<time datetime="2016-12-15T13:12:10.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2016-12-15</time>
-</a>
-        
-      </header>
-    
-
-    <!-- 目录内容 -->
-    
-    <!-- 目录内容结束 -->
-
-    <div class="article-entry" itemprop="articleBody">
-      
-        <p>本文介绍几个不常用的内存泄露排查工具:perftools、pmap、jcmd。</p>
-<h2 id="perftools"><a href="#perftools" class="headerlink" title="perftools"></a>perftools</h2><p>perftools是一款比较好的分析堆外内存泄漏的工具, 原理: 通过使用自己实现的libtcmalloc.so来替换原有的内存分配函数, 来达到监控内存分配的目的</p>
-<h4 id="安装"><a href="#安装" class="headerlink" title="安装"></a>安装</h4><p>perftools安装需要依赖:libunwind, 首先安装libunwind:</p>
-<ul>
-<li>wget <a href="https://github.com/libunwind/libunwind/releases/download/v1.2.1/libunwind-1.2.1.tar.gz" target="_blank" rel="external">https://github.com/libunwind/libunwind/releases/download/v1.2.1/libunwind-1.2.1.tar.gz</a></li>
-<li>tar -xvf libunwind-1.2.1.tar.gz</li>
-<li>cd libunwind-1.2.1</li>
-<li>./configure  –prefix=/home/target/libunwind</li>
-<li>make</li>
-<li>make install<br>其次安装perftools:</li>
-<li>wget <a href="https://github.com/gperftools/gperftools/releases/download/gperftools-2.6.1/gperftools-2.6.1.tar.gz" target="_blank" rel="external">https://github.com/gperftools/gperftools/releases/download/gperftools-2.6.1/gperftools-2.6.1.tar.gz</a></li>
-<li>tar -xvf gperftools-2.6.1.tar.gz</li>
-<li>cd gperftools-2.6.1</li>
-<li>./configure –prefix=/home/target/gperftools</li>
-<li>make (安装时候, 可能会报g++: command not found, 切换到root: yum -y install gcc+ gcc-c++, 需要再次执行上一步, 否则会报异常)</li>
-<li>make install<br>我们还需要设置一些环境变量:<br>export LD_PRELOAD=/home/target/gperftools/lib/libtcmalloc.so<br>目的：在程序启动时自动链接libtcmalloc.so<br>export HEAPPROFILE=/you_directory/heap.hprof<br>目的: 内存才能监控将产生很多.heap, 设置文件存放位置<br>export HEAP_PROFILE_ALLOCATION_INTERVAL=10000000<br>目的: 内存使用多少, 会产生一个.heap文件。 默认每使用1G, 产生一个.bin文件。</li>
-</ul>
-<h4 id="使用"><a href="#使用" class="headerlink" title="使用"></a>使用</h4><ul>
-<li>直接启动jvm进程, perftools会监控内存使用<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/jvm_memory_leak.png" height="250" width="850"></li>
-<li>查看产生的heap.hprof.0001.heap文件<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/jvm_memory_leak1.png" height="450" width="850"><br>其中对每列的介绍如下:<br>The first column contains the direct memory use in MB(当前函数目前使用的直接内存大小).<br>The fourth column contains memory use by the procedure and all of its callees(当前函数及其调用者使用的直接内存).<br>The second and fifth columns are just percentage representations of the numbers in the first and fifth columns.<br>The third column is a cumulative sum of the second column (i.e., the kth entry in the third column is the sum of the first k entries in the second column.)(目前占用的总堆外内存大小)</li>
-</ul>
-<h2 id="jcmd"><a href="#jcmd" class="headerlink" title="jcmd"></a>jcmd</h2><p>jcm是一个多功能工具, 功能如下:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div></pre></td><td class="code"><pre><div class="line">$user@host: /usr/local/java18/bin/jcmd 25266 help</div><div class="line">25266:</div><div class="line">The following commands are available:</div><div class="line">JFR.stop</div><div class="line">JFR.start</div><div class="line">JFR.dump</div><div class="line">JFR.check</div><div class="line">VM.native_memory</div><div class="line">VM.check_commercial_features</div><div class="line">VM.unlock_commercial_features</div><div class="line">ManagementAgent.stop</div><div class="line">ManagementAgent.start_local</div><div class="line">ManagementAgent.start</div><div class="line">GC.rotate_log</div><div class="line">Thread.print         // 与jstack功能相同</div><div class="line">GC.class_stats</div><div class="line">GC.class_histogram    // 与jmap -histo功能相同</div><div class="line">GC.heap_dump         //与jmap -dump功能相同</div><div class="line">GC.run_finalization</div><div class="line">GC.run</div><div class="line">VM.uptime</div><div class="line">VM.flags                   //查看更完整的启动命令, 包括默认的参数, 比如垃圾回收器</div><div class="line">VM.system_properties      //查看系统参数</div><div class="line">VM.command_line          //查看启动命令</div><div class="line">VM.version</div><div class="line">help</div></pre></td></tr></table></figure></p>
-<p>我们将着重介绍VM.native_memory, 该参数可以支持我们追踪堆内内存的申请。 不过我们必须在进程启动时添加-XX:NativeMemoryTracking=detail参数才可用。 开启该参数将导致jvm进程5-10%性能损耗。<br>其参数如下:</p>
-<table>
-<thead>
-<tr>
-<th style="text-align:left">参数</th>
-<th style="text-align:left">介绍</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td style="text-align:left">summary</td>
-<td style="text-align:left">汇总的内存展示</td>
-</tr>
-<tr>
-<td style="text-align:left">detail</td>
-<td style="text-align:left">详细的内存展示, 不仅包括summary, 还包括每个内存块地址及具体分配者</td>
-</tr>
-<tr>
-<td style="text-align:left">baseline</td>
-<td style="text-align:left">当前线程拥有的内存块作为基准线, 与调用detail.diff summary.diff时刻的线程比较得出增量情况</td>
-</tr>
-<tr>
-<td style="text-align:left">detail.diff</td>
-<td style="text-align:left">内存增量的详情</td>
-</tr>
-<tr>
-<td style="text-align:left">summary.diff</td>
-<td style="text-align:left">内存增量的汇总情况</td>
-</tr>
-</tbody>
-</table>
-<p>VM.native_memory显示的内存包含<code>堆内内存、Code区域、通过unsafe.allocateMemory(DirectByteBuffer实际也是由前者产生)，但是不包含其他Native Code（C代码）申请的堆外内存</code>。</p>
-<h4 id="VM-native-memory"><a href="#VM-native-memory" class="headerlink" title="VM.native_memory"></a>VM.native_memory</h4><p>用法: jcmd pid VM.native_memory detail<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div><div class="line">61</div><div class="line">62</div><div class="line">63</div><div class="line">64</div><div class="line">65</div><div class="line">66</div><div class="line">67</div><div class="line">68</div><div class="line">69</div><div class="line">70</div><div class="line">71</div><div class="line">72</div><div class="line">73</div><div class="line">74</div><div class="line">75</div><div class="line">76</div><div class="line">77</div><div class="line">78</div><div class="line">79</div><div class="line">80</div><div class="line">81</div><div class="line">82</div><div class="line">83</div><div class="line">84</div><div class="line">85</div><div class="line">86</div><div class="line">87</div><div class="line">88</div><div class="line">89</div><div class="line">90</div><div class="line">91</div><div class="line">92</div><div class="line">93</div><div class="line">94</div><div class="line">95</div><div class="line">96</div><div class="line">97</div><div class="line">98</div><div class="line">99</div><div class="line">100</div></pre></td><td class="code"><pre><div class="line">44387:</div><div class="line">Native Memory Tracking:</div><div class="line">Total: reserved=1653891KB, committed=355703KB</div><div class="line">                  //同启动参数一致</div><div class="line">-                 Java Heap (reserved=102400KB, committed=102400KB)</div><div class="line">                            (mmap: reserved=102400KB, committed=102400KB)</div><div class="line">                   //类需要的内存</div><div class="line">-                 Class (reserved=1091740KB, committed=39836KB)</div><div class="line">                            (classes #426)</div><div class="line">                            (malloc=34972KB #267)</div><div class="line">                            (mmap: reserved=1056768KB, committed=4864KB)</div><div class="line">                  //thread #57，表示57个线程，分配的总内存有57807KB，平均一个线程是1MB。</div><div class="line">-                  Thread (reserved=57807KB, committed=57807KB)</div><div class="line">                            (thread #57)</div><div class="line">                            (stack: reserved=57568KB, committed=57568KB)</div><div class="line">                            (malloc=173KB #315)</div><div class="line">                            (arena=66KB #112)</div><div class="line">                   //JIT的代码缓存</div><div class="line">-                  Code (reserved=249648KB, committed=3560KB)</div><div class="line">                            (malloc=48KB #336)</div><div class="line">                            (mmap: reserved=249600KB, committed=3512KB)</div><div class="line">                   //GC需要的内存</div><div class="line">-                  GC (reserved=43020KB, committed=42824KB)</div><div class="line">                            (malloc=39208KB #204)</div><div class="line">                            (mmap: reserved=3812KB, committed=3616KB)</div><div class="line">                   //供编译器自身操作使用的</div><div class="line">-                  Compiler (reserved=135KB, committed=135KB)</div><div class="line">                            (malloc=4KB #41)</div><div class="line">                            (arena=131KB #3)</div><div class="line">                   //</div><div class="line">-                  Internal (reserved=107397KB, committed=107397KB)</div><div class="line">                            (malloc=107365KB #1972)</div><div class="line">                            (mmap: reserved=32KB, committed=32KB)</div><div class="line">                   //保留字符串（Interned String）的引用与符号表引用</div><div class="line">-                    Symbol (reserved=1374KB, committed=1374KB)</div><div class="line">                            (malloc=918KB #92)</div><div class="line">                            (arena=456KB #1)</div><div class="line">     //NMT本身也需要内存</div><div class="line">-    Native Memory Tracking (reserved=185KB, committed=185KB)</div><div class="line">                            (malloc=107KB #1646)</div><div class="line">                            (tracking overhead=78KB)</div><div class="line"></div><div class="line">-               Arena Chunk (reserved=186KB, committed=186KB)</div><div class="line">                            (malloc=186KB)</div><div class="line"></div><div class="line">Virtual memory map:</div><div class="line">//JVM heap内存大小100M, 地址范围0x00000000f9c00000-0x0000000100000000, 由ParallelScavengeHeap::initialize来申请的内存块</div><div class="line">[0x00000000f9c00000 - 0x0000000100000000] reserved 102400KB for Java Heap from</div><div class="line">    //下面这个怀疑是该函数在内存中的地址</div><div class="line">    [0x00007ff092b43bd2] ReservedSpace::initialize(unsigned long, unsigned long, bool, char*, unsigned long, bool)+0xc2</div><div class="line">    [0x00007ff092b4452e] ReservedHeapSpace::ReservedHeapSpace(unsigned long, unsigned long, bool, char*)+0x6e</div><div class="line">    [0x00007ff092b1249b] Universe::reserve_heap(unsigned long, unsigned long)+0x8b</div><div class="line">    [0x00007ff0929cc5c4] ParallelScavengeHeap::initialize()+0x84</div><div class="line"></div><div class="line">        [0x00000000ffe80000 - 0x0000000100000000] committed 1536KB from</div><div class="line">            [0x00007ff092a16ac3] PSVirtualSpace::expand_by(unsigned long)+0x53</div><div class="line">            [0x00007ff092a17a85] PSYoungGen::initialize_virtual_space(ReservedSpace, unsigned long)+0x75</div><div class="line">            [0x00007ff092a183ee] PSYoungGen::initialize(ReservedSpace, unsigned long)+0x3e</div><div class="line">            [0x00007ff09236fc85] AdjoiningGenerations::AdjoiningGenerations(ReservedSpace, GenerationSizer*, unsigned long)+0x345</div><div class="line"></div><div class="line">        [0x00000000f9c00000 - 0x00000000ffe80000] committed 100864KB from</div><div class="line">            [0x00007ff092a16ac3] PSVirtualSpace::expand_by(unsigned long)+0x53</div><div class="line">            [0x00007ff092a06b77] PSOldGen::initialize(ReservedSpace, unsigned long, char const*, int)+0xb7</div><div class="line">            [0x00007ff09236fcda] AdjoiningGenerations::AdjoiningGenerations(ReservedSpace, GenerationSizer*, unsigned long)+0x39a</div><div class="line">            [0x00007ff0929cc716] ParallelScavengeHeap::initialize()+0x1d6</div><div class="line">    ......</div><div class="line">[0x00007ff093b40000 - 0x00007ff093c41000] reserved and committed 1028KB for Thread Stack from</div><div class="line">    [0x00007ff092af4fd6] Threads::create_vm(JavaVMInitArgs*, bool*)+0x1e6</div><div class="line">    [0x00007ff09275e244] JNI_CreateJavaVM+0x74</div><div class="line">    [0x00007ff09360245e] JavaMain+0x9e</div><div class="line"></div><div class="line">[0x00007ff093c49000 - 0x00007ff093c4b000] reserved 8KB for GC from</div><div class="line">    [0x00007ff092b43d66] ReservedSpace::initialize(unsigned long, unsigned long, bool, char*, unsigned long, bool)+0x256</div><div class="line">    [0x00007ff092b43e0b] ReservedSpace::ReservedSpace(unsigned long, unsigned long, bool, char*, unsigned long)+0x1b</div><div class="line">    [0x00007ff092a0a1c2] ParallelCompactData::create_vspace(unsigned long, unsigned long)+0x92</div><div class="line">    [0x00007ff092a0c718] PSParallelCompact::initialize()+0x178</div><div class="line"></div><div class="line">        [0x00007ff093c49000 - 0x00007ff093c4b000] committed 8KB from</div><div class="line">            [0x00007ff092a16ac3] PSVirtualSpace::expand_by(unsigned long)+0x53</div><div class="line">            [0x00007ff092a0a274] ParallelCompactData::create_vspace(unsigned long, unsigned long)+0x144</div><div class="line">            [0x00007ff092a0c718] PSParallelCompact::initialize()+0x178</div><div class="line">            [0x00007ff0929cc8c5] ParallelScavengeHeap::initialize()+0x385</div><div class="line">Details:</div><div class="line"></div><div class="line">[0x00007ff092b1ad2b] Unsafe_AllocateMemory+0x1db</div><div class="line">[0x00007ff07d015994]</div><div class="line">                             //展示了DirectByteBuffer内存申请情况, 供92个内存块, 总共占用94MB大小</div><div class="line">                             (malloc=94208KB #92)</div><div class="line"></div><div class="line">[0x00007ff0923cca65] ArrayAllocator&lt;unsigned long, (MemoryType)7&gt;::allocate(unsigned long)+0x175</div><div class="line">[0x00007ff092a0092f] ParCompactionManager::initialize(ParMarkBitMap*)+0x28f</div><div class="line">[0x00007ff092a0a105] PSParallelCompact::post_initialize()+0xb5</div><div class="line">[0x00007ff0929cc535] ParallelScavengeHeap::post_initialize()+0x25</div><div class="line">                             (malloc=34816KB #34)</div><div class="line"></div><div class="line">[0x00007ff092a11d45] ArrayAllocator&lt;StarTask, (MemoryType)1&gt;::allocate(unsigned long)+0x175</div><div class="line">[0x00007ff092a10160] PSPromotionManager::PSPromotionManager()+0x1f0</div><div class="line">[0x00007ff092a106ad] PSPromotionManager::initialize()+0x13d</div><div class="line">[0x00007ff092b11f43] universe_post_init()+0x883</div><div class="line">                             (malloc=34816KB #34)</div></pre></td></tr></table></figure></p>
-<p>至于每个内存块存放的详情, 可以在pmap里查看。可见, 我们可以根据detail可以了解每块内存是由谁申请的。</p>
-<h4 id="内存增量diff"><a href="#内存增量diff" class="headerlink" title="内存增量diff"></a>内存增量diff</h4><p>执行顺序:</p>
-<ul>
-<li>/usr/local/java18/bin/jcmd 8202 VM.native_memory baseline 作为内存基准</li>
-<li>/usr/local/java18/bin/jcmd 8202 VM.native_memory detail.diff 根据内存基准来比较增量<br>结果如下:<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div></pre></td><td class="code"><pre><div class="line">Native Memory Tracking:</div><div class="line">Total: reserved=1617492KB +13331KB, committed=319304KB +13331KB</div><div class="line">-                 Java Heap (reserved=102400KB, committed=102400KB)</div><div class="line">                            (mmap: reserved=102400KB, committed=102400KB)</div><div class="line">                          ......</div><div class="line">                 Internal (reserved=70999KB +13312KB, committed=70999KB +13312KB)</div><div class="line">                            (malloc=70967KB +13312KB #1914 +13)</div><div class="line">                            (mmap: reserved=32KB, committed=32KB)</div><div class="line"></div><div class="line">-                    Symbol (reserved=1374KB, committed=1374KB)</div><div class="line">                            (malloc=918KB #92)</div><div class="line">                            (arena=456KB #1)</div><div class="line"></div><div class="line">-    Native Memory Tracking (reserved=183KB +19KB, committed=183KB +19KB)</div><div class="line">                            (malloc=106KB +15KB #1628 +212)</div><div class="line">                            (tracking overhead=77KB +4KB)</div><div class="line"></div><div class="line">-               Arena Chunk (reserved=186KB, committed=186KB)</div><div class="line">                            (malloc=186KB)</div><div class="line"></div><div class="line">[0x00007f5c46ed7d2b] Unsafe_AllocateMemory+0x1db</div><div class="line">[0x00007f5c31015994]</div><div class="line">                             (malloc=35840KB +13312KB #35 +13)</div><div class="line"></div><div class="line">[0x00007f5c46cc4883] MemBaseline::aggregate_virtual_memory_allocation_sites()+0x173</div><div class="line">[0x00007f5c46cc4b08] MemBaseline::baseline_allocation_sites()+0x1d8</div><div class="line">[0x00007f5c46cc5185] MemBaseline::baseline(bool)+0x635</div><div class="line">[0x00007f5c46d34188] NMTDCmd::execute(DCmdSource, Thread*)+0x178</div><div class="line">                             (malloc=1KB +1KB #17 +17)</div></pre></td></tr></table></figure>
-</li>
-</ul>
-<p>如上图, 可以轻易发现Unsafe_AllocateMemory diff期间,增加了13次内存分配, 新增了13MB内存申请。</p>
-<h2 id="pmap"><a href="#pmap" class="headerlink" title="pmap"></a>pmap</h2><p>pmap可以查看进程使用的内存分布, 包括所有堆内和堆外内存。<br>使用: pmap -x 9752 | sort -n -r -k 2, 并不需要root或者别的参数就可以执行, 查看进程的内存映射信息<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div></pre></td><td class="code"><pre><div class="line">mapped: 5341520K    writeable/private: 308668K    shared: 3836K</div><div class="line">Address           Kbytes       Mode   Offset Device  Mapping</div><div class="line">0000000100080000 1048064       0       0 -----    [ anon ]</div><div class="line">00007fb789360000  242304       0       0 -----    [ anon ]</div><div class="line">00000000f9c00000  102912   23776   23776 rw---    [ anon ]</div><div class="line">00007fb6a216c000   96848      44       0 r----  locale-archive</div><div class="line">00007fb784021000   65404       0       0 -----    [ anon ]</div><div class="line">00007fb780021000   65404       0       0 -----    [ anon ]</div><div class="line">00007fb77c021000   65404       0       0 -----    [ anon ]</div><div class="line">00007fb778021000   65404       0       0 -----    [ anon ]</div><div class="line">00007fb774021000   65404       0       0 -----    [ anon ]</div><div class="line">00007fb770021000   65404       0       0 -----    [ anon ]</div><div class="line">00007fb76c021000   65404       0       0 -----    [ anon ]</div><div class="line">00007fb768021000   65404       0       0 -----    [ anon ]</div><div class="line">00007fb764021000   65404       0       0 -----    [ anon ]</div><div class="line">00007fb760021000   65404       0       0 -----    [ anon ]</div><div class="line">00007fb75c021000   65404       0       0 -----    [ anon ]</div><div class="line">00007fb758021000   65404       0       0 -----    [ anon ]</div><div class="line">00007fb750021000   65404       0       0 -----    [ anon ]</div><div class="line">00007fb74c021000   65404       0       0 -----    [ anon ]</div><div class="line">00007fb748021000   65404       0       0 -----    [ anon ]</div><div class="line">00007fb740021000   65404       0       0 -----    [ anon ]</div><div class="line">00007fb738021000   65404       0       0 -----    [ anon ]</div><div class="line">00007fb730021000   65404       0       0 -----    [ anon ]</div><div class="line">00007fb728021000   65404       0       0 -----    [ anon ]</div><div class="line">00007fb720021000   65404       0       0 -----    [ anon ]</div><div class="line">00007fb718021000   65404       0       0 -----    [ anon ]</div><div class="line">00007fb710021000   65404       0       0 -----    [ anon ]</div><div class="line">00007fb708021000   65404       0       0 -----    [ anon ]</div><div class="line">00007fb700021000   65404       0       0 -----    [ anon ]</div><div class="line">00007fb7a1802000    2048       0       0 -----  libpthread-2.12.so</div><div class="line">00007fb7a15ea000    2048       0       0 -----  libjli.so</div></pre></td></tr></table></figure></p>
-<p>Address:  start address of map  映像起始地址, 就是真实内存地址<br>Kbytes:  size of map in kilobytes  映像大小<br>RSS:  resident set size in kilobytes  驻留集大小<br>Dirty:  dirty pages (both shared and private) in kilobytes  脏页大小<br>Mode:  permissions on map 映像权限: r=read, w=write, x=execute, s=shared, p=private (copy on write)<br>Mapping:  file backing the map , or ‘[ anon ]’ for allocated memory, or ‘[ stack ]’ for the program stack.  映像支持文件,[anon]为已分配内存 [stack]为程序堆栈<br>Offset:  offset into the file  文件偏移<br>Device:  device name (major:minor)  设备名<br>第一行的值:</p>
-<ul>
-<li>mapped 表示该进程映射的虚拟地址空间大小，也就是该进程预先分配的虚拟内存大小，即ps出的vsz</li>
-<li>writeable/private  表示进程所占用的私有地址空间大小，也就是该进程实际使用的内存大小</li>
-<li>shared 表示进程和其他进程共享的内存大小<br>根据此处的address和NMT可判断出该内存块属于哪个空间的。我们可以通过如下方式检查是否存在内存泄露<br><code>while true; do pmap -d  3066 | tail -1; sleep 1; done</code><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div></pre></td><td class="code"><pre><div class="line">mapped: 5411424K    writeable/private: 378492K    shared: 3836K</div><div class="line">mapped: 5412452K    writeable/private: 379520K    shared: 3836K</div><div class="line">mapped: 5413480K    writeable/private: 380548K    shared: 3836K</div><div class="line">mapped: 5414508K    writeable/private: 381576K    shared: 3836K</div><div class="line">mapped: 5415536K    writeable/private: 382604K    shared: 3836K</div></pre></td></tr></table></figure>
-</li>
-</ul>
-<h1 id="参考"><a href="#参考" class="headerlink" title="参考"></a>参考</h1><p><a href="http://goog-perftools.sourceforge.net/doc/heap_profiler.html" target="_blank" rel="external">http://goog-perftools.sourceforge.net/doc/heap_profiler.html</a><br><a href="https://docs.oracle.com/javase/8/docs/technotes/guides/troubleshoot/tooldescr007.html" target="_blank" rel="external">https://docs.oracle.com/javase/8/docs/technotes/guides/troubleshoot/tooldescr007.html</a><br><a href="https://www.cnblogs.com/duanxz/archive/2012/08/09/2630284.html" target="_blank" rel="external">https://www.cnblogs.com/duanxz/archive/2012/08/09/2630284.html</a><br><a href="https://tech.meituan.com/2019/01/03/spring-boot-native-memory-leak.html" target="_blank" rel="external">https://tech.meituan.com/2019/01/03/spring-boot-native-memory-leak.html</a><br><a href="https://www.cnblogs.com/sidesky/p/10009241.html" target="_blank" rel="external">https://www.cnblogs.com/sidesky/p/10009241.html</a><br><a href="https://yq.aliyun.com/articles/227924" target="_blank" rel="external">https://yq.aliyun.com/articles/227924</a><br><a href="https://www.cnblogs.com/ggjucheng/p/3348439.html" target="_blank" rel="external">https://www.cnblogs.com/ggjucheng/p/3348439.html</a></p>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">perftools、jcmd、pmap</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/elasticsearch_learning/2016/12/15/jvm内存泄露排查工具/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
   
     <nav id="page-nav">
       <a class="extend prev" rel="prev" href="/elasticsearch_learning/page/2/">&laquo; Prev</a><a class="page-number" href="/elasticsearch_learning/">1</a><a class="page-number" href="/elasticsearch_learning/page/2/">2</a><span class="page-number current">3</span><a class="page-number" href="/elasticsearch_learning/page/4/">4</a><a class="extend next" rel="next" href="/elasticsearch_learning/page/4/">Next &raquo;</a>
@@ -1525,11 +1485,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">gdb</a>
+                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
+                <a href="javascript:void(0)" class="js-tag color4">gdb</a>
               </li>
              
               <li class="article-tag-list-item">
