@@ -6,18 +6,19 @@
   <meta name="renderer" content="webkit">
   <meta http-equiv="X-UA-Compatible" content="IE=edge" >
   <link rel="dns-prefetch" href="https://kkewwei.github.io/elasticsearch_learning">
-  <title>Archives | Hexo</title>
+  <title>Flink原理-TaskManager处理SubTask | Hexo</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
   <meta name="google-site-verification" content="sCUXxLczmZVJ1Fkt5jSJGE9xPpdVD25hYciudlUUVNQ" />
-  <meta name="description" content="无名小辈">
-<meta property="og:type" content="website">
-<meta property="og:title" content="Hexo">
-<meta property="og:url" content="https://kkewwei.github.io/elasticsearch_learning/archives/page/3/index.html">
+  <meta name="description" content="在Flink原理-Slot申请及SubTask部署中, 我们知道, subTask会在JobManager中通过taskManagerGateway.submitTask(deployment, rpcTimeout)进行部署subTask。TaskManager会通过TaskExecutor.subTask()接收到该部署请求。CompletableFuture submitTask(12345">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Flink原理-TaskManager处理SubTask">
+<meta property="og:url" content="https://kkewwei.github.io/elasticsearch_learning/2019/04/03/Flink原理-TaskManager处理SubTask/index.html">
 <meta property="og:site_name" content="Hexo">
-<meta property="og:description" content="无名小辈">
+<meta property="og:description" content="在Flink原理-Slot申请及SubTask部署中, 我们知道, subTask会在JobManager中通过taskManagerGateway.submitTask(deployment, rpcTimeout)进行部署subTask。TaskManager会通过TaskExecutor.subTask()接收到该部署请求。CompletableFuture submitTask(12345">
+<meta property="og:updated_time" content="2019-06-03T11:05:46.000Z">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="Hexo">
-<meta name="twitter:description" content="无名小辈">
+<meta name="twitter:title" content="Flink原理-TaskManager处理SubTask">
+<meta name="twitter:description" content="在Flink原理-Slot申请及SubTask部署中, 我们知道, subTask会在JobManager中通过taskManagerGateway.submitTask(deployment, rpcTimeout)进行部署subTask。TaskManager会通过TaskExecutor.subTask()接收到该部署请求。CompletableFuture submitTask(12345">
   
     <link rel="alternative" href="/atom.xml" title="Hexo" type="application/atom+xml">
   
@@ -157,349 +158,213 @@
             <canvas data-colors="#eaeaea" data-sectionHeight="100" data-contentId="js-content" id="myCanvas1" class="anm-canvas"></canvas>
           </div>
           <div id="js-content" class="content-ll">
-            
-  
-  
+            <article id="post-Flink原理-TaskManager处理SubTask" class="article article-type-post " itemscope itemprop="blogPost">
+  <div class="article-inner">
     
+      <header class="article-header">
+        
+  
+    <h1 class="article-title" itemprop="name">
+      Flink原理-TaskManager处理SubTask
+    </h1>
+  
+
+        
+        <a href="/elasticsearch_learning/2019/04/03/Flink原理-TaskManager处理SubTask/" class="archive-article-date">
+  	<time datetime="2019-04-03T04:10:04.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2019-04-03</time>
+</a>
+        
+      </header>
     
+
+    <!-- 目录内容 -->
+    
+      <p class="show-toc-btn" id="show-toc-btn" onclick="showToc();" style="display:none">
+        <span class="btn-bg"></span>
+        <span class="btn-text">文章导航</span>
+      </p>
+	    <div id="toc-article" class="toc-article">
+	      <span id="toc-close" class="toc-close" title="隐藏导航" onclick="showBtn();">×</span>
+		      <strong class="toc-title">文章目录</strong>
+        
+         </div>
+   <script type="text/javascript">
+	function showToc(){
+		var toc_article = document.getElementById("toc-article");
+		var show_toc_btn = document.getElementById("show-toc-btn");
+		toc_article.setAttribute("style","display:block");
+		show_toc_btn.setAttribute("style","display:none");
+		};
+	function showBtn(){
+		var toc_article = document.getElementById("toc-article");
+		var show_toc_btn = document.getElementById("show-toc-btn");
+		toc_article.setAttribute("style","display:none");
+		show_toc_btn.setAttribute("style","display:block");
+		};
+   </script>
+      
+    <!-- 目录内容结束 -->
+
+    <div class="article-entry" itemprop="articleBody">
+      
+        <p>在<a href="https://kkewwei.github.io/elasticsearch_learning/2019/03/12/Flink%E5%8E%9F%E7%90%86-slot%E5%88%86%E9%85%8D/#%E9%83%A8%E7%BD%B2subTask%E5%88%B0%E5%AF%B9%E5%BA%94%E7%9A%84slot">Flink原理-Slot申请及SubTask部署</a>中, 我们知道, subTask会在JobManager中通过taskManagerGateway.submitTask(deployment, rpcTimeout)进行部署subTask。TaskManager会通过TaskExecutor.subTask()接收到该部署请求。<br><figure class="highlight plain"><figcaption><span>CompletableFuture<acknowledge> submitTask(</acknowledge></span></figcaption><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div><div class="line">61</div><div class="line">62</div><div class="line">63</div><div class="line">64</div><div class="line">65</div><div class="line">66</div><div class="line">67</div><div class="line">68</div><div class="line">69</div><div class="line">70</div><div class="line">71</div><div class="line">72</div><div class="line">73</div><div class="line">74</div><div class="line">75</div><div class="line">76</div><div class="line">77</div><div class="line">78</div><div class="line">79</div><div class="line">80</div><div class="line">81</div><div class="line">82</div><div class="line">83</div><div class="line">84</div><div class="line">85</div><div class="line">86</div><div class="line">87</div><div class="line">88</div><div class="line">89</div><div class="line">90</div><div class="line">91</div><div class="line">92</div><div class="line">93</div><div class="line">94</div><div class="line">95</div><div class="line">96</div><div class="line">97</div><div class="line">98</div><div class="line">99</div><div class="line">100</div><div class="line">101</div><div class="line">102</div><div class="line">103</div><div class="line">104</div><div class="line">105</div><div class="line">106</div><div class="line">107</div><div class="line">108</div><div class="line">109</div><div class="line">110</div><div class="line">111</div><div class="line">112</div><div class="line">113</div><div class="line">114</div><div class="line">115</div><div class="line">116</div><div class="line">117</div><div class="line">118</div><div class="line">119</div><div class="line">120</div><div class="line">121</div><div class="line">122</div><div class="line">123</div><div class="line">124</div><div class="line">125</div><div class="line">126</div><div class="line">127</div><div class="line">128</div><div class="line">129</div><div class="line">130</div><div class="line">131</div><div class="line">132</div><div class="line">133</div><div class="line">134</div><div class="line">135</div><div class="line">136</div><div class="line">137</div><div class="line">138</div><div class="line">139</div><div class="line">140</div><div class="line">141</div><div class="line">142</div><div class="line">143</div><div class="line">144</div></pre></td><td class="code"><pre><div class="line">		TaskDeploymentDescriptor tdd,  //任务描述符</div><div class="line">		JobMasterId jobMasterId,</div><div class="line">		Time timeout) &#123;</div><div class="line"></div><div class="line">	try &#123;</div><div class="line">		final JobID jobId = tdd.getJobId();</div><div class="line">		final JobManagerConnection jobManagerConnection = jobManagerTable.get(jobId);  //获得与jobManager通信的链接</div><div class="line"></div><div class="line">		if (jobManagerConnection == null) &#123;</div><div class="line">			final String message = &quot;Could not submit task because there is no JobManager &quot; +</div><div class="line">				&quot;associated for the job &quot; + jobId + &apos;.&apos;;</div><div class="line"></div><div class="line">			log.debug(message);</div><div class="line">			throw new TaskSubmissionException(message);</div><div class="line">		&#125;</div><div class="line"></div><div class="line">		if (!Objects.equals(jobManagerConnection.getJobMasterId(), jobMasterId)) &#123;</div><div class="line">			final String message = &quot;Rejecting the task submission because the job manager leader id &quot; +</div><div class="line">				jobMasterId + &quot; does not match the expected job manager leader id &quot; +</div><div class="line">				jobManagerConnection.getJobMasterId() + &apos;.&apos;;</div><div class="line"></div><div class="line">			log.debug(message);</div><div class="line">			throw new TaskSubmissionException(message);</div><div class="line">		&#125;</div><div class="line"></div><div class="line">		if (!taskSlotTable.tryMarkSlotActive(jobId, tdd.getAllocationId())) &#123;</div><div class="line">			final String message = &quot;No task slot allocated for job ID &quot; + jobId +</div><div class="line">				&quot; and allocation ID &quot; + tdd.getAllocationId() + &apos;.&apos;;</div><div class="line">			log.debug(message);</div><div class="line">			throw new TaskSubmissionException(message);</div><div class="line">		&#125;</div><div class="line"></div><div class="line">		// re-integrate offloaded data:</div><div class="line">		try &#123;</div><div class="line">			tdd.loadBigData(blobCacheService.getPermanentBlobService()); //啥事不做</div><div class="line">		&#125; catch (IOException | ClassNotFoundException e) &#123;</div><div class="line">			throw new TaskSubmissionException(&quot;Could not re-integrate offloaded TaskDeploymentDescriptor data.&quot;, e);</div><div class="line">		&#125;</div><div class="line"></div><div class="line">		// deserialize the pre-serialized information</div><div class="line">		final JobInformation jobInformation;</div><div class="line">		final TaskInformation taskInformation;</div><div class="line">		try &#123;</div><div class="line">			jobInformation = tdd.getSerializedJobInformation().deserializeValue(getClass().getClassLoader());</div><div class="line">			taskInformation = tdd.getSerializedTaskInformation().deserializeValue(getClass().getClassLoader());</div><div class="line">		&#125; catch (IOException | ClassNotFoundException e) &#123;</div><div class="line">			throw new TaskSubmissionException(&quot;Could not deserialize the job or task information.&quot;, e);</div><div class="line">		&#125;</div><div class="line"></div><div class="line">		if (!jobId.equals(jobInformation.getJobId())) &#123;</div><div class="line">			throw new TaskSubmissionException(</div><div class="line">				&quot;Inconsistent job ID information inside TaskDeploymentDescriptor (&quot; +</div><div class="line">					tdd.getJobId() + &quot; vs. &quot; + jobInformation.getJobId() + &quot;)&quot;);</div><div class="line">		&#125;</div><div class="line"></div><div class="line">		TaskMetricGroup taskMetricGroup = taskManagerMetricGroup.addTaskForJob(</div><div class="line">			jobInformation.getJobId(),</div><div class="line">			jobInformation.getJobName(),</div><div class="line">			taskInformation.getJobVertexId(),</div><div class="line">			tdd.getExecutionAttemptId(),</div><div class="line">			taskInformation.getTaskName(),</div><div class="line">			tdd.getSubtaskIndex(),</div><div class="line">			tdd.getAttemptNumber());</div><div class="line"></div><div class="line">		InputSplitProvider inputSplitProvider = new RpcInputSplitProvider(</div><div class="line">			jobManagerConnection.getJobManagerGateway(),</div><div class="line">			taskInformation.getJobVertexId(),</div><div class="line">			tdd.getExecutionAttemptId(),</div><div class="line">			taskManagerConfiguration.getTimeout());</div><div class="line"></div><div class="line">		TaskManagerActions taskManagerActions = jobManagerConnection.getTaskManagerActions();</div><div class="line">		CheckpointResponder checkpointResponder = jobManagerConnection.getCheckpointResponder();</div><div class="line"></div><div class="line">		LibraryCacheManager libraryCache = jobManagerConnection.getLibraryCacheManager();</div><div class="line">		ResultPartitionConsumableNotifier resultPartitionConsumableNotifier = jobManagerConnection.getResultPartitionConsumableNotifier();</div><div class="line">		PartitionProducerStateChecker partitionStateChecker = jobManagerConnection.getPartitionStateChecker();</div><div class="line"></div><div class="line">		final TaskLocalStateStore localStateStore = localStateStoresManager.localStateStoreForSubtask(</div><div class="line">			jobId,</div><div class="line">			tdd.getAllocationId(),</div><div class="line">			taskInformation.getJobVertexId(),</div><div class="line">			tdd.getSubtaskIndex());</div><div class="line"></div><div class="line">		final JobManagerTaskRestore taskRestore = tdd.getTaskRestore(); // 为null</div><div class="line"></div><div class="line">		final TaskStateManager taskStateManager = new TaskStateManagerImpl(</div><div class="line">			jobId,</div><div class="line">			tdd.getExecutionAttemptId(),</div><div class="line">			localStateStore,</div><div class="line">			taskRestore,</div><div class="line">			checkpointResponder);</div><div class="line"></div><div class="line">		Task task = new Task(</div><div class="line">			jobInformation,</div><div class="line">			taskInformation,</div><div class="line">			tdd.getExecutionAttemptId(),</div><div class="line">			tdd.getAllocationId(),</div><div class="line">			tdd.getSubtaskIndex(),</div><div class="line">			tdd.getAttemptNumber(),</div><div class="line">			tdd.getProducedPartitions(),</div><div class="line">			tdd.getInputGates(),</div><div class="line">			tdd.getTargetSlotNumber(),</div><div class="line">			taskExecutorServices.getMemoryManager(),</div><div class="line">			taskExecutorServices.getIOManager(),</div><div class="line">			taskExecutorServices.getNetworkEnvironment(),</div><div class="line">			taskExecutorServices.getBroadcastVariableManager(),</div><div class="line">			taskStateManager,</div><div class="line">			taskManagerActions,</div><div class="line">			inputSplitProvider,</div><div class="line">			checkpointResponder,</div><div class="line">			blobCacheService,</div><div class="line">			libraryCache,</div><div class="line">			fileCache,</div><div class="line">			taskManagerConfiguration,</div><div class="line">			taskMetricGroup,</div><div class="line">			resultPartitionConsumableNotifier,</div><div class="line">			partitionStateChecker,</div><div class="line">			getRpcService().getExecutor());</div><div class="line"></div><div class="line">		log.info(&quot;Received task &#123;&#125;.&quot;, task.getTaskInfo().getTaskNameWithSubtasks());</div><div class="line"></div><div class="line">		boolean taskAdded;</div><div class="line"></div><div class="line">		try &#123;</div><div class="line">			taskAdded = taskSlotTable.addTask(task);</div><div class="line">		&#125; catch (SlotNotFoundException | SlotNotActiveException e) &#123;</div><div class="line">			throw new TaskSubmissionException(&quot;Could not submit task.&quot;, e);</div><div class="line">		&#125;</div><div class="line"></div><div class="line">		if (taskAdded) &#123;</div><div class="line">			task.startTaskThread();  //这里比较重要，开始进行task执行</div><div class="line"></div><div class="line">			return CompletableFuture.completedFuture(Acknowledge.get());</div><div class="line">		&#125; else &#123;</div><div class="line">			final String message = &quot;TaskManager already contains a task for id &quot; +</div><div class="line">				task.getExecutionId() + &apos;.&apos;;</div><div class="line"></div><div class="line">			log.debug(message);</div><div class="line">			throw new TaskSubmissionException(message);</div><div class="line">		&#125;</div><div class="line">	&#125; catch (TaskSubmissionException e) &#123;</div><div class="line">		return FutureUtils.completedExceptionally(e);</div><div class="line">	&#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+
+      
+
+      
+        <div class="page-reward">
+          <a href="javascript:;" class="page-reward-btn tooltip-top">
+            <div class="tooltip tooltip-east">
+            <span class="tooltip-item">
+              赏
+            </span>
+            <span class="tooltip-content">
+              <span class="tooltip-text">
+                <span class="tooltip-inner">
+                  <p class="reward-p"><i class="icon icon-quo-left"></i>谢谢阅读<i class="icon icon-quo-right"></i></p>
+                  <div class="reward-box">
+                    
+                    
+                  </div>
+                </span>
+              </span>
+            </span>
+          </div>
+          </a>
+        </div>
+      
+    </div>
+    <div class="article-info article-info-index">
       
       
-      <section class="archives-wrap">
-        <div class="archive-year-wrap">
-          <a href="/elasticsearch_learning/archives/2017" class="archive-year">2017</a>
-        </div>
-        <div class="archives">
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      	<div class="article-meta">
-	      	<a href="/elasticsearch_learning/2017/10/02/Condition原理解读/" class="archive-article-date">
-  	<time datetime="2017-10-02T11:28:01.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-10-02</time>
-</a>
-        </div>
-    	 
-  
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/elasticsearch_learning/2017/10/02/Condition原理解读/">Condition接口原理介绍及ArrayBlockingQueue、LinkedBlockingQueue实现</a>
-    </h1>
-  
-
-        <div class="article-info info-on-right">
-          
-          
-
-        </div>
-        <div class="clearfix"></div>
-    </header>
-  </div>
-</article>
-  
-    
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      	<div class="article-meta">
-	      	<a href="/elasticsearch_learning/2017/09/17/copyOnWriteArrayListy原理解读/" class="archive-article-date">
-  	<time datetime="2017-09-17T02:14:15.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-09-17</time>
-</a>
-        </div>
-    	 
-  
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/elasticsearch_learning/2017/09/17/copyOnWriteArrayListy原理解读/">CopyOnWriteArrayList原理分析</a>
-    </h1>
-  
-
-        <div class="article-info info-on-right">
-          
-          
-
-        </div>
-        <div class="clearfix"></div>
-    </header>
-  </div>
-</article>
-  
-    
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      	<div class="article-meta">
-	      	<a href="/elasticsearch_learning/2017/08/24/CountDownLatch源码解读/" class="archive-article-date">
-  	<time datetime="2017-08-24T08:47:06.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-08-24</time>
-</a>
-        </div>
-    	 
-  
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/elasticsearch_learning/2017/08/24/CountDownLatch源码解读/">CountDownLatch源码分析</a>
-    </h1>
-  
-
-        <div class="article-info info-on-right">
-          
-          
-
-        </div>
-        <div class="clearfix"></div>
-    </header>
-  </div>
-</article>
-  
-    
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      	<div class="article-meta">
-	      	<a href="/elasticsearch_learning/2017/08/15/Semaphore源码解读/" class="archive-article-date">
-  	<time datetime="2017-08-15T09:56:32.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-08-15</time>
-</a>
-        </div>
-    	 
-  
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/elasticsearch_learning/2017/08/15/Semaphore源码解读/">Semaphore源码分析</a>
-    </h1>
-  
-
-        <div class="article-info info-on-right">
-          
-          
-
-        </div>
-        <div class="clearfix"></div>
-    </header>
-  </div>
-</article>
-  
-    
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      	<div class="article-meta">
-	      	<a href="/elasticsearch_learning/2017/07/28/ReentrantReadWriteLock源码解读/" class="archive-article-date">
-  	<time datetime="2017-07-27T22:18:19.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-07-28</time>
-</a>
-        </div>
-    	 
-  
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/elasticsearch_learning/2017/07/28/ReentrantReadWriteLock源码解读/">ReentrantReadWriteLock源码解读</a>
-    </h1>
-  
-
-        <div class="article-info info-on-right">
-          
-          
-
-        </div>
-        <div class="clearfix"></div>
-    </header>
-  </div>
-</article>
-  
-    
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      	<div class="article-meta">
-	      	<a href="/elasticsearch_learning/2017/07/23/ReentrantLock源码解读/" class="archive-article-date">
-  	<time datetime="2017-07-23T11:47:30.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-07-23</time>
-</a>
-        </div>
-    	 
-  
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/elasticsearch_learning/2017/07/23/ReentrantLock源码解读/">ReentrantLock源码解读</a>
-    </h1>
-  
-
-        <div class="article-info info-on-right">
-          
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color4">ReentrantLock</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-          
-
-        </div>
-        <div class="clearfix"></div>
-    </header>
-  </div>
-</article>
-  
-    
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      	<div class="article-meta">
-	      	<a href="/elasticsearch_learning/2017/06/15/JAVA-JNI实现hello-world/" class="archive-article-date">
-  	<time datetime="2017-06-15T10:15:08.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-06-15</time>
-</a>
-        </div>
-    	 
-  
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/elasticsearch_learning/2017/06/15/JAVA-JNI实现hello-world/">JAVA JNI实现hello world</a>
-    </h1>
-  
-
-        <div class="article-info info-on-right">
-          
-          
-
-        </div>
-        <div class="clearfix"></div>
-    </header>
-  </div>
-</article>
-  
-    
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      	<div class="article-meta">
-	      	<a href="/elasticsearch_learning/2017/03/08/git-基本命令学习心得/" class="archive-article-date">
-  	<time datetime="2017-03-08T04:46:57.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-03-08</time>
-</a>
-        </div>
-    	 
-  
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/elasticsearch_learning/2017/03/08/git-基本命令学习心得/">git 基本命令学习心得-1</a>
-    </h1>
-  
-
-        <div class="article-info info-on-right">
-          
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color2">git, rebase, cherry-pick, reset, checkout</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-          
-
-        </div>
-        <div class="clearfix"></div>
-    </header>
-  </div>
-</article>
-  
-    
-    
       
-        </div></section>
+
       
+
       
-      <section class="archives-wrap">
-        <div class="archive-year-wrap">
-          <a href="/elasticsearch_learning/archives/2016" class="archive-year">2016</a>
+        
+<div class="share-btn share-icons tooltip-left">
+  <div class="tooltip tooltip-east">
+    <span class="tooltip-item">
+      <a href="javascript:;" class="share-sns share-outer">
+        <i class="icon icon-share"></i>
+      </a>
+    </span>
+    <span class="tooltip-content">
+      <div class="share-wrap">
+        <div class="share-icons">
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="icon icon-weibo"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="icon icon-weixin"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="icon icon-qq"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="icon icon-douban"></i>
+          </a>
+          <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a>
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="icon icon-facebook"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="icon icon-twitter"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="icon icon-google"></i>
+          </a>
         </div>
-        <div class="archives">
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      	<div class="article-meta">
-	      	<a href="/elasticsearch_learning/2016/12/20/gdb调试java基本用法/" class="archive-article-date">
-  	<time datetime="2016-12-20T07:56:11.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2016-12-20</time>
-</a>
-        </div>
-    	 
-  
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/elasticsearch_learning/2016/12/20/gdb调试java基本用法/">gdb调试java基本用法</a>
-    </h1>
-  
+      </div>
+    </span>
+  </div>
+</div>
 
-        <div class="article-info info-on-right">
-          
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color4">gdb</a>
-        		</li>
-      		
-		</ul>
-	</div>
+<div class="page-modal wx-share js-wx-box">
+    <a class="close js-modal-close" href="javascript:;"><i class="icon icon-close"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//pan.baidu.com/share/qrcode?url=https://kkewwei.github.io/elasticsearch_learning/2019/04/03/Flink原理-TaskManager处理SubTask/" alt="微信分享二维码">
+    </div>
+</div>
 
-          
-
-        </div>
-        <div class="clearfix"></div>
-    </header>
+<div class="mask js-mask"></div>
+      
+      <div class="clearfix"></div>
+    </div>
   </div>
 </article>
+
   
-    
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      	<div class="article-meta">
-	      	<a href="/elasticsearch_learning/2016/12/15/jvm内存泄露排查工具/" class="archive-article-date">
-  	<time datetime="2016-12-15T13:12:10.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2016-12-15</time>
-</a>
+<nav id="article-nav">
+  
+  
+    <a href="/elasticsearch_learning/2019/03/12/Flink原理-slot分配/" id="article-nav-older" class="article-nav-link-wrap">
+      <div class="article-nav-title">Flink原理-SubTask申请slot及部署</div>
+      <i class="icon-circle-right"></i>
+    </a>
+  
+</nav>
+
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
         </div>
-    	 
-  
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/elasticsearch_learning/2016/12/15/jvm内存泄露排查工具/">jvm内存泄露排查工具</a>
-    </h1>
-  
-
-        <div class="article-info info-on-right">
-          
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">perftools、jcmd、pmap</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-          
-
+        
+        
+        <div class="toc-container tooltip-left">
+            <i class="icon-font icon-category"></i>
+            <div class="tooltip tooltip-east">
+                <span class="tooltip-item">
+                </span>
+                <span class="tooltip-content">
+                    <div class="toc-article">
+                    目录，不存在的…
+                    </div>
+                </span>
+            </div>
         </div>
-        <div class="clearfix"></div>
-    </header>
-  </div>
-</article>
-  
-  
-    </div></section>
+        
+    </div>
+</aside>
+
+
+
   
 
-    
-    <nav id="page-nav">
-      <a class="extend prev" rel="prev" href="/elasticsearch_learning/archives/page/2/">&laquo; Prev</a><a class="page-number" href="/elasticsearch_learning/archives/">1</a><a class="page-number" href="/elasticsearch_learning/archives/page/2/">2</a><span class="page-number current">3</span><a class="page-number" href="/elasticsearch_learning/archives/page/4/">4</a><a class="extend next" rel="next" href="/elasticsearch_learning/archives/page/4/">Next &raquo;</a>
-    </nav>
+  
+
+  
+
+  
+
+  
+  <div id="gitment-ctn"></div> 
+<link rel="stylesheet" href="//imsun.github.io/gitment/style/default.css">
+<script src="//imsun.github.io/gitment/dist/gitment.browser.js"></script>
+<script>
+var gitment = new Gitment({
+  id: "<%=url%>",
+  owner: '<%=theme.gitment_owner%>',
+  repo: '<%=theme.gitment_repo%>',
+  oauth: {
+    client_id: '<%=theme.gitment_oauth.client_id%>',
+    client_secret: '<%=theme.gitment_oauth.client_secret%>',
+  },
+})
+gitment.render('gitment-ctn')
+</script>
   
 
 
@@ -541,8 +406,8 @@
 	var yiliaConfig = {
 		mathjax: false,
 		isHome: false,
-		isPost: false,
-		isArchive: true,
+		isPost: true,
+		isArchive: false,
 		isTag: false,
 		isCategory: false,
 		open_in_new: false,

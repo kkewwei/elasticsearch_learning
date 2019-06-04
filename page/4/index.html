@@ -6,13 +6,13 @@
   <meta name="renderer" content="webkit">
   <meta http-equiv="X-UA-Compatible" content="IE=edge" >
   <link rel="dns-prefetch" href="https://kkewwei.github.io/elasticsearch_learning">
-  <title>Archives | Hexo</title>
+  <title>Hexo</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
   <meta name="google-site-verification" content="sCUXxLczmZVJ1Fkt5jSJGE9xPpdVD25hYciudlUUVNQ" />
   <meta name="description" content="无名小辈">
 <meta property="og:type" content="website">
 <meta property="og:title" content="Hexo">
-<meta property="og:url" content="https://kkewwei.github.io/elasticsearch_learning/archives/page/3/index.html">
+<meta property="og:url" content="https://kkewwei.github.io/elasticsearch_learning/page/4/index.html">
 <meta property="og:site_name" content="Hexo">
 <meta property="og:description" content="无名小辈">
 <meta name="twitter:card" content="summary">
@@ -159,346 +159,87 @@
           <div id="js-content" class="content-ll">
             
   
+    <article id="post-Java线程知识小结" class="article article-type-post  article-index" itemscope itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
   
+    <h1 itemprop="name">
+      <a class="article-title" href="/elasticsearch_learning/2016/10/27/Java线程知识小结/">Java 线程知识小结(-)</a>
+    </h1>
+  
+
+        
+        <a href="/elasticsearch_learning/2016/10/27/Java线程知识小结/" class="archive-article-date">
+  	<time datetime="2016-10-27T06:18:30.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2016-10-27</time>
+</a>
+        
+      </header>
     
+
+    <!-- 目录内容 -->
     
+    <!-- 目录内容结束 -->
+
+    <div class="article-entry" itemprop="articleBody">
+      
+        <h1 id="wait-notify-notifyAll"><a href="#wait-notify-notifyAll" class="headerlink" title="wait/notify/notifyAll:"></a>wait/notify/notifyAll:</h1><p>wait/notify用于线程通信的等待/通知模型, 这两个函数被定义在java.lang.Object类中, 被声明为final函数, 不可复写。使用时, 线程A调用object.wait(), 释放cpu进入等待; 线程B调用object.notify()来唤醒A线程。以下是基本的用法:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div></pre></td><td class="code"><pre><div class="line">public static Object lock = new Object();</div><div class="line"></div><div class="line">public void run()&#123;//线程A</div><div class="line">        try &#123;</div><div class="line">            synchronized (lock) &#123;</div><div class="line">                lock.wait(); //进入睡眠进行等待</div><div class="line">                ...</div><div class="line">            &#125;</div><div class="line"></div><div class="line">        &#125; catch (Exception e) &#123;</div><div class="line">            ...</div><div class="line">        &#125;</div><div class="line">&#125;</div><div class="line"></div><div class="line">public void run()&#123;//线程B</div><div class="line">        try &#123;</div><div class="line">            synchronized (lock) &#123;</div><div class="line">                lock.notify(); //唤醒A线程</div><div class="line">                ...</div><div class="line">            &#125;</div><div class="line"></div><div class="line">        &#125; catch (Exception e) &#123;</div><div class="line">            ...</div><div class="line">        &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>线程执行状态如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/wait_notify.png" height="300" width="800"><br>需要注意一下几点:</p>
+<ul>
+<li>wait/notify两个操作都必须要和synchronized(lock)配合使用, 这里可以这么理解: 每个object都拥有一个WatiQueue等待队列, 存放着调用lock.lock()被阻塞的线程, 每次向这个等待队列添加或者删除线程时, 为了保证对该队列操作的互斥性, 使用synchronized来达到目的;</li>
+<li>线程B调用lock.notify()后, 线程A并不能立刻从lock.wait()中醒来, 此时只是<code>线程B把线程A从lock对象的WatiQueue中移动到了SynchrozizedQueue中</code>, 线程A的状态由wait变化为blocked</li>
+<li>线程B完全执行完 synchronized(lock){}块后, 线程A才能继续执行。也就是说A从wait()返回的前提是获取到了锁。</li>
+<li>若线程A与B之间调用顺序不能反了, 若B先执行的话, 那么A将永远不能被唤醒。与LockSupport(park/unpark)相比很大的区别<br>notify的作用只是唤醒一个object.wait()状态的线程, 唤醒哪个线程, 与线程优先级等有关 notifyAll的作用是唤醒全部object.wait()的线程。</li>
+</ul>
+<h1 id="Join"><a href="#Join" class="headerlink" title="Join"></a>Join</h1><p>join函数的作用是等别的线程退出后再继续执行, 基本使用如下:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line">Thread thread = new Thread(new a2());</div><div class="line">thread.start();</div><div class="line">thread.join();</div></pre></td></tr></table></figure></p>
+<p>当前线程调用thread.join()之后, 便会等待thread执行完再继续执行, join函数代码如下:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div></pre></td><td class="code"><pre><div class="line"> public final synchronized void join(long millis) throws InterruptedException &#123;</div><div class="line">    long base = System.currentTimeMillis();</div><div class="line">    long now = 0;</div><div class="line">    if (millis &lt; 0) &#123;</div><div class="line">        throw new IllegalArgumentException(&quot;timeout value is negative&quot;);</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    if (millis == 0) &#123;//没有设置超时时间</div><div class="line">        while (isAlive()) &#123;</div><div class="line">            wait(0);</div><div class="line">        &#125;</div><div class="line">    &#125; else &#123;//超时等待的话</div><div class="line">        while (isAlive()) &#123; //循环检查</div><div class="line">            long delay = millis - now;</div><div class="line">            if (delay &lt;= 0) &#123; //超时时间到了之后退出</div><div class="line">                break;</div><div class="line">            &#125;</div><div class="line">            wait(delay);</div><div class="line">            now = System.currentTimeMillis() - base;</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>实际底层依靠的是wait(delay)函数 + 循环来达到等待的效果, 当wait等待时, cpu释放了资源, 则join()等待过程也是释放了cpu。</p>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
       
       
-      <section class="archives-wrap">
-        <div class="archive-year-wrap">
-          <a href="/elasticsearch_learning/archives/2017" class="archive-year">2017</a>
-        </div>
-        <div class="archives">
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      	<div class="article-meta">
-	      	<a href="/elasticsearch_learning/2017/10/02/Condition原理解读/" class="archive-article-date">
-  	<time datetime="2017-10-02T11:28:01.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-10-02</time>
-</a>
-        </div>
-    	 
-  
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/elasticsearch_learning/2017/10/02/Condition原理解读/">Condition接口原理介绍及ArrayBlockingQueue、LinkedBlockingQueue实现</a>
-    </h1>
-  
-
-        <div class="article-info info-on-right">
-          
-          
-
-        </div>
-        <div class="clearfix"></div>
-    </header>
-  </div>
-</article>
-  
-    
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      	<div class="article-meta">
-	      	<a href="/elasticsearch_learning/2017/09/17/copyOnWriteArrayListy原理解读/" class="archive-article-date">
-  	<time datetime="2017-09-17T02:14:15.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-09-17</time>
-</a>
-        </div>
-    	 
-  
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/elasticsearch_learning/2017/09/17/copyOnWriteArrayListy原理解读/">CopyOnWriteArrayList原理分析</a>
-    </h1>
-  
-
-        <div class="article-info info-on-right">
-          
-          
-
-        </div>
-        <div class="clearfix"></div>
-    </header>
-  </div>
-</article>
-  
-    
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      	<div class="article-meta">
-	      	<a href="/elasticsearch_learning/2017/08/24/CountDownLatch源码解读/" class="archive-article-date">
-  	<time datetime="2017-08-24T08:47:06.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-08-24</time>
-</a>
-        </div>
-    	 
-  
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/elasticsearch_learning/2017/08/24/CountDownLatch源码解读/">CountDownLatch源码分析</a>
-    </h1>
-  
-
-        <div class="article-info info-on-right">
-          
-          
-
-        </div>
-        <div class="clearfix"></div>
-    </header>
-  </div>
-</article>
-  
-    
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      	<div class="article-meta">
-	      	<a href="/elasticsearch_learning/2017/08/15/Semaphore源码解读/" class="archive-article-date">
-  	<time datetime="2017-08-15T09:56:32.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-08-15</time>
-</a>
-        </div>
-    	 
-  
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/elasticsearch_learning/2017/08/15/Semaphore源码解读/">Semaphore源码分析</a>
-    </h1>
-  
-
-        <div class="article-info info-on-right">
-          
-          
-
-        </div>
-        <div class="clearfix"></div>
-    </header>
-  </div>
-</article>
-  
-    
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      	<div class="article-meta">
-	      	<a href="/elasticsearch_learning/2017/07/28/ReentrantReadWriteLock源码解读/" class="archive-article-date">
-  	<time datetime="2017-07-27T22:18:19.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-07-28</time>
-</a>
-        </div>
-    	 
-  
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/elasticsearch_learning/2017/07/28/ReentrantReadWriteLock源码解读/">ReentrantReadWriteLock源码解读</a>
-    </h1>
-  
-
-        <div class="article-info info-on-right">
-          
-          
-
-        </div>
-        <div class="clearfix"></div>
-    </header>
-  </div>
-</article>
-  
-    
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      	<div class="article-meta">
-	      	<a href="/elasticsearch_learning/2017/07/23/ReentrantLock源码解读/" class="archive-article-date">
-  	<time datetime="2017-07-23T11:47:30.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-07-23</time>
-</a>
-        </div>
-    	 
-  
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/elasticsearch_learning/2017/07/23/ReentrantLock源码解读/">ReentrantLock源码解读</a>
-    </h1>
-  
-
-        <div class="article-info info-on-right">
-          
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color4">ReentrantLock</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-          
-
-        </div>
-        <div class="clearfix"></div>
-    </header>
-  </div>
-</article>
-  
-    
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      	<div class="article-meta">
-	      	<a href="/elasticsearch_learning/2017/06/15/JAVA-JNI实现hello-world/" class="archive-article-date">
-  	<time datetime="2017-06-15T10:15:08.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-06-15</time>
-</a>
-        </div>
-    	 
-  
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/elasticsearch_learning/2017/06/15/JAVA-JNI实现hello-world/">JAVA JNI实现hello world</a>
-    </h1>
-  
-
-        <div class="article-info info-on-right">
-          
-          
-
-        </div>
-        <div class="clearfix"></div>
-    </header>
-  </div>
-</article>
-  
-    
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      	<div class="article-meta">
-	      	<a href="/elasticsearch_learning/2017/03/08/git-基本命令学习心得/" class="archive-article-date">
-  	<time datetime="2017-03-08T04:46:57.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-03-08</time>
-</a>
-        </div>
-    	 
-  
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/elasticsearch_learning/2017/03/08/git-基本命令学习心得/">git 基本命令学习心得-1</a>
-    </h1>
-  
-
-        <div class="article-info info-on-right">
-          
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color2">git, rebase, cherry-pick, reset, checkout</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-          
-
-        </div>
-        <div class="clearfix"></div>
-    </header>
-  </div>
-</article>
-  
-    
-    
       
-        </div></section>
+
       
+        <p class="article-more-link">
+          <a class="article-more-a" href="/elasticsearch_learning/2016/10/27/Java线程知识小结/">展开全文 >></a>
+        </p>
       
-      <section class="archives-wrap">
-        <div class="archive-year-wrap">
-          <a href="/elasticsearch_learning/archives/2016" class="archive-year">2016</a>
-        </div>
-        <div class="archives">
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      	<div class="article-meta">
-	      	<a href="/elasticsearch_learning/2016/12/20/gdb调试java基本用法/" class="archive-article-date">
-  	<time datetime="2016-12-20T07:56:11.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2016-12-20</time>
-</a>
-        </div>
-    	 
-  
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/elasticsearch_learning/2016/12/20/gdb调试java基本用法/">gdb调试java基本用法</a>
-    </h1>
-  
 
-        <div class="article-info info-on-right">
-          
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color4">gdb</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-          
-
-        </div>
-        <div class="clearfix"></div>
-    </header>
+      
+      <div class="clearfix"></div>
+    </div>
   </div>
 </article>
-  
-    
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      	<div class="article-meta">
-	      	<a href="/elasticsearch_learning/2016/12/15/jvm内存泄露排查工具/" class="archive-article-date">
-  	<time datetime="2016-12-15T13:12:10.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2016-12-15</time>
-</a>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
         </div>
-    	 
-  
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/elasticsearch_learning/2016/12/15/jvm内存泄露排查工具/">jvm内存泄露排查工具</a>
-    </h1>
-  
+        
+        
+    </div>
+</aside>
 
-        <div class="article-info info-on-right">
-          
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">perftools、jcmd、pmap</a>
-        		</li>
-      		
-		</ul>
-	</div>
 
-          
 
-        </div>
-        <div class="clearfix"></div>
-    </header>
-  </div>
-</article>
+
   
   
-    </div></section>
-  
-
-    
     <nav id="page-nav">
-      <a class="extend prev" rel="prev" href="/elasticsearch_learning/archives/page/2/">&laquo; Prev</a><a class="page-number" href="/elasticsearch_learning/archives/">1</a><a class="page-number" href="/elasticsearch_learning/archives/page/2/">2</a><span class="page-number current">3</span><a class="page-number" href="/elasticsearch_learning/archives/page/4/">4</a><a class="extend next" rel="next" href="/elasticsearch_learning/archives/page/4/">Next &raquo;</a>
+      <a class="extend prev" rel="prev" href="/elasticsearch_learning/page/3/">&laquo; Prev</a><a class="page-number" href="/elasticsearch_learning/">1</a><a class="page-number" href="/elasticsearch_learning/page/2/">2</a><a class="page-number" href="/elasticsearch_learning/page/3/">3</a><span class="page-number current">4</span>
     </nav>
   
 
@@ -540,9 +281,9 @@
     <script>
 	var yiliaConfig = {
 		mathjax: false,
-		isHome: false,
+		isHome: true,
 		isPost: false,
-		isArchive: true,
+		isArchive: false,
 		isTag: false,
 		isCategory: false,
 		open_in_new: false,

@@ -159,6 +159,128 @@
           <div id="js-content" class="content-ll">
             
   
+    <article id="post-Netty内存学习" class="article article-type-post  article-index" itemscope itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/elasticsearch_learning/2018/05/23/Netty内存学习/">Netty PoolArea原理探究</a>
+    </h1>
+  
+
+        
+        <a href="/elasticsearch_learning/2018/05/23/Netty内存学习/" class="archive-article-date">
+  	<time datetime="2018-05-23T14:31:13.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2018-05-23</time>
+</a>
+        
+      </header>
+    
+
+    <!-- 目录内容 -->
+    
+    <!-- 目录内容结束 -->
+
+    <div class="article-entry" itemprop="articleBody">
+      
+        <h1 id="简介"><a href="#简介" class="headerlink" title="简介"></a>简介</h1><p>Netty内存主要分为两种: DirectByteBuf和HeapByteBuf, 实际上就是堆外内存和堆内内存。堆外内存又称直接内存, 通过io.netty.noPreferDirect参数设置。 自从JDK1.4开始, 增加了NIO, 可以直接Native函数在堆外构建直接内存。Netty作为服务器架构技术, 拥有大量的网络数据传输, 当我们进行网络传输时, 必须将数据拷贝到直接内存, 合理利用好直接内存, 能够大量减少堆内数据和直接内存考虑, 显著地提高性能。 但是堆外内存也有一定的缺点, 它进程主动垃圾回收,垃圾回收效率也极低, 因此, netty主动创建了Pool和Unpool的概念。</p>
+<h2 id="Pool和Unpool区别"><a href="#Pool和Unpool区别" class="headerlink" title="Pool和Unpool区别"></a>Pool和Unpool区别</h2><p>字面意思, 分别是池化内存和非池化内存。<code>池化内存</code>的管理方式是首先申请一大块内存, 然后再慢慢使用, 当使用完成释放后, 再将该部分内存放入池子中, 等待下一次的使用, 这样的话, 可以减少垃圾回收次数, 提高处理性能。<code>非池化内存</code>就是普通的内存使用, 需要时直接申请, 释放时直接释放。 可以通过参数<code>Dio.netty.allocator.type</code>确定netty默认使用内存的方式, 目前netty针对pool做了大量的支持, 这样内存使用直接交给了netty管理, 减轻了直接内存回收的压力。 所以在netty4时候, 默认使用pool方式。<br>这样的话, 内存分为四种: PoolDireBuf、UnpoolDireBuf、PoolHeapBuf、UnpoolHeapBuf。netty底层默认使用的PoolDireBuf类型的内存, 这些内存主要由PoolArea管理, 这也是本文的重点。</p>
+<h1 id="内存分配"><a href="#内存分配" class="headerlink" title="内存分配"></a>内存分配</h1><p>线程调用如下接口来获取内存:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div></pre></td><td class="code"><pre><div class="line">protected ByteBuf newDirectBuffer(int initialCapacity, int maxCapacity) &#123;</div><div class="line">    PoolThreadCache cache = threadCache.get();</div><div class="line">    PoolArena&lt;ByteBuffer&gt; directArena = cache.directArena;</div><div class="line"></div><div class="line">    final ByteBuf buf;</div><div class="line">    if (directArena != null) &#123;</div><div class="line">        buf = directArena.allocate(cache, initialCapacity, maxCapacity);</div><div class="line">    &#125; else &#123;</div><div class="line">        buf = PlatformDependent.hasUnsafe() ?</div><div class="line">                UnsafeByteBufUtil.newUnsafeDirectByteBuf(this, initialCapacity, maxCapacity) :</div><div class="line">                new UnpooledDirectByteBuf(this, initialCapacity, maxCapacity);</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    return toLeakAwareBuffer(buf);</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>主要做的事:</p>
+<ul>
+<li>获取该线程绑定的PoolThreadCache(可参考<a href="https://kkewwei.github.io/elasticsearch_learning/2018/07/14/Netty-PoolThreadCache%E6%BA%90%E7%A0%81%E6%8E%A2%E7%A9%B6/">Netty PoolThreadCache原理探究</a>)</li>
+<li>从绑定的PoolThreadCache中获取PoolArena, 从PoolArena中开始真正分配内存。</li>
+</ul>
+<h1 id="PoolArena"><a href="#PoolArena" class="headerlink" title="PoolArena"></a>PoolArena</h1><p>PoolArena作为Netty底层内存池核心管理类, 主要原理是首先申请一些内存块, 不同的成员变量来完成不同大小的内存块分配。下图描述了Netty最重要的成员变量:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/PoolArea.png" height="400" width="450"><br>netty将池化内存块划分为3个类型:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div></pre></td><td class="code"><pre><div class="line">enum SizeClass &#123;</div><div class="line">    Tiny,</div><div class="line">    Small,</div><div class="line">    Normal</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>Tiny主要解决16b-498b之间的内存块分配, small解决分配512b-4kb的内存分配, normal解决8k-16m的内存分配。<br>大致了解了这些, 为了更详细的了解分配细节, 首先对PoolArena成员变量进行简单分析。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div></pre></td><td class="code"><pre><div class="line">//tiny级别的个数, 每次递增2^4b, tiny总共管理32个等级的小内存片:[16, 32, 48, ..., 496], 注意实际只有31个级别内存块</div><div class="line">static final int numTinySubpagePools = 512 &gt;&gt;&gt; 4;</div><div class="line">//全局默认唯一的分配者, 见PooledByteBufAllocator.DEFAULT</div><div class="line">final PooledByteBufAllocator parent;</div><div class="line">// log(16M/8K) = 11,指的是normal类型的内存等级, 分别为[8k, 16k, 32k, ..., 16M]</div><div class="line">private final int maxOrder;</div><div class="line">//默认8k</div><div class="line">final int pageSize;</div><div class="line">//log(8k) =  13</div><div class="line">final int pageShifts;</div><div class="line">//默认16M</div><div class="line">final int chunkSize;</div><div class="line">//-8192</div><div class="line">final int subpageOverflowMask;</div><div class="line">//指的是small类型的内存等级: pageShifts - log(512) = 4,分别为[512, 1k, 2k, 4k]</div><div class="line">final int numSmallSubpagePools;</div><div class="line"> //small类型分31个等级[16, 32, ..., 512], 每个等级都可以存放一个链(元素为PoolSubpage), 可存放未分配的该范围的内存块</div><div class="line">private final PoolSubpage&lt;T&gt;[] tinySubpagePools;</div><div class="line"> //small类型分31个等级[512, 1k, 2k, 4k], 每个等级都可以存放一个链(元素为PoolSubpage), 可存放未分配的该范围的内存块</div><div class="line">private final PoolSubpage&lt;T&gt;[] smallSubpagePools;//存储1024-8096大小的内存</div><div class="line"> //存储chunk(16M)使用率的内存块, 不同使用率的chunk, 存放在不同的对象中</div><div class="line">private final PoolChunkList&lt;T&gt; q050;</div><div class="line">private final PoolChunkList&lt;T&gt; q025;   //存储内存利用率25-75%的chunk</div><div class="line">private final PoolChunkList&lt;T&gt; q000;   //存储内存利用率1-50%的chunk</div><div class="line">private final PoolChunkList&lt;T&gt; qInit;  //存储内存利用率0-25%的chunk</div><div class="line">private final PoolChunkList&lt;T&gt; q075;    //存储内存利用率75-100%的chunk</div><div class="line">private final PoolChunkList&lt;T&gt; q100;   //存储内存利用率100%的chunk</div><div class="line"></div><div class="line">// Number of thread caches backed by this arena. 该PoolArea被多少线程引用。</div><div class="line">final AtomicInteger numThreadCaches = new AtomicInteger();</div></pre></td></tr></table></figure></p>
+<p>PoolArea申请内存时根据申请的大小使用不同对象进行分配:</p>
+<ul>
+<li>tinySubpagePools分配[16b, 496b]之间的内存大小, 数组中每个元素以16b为一个单位增长, 比如申请分配16b的内存, 将在下标为0对应的链中分配; 申请32b的内存, 将在下标为1对应的链中分配。</li>
+<li>smallSubpagePools分配[512b, 4k]之间的内存大小, 分配结构同tinySubpagePools一样。</li>
+<li>q050、q025、q000、qInit、q075主要负责分配[8k, 16M]大小的内存, 其存放的元素都是大小为16M的PoolChunk, 这几个成员变量不同的是元素PoolChunk的使用率不同, 比如q025里面存放的chunk使用率为[25%, 75%]。 若需要申请[16b, 4k]的内存、而tinySubpagePools、smallSubpagePools没有合适的内存块时, 会从这些对象包含的PoolChunk中分配8k的叶子节点供重新划分结构进行分配。<br>他们存储的属性PoolChunk可以在不同的属性中移动, 其中:<p><br>&nbsp;&nbsp;若q025中某个PoolChunk使用率大于25%之后, 该PoolChunk将别移动到q050中。<br>&nbsp;&nbsp;若q050中某个PoolChunk使用率小于50%之后, 该PoolChunk将别移动到q025中。<br>&nbsp;&nbsp;若qInit使用率为0, 也不会释放该节点。<br>&nbsp;&nbsp;若q000使用率为0, 会被释放掉。</p></li>
+</ul>
+<p>numThreadCaches负责统计该PoolChunk被多少NioEventLoop线程绑定, 具体可见<a href="https://kkewwei.github.io/elasticsearch_learning/2018/07/14/Netty-PoolThreadCache%E6%BA%90%E7%A0%81%E6%8E%A2%E7%A9%B6/">Netty PoolThreadCache原理探究</a></p>
+<h2 id="PoolArena的内存分配"><a href="#PoolArena的内存分配" class="headerlink" title="PoolArena的内存分配"></a>PoolArena的内存分配</h2><p>线程分配内存主要从两个地方分配: PoolThreadCache和PoolArena<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/PoolArea1.png" height="300" width="350"><br>其中PoolThreadCache线程独享, PoolArena为几个线程共享。<br>netty真正申请内存时, 首先便是调用PoolArena.allocate()函数:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div><div class="line">61</div><div class="line">62</div><div class="line">63</div><div class="line">64</div><div class="line">65</div><div class="line">66</div><div class="line">67</div></pre></td><td class="code"><pre><div class="line">private void allocate(PoolThreadCache cache, PooledByteBuf&lt;T&gt; buf, final int reqCapacity) &#123;</div><div class="line">       final int normCapacity = normalizeCapacity(reqCapacity);</div><div class="line">        // capacity &lt; pageSize   小于8k</div><div class="line">       if (isTinyOrSmall(normCapacity)) &#123;</div><div class="line">           int tableIdx;</div><div class="line">           PoolSubpage&lt;T&gt;[] table;</div><div class="line">           boolean tiny = isTiny(normCapacity);</div><div class="line">           if (tiny) &#123; // &lt; 512</div><div class="line">                //若从缓冲中取得该值</div><div class="line">               if (cache.allocateTiny(this, buf, reqCapacity, normCapacity)) &#123;</div><div class="line">                   // was able to allocate out of the cache so move on</div><div class="line">                   return;</div><div class="line">               &#125;</div><div class="line">               tableIdx = tinyIdx(normCapacity);</div><div class="line">               table = tinySubpagePools;</div><div class="line">           &#125; else &#123;  //small</div><div class="line">               if (cache.allocateSmall(this, buf, reqCapacity, normCapacity)) &#123;</div><div class="line">                   // was able to allocate out of the cache so move on</div><div class="line">                   return;</div><div class="line">               &#125;</div><div class="line">               tableIdx = smallIdx(normCapacity);</div><div class="line">               table = smallSubpagePools;</div><div class="line">           &#125;</div><div class="line"></div><div class="line">           final PoolSubpage&lt;T&gt; head = table[tableIdx];</div><div class="line"></div><div class="line">           /**</div><div class="line">            * Synchronize on the head. This is needed as &#123;@link PoolChunk#allocateSubpage(int)&#125; and</div><div class="line">            * &#123;@link PoolChunk#free(long)&#125; may modify the doubly linked list as well.</div><div class="line">            */</div><div class="line">            //小于8k的</div><div class="line">           synchronized (head) &#123;</div><div class="line">                //如果分配完会从当前级别链上去掉</div><div class="line">               final PoolSubpage&lt;T&gt; s = head.next;</div><div class="line">                ///该型号的tiny的内存已经分配的有一个了</div><div class="line">               if (s != head) &#123;</div><div class="line">                   assert s.doNotDestroy &amp;&amp; s.elemSize == normCapacity;</div><div class="line">                   long handle = s.allocate();//高32放着一个PoolSubpage里面哪段的哪个，低32位放着哪个叶子节点</div><div class="line">                   assert handle &gt;= 0;</div><div class="line">                   s.chunk.initBufWithSubpage(buf, handle, reqCapacity);</div><div class="line">                   incTinySmallAllocation(tiny);</div><div class="line">                   return;//如果从链中找到就返回，</div><div class="line">               &#125;</div><div class="line">           &#125;</div><div class="line">           //没有找到的话，就从Poolpage中分一个</div><div class="line">           synchronized (this) &#123;</div><div class="line">               //说明head并没有分配值，是第一次分配。</div><div class="line">               allocateNormal(buf, reqCapacity, normCapacity);</div><div class="line">           &#125;</div><div class="line"></div><div class="line">           incTinySmallAllocation(tiny);</div><div class="line">           return;</div><div class="line">       &#125;</div><div class="line">       if (normCapacity &lt;= chunkSize) &#123; //小于16M</div><div class="line">           if (cache.allocateNormal(this, buf, reqCapacity, normCapacity)) &#123;  //cache=PoolThreadCache,本地是否已经有了</div><div class="line">               // was able to allocate out of the cache so move on</div><div class="line">               return;</div><div class="line">           &#125;</div><div class="line">           synchronized (this) &#123;</div><div class="line">               allocateNormal(buf, reqCapacity, normCapacity);</div><div class="line">               ++allocationsNormal;</div><div class="line">           &#125;</div><div class="line">       &#125; else &#123;</div><div class="line">           // Huge allocations are never served via the cache so just call allocateHuge</div><div class="line">           allocateHuge(buf, reqCapacity); //大于16M，则分配大内存</div><div class="line">       &#125;</div><div class="line">   &#125;</div></pre></td></tr></table></figure></p>
+<p>PoolArena.allocate()分配内存主要考虑先尝试从缓存中, 然后再尝试从PoolArena分配。tiny和small申请过程一样, 以下都以tiny申请为例。具体过程如下:<br>1). 对申请的内存进行规范化, 就是说只能申请某些固定大小的内存, 比如tiny范围的16b倍数的内存, small范围内512b, 1k, 2k, 4k范围内存, normal范围内8k, 16k,…, 16m范围内内存, 始终是2幂次方的数据。申请的内存不足16b的,按照16b去申请。<br>2). 判断是否是小于8K的内存申请, 若是申请Tiny/Small级别的内存:</p>
+<ul>
+<li>首先尝试从cache中申请, 具体申请过程参考<a href="https://kkewwei.github.io/elasticsearch_learning/2018/07/14/Netty-PoolThreadCache%E6%BA%90%E7%A0%81%E6%8E%A2%E7%A9%B6/">Netty PoolThreadCache原理探究</a></li>
+<li>若在cache中申请不到的话, 接着会尝试从tinySubpagePools中申请, 首先计算出该内存在tinySubpagePools中对应的下标, 下标计算公式如下:<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div></pre></td><td class="code"><pre><div class="line">static int tinyIdx(int normCapacity) &#123;  //申请内容小于512，下标</div><div class="line">    return normCapacity &gt;&gt;&gt; 4;  //在tiny维护的链中找到合适自己位置的下标, 除以16，就是下标了</div><div class="line">&#125;</div><div class="line">static int smallIdx(int normCapacity) &#123;</div><div class="line">    int tableIdx = 0;</div><div class="line">    int i = normCapacity &gt;&gt;&gt; 10; //首先是512 = 2^10</div><div class="line">    while (i != 0) &#123;</div><div class="line">        i &gt;&gt;&gt;= 1;</div><div class="line">        tableIdx ++;</div><div class="line">    &#125;</div><div class="line">    return tableIdx;</div></pre></td></tr></table></figure>
+</li>
+</ul>
+<p>可以看出, normCapacity/16就是tiny级别的下标, normCapacity/1024就是small级别的下标。 然后再获取tinySubpagePools对应级别的内存的头结点head。</p>
+<ul>
+<li>检查对应链串是否已经有PoolSubpage可用, 若有的话, 直接进入PoolSubpage.allocate进行内存分撇, 具体可见<a href="https://kkewwei.github.io/elasticsearch_learning/2018/07/22/Netty-PoolSubpage%E5%8E%9F%E7%90%86%E6%8E%A2%E7%A9%B6/">Netty-PoolSubpage原理探究</a>, 并且根据handle初始化这块内存块。</li>
+<li>若没有可分配的内存, 则会进入allocateNormal进行分配<br>3). 若分配normal类型的类型, 首先也会尝试从缓存中分配, 然后再考虑从allocateNormal进行内存分配。<br>4). 若分配大于16m的内存, 则直接通过allocateHuge()从内存池外分配内存。<h3 id="分配-16b-16m-内存"><a href="#分配-16b-16m-内存" class="headerlink" title="分配[16b, 16m]内存"></a>分配[16b, 16m]内存</h3>接着上述过程, 会进入allocateNormal进行内存分配<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div></pre></td><td class="code"><pre><div class="line">private void allocateNormal(PooledByteBuf&lt;T&gt; buf, int reqCapacity, int normCapacity) &#123;</div><div class="line">        if (q050.allocate(buf, reqCapacity, normCapacity) || q025.allocate(buf, reqCapacity, normCapacity) ||</div><div class="line">            q000.allocate(buf, reqCapacity, normCapacity) || qInit.allocate(buf, reqCapacity, normCapacity) ||</div><div class="line">            q075.allocate(buf, reqCapacity, normCapacity)) &#123;</div><div class="line">            return;//第一次进行内存分配时，chunkList没有chunk可以分配内存</div><div class="line">        &#125;</div><div class="line">        //跑到Direct里面newChunk了, 将 产生第一个chunk</div><div class="line">        // Add a new chunk.   https://www.jianshu.com/p/c4bd37a3555b  就是传说中的平衡树</div><div class="line">        PoolChunk&lt;T&gt; c = newChunk(pageSize, maxOrder, pageShifts, chunkSize);  //需通过方法newChunk新建一个chunk进行内存分配，并添加到qInit列表中</div><div class="line">        long handle = c.allocate(normCapacity); //取到平衡树里面哪个下标,比如256</div><div class="line">        assert handle &gt; 0;</div><div class="line">        c.initBuf(buf, handle, reqCapacity);</div><div class="line">        qInit.add(c); //第一次分配的话，都会放入qInit</div><div class="line">    &#125;</div></pre></td></tr></table></figure>
+</li>
+</ul>
+<ol>
+<li>首先会依次检查q050、q025、q000、qInit、q075链中的PoolArea, 是否能否分配该大小的内存, 检查分配过程如下:<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div></pre></td><td class="code"><pre><div class="line">boolean allocate(PooledByteBuf&lt;T&gt; buf, int reqCapacity, int normCapacity) &#123;</div><div class="line">    if (head == null || normCapacity &gt; maxCapacity) &#123; //head是可以直接寸数据的</div><div class="line">        // Either this PoolChunkList is empty or the requested capacity is larger then the capacity which can</div><div class="line">        // be handled by the PoolChunks that are contained in this PoolChunkList.</div><div class="line">        return false;</div><div class="line">    &#125;</div><div class="line">    for (PoolChunk&lt;T&gt; cur = head;;) &#123;</div><div class="line">        long handle = cur.allocate(normCapacity); //取得哪个坐标下的某个值</div><div class="line">        if (handle &lt; 0) &#123; //在poolchunk中没有找到能装得下的，那么继续找下一个</div><div class="line">            cur = cur.next;</div><div class="line">            if (cur == null) &#123;</div><div class="line">                return false;</div><div class="line">            &#125;</div><div class="line">        &#125; else &#123;</div><div class="line">            cur.initBuf(buf, handle, reqCapacity);</div><div class="line">            if (cur.usage() &gt;= maxUsage) &#123;//chunked量用超了则移动向下一个链</div><div class="line">                remove(cur);</div><div class="line">                nextList.add(cur);</div><div class="line">            &#125;</div><div class="line">            return true;</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+</li>
+</ol>
+<p>会轮训该链所有PoolChunk, 直到找到一个符合要求的内存块, 当分配完成后, 检查该PoolChunk是否因为使用率超过阈值需要放到别的队列中。</p>
+<ol>
+<li>若没有找到, 会去内存中申请一个PoolChunk的内存块, 在该PoolChunk中分配normCapacity大小的内存, 参考见<a href="https://kkewwei.github.io/elasticsearch_learning/2018/07/20/Netty-PoolChunk%E5%8E%9F%E7%90%86%E6%8E%A2%E7%A9%B6/">Netty PoolChunk原理探究</a></li>
+<li>对PoolChunk进行初始化, 并将该PoolChunk加入qInit的链中。<br>这里有一个细节需要了解下, q050、q025、q000、qInit、q075按照这个顺序排序, 也就是说当在这几个对象都有可分配的内存时, 优先从 q050中分配, 最后从q075中分配。这样安排的考虑是:</li>
+</ol>
+<ul>
+<li>将PoolChunk分配维持在较高的比例上。</li>
+<li>保存一些空闲度比较大的内存, 以便大内存的分配。</li>
+</ul>
+<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>非内存池化的内存分配没有什么好说的, 并没有组织成什么结构来分配, 内存的释放主要由PoolChunk和PoolSubpage来释放。 本文主要讲了从poolArena上层结构tinySubpagePools、mallSubpagePools、050、q025、q000、qInit、q075分配内存、 大致的步骤, 至于从每个对象具体如何分配内存, 请看相关文章<a href="https://kkewwei.github.io/elasticsearch_learning/2018/07/20/Netty-PoolChunk%E5%8E%9F%E7%90%86%E6%8E%A2%E7%A9%B6/">Netty PoolChunk原理探究</a>、<a href="https://kkewwei.github.io/elasticsearch_learning/2018/07/22/Netty-PoolSubpage%E5%8E%9F%E7%90%86%E6%8E%A2%E7%A9%B6/">Netty-PoolSubpage原理探究</a>.</p>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">PoolArena</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/elasticsearch_learning/2018/05/23/Netty内存学习/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
     <article id="post-Netty-Http通信编码源码阅读" class="article article-type-post  article-index" itemscope itemprop="blogPost">
   <div class="article-inner">
     
@@ -1231,107 +1353,9 @@
 
 
   
-    <article id="post-Condition原理解读" class="article article-type-post  article-index" itemscope itemprop="blogPost">
-  <div class="article-inner">
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/elasticsearch_learning/2017/10/02/Condition原理解读/">Condition接口原理介绍及ArrayBlockingQueue、LinkedBlockingQueue实现</a>
-    </h1>
-  
-
-        
-        <a href="/elasticsearch_learning/2017/10/02/Condition原理解读/" class="archive-article-date">
-  	<time datetime="2017-10-02T11:28:01.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-10-02</time>
-</a>
-        
-      </header>
-    
-
-    <!-- 目录内容 -->
-    
-    <!-- 目录内容结束 -->
-
-    <div class="article-entry" itemprop="articleBody">
-      
-        <p>任何一个java对象都拥有wait()/nitify方法, 它们通过与synchronized结合(参考<a href="https://kkewwei.github.io/elasticsearch_learning/2016/10/27/Java%E7%BA%BF%E7%A8%8B%E7%9F%A5%E8%AF%86%E5%B0%8F%E7%BB%93/">Java 线程知识小结(-)</a>)来实现线程之间的通信机制。 在锁方面Lock与Condition接口配合也实现了相同的功能, 但是它们之间的原理是不相同的。使用上两者的区别如下(图片摘自<a href="https://www.jianshu.com/p/be2dc7c878dc" target="_blank" rel="external">java并发编程之Condition</a>)):<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/Condition1.png" height="400" width="500"></p>
-<h1 id="基本使用"><a href="#基本使用" class="headerlink" title="基本使用"></a>基本使用</h1><p>我们将以最简单的消费者与生产者的示例讲解Condition与Lock配合使用的例子:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div><div class="line">61</div><div class="line">62</div><div class="line">63</div><div class="line">64</div><div class="line">65</div><div class="line">66</div></pre></td><td class="code"><pre><div class="line">public class ConditonTest &#123;</div><div class="line">    //当前产品个数</div><div class="line">    public static int count = 0;</div><div class="line">    static ReentrantLock reentrantLock = new ReentrantLock();</div><div class="line">    //产品为空时, 那么消费者就得生产者来唤醒, 消费者就得等待生产者生产商品这个条件</div><div class="line">    static  Condition empty = reentrantLock.newCondition();</div><div class="line">    public static void main(String[] args) &#123;</div><div class="line">        ExecutorService pool = Executors.newFixedThreadPool(2);</div><div class="line">        Thread t3 = new Consumer(&quot;A&quot;, ConditonTest.reentrantLock, ConditonTest.empty);</div><div class="line">        Thread t1 = new Producder(&quot;B&quot;, ConditonTest.reentrantLock, ConditonTest.empty);</div><div class="line">        Thread t2 = new Producder(&quot;C&quot;, ConditonTest.reentrantLock, ConditonTest.empty);</div><div class="line">        Thread t4 = new Consumer(&quot;D&quot;, ConditonTest.reentrantLock, ConditonTest.empty);</div><div class="line">        Thread t5 = new Consumer(&quot;E&quot;, ConditonTest.reentrantLock, ConditonTest.empty);</div><div class="line">        // 执行各个线程</div><div class="line">        pool.execute(t1);</div><div class="line">        pool.execute(t2);</div><div class="line">        pool.execute(t3);</div><div class="line">        pool.execute(t4);</div><div class="line">        pool.execute(t5);</div><div class="line">        pool.shutdown();</div><div class="line">    &#125;</div><div class="line">&#125;</div><div class="line">class Producder extends Thread &#123;</div><div class="line">    private String name;</div><div class="line">    Lock lock;</div><div class="line">    Condition empty;</div><div class="line">    public Producder(String name, Lock lock, Condition empty) &#123;</div><div class="line">        this.name = name;</div><div class="line">        this.lock = lock;</div><div class="line">        this.empty = empty;</div><div class="line">    &#125;</div><div class="line">    public void run() &#123;</div><div class="line">        lock.lock(); // 获取锁</div><div class="line">        ConditonTest.count ++;</div><div class="line">        System.out.println(name + &quot;产生一个&quot;);</div><div class="line">        empty.signalAll(); // 唤醒所有等待线程。</div><div class="line">        lock.unlock(); // 释放锁</div><div class="line">    &#125;</div><div class="line">&#125;</div><div class="line">class Consumer extends Thread &#123;</div><div class="line">    private String name;</div><div class="line">    Lock lock;</div><div class="line">    Condition empty;</div><div class="line">    public Consumer(String name, Lock lock, Condition empty) &#123;</div><div class="line">        this.name = name;</div><div class="line">        this.lock = lock;</div><div class="line">        this.empty = empty;</div><div class="line">    &#125;</div><div class="line">    public void run() &#123;</div><div class="line">        lock.lock(); // 获取锁</div><div class="line">        try &#123;</div><div class="line">            while ( ConditonTest.count == 0) &#123;</div><div class="line">                System.out.println(name + &quot;阻塞中&quot;);</div><div class="line">                // 阻塞取款操作, await之后就隐示自动释放了lock，直到被唤醒自动获取</div><div class="line">                empty.await();</div><div class="line">                System.out.println(name + &quot;被唤醒&quot;);</div><div class="line">            &#125;</div><div class="line">            ConditonTest.count --;</div><div class="line">            System.out.println(name + &quot;消费一个&quot;);</div><div class="line">        &#125; catch (InterruptedException e) &#123;</div><div class="line">            e.printStackTrace();</div><div class="line">        &#125; finally &#123;</div><div class="line">            lock.unlock(); // 释放锁</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
-<p>以上只是使用一个Condition条件队列(具体真实应用可参考ArrayBlockingQueue、LinkedBlockingQueue), 在实际应用中, 可以使用多个条件ConditionObject, ConditionObject都是通过调用reentrantLock.newCondition()中产生的, 该类在AbstractQueuedSynchronizer中定义。 条件队列结构如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/Condition2.png" height="250" width="450"><br>每当线程调用Condition.wait()时, 该线程将会通过尾插发放入该条件队列; 当别的线程调用Condition.signal()时, 该线程将从等待队列转移到AQS阻塞队列(参考<a href="https://kkewwei.github.io/elasticsearch_learning/2017/07/23/ReentrantLock%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB/">ReentrantLock源码解读</a>), 使用比较简单。<br>注意阻塞队列和条件队列结构的区别:</p>
-<ul>
-<li>阻塞队列拥有head, head不存放任何线程; 由tail指定结尾; 条件队列首尾由firstWaiter,lastWaiter指定, 第一个线程即为firstWaiter。</li>
-<li>阻塞队列由next, pre连接; 条件队列由nextWaiter连接</li>
-</ul>
-<h1 id="wait"><a href="#wait" class="headerlink" title="wait()"></a>wait()</h1><p>wait主要是将该线程存放在Condition队列等待被唤醒。empty.await()实际调用的AbstractQueuedSynchronizer中的wait函数:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div></pre></td><td class="code"><pre><div class="line">public final void await() throws InterruptedException &#123;</div><div class="line">     //检查当前中断标志位, 若之前有中断, 那么直接向外抛出异常</div><div class="line">    if (Thread.interrupted())</div><div class="line">        throw new InterruptedException();</div><div class="line">    //将该线程添加到CONDITION队列中</div><div class="line">    Node node = addConditionWaiter();</div><div class="line">    //在该节点加入condition队列中等待前，await则需要释放掉当前线程占有的锁</div><div class="line">    int savedState = fullyRelease(node);</div><div class="line">    int interruptMode = 0;  //</div><div class="line">    //检查该线程是否在阻塞队列中。线程首先加入条件队列，若有signal发生，会被signal转移到阻塞队列中</div><div class="line">    while (!isOnSyncQueue(node)) &#123;</div><div class="line">       //已经加入条件队列, 开始进行睡眠</div><div class="line">       LockSupport.park(this);</div><div class="line">       //被唤醒了, 可能是别的线程调用了signal; 也可能是别的线程调用了中断。线程可能在条件队列, 也可能在阻塞队列</div><div class="line">       if ((interruptMode = checkInterruptWhileWaiting(node)) != 0)</div><div class="line">            break;</div><div class="line">        //等于0说明是被signal唤醒的，将在下次while时直接退出循环</div><div class="line">    &#125;</div><div class="line">    //此时在阻塞队列中了</div><div class="line">    if (acquireQueued(node, savedState) &amp;&amp; interruptMode != THROW_IE) //从阻塞队列中唤醒了</div><div class="line">        interruptMode = REINTERRUPT;</div><div class="line">    if (node.nextWaiter != null) // clean up if cancelled</div><div class="line">        unlinkCancelledWaiters();</div><div class="line">    if (interruptMode != 0)</div><div class="line">        reportInterruptAfterWait(interruptMode); //</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
-<p>主要做了如下事情:</p>
-<ul>
-<li>检查线程中断位, 若该线程存在中断信号则抛出异常</li>
-<li>将该线程加入条件队列, waitStatus置为Node.CONDITION, 见addConditionWaiter</li>
-<li>释放被占用的锁, 释放的savedState的值说明下次还需要获取的值。见fullyRelease</li>
-<li>检查线程是否阻塞队列, 见isOnSyncQueue。 若不在阻塞队列的话, 若在条件队列, 则开始调用LockSupport.park(this)睡眠。 若醒过来了存在两种可能: 别的线程调用了中断; 别的线程调用了signal, 需要继续判断是哪种情况, 见checkInterruptWhileWaiting。</li>
-<li>从while退出, 说明已经在阻塞队列了, 进入acquireQueued(参考<a href="https://kkewwei.github.io/elasticsearch_learning/2017/07/23/ReentrantLock%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB/">ReentrantLock源码解读</a>)等待被别的线程释放锁来唤醒</li>
-<li>清理条件队列中剩余线程, 若线程的node状态不为Node.CONDITION, 将从该队列中清理掉, 见unlinkCancelledWaiters函数。</li>
-<li>检查中断信息, 若存在中断, 中断是在调用signal前的话, 说明唤醒原因是因为中断, 那么线程直接向上抛出异常; 若中断是在调用signal之后的话, 那么唤醒原因是因为signal。将中断复位给线程。见reportInterruptAfterWait()<br>以下代码判断线程是否在阻塞队列中:isOnSyncQueue:<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div></pre></td><td class="code"><pre><div class="line">final boolean isOnSyncQueue(Node node) &#123;</div><div class="line">     //只有在等待队列,waitStatus才会等于CONDITION; node.prev !=null,不代表一定是在阻塞队列中, 也可能在迁移的路上</div><div class="line">    if (node.waitStatus == Node.CONDITION || node.prev == null)</div><div class="line">        return false;</div><div class="line">     #若设置了, 肯定是在阻塞队列中。那就说明条件队列的next一定为null</div><div class="line">    if (node.next != null) // If has successor, it must be on queue，</div><div class="line">        return true;</div><div class="line">    /*</div><div class="line">     * node.prev can be non-null, but not yet on queue because</div><div class="line">     * the CAS to place it on queue can fail. So we have to</div><div class="line">     * traverse from tail to make sure it actually made it.  It</div><div class="line">     * will always be near the tail in calls to this method, and</div><div class="line">     * unless the CAS failed (which is unlikely), it will be</div><div class="line">     * there, so we hardly ever traverse much.</div><div class="line">     */</div><div class="line">    return findNodeFromTail(node);  //同归对别在阻塞队列中彻头彻尾找这个节点</div><div class="line">&#125;</div></pre></td></tr></table></figure>
-</li>
-</ul>
-<p>而checkInterruptWhileWaiting主要是为了检查线程从LockSupport.park(this)只醒来的原因:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div></pre></td><td class="code"><pre><div class="line">private int checkInterruptWhileWaiting(Node node) &#123;</div><div class="line">            return Thread.interrupted() ?</div><div class="line">                  //至少线程是被中断过</div><div class="line">                (transferAfterCancelledWait(node) ? THROW_IE : REINTERRUPT) :</div><div class="line">                0;  //返回0说明一定是被signasl唤醒的</div><div class="line">        &#125;</div></pre></td></tr></table></figure></p>
-<p>这里判断, 若不存在中断信号的话, 那么线程一定是被别的线程调用signal唤醒的, 那么进入transferAfterCancelledWait判断线程中断发生的是时间<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div></pre></td><td class="code"><pre><div class="line">final boolean transferAfterCancelledWait(Node node) &#123;</div><div class="line">        //线程被signal唤醒，只会是Node.SIGNAL，而不是Node.CONDITION</div><div class="line">       if (compareAndSetWaitStatus(node, Node.CONDITION, 0)) &#123;</div><div class="line">           enq(node);//说明是被interput的</div><div class="line">           return true;</div><div class="line">       &#125;</div><div class="line">       /*  此后说明是被signal唤醒的，</div><div class="line">        * If we lost out to a signal(), then we can&apos;t proceed  //若果我们从</div><div class="line">        * until it finishes its enq().  Cancelling during an</div><div class="line">        * incomplete transfer is both rare and transient, so just</div><div class="line">        * spin.</div><div class="line">        */</div><div class="line">        //等待调用singla的线程将本节点加入阻塞队列，该线程等待这个操作完成, 若还没有完成的话, 就等待</div><div class="line">       while (!isOnSyncQueue(node))</div><div class="line">           Thread.yield();  //偶尔释放下cpu，线程从运行到就绪状态</div><div class="line">       //说明是被singla唤醒的，同时已经被其他的线程加入了阻塞队列</div><div class="line">       return false;</div><div class="line">   &#125;</div></pre></td></tr></table></figure></p>
-<p>总结一下, 此时线程被唤醒了:</p>
-<ul>
-<li>不存在中断信号, 说明若线程被signal唤醒的, 那么返回0</li>
-<li>存在中断信号, 而线程的statue为Node.CONDITION, 那么说明线程是被中断唤醒的, 之后将会向外抛出InterruptedException异常。</li>
-<li>存在中断信号, 而线程的statue不为Node.CONDITION, 那么说明该中断信号是在线程被signal唤醒之后才出现的, 那么就不会抛向外抛出异常, 而是将中断信号再置位给线程。</li>
-</ul>
-<h1 id="signal"><a href="#signal" class="headerlink" title="signal()"></a>signal()</h1><p>再来了解下signal是如何将唤醒线程的<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div></pre></td><td class="code"><pre><div class="line">private void doSignal(Node first) &#123;</div><div class="line"></div><div class="line">            do &#123;</div><div class="line">                if ( (firstWaiter = first.nextWaiter) == null)</div><div class="line">                    lastWaiter = null;</div><div class="line">                first.nextWaiter = null;</div><div class="line">            &#125; while (!transferForSignal(first) &amp;&amp; //这里while是</div><div class="line">                     (first = firstWaiter) != null);</div><div class="line">        &#125;</div></pre></td></tr></table></figure></p>
-<p>通过不停地循环, 只是希望从条件队列中找到一个status=CONDITION的节点, 并将该节点移动到阻塞队列中。移动的过程如下:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div></pre></td><td class="code"><pre><div class="line">final boolean transferForSignal(Node node) &#123;</div><div class="line">      /*</div><div class="line">       * If cannot change waitStatus, the node has been cancelled.</div><div class="line">       */</div><div class="line">       //如果不是CONDITION， 则返回再看条件队列中下一个元素</div><div class="line">      if (!compareAndSetWaitStatus(node, Node.CONDITION, 0))</div><div class="line">          return false;</div><div class="line"></div><div class="line">      /*</div><div class="line">       * Splice onto queue and try to set waitStatus of predecessor to</div><div class="line">       * indicate that thread is (probably) waiting. If cancelled or</div><div class="line">       * attempt to set waitStatus fails, wake up to resync (in which</div><div class="line">       * case the waitStatus can be transiently and harmlessly wrong).</div><div class="line">       */</div><div class="line">       //将该元素从条件队列移动到等待队列</div><div class="line">      Node p = enq(node);</div><div class="line">       //waitStatus&gt;0的话，只能是cancel, 或者设置signal失败，那么唤醒该线程</div><div class="line">      int ws = p.waitStatus;</div><div class="line">       //若设置signal成功的话，wait函数那里的循环可能没有感觉到; 若没有感觉到会对调用yield减缓循环次数</div><div class="line">      if (ws &gt; 0 || !compareAndSetWaitStatus(p, ws, Node.SIGNAL))</div><div class="line">          //目前线程已经处于阻塞队列, 唤醒该线程, 尝试再获取锁</div><div class="line">          LockSupport.unpark(node.thread);</div><div class="line">      return true;</div><div class="line">  &#125;</div></pre></td></tr></table></figure></p>
-<p>我们现在回顾下, Condition的wait和signal整体逻辑如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/Condition3.png" height="270" width="600"></p>
-<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>Condition的wait和signal必须和锁配合使用, 以上只是结合ReentrantLock使用。ArrayBlockingQueue的实现原理与开头的示例类似, 基于ReentrantLock及Condition实现, Condition也可以与其他AQS结合, 比如CountDownLatch、ReentrantReadWriteLock, Semaphore, 使用大同小异, 这里就不一一讲解了。</p>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-      
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/elasticsearch_learning/2017/10/02/Condition原理解读/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
   
     <nav id="page-nav">
-      <a class="extend prev" rel="prev" href="/elasticsearch_learning/">&laquo; Prev</a><a class="page-number" href="/elasticsearch_learning/">1</a><span class="page-number current">2</span><a class="page-number" href="/elasticsearch_learning/page/3/">3</a><a class="extend next" rel="next" href="/elasticsearch_learning/page/3/">Next &raquo;</a>
+      <a class="extend prev" rel="prev" href="/elasticsearch_learning/">&laquo; Prev</a><a class="page-number" href="/elasticsearch_learning/">1</a><span class="page-number current">2</span><a class="page-number" href="/elasticsearch_learning/page/3/">3</a><a class="page-number" href="/elasticsearch_learning/page/4/">4</a><a class="extend next" rel="next" href="/elasticsearch_learning/page/3/">Next &raquo;</a>
     </nav>
   
 
