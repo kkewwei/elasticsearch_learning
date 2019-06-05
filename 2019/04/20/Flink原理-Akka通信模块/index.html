@@ -15,7 +15,7 @@
 <meta property="og:url" content="https://kkewwei.github.io/elasticsearch_learning/2019/04/20/Flink原理-Akka通信模块/index.html">
 <meta property="og:site_name" content="Hexo">
 <meta property="og:description" content="Flink对于JobManager和TaskManager之间通信采用Akka remote实现, 本文将以tm和jm之间的一次远程通信为示例进行讲解。为了读者更好地理解, 本文首先介绍AKKa相关基本知识。 Akka基础学习本文首先以hello world为例进行讲解:1234567891011121314151617181920212223242526272829303132333435363">
-<meta property="og:updated_time" content="2019-06-05T17:00:05.000Z">
+<meta property="og:updated_time" content="2019-06-05T17:01:47.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Flink原理-Akka通信&amp;TaskManager注册">
 <meta name="twitter:description" content="Flink对于JobManager和TaskManager之间通信采用Akka remote实现, 本文将以tm和jm之间的一次远程通信为示例进行讲解。为了读者更好地理解, 本文首先介绍AKKa相关基本知识。 Akka基础学习本文首先以hello world为例进行讲解:1234567891011121314151617181920212223242526272829303132333435363">
@@ -265,8 +265,7 @@
 <li>通过resourceManagerGateway.sendSlotReport向YarnResourceManager汇报当前TM可用slot, 可用slot都将保存在ResourceManager.freeSlots里面。</li>
 <li>开始向ResourceManager上报心跳。</li>
 </ol>
-<p>用一张图展示函数之间的调用关系:</p>
-<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>可以看到, Akka通信最底层依靠的是Patterns.ask来完成。</p>
+<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>可以看到, Akka通信最底层依靠的是Patterns.ask来完成, 整个通信流程也是比较清晰的。</p>
 
       
 

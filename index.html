@@ -242,8 +242,7 @@
 <li>通过resourceManagerGateway.sendSlotReport向YarnResourceManager汇报当前TM可用slot, 可用slot都将保存在ResourceManager.freeSlots里面。</li>
 <li>开始向ResourceManager上报心跳。</li>
 </ol>
-<p>用一张图展示函数之间的调用关系:</p>
-<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>可以看到, Akka通信最底层依靠的是Patterns.ask来完成。</p>
+<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>可以看到, Akka通信最底层依靠的是Patterns.ask来完成, 整个通信流程也是比较清晰的。</p>
 
       
 
