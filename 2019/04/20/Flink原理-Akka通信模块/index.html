@@ -15,7 +15,7 @@
 <meta property="og:url" content="https://kkewwei.github.io/elasticsearch_learning/2019/04/20/Flink原理-Akka通信模块/index.html">
 <meta property="og:site_name" content="Hexo">
 <meta property="og:description" content="Flink对于JobManager和TaskManager之间通信采用Akka remote实现, 本文将以tm和jm之间的一次远程通信为示例进行讲解。为了读者更好地理解, 本文首先介绍AKKa相关基本知识。 Akka基础学习本文首先以hello world为例进行讲解:1234567891011121314151617181920212223242526272829303132333435363">
-<meta property="og:updated_time" content="2019-06-04T16:42:18.000Z">
+<meta property="og:updated_time" content="2019-06-05T14:32:21.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Flink原理-Akka通信模块详解">
 <meta name="twitter:description" content="Flink对于JobManager和TaskManager之间通信采用Akka remote实现, 本文将以tm和jm之间的一次远程通信为示例进行讲解。为了读者更好地理解, 本文首先介绍AKKa相关基本知识。 Akka基础学习本文首先以hello world为例进行讲解:1234567891011121314151617181920212223242526272829303132333435363">
@@ -179,6 +179,30 @@
 
     <!-- 目录内容 -->
     
+      <p class="show-toc-btn" id="show-toc-btn" onclick="showToc();" style="display:none">
+        <span class="btn-bg"></span>
+        <span class="btn-text">文章导航</span>
+      </p>
+	    <div id="toc-article" class="toc-article">
+	      <span id="toc-close" class="toc-close" title="隐藏导航" onclick="showBtn();">×</span>
+		      <strong class="toc-title">文章目录</strong>
+        <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#Akka基础学习"><span class="toc-number">1.</span> <span class="toc-text">Akka基础学习</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#Akka-RPC通信过程"><span class="toc-number">2.</span> <span class="toc-text">Akka RPC通信过程</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#AkkaRpcService"><span class="toc-number">2.1.</span> <span class="toc-text">AkkaRpcService</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#TM向JM注册"><span class="toc-number">3.</span> <span class="toc-text">TM向JM注册</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#构建远程RPC调用的角色及代理"><span class="toc-number">3.1.</span> <span class="toc-text">构建远程RPC调用的角色及代理</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#TM向JM远程RPC注册"><span class="toc-number">3.2.</span> <span class="toc-text">TM向JM远程RPC注册</span></a></li></ol></li></ol>
+         </div>
+   <script type="text/javascript">
+	function showToc(){
+		var toc_article = document.getElementById("toc-article");
+		var show_toc_btn = document.getElementById("show-toc-btn");
+		toc_article.setAttribute("style","display:block");
+		show_toc_btn.setAttribute("style","display:none");
+		};
+	function showBtn(){
+		var toc_article = document.getElementById("toc-article");
+		var show_toc_btn = document.getElementById("show-toc-btn");
+		toc_article.setAttribute("style","display:none");
+		show_toc_btn.setAttribute("style","display:block");
+		};
+   </script>
+      
     <!-- 目录内容结束 -->
 
     <div class="article-entry" itemprop="articleBody">
@@ -190,7 +214,33 @@
 <li>在使用actorSelection函数的时候, 我们需要了解一个关键字<a href="https://doc.akka.io/docs/akka/2.3.6/java/untyped-actors.html#actorselection-java" target="_blank" rel="external">Identify</a>, 它代表着一个每个角色都知道其含义的消息, 当接收到Identify时, 角色自动回复ActorIdentity, 其中包含着对角色的引用。这样就可以获取到该角色了。</li>
 <li>ask和tell的区别是, ask希望对方角色返回结果, 而tell不需要返回结果。</li>
 </ol>
-<h1 id="Flink-AKKA-RPC通信过程"><a href="#Flink-AKKA-RPC通信过程" class="headerlink" title="Flink AKKA RPC通信过程"></a>Flink AKKA RPC通信过程</h1>
+<h1 id="Akka-RPC通信过程"><a href="#Akka-RPC通信过程" class="headerlink" title="Akka RPC通信过程"></a>Akka RPC通信过程</h1><h2 id="AkkaRpcService"><a href="#AkkaRpcService" class="headerlink" title="AkkaRpcService"></a>AkkaRpcService</h2><p>在正式介绍之前, 先介绍RpcService, 作为Flink Akka通信核心类, 它包含了akka通信系统ActorSystem, 任何角色产生, 都会调用RpcService.startServer<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div></pre></td><td class="code"><pre><div class="line">   public &lt;C extends RpcEndpoint &amp; RpcGateway&gt; RpcServer startServer(C rpcEndpoint) &#123;</div><div class="line">	CompletableFuture&lt;Void&gt; terminationFuture = new CompletableFuture&lt;&gt;();</div><div class="line">	final Props akkaRpcActorProps;</div><div class="line">	if (rpcEndpoint instanceof FencedRpcEndpoint) &#123;</div><div class="line">		akkaRpcActorProps = Props.create(FencedAkkaRpcActor.class, rpcEndpoint, terminationFuture, getVersion());</div><div class="line">	&#125; else &#123;</div><div class="line">		akkaRpcActorProps = Props.create(AkkaRpcActor.class, rpcEndpoint, terminationFuture, getVersion());</div><div class="line">	&#125;</div><div class="line">	ActorRef actorRef;</div><div class="line">	synchronized (lock) &#123;</div><div class="line">		actorRef = actorSystem.actorOf(akkaRpcActorProps, rpcEndpoint.getEndpointId());</div><div class="line">		actors.put(actorRef, rpcEndpoint);</div><div class="line">	&#125;</div><div class="line">	LOG.info(&quot;Starting RPC endpoint for &#123;&#125; at &#123;&#125; .&quot;, rpcEndpoint.getClass().getName(), actorRef.path());</div><div class="line">	final String akkaAddress = AkkaUtils.getAkkaURL(actorSystem, actorRef);</div><div class="line">	final String hostname;</div><div class="line">	Option&lt;String&gt; host = actorRef.path().address().host();</div><div class="line">	if (host.isEmpty()) &#123;</div><div class="line">		hostname = &quot;localhost&quot;;</div><div class="line">	&#125; else &#123;</div><div class="line">		hostname = host.get();</div><div class="line">	&#125;</div><div class="line">	Set&lt;Class&lt;?&gt;&gt; implementedRpcGateways = new HashSet&lt;&gt;(RpcUtils.extractImplementedRpcGateways(rpcEndpoint.getClass()));</div><div class="line">	implementedRpcGateways.add(RpcServer.class);</div><div class="line">	implementedRpcGateways.add(AkkaBasedEndpoint.class);</div><div class="line">	final InvocationHandler akkaInvocationHandler;</div><div class="line">	if (rpcEndpoint instanceof FencedRpcEndpoint) &#123;</div><div class="line">		// a FencedRpcEndpoint needs a FencedAkkaInvocationHandler</div><div class="line">		akkaInvocationHandler = new FencedAkkaInvocationHandler&lt;&gt;(</div><div class="line">			akkaAddress,</div><div class="line">			hostname,</div><div class="line">			actorRef,</div><div class="line">			timeout,</div><div class="line">			maximumFramesize,</div><div class="line">			terminationFuture,</div><div class="line">			((FencedRpcEndpoint&lt;?&gt;) rpcEndpoint)::getFencingToken);</div><div class="line">		implementedRpcGateways.add(FencedMainThreadExecutable.class);</div><div class="line">	&#125; else &#123;</div><div class="line">		akkaInvocationHandler = new AkkaInvocationHandler(</div><div class="line">			akkaAddress,</div><div class="line">			hostname,</div><div class="line">			actorRef,</div><div class="line">			timeout,</div><div class="line">			maximumFramesize,</div><div class="line">			terminationFuture);</div><div class="line">	&#125;</div><div class="line">	ClassLoader classLoader = getClass().getClassLoader();</div><div class="line">	RpcServer server = (RpcServer) Proxy.newProxyInstance(</div><div class="line">		classLoader,</div><div class="line">		implementedRpcGateways.toArray(new Class&lt;?&gt;[implementedRpcGateways.size()]),</div><div class="line">		akkaInvocationHandler);</div><div class="line">	return server;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>可以看到:</p>
+<ol>
+<li>角色接收到信息后, 处理的类为FencedAkkaRpcActor/AkkaRpcActor。</li>
+<li>调用函数时的接口handler也分为FencedAkkaInvocationHandler/AkkaInvocationHandler。<br>每次代理GateWay请求时, 首先会调用AkkaInvocationHandler.invoke()类。</li>
+</ol>
+<h1 id="TM向JM注册"><a href="#TM向JM注册" class="headerlink" title="TM向JM注册"></a>TM向JM注册</h1><p>我们以TaskManager启动后, 会去主动连接JobMaster的ResourceManager, 以它们之间的通信为例进行讲解, 首先进入connectToResourceManager:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div></pre></td><td class="code"><pre><div class="line">   private void connectToResourceManager() &#123;</div><div class="line">       log.info(&quot;Connecting to ResourceManager &#123;&#125;.&quot;, resourceManagerAddress);</div><div class="line">	resourceManagerConnection =</div><div class="line">		new TaskExecutorToResourceManagerConnection(</div><div class="line">			log,</div><div class="line">			getRpcService(),</div><div class="line">			getAddress(),</div><div class="line">			getResourceID(),</div><div class="line">			taskManagerLocation.dataPort(),</div><div class="line">			hardwareDescription,</div><div class="line">			resourceManagerAddress.getAddress(),</div><div class="line">			resourceManagerAddress.getResourceManagerId(),</div><div class="line">			getMainThreadExecutor(),</div><div class="line">			new ResourceManagerRegistrationListener());</div><div class="line">	resourceManagerConnection.start();</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>建立好TaskExecutorToResourceManagerConnection之后,看下是如何操作的:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div></pre></td><td class="code"><pre><div class="line">public void start() &#123;</div><div class="line">	final RetryingRegistration&lt;F, G, S&gt; newRegistration = createNewRegistration();</div><div class="line">	if (REGISTRATION_UPDATER.compareAndSet(this, null, newRegistration)) &#123;</div><div class="line">		newRegistration.startRegistration();</div><div class="line">	&#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>该函数主要做了如下事情:</p>
+<ol>
+<li>通过createNewRegistration构建ResourceManagerRegistration, 这里只是构建赋值。同时在父类RetryingRegistration中定义了一个CompletableFuture, 当complete时候(成功向jm注册后), 会去调用TaskExecutorToResourceManagerConnection.onRegistrationSuccess(), 之后会详细介绍。</li>
+<li>通过AkkaRpcService.startRegistration真正开始注册TaskManager。接下来看下如何向JobManager的ResourceManager注册该TaskManager。<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div></pre></td><td class="code"><pre><div class="line">   public void startRegistration() &#123;</div><div class="line">	try &#123;</div><div class="line">		// trigger resolution of the resource manager address to a callable gateway</div><div class="line">		final CompletableFuture&lt;G&gt; resourceManagerFuture;</div><div class="line">		if (FencedRpcGateway.class.isAssignableFrom(targetType)) &#123;</div><div class="line">		    //返回的就是clazz对象ResourceManagerGateway的代理</div><div class="line">			resourceManagerFuture = (CompletableFuture&lt;G&gt;) rpcService.connect(</div><div class="line">				targetAddress,</div><div class="line">				fencingToken,</div><div class="line">				targetType.asSubclass(FencedRpcGateway.class));</div><div class="line">		&#125; else &#123;</div><div class="line">			resourceManagerFuture = rpcService.connect(targetAddress, targetType);</div><div class="line">		&#125;</div><div class="line">		// upon success, start the registration attempts</div><div class="line">		CompletableFuture&lt;Void&gt; resourceManagerAcceptFuture = resourceManagerFuture.thenAcceptAsync(</div><div class="line">			(G result) -&gt; &#123;</div><div class="line">				log.info(&quot;Resolved &#123;&#125; address, beginning registration&quot;, targetName);</div><div class="line">				// 真正想远程JobManager进行注册</div><div class="line">				register(result, 1, initialRegistrationTimeout);</div><div class="line">			&#125;,</div><div class="line">			rpcService.getExecutor());</div><div class="line">	&#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+</li>
+</ol>
+<p>主要逻辑如下:</p>
+<ol>
+<li>调用rpcService.connect, 获取代理, 代理中包含指向jobManager的ResourceManager的地址(akka.tcp://flink@jobmanager:port/user/resourcemanager)的角色, 以进行rpc通信。</li>
+<li>当产生代理后, 再调用register进行真正RPC远程向JobManager的ResourceManager注册。<h2 id="构建远程RPC调用的角色及代理"><a href="#构建远程RPC调用的角色及代理" class="headerlink" title="构建远程RPC调用的角色及代理"></a>构建远程RPC调用的角色及代理</h2>我们首先来看下是如何获取代理的:<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div></pre></td><td class="code"><pre><div class="line">private &lt;C extends RpcGateway&gt; CompletableFuture&lt;C&gt; connectInternal(</div><div class="line">			final String address,</div><div class="line">			final Class&lt;C&gt; clazz,</div><div class="line">			Function&lt;ActorRef, InvocationHandler&gt; invocationHandlerFactory) &#123;</div><div class="line">		// 根据路径获取YarnResourceManager中JobManager ResourceManager的路径引用</div><div class="line">		final ActorSelection actorSel = actorSystem.actorSelection(address);</div><div class="line">		// 向该远程路径发送RPC请求, 获取对该远程路径的回话角色, 之后就可以向这个地址发送数据了</div><div class="line">		final Future&lt;ActorIdentity&gt; identify = Patterns</div><div class="line">			.ask(actorSel, new Identify(42), timeout.toMilliseconds())</div><div class="line">			.&lt;ActorIdentity&gt;mapTo(ClassTag$.MODULE$.&lt;ActorIdentity&gt;apply(ActorIdentity.class));</div><div class="line"></div><div class="line">		final CompletableFuture&lt;ActorIdentity&gt; identifyFuture = FutureUtils.toJava(identify);</div><div class="line">		final CompletableFuture&lt;ActorRef&gt; actorRefFuture = identifyFuture.thenApply(</div><div class="line">			(ActorIdentity actorIdentity) -&gt; &#123;</div><div class="line">				if (actorIdentity.getRef() == null) &#123;</div><div class="line">					throw new CompletionException(new RpcConnectionException(&quot;Could not connect to rpc endpoint under address &quot; + address + &apos;.&apos;));</div><div class="line">				&#125; else &#123;</div><div class="line">				    //获取对应的引用</div><div class="line">					return actorIdentity.getRef();</div><div class="line">				&#125;</div><div class="line">			&#125;);</div><div class="line">		// 发送handshake请求</div><div class="line">		final CompletableFuture&lt;HandshakeSuccessMessage&gt; handshakeFuture = actorRefFuture.thenCompose(</div><div class="line">			(ActorRef actorRef) -&gt; FutureUtils.toJava(</div><div class="line">				Patterns</div><div class="line">					.ask(actorRef, new RemoteHandshakeMessage(clazz, getVersion()), timeout.toMilliseconds())</div><div class="line">					.&lt;HandshakeSuccessMessage&gt;mapTo(ClassTag$.MODULE$.&lt;HandshakeSuccessMessage&gt;apply(HandshakeSuccessMessage.class))));</div><div class="line">		return actorRefFuture.thenCombineAsync(</div><div class="line">			handshakeFuture,</div><div class="line">			(ActorRef actorRef, HandshakeSuccessMessage ignored) -&gt; &#123;</div><div class="line">			    //获取FencedAkkaInvocationHandler</div><div class="line">				InvocationHandler invocationHandler = invocationHandlerFactory.apply(actorRef);</div><div class="line">				ClassLoader classLoader = getClass().getClassLoader();</div><div class="line">				@SuppressWarnings(&quot;unchecked&quot;)</div><div class="line">				// 构建针对ResourceManagerGateway的代理, handler为FencedAkkaInvocationHandler</div><div class="line">				C proxy = (C) Proxy.newProxyInstance(</div><div class="line">					classLoader,</div><div class="line">					new Class&lt;?&gt;[]&#123;clazz&#125;,</div><div class="line">					invocationHandler);</div><div class="line">				return proxy;</div><div class="line">			&#125;,</div><div class="line">			actorSystem.dispatcher());</div><div class="line">	&#125;</div></pre></td></tr></table></figure>
+</li>
+</ol>
+<p>连接请求也比较简单, 每次RPC调用时, 都使用ask:</p>
+<ol>
+<li>向ResourceManager发送Identify, 远程相应并发返回对应路径的引用及对应的角色</li>
+<li>向ResourceManager发送RemoteHandshakeMessage, 再次和远程确认。</li>
+<li>以上两个RPC调用完成后, 构建针对ResourceManagerGateway的代理。</li>
+</ol>
+<h2 id="TM向JM远程RPC注册"><a href="#TM向JM远程RPC注册" class="headerlink" title="TM向JM远程RPC注册"></a>TM向JM远程RPC注册</h2>
       
 
       
@@ -305,6 +355,19 @@
         </div>
         
         
+        <div class="toc-container tooltip-left">
+            <i class="icon-font icon-category"></i>
+            <div class="tooltip tooltip-east">
+                <span class="tooltip-item">
+                </span>
+                <span class="tooltip-content">
+                    <div class="toc-article">
+                    <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#Akka基础学习"><span class="toc-number">1.</span> <span class="toc-text">Akka基础学习</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#Akka-RPC通信过程"><span class="toc-number">2.</span> <span class="toc-text">Akka RPC通信过程</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#AkkaRpcService"><span class="toc-number">2.1.</span> <span class="toc-text">AkkaRpcService</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#TM向JM注册"><span class="toc-number">3.</span> <span class="toc-text">TM向JM注册</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#构建远程RPC调用的角色及代理"><span class="toc-number">3.1.</span> <span class="toc-text">构建远程RPC调用的角色及代理</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#TM向JM远程RPC注册"><span class="toc-number">3.2.</span> <span class="toc-text">TM向JM远程RPC注册</span></a></li></ol></li></ol>
+                    </div>
+                </span>
+            </div>
+        </div>
+        
     </div>
 </aside>
 
@@ -319,22 +382,21 @@
   
 
   
-  <div id="gitment-ctn"></div>
+  <div id="gitment-ctn"></div> 
 <link rel="stylesheet" href="//imsun.github.io/gitment/style/default.css">
-<script src="//www.wenjunjiang.win/js/gitment.js "></script>
+<script src="//imsun.github.io/gitment/dist/gitment.browser.js"></script>
 <script>
 var gitment = new Gitment({
-  id: "Flink原理-Akka通信模块详解",
-  owner: 'kkewwei',
-  repo: 'comments',
+  id: "<%=url%>",
+  owner: '<%=theme.gitment_owner%>',
+  repo: '<%=theme.gitment_repo%>',
   oauth: {
-    client_id: '9391e497d6b288887f33',
-    client_secret: 'db733731bff4ee2811d9530b1ac4cfc6767e8183',
+    client_id: '<%=theme.gitment_oauth.client_id%>',
+    client_secret: '<%=theme.gitment_oauth.client_secret%>',
   },
 })
 gitment.render('gitment-ctn')
 </script>
-
   
 
 
@@ -446,10 +508,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
           <ul class="article-tag-list" q-show="showTags">
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">Flink、Slot分配、SubTask申请slot, SubTask部署</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">LockSupport</a>
               </li>
              
@@ -462,11 +520,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">ReentrantLock</a>
+                <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
+                <a href="javascript:void(0)" class="js-tag color4">ReentrantLock</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -474,11 +532,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
+                <a href="javascript:void(0)" class="js-tag color4">gdb</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">gdb</a>
+                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
               </li>
              
               <li class="article-tag-list-item">
