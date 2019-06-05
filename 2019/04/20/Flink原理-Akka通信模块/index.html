@@ -6,18 +6,18 @@
   <meta name="renderer" content="webkit">
   <meta http-equiv="X-UA-Compatible" content="IE=edge" >
   <link rel="dns-prefetch" href="https://kkewwei.github.io/elasticsearch_learning">
-  <title>Flink原理-Akka通信模块详解 | Hexo</title>
+  <title>Flink原理-Akka通信模块详解&amp;TaskManager注册 | Hexo</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
   <meta name="google-site-verification" content="sCUXxLczmZVJ1Fkt5jSJGE9xPpdVD25hYciudlUUVNQ" />
   <meta name="description" content="Flink对于JobManager和TaskManager之间通信采用Akka remote实现, 本文将以tm和jm之间的一次远程通信为示例进行讲解。为了读者更好地理解, 本文首先介绍AKKa相关基本知识。 Akka基础学习本文首先以hello world为例进行讲解:1234567891011121314151617181920212223242526272829303132333435363">
 <meta property="og:type" content="article">
-<meta property="og:title" content="Flink原理-Akka通信模块详解">
+<meta property="og:title" content="Flink原理-Akka通信模块详解&amp;TaskManager注册">
 <meta property="og:url" content="https://kkewwei.github.io/elasticsearch_learning/2019/04/20/Flink原理-Akka通信模块/index.html">
 <meta property="og:site_name" content="Hexo">
 <meta property="og:description" content="Flink对于JobManager和TaskManager之间通信采用Akka remote实现, 本文将以tm和jm之间的一次远程通信为示例进行讲解。为了读者更好地理解, 本文首先介绍AKKa相关基本知识。 Akka基础学习本文首先以hello world为例进行讲解:1234567891011121314151617181920212223242526272829303132333435363">
-<meta property="og:updated_time" content="2019-06-05T15:44:38.000Z">
+<meta property="og:updated_time" content="2019-06-05T16:10:01.000Z">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="Flink原理-Akka通信模块详解">
+<meta name="twitter:title" content="Flink原理-Akka通信模块详解&amp;TaskManager注册">
 <meta name="twitter:description" content="Flink对于JobManager和TaskManager之间通信采用Akka remote实现, 本文将以tm和jm之间的一次远程通信为示例进行讲解。为了读者更好地理解, 本文首先介绍AKKa相关基本知识。 Akka基础学习本文首先以hello world为例进行讲解:1234567891011121314151617181920212223242526272829303132333435363">
   
     <link rel="alternative" href="/atom.xml" title="Hexo" type="application/atom+xml">
@@ -42,39 +42,55 @@
   <div id="container" q-class="show:isCtnShow">
     <canvas id="anm-canvas" class="anm-canvas"></canvas>
     <div class="left-col" q-class="show:isShow">
-      <% var defaultBg = '#4d4d4d'; %>
-<div class="overlay" style="background: <%= theme.style && theme.style.header ? theme.style.header : defaultBg %>"></div>
+      
+<div class="overlay" style="background: #4d4d4d"></div>
 <div class="intrude-less">
 	<header id="header" class="inner">
-		<a href="<%=theme.root%>" class="profilepic">
-			<img src="<%=theme.avatar%>" class="js-avatar">
+		<a href="/" class="profilepic">
+      <img src="https://kkewwei.github.io/elasticsearch_learning/img/myself.png" class="js-avatar">
 		</a>
 		<hgroup>
-		  <h1 class="header-author"><a href="<%=theme.root%>"><%=theme.author%></a></h1>
+		  <h1 class="header-author"><a href="/">xiaoyu</a></h1>
 		</hgroup>
-		<% if (theme.subtitle){ %>
-		<p class="header-subtitle"><%=theme.subtitle%></p>
-		<%}%>
+		
+		<p class="header-subtitle">往事随风</p>
+		
 
 		<nav class="header-menu">
 			<ul>
-			<% for (var i in theme.menu){ %>
-				<li><a href="<%- url_for(theme.menu[i]) %>"><%= i %></a></li>
-	        <%}%>
+			
+				<li><a href="/elasticsearch_learning/">主页</a></li>
+	        
+				<li><a href="/elasticsearch_learning/tags/随笔/">随笔</a></li>
+	        
 			</ul>
 		</nav>
 		<nav class="header-smart-menu">
-    		<% for (var i in theme.smart_menu){ %>
-    			<% if(theme.smart_menu[i]){ %>
-    			<a q-on="click: openSlider(e, '<%-i%>')" href="javascript:void(0)"><%= theme.smart_menu[i] %></a>
-    			<% } %>
-            <%}%>
+    		
+    			
+    			<a q-on="click: openSlider(e, 'innerArchive')" href="javascript:void(0)">所有文章</a>
+    			
+            
+    			
+    			<a q-on="click: openSlider(e, 'friends')" href="javascript:void(0)">友链</a>
+    			
+            
+    			
+    			<a q-on="click: openSlider(e, 'aboutme')" href="javascript:void(0)">关于我</a>
+    			
+            
 		</nav>
 		<nav class="header-nav">
 			<div class="social">
-				<% for (var i in theme.subnav){ %>
-					<a class="<%= i %>" target="_blank" href="<%- url_for(theme.subnav[i]) %>" title="<%= i %>"><i class="icon-<%= i %>"></i></a>
-		        <%}%>
+				
+					<a class="github" target="_blank" href="#" title="github"><i class="icon-github"></i></a>
+		        
+					<a class="weibo" target="_blank" href="#" title="weibo"><i class="icon-weibo"></i></a>
+		        
+					<a class="rss" target="_blank" href="#" title="rss"><i class="icon-rss"></i></a>
+		        
+					<a class="zhihu" target="_blank" href="#" title="zhihu"><i class="icon-zhihu"></i></a>
+		        
 			</div>
 		</nav>
 	</header>
@@ -149,7 +165,7 @@
         
   
     <h1 class="article-title" itemprop="name">
-      Flink原理-Akka通信模块详解
+      Flink原理-Akka通信模块详解&amp;TaskManager注册
     </h1>
   
 
@@ -170,7 +186,7 @@
 	    <div id="toc-article" class="toc-article">
 	      <span id="toc-close" class="toc-close" title="隐藏导航" onclick="showBtn();">×</span>
 		      <strong class="toc-title">文章目录</strong>
-        <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#Akka基础学习"><span class="toc-number">1.</span> <span class="toc-text">Akka基础学习</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#Akka-RPC通信过程"><span class="toc-number">2.</span> <span class="toc-text">Akka RPC通信过程</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#AkkaRpcService和RpcServer"><span class="toc-number">2.1.</span> <span class="toc-text">AkkaRpcService和RpcServer</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#TM向JM注册"><span class="toc-number">3.</span> <span class="toc-text">TM向JM注册</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#构建远程RPC调用的角色及代理"><span class="toc-number">3.1.</span> <span class="toc-text">构建远程RPC调用的角色及代理</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#TM向JM远程RPC注册"><span class="toc-number">3.2.</span> <span class="toc-text">TM向JM远程RPC注册</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#远程ResourceManager接收到请求"><span class="toc-number">3.3.</span> <span class="toc-text">远程ResourceManager接收到请求</span></a></li></ol></li></ol>
+        <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#Akka基础学习"><span class="toc-number">1.</span> <span class="toc-text">Akka基础学习</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#Akka-RPC通信过程"><span class="toc-number">2.</span> <span class="toc-text">Akka RPC通信过程</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#AkkaRpcService和RpcServer"><span class="toc-number">2.1.</span> <span class="toc-text">AkkaRpcService和RpcServer</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#TM向JM注册"><span class="toc-number">3.</span> <span class="toc-text">TM向JM注册</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#构建远程RPC调用的角色及代理"><span class="toc-number">3.1.</span> <span class="toc-text">构建远程RPC调用的角色及代理</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#TM向JM远程RPC注册"><span class="toc-number">3.2.</span> <span class="toc-text">TM向JM远程RPC注册</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#远程ResourceManager接收到请求"><span class="toc-number">3.3.</span> <span class="toc-text">远程ResourceManager接收到请求</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#TM接收到JM响应"><span class="toc-number">3.4.</span> <span class="toc-text">TM接收到JM响应</span></a></li></ol></li></ol>
          </div>
    <script type="text/javascript">
 	function showToc(){
@@ -235,8 +251,14 @@
 <p>最终通过ask将请求发送出去, 其中包括函数名, 参数等信息。</p>
 <h2 id="远程ResourceManager接收到请求"><a href="#远程ResourceManager接收到请求" class="headerlink" title="远程ResourceManager接收到请求"></a>远程ResourceManager接收到请求</h2><p>我们可以看到在构建YarnResourceManager时, resourceManagerEndpointId为resourcemanager, 最终其ActorRef对应的直接地址为: akka.tcp://flink@jobmanager:port/user/resourcemanager, 印证了之前TM注册时通信的终端就是该类。在ActorRef构建过程中, 知道JM接受处理类为AkkaRpcActor.onReceive(FencedAkkaRpcActor父类), 继续调用的是handleRpcMessage()<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div></pre></td><td class="code"><pre><div class="line">protected void handleRpcMessage(Object message) &#123;</div><div class="line">	if (message instanceof RunAsync) &#123;</div><div class="line">		handleRunAsync((RunAsync) message);</div><div class="line">	&#125; else if (message instanceof CallAsync) &#123;</div><div class="line">		handleCallAsync((CallAsync) message);</div><div class="line">	&#125; else if (message instanceof RpcInvocation) &#123;</div><div class="line">		handleRpcInvocation((RpcInvocation) message);</div><div class="line">	&#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
 <p>flink针对不同类型的消息, 使用调用的函数, 很显然, 这里调用handleRpcInvocation:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div></pre></td><td class="code"><pre><div class="line">private void handleRpcInvocation(RpcInvocation rpcInvocation) &#123;</div><div class="line">	Method rpcMethod = null;</div><div class="line">	try &#123;</div><div class="line">		String methodName = rpcInvocation.getMethodName();</div><div class="line">		Class&lt;?&gt;[] parameterTypes = rpcInvocation.getParameterTypes();</div><div class="line">		rpcMethod = lookupRpcMethod(methodName, parameterTypes);</div><div class="line">	&#125;</div><div class="line">	if (rpcMethod != null) &#123;</div><div class="line">		try &#123;</div><div class="line">			// this supports declaration of anonymous classes</div><div class="line">			rpcMethod.setAccessible(true);</div><div class="line">			if (rpcMethod.getReturnType().equals(Void.TYPE)) &#123;</div><div class="line">				// No return value to send back</div><div class="line">				rpcMethod.invoke(rpcEndpoint, rpcInvocation.getArgs());</div><div class="line">			&#125;</div><div class="line">			else &#123;</div><div class="line">				final Object result;</div><div class="line">				try &#123;</div><div class="line">					result = rpcMethod.invoke(rpcEndpoint, rpcInvocation.getArgs());</div><div class="line">				&#125;</div><div class="line">				if (result instanceof CompletableFuture) &#123;</div><div class="line">					final CompletableFuture&lt;?&gt; future = (CompletableFuture&lt;?&gt;) result;</div><div class="line">					Promise.DefaultPromise&lt;Object&gt; promise = new Promise.DefaultPromise&lt;&gt;();</div><div class="line"></div><div class="line">					future.whenComplete(</div><div class="line">						(value, throwable) -&gt; &#123;</div><div class="line">							if (throwable != null) &#123;</div><div class="line">								promise.failure(throwable);</div><div class="line">							&#125; else &#123;</div><div class="line">							    //再回调一下</div><div class="line">								promise.success(value);</div><div class="line">							&#125;</div><div class="line">						&#125;);</div><div class="line"></div><div class="line">					Patterns.pipe(promise.future(), getContext().dispatcher()).to(getSender());</div><div class="line">				&#125;</div><div class="line">			&#125;</div><div class="line">		&#125;</div><div class="line">	&#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
-<p>最终调用的是result = rpcMethod.invoke()来处理TM发送的请求。实际调用ResourceManager.registerTaskExecutor()-&gt;registerTaskExecutorInternal()<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div></pre></td><td class="code"><pre><div class="line">private RegistrationResponse registerTaskExecutorInternal(</div><div class="line">		TaskExecutorGateway taskExecutorGateway,</div><div class="line">		String taskExecutorAddress,</div><div class="line">		ResourceID taskExecutorResourceId,</div><div class="line">		int dataPort,</div><div class="line">		HardwareDescription hardwareDescription) &#123;</div><div class="line">	WorkerRegistration&lt;WorkerType&gt; oldRegistration = taskExecutors.remove(taskExecutorResourceId);</div><div class="line">	// 首先做些清理, 删掉旧的</div><div class="line">	if (oldRegistration != null) &#123;</div><div class="line">		// TODO :: suggest old taskExecutor to stop itself</div><div class="line">		log.debug(&quot;Replacing old registration of TaskExecutor &#123;&#125;.&quot;, taskExecutorResourceId);</div><div class="line">		// remove old task manager registration from slot manager</div><div class="line">		slotManager.unregisterTaskManager(oldRegistration.getInstanceID());</div><div class="line">	&#125;</div><div class="line">       // 跑到YarnResourceManager.workerStarted(在yarn返回container成功后， 会去注册taskExecutorResourceId及Container)</div><div class="line">	final WorkerType newWorker = workerStarted(taskExecutorResourceId);</div><div class="line">	if (newWorker == null) &#123;</div><div class="line">	    //找不到, 就说明这个container不是这个JM申请的</div><div class="line">		log.warn(&quot;Discard registration from TaskExecutor &#123;&#125; at (&#123;&#125;) because the framework did &quot; +</div><div class="line">			&quot;not recognize it&quot;, taskExecutorResourceId, taskExecutorAddress);</div><div class="line">		return new RegistrationResponse.Decline(&quot;unrecognized TaskExecutor&quot;);</div><div class="line">	&#125; else &#123;</div><div class="line">		WorkerRegistration&lt;WorkerType&gt; registration =    //taskExecutorGateway=AkkaInvocationHandler，  newWorker = YarnWorkerNode</div><div class="line">			new WorkerRegistration&lt;&gt;(taskExecutorGateway, newWorker, dataPort, hardwareDescription);</div><div class="line">		log.info(&quot;Registering TaskManager with ResourceID &#123;&#125; (&#123;&#125;) at ResourceManager&quot;, taskExecutorResourceId, taskExecutorAddress);</div><div class="line">		// 统计活跃而Container。</div><div class="line">		taskExecutors.put(taskExecutorResourceId, registration);</div><div class="line">		taskManagerHeartbeatManager.monitorTarget(taskExecutorResourceId, new HeartbeatTarget&lt;Void&gt;() &#123;</div><div class="line">			@Override</div><div class="line">			public void receiveHeartbeat(ResourceID resourceID, Void payload) &#123;</div><div class="line">				// the ResourceManager will always send heartbeat requests to the</div><div class="line">				// TaskManager</div><div class="line">			&#125;</div><div class="line">			@Override</div><div class="line">			public void requestHeartbeat(ResourceID resourceID, Void payload) &#123;</div><div class="line">				taskExecutorGateway.heartbeatFromResourceManager(resourceID);</div><div class="line">			&#125;</div><div class="line">		&#125;);</div><div class="line">		return new TaskExecutorRegistrationSuccess(</div><div class="line">			registration.getInstanceID(),</div><div class="line">			resourceId,</div><div class="line">			resourceManagerConfiguration.getHeartbeatInterval().toMilliseconds(),</div><div class="line">			clusterInformation);</div><div class="line">	&#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>最终调用的是result = rpcMethod.invoke()来处理TM发送的请求。实际调用ResourceManager.registerTaskExecutor()-&gt;registerTaskExecutorInternal()<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div></pre></td><td class="code"><pre><div class="line">private RegistrationResponse registerTaskExecutorInternal(</div><div class="line">		TaskExecutorGateway taskExecutorGateway,</div><div class="line">		String taskExecutorAddress,</div><div class="line">		ResourceID taskExecutorResourceId,</div><div class="line">		int dataPort,</div><div class="line">		HardwareDescription hardwareDescription) &#123;</div><div class="line">	WorkerRegistration&lt;WorkerType&gt; oldRegistration = taskExecutors.remove(taskExecutorResourceId);</div><div class="line">	// 首先做些清理, 删掉旧的</div><div class="line">	if (oldRegistration != null) &#123;</div><div class="line">		// TODO :: suggest old taskExecutor to stop itself</div><div class="line">		log.debug(&quot;Replacing old registration of TaskExecutor &#123;&#125;.&quot;, taskExecutorResourceId);</div><div class="line">		// remove old task manager registration from slot manager</div><div class="line">		slotManager.unregisterTaskManager(oldRegistration.getInstanceID());</div><div class="line">	&#125;</div><div class="line">       // 跑到YarnResourceManager.workerStarted(在yarn返回container成功后，会去注册Container)</div><div class="line">	final WorkerType newWorker = workerStarted(taskExecutorResourceId);</div><div class="line">	if (newWorker == null) &#123;</div><div class="line">	    //找不到, 就说明这个container不是这个JM申请的</div><div class="line">		log.warn(&quot;Discard registration from TaskExecutor &#123;&#125; at (&#123;&#125;) because the framework did &quot; +</div><div class="line">			&quot;not recognize it&quot;, taskExecutorResourceId, taskExecutorAddress);</div><div class="line">		return new RegistrationResponse.Decline(&quot;unrecognized TaskExecutor&quot;);</div><div class="line">	&#125; else &#123;</div><div class="line">		WorkerRegistration&lt;WorkerType&gt; registration =    //taskExecutorGateway=AkkaInvocationHandler，  newWorker = YarnWorkerNode</div><div class="line">			new WorkerRegistration&lt;&gt;(taskExecutorGateway, newWorker, dataPort, hardwareDescription);</div><div class="line">		log.info(&quot;Registering TaskManager with ResourceID &#123;&#125; (&#123;&#125;) at ResourceManager&quot;, taskExecutorResourceId, taskExecutorAddress);</div><div class="line">		// 统计活跃而Container。</div><div class="line">		taskExecutors.put(taskExecutorResourceId, registration);</div><div class="line">		taskManagerHeartbeatManager.monitorTarget(taskExecutorResourceId, new HeartbeatTarget&lt;Void&gt;() &#123;</div><div class="line">			@Override</div><div class="line">			public void receiveHeartbeat(ResourceID resourceID, Void payload) &#123;</div><div class="line">				// the ResourceManager will always send heartbeat requests to the</div><div class="line">				// TaskManager</div><div class="line">			&#125;</div><div class="line">			@Override</div><div class="line">			public void requestHeartbeat(ResourceID resourceID, Void payload) &#123;</div><div class="line">				taskExecutorGateway.heartbeatFromResourceManager(resourceID);</div><div class="line">			&#125;</div><div class="line">		&#125;);</div><div class="line">		return new TaskExecutorRegistrationSuccess(</div><div class="line">			registration.getInstanceID(),</div><div class="line">			resourceId,</div><div class="line">			resourceManagerConfiguration.getHeartbeatInterval().toMilliseconds(),</div><div class="line">			clusterInformation);</div><div class="line">	&#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
 <p>ResourceManager注册主要做了如下事情:</p>
+<ol>
+<li>从taskExecutors中删除旧的通信管道。</li>
+<li>跑到YarnResourceManager.workerStarted()里面, 从JM端根据获取当初yarn分配的Container。</li>
+<li>向taskExecutors添加新产生的管道WorkerRegistration。管道里包含TaskExecutorGateway的代理, 其中handler为AkkaInvocationHandler, 且包含连接JobManager的ActorRef。</li>
+<li>对连接的TM添加监控。然后相应TM。<h2 id="TM接收到JM响应"><a href="#TM接收到JM响应" class="headerlink" title="TM接收到JM响应"></a>TM接收到JM响应</h2>当TM接收到JM响应, 就会回调之前定义的TaskExecutorToResourceManagerConnection.onRegistrationSuccess()。<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div></pre></td><td class="code"><pre><div class="line">private void establishResourceManagerConnection(</div><div class="line">		ResourceManagerGateway resourceManagerGateway,</div><div class="line">		ResourceID resourceManagerResourceId,</div><div class="line">		InstanceID taskExecutorRegistrationId,</div><div class="line">		ClusterInformation clusterInformation) &#123;</div><div class="line">	// TM向JM会报本地slot的情况, 供JM来分配给申请者。</div><div class="line">	final CompletableFuture&lt;Acknowledge&gt; slotReportResponseFuture = resourceManagerGateway.sendSlotReport(</div><div class="line">		getResourceID(),</div><div class="line">		taskExecutorRegistrationId,</div><div class="line">		taskSlotTable.createSlotReport(getResourceID()),</div><div class="line">		taskManagerConfiguration.getTimeout());</div><div class="line">	// monitor the resource manager as heartbeat target</div><div class="line">	resourceManagerHeartbeatManager.monitorTarget(resourceManagerResourceId, new HeartbeatTarget&lt;SlotReport&gt;() &#123;</div><div class="line">		@Override</div><div class="line">		public void receiveHeartbeat(ResourceID resourceID, SlotReport slotReport) &#123;</div><div class="line">			resourceManagerGateway.heartbeatFromTaskManager(resourceID, slotReport);</div><div class="line">		&#125;</div><div class="line">		@Override</div><div class="line">		public void requestHeartbeat(ResourceID resourceID, SlotReport slotReport) &#123;</div><div class="line">			// the TaskManager won&apos;t send heartbeat requests to the ResourceManager</div><div class="line">		&#125;</div><div class="line">	&#125;);</div><div class="line">	// set the propagated blob server address</div><div class="line">	final InetSocketAddress blobServerAddress = new InetSocketAddress(</div><div class="line">		clusterInformation.getBlobServerHostname(),</div><div class="line">		clusterInformation.getBlobServerPort());</div><div class="line">	blobCacheService.setBlobServerAddress(blobServerAddress);</div><div class="line">	establishedResourceManagerConnection = new EstablishedResourceManagerConnection(</div><div class="line">		resourceManagerGateway,</div><div class="line">		resourceManagerResourceId,</div><div class="line">		taskExecutorRegistrationId);</div><div class="line">	stopRegistrationTimeout();</div><div class="line">&#125;</div></pre></td></tr></table></figure></li>
+</ol>
 
       
 
@@ -359,7 +381,7 @@
                 </span>
                 <span class="tooltip-content">
                     <div class="toc-article">
-                    <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#Akka基础学习"><span class="toc-number">1.</span> <span class="toc-text">Akka基础学习</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#Akka-RPC通信过程"><span class="toc-number">2.</span> <span class="toc-text">Akka RPC通信过程</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#AkkaRpcService和RpcServer"><span class="toc-number">2.1.</span> <span class="toc-text">AkkaRpcService和RpcServer</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#TM向JM注册"><span class="toc-number">3.</span> <span class="toc-text">TM向JM注册</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#构建远程RPC调用的角色及代理"><span class="toc-number">3.1.</span> <span class="toc-text">构建远程RPC调用的角色及代理</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#TM向JM远程RPC注册"><span class="toc-number">3.2.</span> <span class="toc-text">TM向JM远程RPC注册</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#远程ResourceManager接收到请求"><span class="toc-number">3.3.</span> <span class="toc-text">远程ResourceManager接收到请求</span></a></li></ol></li></ol>
+                    <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#Akka基础学习"><span class="toc-number">1.</span> <span class="toc-text">Akka基础学习</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#Akka-RPC通信过程"><span class="toc-number">2.</span> <span class="toc-text">Akka RPC通信过程</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#AkkaRpcService和RpcServer"><span class="toc-number">2.1.</span> <span class="toc-text">AkkaRpcService和RpcServer</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#TM向JM注册"><span class="toc-number">3.</span> <span class="toc-text">TM向JM注册</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#构建远程RPC调用的角色及代理"><span class="toc-number">3.1.</span> <span class="toc-text">构建远程RPC调用的角色及代理</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#TM向JM远程RPC注册"><span class="toc-number">3.2.</span> <span class="toc-text">TM向JM远程RPC注册</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#远程ResourceManager接收到请求"><span class="toc-number">3.3.</span> <span class="toc-text">远程ResourceManager接收到请求</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#TM接收到JM响应"><span class="toc-number">3.4.</span> <span class="toc-text">TM接收到JM响应</span></a></li></ol></li></ol>
                     </div>
                 </span>
             </div>
@@ -384,7 +406,7 @@
 <script src="//www.wenjunjiang.win/js/gitment.js "></script>
 <script>
 var gitment = new Gitment({
-  id: "Flink原理-Akka通信模块详解",
+  id: "Flink原理-Akka通信模块详解&amp;TaskManager注册",
   owner: 'kkewwei',
   repo: 'comments',
   oauth: {
@@ -506,6 +528,10 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
           <ul class="article-tag-list" q-show="showTags">
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">Flink、Slot分配、SubTask申请slot, SubTask部署</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">LockSupport</a>
               </li>
              
@@ -530,11 +556,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
+                <a href="javascript:void(0)" class="js-tag color4">gdb</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">gdb</a>
+                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
               </li>
              
               <li class="article-tag-list-item">
