@@ -19,7 +19,7 @@
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/Flink_Graph.png">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/Flink_slot_allocate.png">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/Flink_slot_allocate1.png">
-<meta property="og:updated_time" content="2019-06-05T16:40:02.000Z">
+<meta property="og:updated_time" content="2019-06-05T17:00:05.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Flink原理-SubTask申请slot及部署">
 <meta name="twitter:description" content="本文将从ExecutionGraph开始向后讲起, ExecutionGraph定义了Job的并发逻辑结构, 作为任务执行的以后一层逻辑结构, 也是最核心数据结构。为了让大家有全局的了解, 先盗一张广为引用的Graph转换图:具体来说, 本文讲述subTask申请slot以及, 部署到TaskManager上的过程。 Task分配及部署代码将从ExecutionGraph.scheduleExec">
@@ -275,7 +275,7 @@
 <p>可以看到:</p>
 <ul>
 <li>首先生成TaskDeploymentDescriptor, 包含部署subTask的所有信息。</li>
-<li>调用taskManagerGateway.submitTask(deployment, rpcTimeout)进行部署subTask, JM接收RPC可参考:<a href="https://ci.apache.org/projects/flink/flink-docs-release-1.8/concepts/runtime.html#task-slots-and-resources" target="_blank" rel="external">如何共享slot</a> 。<br>TaskManager端通过TaskExecutor.subTask()接受到JobManager发出的部署SubTask的申请, 这样就完成SubTask部署了。</li>
+<li>调用taskManagerGateway.submitTask(deployment, rpcTimeout)进行部署subTask, JM接收RPC可参考:<a href="https://kkewwei.github.io/elasticsearch_learning/2019/04/20/Flink%E5%8E%9F%E7%90%86-Akka%E9%80%9A%E4%BF%A1%E6%A8%A1%E5%9D%97/">link原理-Akka通信原理</a> 。<br>TaskManager端通过TaskExecutor.subTask()接受到JobManager发出的部署SubTask的申请, 这样就完成SubTask部署了。</li>
 </ul>
 <h1 id="SlotSharingGroup及共享slot"><a href="#SlotSharingGroup及共享slot" class="headerlink" title="SlotSharingGroup及共享slot"></a>SlotSharingGroup及共享slot</h1><p>Flink 允许相同SlotSharingGroup的subTask共享同一个slot, 好处主要有俩:</p>
 <ul>
@@ -449,21 +449,22 @@
   
 
   
-  <div id="gitment-ctn"></div> 
+  <div id="gitment-ctn"></div>
 <link rel="stylesheet" href="//imsun.github.io/gitment/style/default.css">
-<script src="//imsun.github.io/gitment/dist/gitment.browser.js"></script>
+<script src="//www.wenjunjiang.win/js/gitment.js "></script>
 <script>
 var gitment = new Gitment({
-  id: "<%=url%>",
-  owner: '<%=theme.gitment_owner%>',
-  repo: '<%=theme.gitment_repo%>',
+  id: "Flink原理-SubTask申请slot及部署",
+  owner: 'kkewwei',
+  repo: 'comments',
   oauth: {
-    client_id: '<%=theme.gitment_oauth.client_id%>',
-    client_secret: '<%=theme.gitment_oauth.client_secret%>',
+    client_id: '9391e497d6b288887f33',
+    client_secret: 'db733731bff4ee2811d9530b1ac4cfc6767e8183',
   },
 })
 gitment.render('gitment-ctn')
 </script>
+
   
 
 
@@ -591,11 +592,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">ReentrantLock</a>
+                <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
+                <a href="javascript:void(0)" class="js-tag color4">ReentrantLock</a>
               </li>
              
               <li class="article-tag-list-item">
