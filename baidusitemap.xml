@@ -4,6 +4,38 @@
 
     
   <url>
+    <loc>https://kkewwei.github.io/elasticsearch_learning/elasticsearch_learning/2019/03/12/Flink%E5%8E%9F%E7%90%86-slot%E5%88%86%E9%85%8D/</loc>
+    <lastmod>2019-06-06T17:56:48.000Z</lastmod>
+    <data>
+        <display>
+        <title>Flink原理-JobManager端的SubTask申请slot及部署</title>
+        <pubTime>2019-03-12T12:04:11.000Z</pubTime>
+        
+        <tag>Flink、Slot分配、SubTask申请slot, SubTask部署</tag>
+         
+         
+           
+        </display>
+    </data>
+    </url>
+
+    
+  <url>
+    <loc>https://kkewwei.github.io/elasticsearch_learning/elasticsearch_learning/2019/04/03/Flink%E5%8E%9F%E7%90%86-TaskManager%E5%A4%84%E7%90%86SubTask/</loc>
+    <lastmod>2019-06-06T14:20:10.000Z</lastmod>
+    <data>
+        <display>
+        <title>Flink原理-TaskManager处理SubTask</title>
+        <pubTime>2019-04-03T04:10:04.000Z</pubTime>
+        
+         
+           
+        </display>
+    </data>
+    </url>
+
+    
+  <url>
     <loc>https://kkewwei.github.io/elasticsearch_learning/elasticsearch_learning/2019/04/20/Flink%E5%8E%9F%E7%90%86-Akka%E9%80%9A%E4%BF%A1%E6%A8%A1%E5%9D%97/</loc>
     <lastmod>2019-06-06T01:22:24.000Z</lastmod>
     <data>
@@ -19,15 +51,13 @@
 
     
   <url>
-    <loc>https://kkewwei.github.io/elasticsearch_learning/elasticsearch_learning/2019/03/12/Flink%E5%8E%9F%E7%90%86-slot%E5%88%86%E9%85%8D/</loc>
-    <lastmod>2019-06-05T17:00:05.000Z</lastmod>
+    <loc>https://kkewwei.github.io/elasticsearch_learning/elasticsearch_learning/2018/07/14/Netty-PoolThreadCache%E6%BA%90%E7%A0%81%E6%8E%A2%E7%A9%B6/</loc>
+    <lastmod>2019-06-05T16:38:03.000Z</lastmod>
     <data>
         <display>
-        <title>Flink原理-SubTask申请slot及部署</title>
-        <pubTime>2019-03-12T12:04:11.000Z</pubTime>
+        <title>Netty PoolThreadCache原理探究</title>
+        <pubTime>2018-07-14T11:04:06.000Z</pubTime>
         
-        <tag>Flink、Slot分配、SubTask申请slot, SubTask部署</tag>
-         
          
            
         </display>
@@ -42,36 +72,6 @@
         <display>
         <title>Netty PoolChunk原理探究</title>
         <pubTime>2018-07-20T10:48:20.000Z</pubTime>
-        
-         
-           
-        </display>
-    </data>
-    </url>
-
-    
-  <url>
-    <loc>https://kkewwei.github.io/elasticsearch_learning/elasticsearch_learning/2017/06/15/JAVA-JNI%E5%AE%9E%E7%8E%B0hello-world/</loc>
-    <lastmod>2019-06-05T16:38:03.000Z</lastmod>
-    <data>
-        <display>
-        <title>JAVA JNI实现hello world</title>
-        <pubTime>2017-06-15T10:15:08.000Z</pubTime>
-        
-         
-           
-        </display>
-    </data>
-    </url>
-
-    
-  <url>
-    <loc>https://kkewwei.github.io/elasticsearch_learning/elasticsearch_learning/2018/07/22/Netty-PoolSubpage%E5%8E%9F%E7%90%86%E6%8E%A2%E7%A9%B6/</loc>
-    <lastmod>2019-06-05T16:38:03.000Z</lastmod>
-    <data>
-        <display>
-        <title>Netty-PoolSubpage原理探究</title>
-        <pubTime>2018-07-21T17:02:45.000Z</pubTime>
         
          
            
@@ -143,46 +143,12 @@
 
     
   <url>
-    <loc>https://kkewwei.github.io/elasticsearch_learning/elasticsearch_learning/2016/12/20/gdb%E8%B0%83%E8%AF%95java%E5%9F%BA%E6%9C%AC%E7%94%A8%E6%B3%95/</loc>
+    <loc>https://kkewwei.github.io/elasticsearch_learning/elasticsearch_learning/2018/07/22/Netty-PoolSubpage%E5%8E%9F%E7%90%86%E6%8E%A2%E7%A9%B6/</loc>
     <lastmod>2019-06-05T16:38:03.000Z</lastmod>
     <data>
         <display>
-        <title>gdb调试java基本用法</title>
-        <pubTime>2016-12-20T07:56:11.000Z</pubTime>
-        
-        <tag>gdb</tag>
-         
-         
-           
-        </display>
-    </data>
-    </url>
-
-    
-  <url>
-    <loc>https://kkewwei.github.io/elasticsearch_learning/elasticsearch_learning/2017/03/08/git-%E5%9F%BA%E6%9C%AC%E5%91%BD%E4%BB%A4%E5%AD%A6%E4%B9%A0%E5%BF%83%E5%BE%97/</loc>
-    <lastmod>2019-06-05T16:38:03.000Z</lastmod>
-    <data>
-        <display>
-        <title>git 基本命令学习心得-1</title>
-        <pubTime>2017-03-08T04:46:57.000Z</pubTime>
-        
-        <tag>git, rebase, cherry-pick, reset, checkout</tag>
-         
-         
-           
-        </display>
-    </data>
-    </url>
-
-    
-  <url>
-    <loc>https://kkewwei.github.io/elasticsearch_learning/elasticsearch_learning/2018/07/14/Netty-PoolThreadCache%E6%BA%90%E7%A0%81%E6%8E%A2%E7%A9%B6/</loc>
-    <lastmod>2019-06-05T16:38:03.000Z</lastmod>
-    <data>
-        <display>
-        <title>Netty PoolThreadCache原理探究</title>
-        <pubTime>2018-07-14T11:04:06.000Z</pubTime>
+        <title>Netty-PoolSubpage原理探究</title>
+        <pubTime>2018-07-21T17:02:45.000Z</pubTime>
         
          
            
@@ -192,12 +158,29 @@
 
     
   <url>
-    <loc>https://kkewwei.github.io/elasticsearch_learning/elasticsearch_learning/2019/01/12/Netty%E5%86%85%E5%AD%98%E5%9B%9E%E6%94%B6%E5%8E%9F%E7%90%86%E8%A7%A3%E8%AF%BB/</loc>
+    <loc>https://kkewwei.github.io/elasticsearch_learning/elasticsearch_learning/2018/01/14/ServerBootstrap%E5%88%9D%E5%A7%8B%E7%AF%87/</loc>
     <lastmod>2019-06-05T16:38:03.000Z</lastmod>
     <data>
         <display>
-        <title>Netty堆外内存回收原理详解</title>
-        <pubTime>2019-01-12T07:22:41.000Z</pubTime>
+        <title>ServerBootstrap初始篇</title>
+        <pubTime>2018-01-14T10:32:43.000Z</pubTime>
+        
+        <tag>netty4, ServerBootstrap, Initiale</tag>
+         
+         
+           
+        </display>
+    </data>
+    </url>
+
+    
+  <url>
+    <loc>https://kkewwei.github.io/elasticsearch_learning/elasticsearch_learning/2017/06/15/JAVA-JNI%E5%AE%9E%E7%8E%B0hello-world/</loc>
+    <lastmod>2019-06-05T16:38:03.000Z</lastmod>
+    <data>
+        <display>
+        <title>JAVA JNI实现hello world</title>
+        <pubTime>2017-06-15T10:15:08.000Z</pubTime>
         
          
            
@@ -224,6 +207,21 @@
 
     
   <url>
+    <loc>https://kkewwei.github.io/elasticsearch_learning/elasticsearch_learning/2019/01/12/Netty%E5%86%85%E5%AD%98%E5%9B%9E%E6%94%B6%E5%8E%9F%E7%90%86%E8%A7%A3%E8%AF%BB/</loc>
+    <lastmod>2019-06-05T16:38:03.000Z</lastmod>
+    <data>
+        <display>
+        <title>Netty堆外内存回收原理详解</title>
+        <pubTime>2019-01-12T07:22:41.000Z</pubTime>
+        
+         
+           
+        </display>
+    </data>
+    </url>
+
+    
+  <url>
     <loc>https://kkewwei.github.io/elasticsearch_learning/elasticsearch_learning/2019/01/16/Netty%E5%AF%B9%E8%B1%A1%E5%9B%9E%E6%94%B6%E6%B1%A0Recycler%E5%8E%9F%E7%90%86%E8%AF%A6%E8%A7%A3/</loc>
     <lastmod>2019-06-05T16:38:03.000Z</lastmod>
     <data>
@@ -232,38 +230,6 @@
         <pubTime>2019-01-16T01:09:39.000Z</pubTime>
         
         <tag>Cycler</tag>
-         
-         
-           
-        </display>
-    </data>
-    </url>
-
-    
-  <url>
-    <loc>https://kkewwei.github.io/elasticsearch_learning/elasticsearch_learning/2018/03/25/Netty%E9%80%9A%E4%BF%A1%E7%BC%96%E8%A7%A3%E7%A0%81%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB/</loc>
-    <lastmod>2019-06-05T16:38:03.000Z</lastmod>
-    <data>
-        <display>
-        <title>Netty Thrift方式通信编解码源码解读</title>
-        <pubTime>2018-03-25T03:11:12.000Z</pubTime>
-        
-         
-           
-        </display>
-    </data>
-    </url>
-
-    
-  <url>
-    <loc>https://kkewwei.github.io/elasticsearch_learning/elasticsearch_learning/2018/01/22/NioEventLoop%E7%AF%87/</loc>
-    <lastmod>2019-06-05T16:38:03.000Z</lastmod>
-    <data>
-        <display>
-        <title>NioEventLoop篇</title>
-        <pubTime>2018-01-22T00:53:40.000Z</pubTime>
-        
-        <tag>NioEventLoop</tag>
          
          
            
@@ -290,21 +256,6 @@
 
     
   <url>
-    <loc>https://kkewwei.github.io/elasticsearch_learning/elasticsearch_learning/2017/07/28/ReentrantReadWriteLock%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB/</loc>
-    <lastmod>2019-06-05T16:38:03.000Z</lastmod>
-    <data>
-        <display>
-        <title>ReentrantReadWriteLock源码解读</title>
-        <pubTime>2017-07-27T22:18:19.000Z</pubTime>
-        
-         
-           
-        </display>
-    </data>
-    </url>
-
-    
-  <url>
     <loc>https://kkewwei.github.io/elasticsearch_learning/elasticsearch_learning/2017/08/15/Semaphore%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB/</loc>
     <lastmod>2019-06-05T16:38:03.000Z</lastmod>
     <data>
@@ -320,15 +271,126 @@
 
     
   <url>
-    <loc>https://kkewwei.github.io/elasticsearch_learning/elasticsearch_learning/2018/01/14/ServerBootstrap%E5%88%9D%E5%A7%8B%E7%AF%87/</loc>
+    <loc>https://kkewwei.github.io/elasticsearch_learning/elasticsearch_learning/2018/01/22/NioEventLoop%E7%AF%87/</loc>
     <lastmod>2019-06-05T16:38:03.000Z</lastmod>
     <data>
         <display>
-        <title>ServerBootstrap初始篇</title>
-        <pubTime>2018-01-14T10:32:43.000Z</pubTime>
+        <title>NioEventLoop篇</title>
+        <pubTime>2018-01-22T00:53:40.000Z</pubTime>
         
-        <tag>netty4, ServerBootstrap, Initiale</tag>
+        <tag>NioEventLoop</tag>
          
+         
+           
+        </display>
+    </data>
+    </url>
+
+    
+  <url>
+    <loc>https://kkewwei.github.io/elasticsearch_learning/elasticsearch_learning/2017/03/08/git-%E5%9F%BA%E6%9C%AC%E5%91%BD%E4%BB%A4%E5%AD%A6%E4%B9%A0%E5%BF%83%E5%BE%97/</loc>
+    <lastmod>2019-06-05T16:38:03.000Z</lastmod>
+    <data>
+        <display>
+        <title>git 基本命令学习心得-1</title>
+        <pubTime>2017-03-08T04:46:57.000Z</pubTime>
+        
+        <tag>git, rebase, cherry-pick, reset, checkout</tag>
+         
+         
+           
+        </display>
+    </data>
+    </url>
+
+    
+  <url>
+    <loc>https://kkewwei.github.io/elasticsearch_learning/elasticsearch_learning/2017/07/28/ReentrantReadWriteLock%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB/</loc>
+    <lastmod>2019-06-05T16:38:03.000Z</lastmod>
+    <data>
+        <display>
+        <title>ReentrantReadWriteLock源码解读</title>
+        <pubTime>2017-07-27T22:18:19.000Z</pubTime>
+        
+         
+           
+        </display>
+    </data>
+    </url>
+
+    
+  <url>
+    <loc>https://kkewwei.github.io/elasticsearch_learning/elasticsearch_learning/2018/03/25/Netty%E9%80%9A%E4%BF%A1%E7%BC%96%E8%A7%A3%E7%A0%81%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB/</loc>
+    <lastmod>2019-06-05T16:38:03.000Z</lastmod>
+    <data>
+        <display>
+        <title>Netty Thrift方式通信编解码源码解读</title>
+        <pubTime>2018-03-25T03:11:12.000Z</pubTime>
+        
+         
+           
+        </display>
+    </data>
+    </url>
+
+    
+  <url>
+    <loc>https://kkewwei.github.io/elasticsearch_learning/elasticsearch_learning/2016/12/20/gdb%E8%B0%83%E8%AF%95java%E5%9F%BA%E6%9C%AC%E7%94%A8%E6%B3%95/</loc>
+    <lastmod>2019-06-05T16:38:03.000Z</lastmod>
+    <data>
+        <display>
+        <title>gdb调试java基本用法</title>
+        <pubTime>2016-12-20T07:56:11.000Z</pubTime>
+        
+        <tag>gdb</tag>
+         
+         
+           
+        </display>
+    </data>
+    </url>
+
+    
+  <url>
+    <loc>https://kkewwei.github.io/elasticsearch_learning/elasticsearch_learning/2017/08/24/CountDownLatch%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB/</loc>
+    <lastmod>2019-06-05T16:24:17.000Z</lastmod>
+    <data>
+        <display>
+        <title>CountDownLatch源码分析</title>
+        <pubTime>2017-08-24T08:47:06.000Z</pubTime>
+        
+         
+           
+        </display>
+    </data>
+    </url>
+
+    
+  <url>
+    <loc>https://kkewwei.github.io/elasticsearch_learning/elasticsearch_learning/2016/12/15/jvm%E5%86%85%E5%AD%98%E6%B3%84%E9%9C%B2%E6%8E%92%E6%9F%A5%E5%B7%A5%E5%85%B7/</loc>
+    <lastmod>2019-06-05T16:24:17.000Z</lastmod>
+    <data>
+        <display>
+        <title>jvm内存泄露排查工具</title>
+        <pubTime>2016-12-15T13:12:10.000Z</pubTime>
+        
+        <tag>perftools、jcmd、pmap</tag>
+         
+         
+           
+        </display>
+    </data>
+    </url>
+
+    
+  <url>
+    <loc>https://kkewwei.github.io/elasticsearch_learning/elasticsearch_learning/2017/09/17/copyOnWriteArrayListy%E5%8E%9F%E7%90%86%E8%A7%A3%E8%AF%BB/</loc>
+    <lastmod>2019-06-05T16:24:17.000Z</lastmod>
+    <data>
+        <display>
+        <title>CopyOnWriteArrayList原理分析</title>
+        <pubTime>2017-09-17T02:14:15.000Z</pubTime>
+        
          
            
         </display>
@@ -367,36 +429,6 @@
 
     
   <url>
-    <loc>https://kkewwei.github.io/elasticsearch_learning/elasticsearch_learning/2017/08/24/CountDownLatch%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB/</loc>
-    <lastmod>2019-06-05T16:24:17.000Z</lastmod>
-    <data>
-        <display>
-        <title>CountDownLatch源码分析</title>
-        <pubTime>2017-08-24T08:47:06.000Z</pubTime>
-        
-         
-           
-        </display>
-    </data>
-    </url>
-
-    
-  <url>
-    <loc>https://kkewwei.github.io/elasticsearch_learning/elasticsearch_learning/2017/11/06/ConcurrentHashMap%E7%BA%A2%E9%BB%91%E6%A0%91%E5%8E%9F%E7%90%86%E4%BB%8B%E7%BB%8D/</loc>
-    <lastmod>2019-06-05T16:24:17.000Z</lastmod>
-    <data>
-        <display>
-        <title>ConcurrentHashMap红黑树原理介绍</title>
-        <pubTime>2017-11-06T09:48:34.000Z</pubTime>
-        
-         
-           
-        </display>
-    </data>
-    </url>
-
-    
-  <url>
     <loc>https://kkewwei.github.io/elasticsearch_learning/elasticsearch_learning/2018/07/27/DirectByteBuffer%E5%A0%86%E5%A4%96%E5%86%85%E5%AD%98%E8%AF%A6%E8%A7%A3/</loc>
     <lastmod>2019-06-05T16:24:17.000Z</lastmod>
     <data>
@@ -404,23 +436,6 @@
         <title>DirectByteBuffer堆外内存详解</title>
         <pubTime>2018-07-27T08:33:58.000Z</pubTime>
         
-         
-           
-        </display>
-    </data>
-    </url>
-
-    
-  <url>
-    <loc>https://kkewwei.github.io/elasticsearch_learning/elasticsearch_learning/2016/12/15/jvm%E5%86%85%E5%AD%98%E6%B3%84%E9%9C%B2%E6%8E%92%E6%9F%A5%E5%B7%A5%E5%85%B7/</loc>
-    <lastmod>2019-06-05T16:24:17.000Z</lastmod>
-    <data>
-        <display>
-        <title>jvm内存泄露排查工具</title>
-        <pubTime>2016-12-15T13:12:10.000Z</pubTime>
-        
-        <tag>perftools、jcmd、pmap</tag>
-         
          
            
         </display>
@@ -444,12 +459,12 @@
 
     
   <url>
-    <loc>https://kkewwei.github.io/elasticsearch_learning/elasticsearch_learning/2017/09/17/copyOnWriteArrayListy%E5%8E%9F%E7%90%86%E8%A7%A3%E8%AF%BB/</loc>
+    <loc>https://kkewwei.github.io/elasticsearch_learning/elasticsearch_learning/2017/11/06/ConcurrentHashMap%E7%BA%A2%E9%BB%91%E6%A0%91%E5%8E%9F%E7%90%86%E4%BB%8B%E7%BB%8D/</loc>
     <lastmod>2019-06-05T16:24:17.000Z</lastmod>
     <data>
         <display>
-        <title>CopyOnWriteArrayList原理分析</title>
-        <pubTime>2017-09-17T02:14:15.000Z</pubTime>
+        <title>ConcurrentHashMap红黑树原理介绍</title>
+        <pubTime>2017-11-06T09:48:34.000Z</pubTime>
         
          
            
@@ -480,21 +495,6 @@
         <display>
         <title>ES索引创建流程</title>
         <pubTime>2017-12-17T15:25:54.000Z</pubTime>
-        
-         
-           
-        </display>
-    </data>
-    </url>
-
-    
-  <url>
-    <loc>https://kkewwei.github.io/elasticsearch_learning/elasticsearch_learning/2019/04/03/Flink%E5%8E%9F%E7%90%86-TaskManager%E5%A4%84%E7%90%86SubTask/</loc>
-    <lastmod>2019-06-03T11:05:46.000Z</lastmod>
-    <data>
-        <display>
-        <title>Flink原理-TaskManager处理SubTask</title>
-        <pubTime>2019-04-03T04:10:04.000Z</pubTime>
         
          
            
