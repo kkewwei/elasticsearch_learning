@@ -19,7 +19,7 @@
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/Flink_Graph.png">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/Flink_slot_allocate.png">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/Flink_slot_allocate1.png">
-<meta property="og:updated_time" content="2019-06-06T17:56:48.000Z">
+<meta property="og:updated_time" content="2019-06-06T18:03:36.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Flink原理-JobManager端的SubTask申请slot及部署">
 <meta name="twitter:description" content="本文将从ExecutionGraph开始向后讲起, ExecutionGraph定义了Job的并发逻辑结构, 作为任务执行的以后一层逻辑结构, 也是最核心数据结构。为了让大家有全局的了解, 先盗一张广为引用的Graph转换图:具体来说, 本文讲述在JobManager端subTask申请slot以及部署到TaskManager上的过程。 Task分配slot及部署代码将从ExecutionGrap">
@@ -47,55 +47,39 @@
   <div id="container" q-class="show:isCtnShow">
     <canvas id="anm-canvas" class="anm-canvas"></canvas>
     <div class="left-col" q-class="show:isShow">
-      
-<div class="overlay" style="background: #4d4d4d"></div>
+      <% var defaultBg = '#4d4d4d'; %>
+<div class="overlay" style="background: <%= theme.style && theme.style.header ? theme.style.header : defaultBg %>"></div>
 <div class="intrude-less">
 	<header id="header" class="inner">
-		<a href="/" class="profilepic">
-      <img src="https://kkewwei.github.io/elasticsearch_learning/img/myself.png" class="js-avatar">
+		<a href="<%=theme.root%>" class="profilepic">
+			<img src="<%=theme.avatar%>" class="js-avatar">
 		</a>
 		<hgroup>
-		  <h1 class="header-author"><a href="/">xiaoyu</a></h1>
+		  <h1 class="header-author"><a href="<%=theme.root%>"><%=theme.author%></a></h1>
 		</hgroup>
-		
-		<p class="header-subtitle">往事随风</p>
-		
+		<% if (theme.subtitle){ %>
+		<p class="header-subtitle"><%=theme.subtitle%></p>
+		<%}%>
 
 		<nav class="header-menu">
 			<ul>
-			
-				<li><a href="/elasticsearch_learning/">主页</a></li>
-	        
-				<li><a href="/elasticsearch_learning/tags/随笔/">随笔</a></li>
-	        
+			<% for (var i in theme.menu){ %>
+				<li><a href="<%- url_for(theme.menu[i]) %>"><%= i %></a></li>
+	        <%}%>
 			</ul>
 		</nav>
 		<nav class="header-smart-menu">
-    		
-    			
-    			<a q-on="click: openSlider(e, 'innerArchive')" href="javascript:void(0)">所有文章</a>
-    			
-            
-    			
-    			<a q-on="click: openSlider(e, 'friends')" href="javascript:void(0)">友链</a>
-    			
-            
-    			
-    			<a q-on="click: openSlider(e, 'aboutme')" href="javascript:void(0)">关于我</a>
-    			
-            
+    		<% for (var i in theme.smart_menu){ %>
+    			<% if(theme.smart_menu[i]){ %>
+    			<a q-on="click: openSlider(e, '<%-i%>')" href="javascript:void(0)"><%= theme.smart_menu[i] %></a>
+    			<% } %>
+            <%}%>
 		</nav>
 		<nav class="header-nav">
 			<div class="social">
-				
-					<a class="github" target="_blank" href="#" title="github"><i class="icon-github"></i></a>
-		        
-					<a class="weibo" target="_blank" href="#" title="weibo"><i class="icon-weibo"></i></a>
-		        
-					<a class="rss" target="_blank" href="#" title="rss"><i class="icon-rss"></i></a>
-		        
-					<a class="zhihu" target="_blank" href="#" title="zhihu"><i class="icon-zhihu"></i></a>
-		        
+				<% for (var i in theme.subnav){ %>
+					<a class="<%= i %>" target="_blank" href="<%- url_for(theme.subnav[i]) %>" title="<%= i %>"><i class="icon-<%= i %>"></i></a>
+		        <%}%>
 			</div>
 		</nav>
 	</header>
@@ -277,7 +261,7 @@
 <li>TM调用jobLeaderService.addJob将这个Job监控起来(每当有新的Job请求slot, 就会去检测job的leader, 并去和这个job leader建立链接),最终调用JobManagerLeaderListener.notifyLeaderAddress()-&gt;JobManagerRegisteredRpcConnection.start():<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div></pre></td><td class="code"><pre><div class="line">   public void start() &#123;</div><div class="line">	checkState(!closed, &quot;The RPC connection is already closed&quot;);</div><div class="line">	checkState(!isConnected() &amp;&amp; pendingRegistration == null, &quot;The RPC connection is already started&quot;);</div><div class="line">	final RetryingRegistration&lt;F, G, S&gt; newRegistration = createNewRegistration();</div><div class="line">	if (REGISTRATION_UPDATER.compareAndSet(this, null, newRegistration)) &#123;</div><div class="line">		newRegistration.startRegistration();</div><div class="line">	&#125; else &#123;</div><div class="line">		// concurrent start operation</div><div class="line">		newRegistration.cancel();</div><div class="line">	&#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
 </li>
 </ol>
-<p>这里是不是有点熟悉, 可以参考下<a href="https://kkewwei.github.io/elasticsearch_learning/2019/04/20/Flink%E5%8E%9F%E7%90%86-Akka%E9%80%9A%E4%BF%A1%E6%A8%A1%E5%9D%97/#TM%E5%90%91JM%E6%B3%A8%E5%86%8C">这里</a>, startRegistration主要是向JM发送申请成功通知, 成功后回调JobManagerRegisteredRpcConnection.onRegistrationSuccess, 最终调用TaskExecutor.establishJobManagerConnection:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div></pre></td><td class="code"><pre><div class="line">private void establishJobManagerConnection(JobID jobId, final JobMasterGateway jobMasterGateway, JMTMRegistrationSuccess registrationSuccess) &#123;</div><div class="line">	if (jobManagerTable.contains(jobId)) &#123;</div><div class="line">		JobManagerConnection oldJobManagerConnection = jobManagerTable.get(jobId);</div><div class="line"></div><div class="line">		if (Objects.equals(oldJobManagerConnection.getJobMasterId(), jobMasterGateway.getFencingToken())) &#123;</div><div class="line">			// we already are connected to the given job manager</div><div class="line">			log.debug(&quot;Ignore JobManager gained leadership message for &#123;&#125; because we are already connected to it.&quot;, jobMasterGateway.getFencingToken());</div><div class="line">			return;</div><div class="line">		&#125;</div><div class="line">	&#125;</div><div class="line">	ResourceID jobManagerResourceID = registrationSuccess.getResourceID();</div><div class="line">	JobManagerConnection newJobManagerConnection = associateWithJobManager(</div><div class="line">			jobId,</div><div class="line">			jobManagerResourceID,</div><div class="line">			jobMasterGateway);</div><div class="line">	jobManagerConnections.put(jobManagerResourceID, newJobManagerConnection);</div><div class="line">	jobManagerTable.put(jobId, newJobManagerConnection);  // 设置的是每个Job在TM这里的注册</div><div class="line"></div><div class="line">	// monitor the job manager as heartbeat target</div><div class="line">	jobManagerHeartbeatManager.monitorTarget(jobManagerResourceID, new HeartbeatTarget&lt;AccumulatorReport&gt;() &#123;</div><div class="line">		@Override</div><div class="line">		public void receiveHeartbeat(ResourceID resourceID, AccumulatorReport payload) &#123;</div><div class="line">			jobMasterGateway.heartbeatFromTaskManager(resourceID, payload);</div><div class="line">		&#125;</div><div class="line"></div><div class="line">		@Override</div><div class="line">		public void requestHeartbeat(ResourceID resourceID, AccumulatorReport payload) &#123;</div><div class="line">			// request heartbeat will never be called on the task manager side</div><div class="line">		&#125;</div><div class="line">	&#125;);</div><div class="line"></div><div class="line">	offerSlotsToJobManager(jobId);</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>这里是不是有点熟悉, 可以参考下<a href="https://kkewwei.github.io/elasticsearch_learning/2019/04/20/Flink%E5%8E%9F%E7%90%86-Akka%E9%80%9A%E4%BF%A1%E6%A8%A1%E5%9D%97/#TM%E5%90%91JM%E6%B3%A8%E5%86%8C">这里</a>, startRegistration主要是向JM发送申请成功通知, TM成功后回调JobManagerRegisteredRpcConnection.onRegistrationSuccess, 最终调用TaskExecutor.establishJobManagerConnection:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div></pre></td><td class="code"><pre><div class="line">private void establishJobManagerConnection(JobID jobId, final JobMasterGateway jobMasterGateway, JMTMRegistrationSuccess registrationSuccess) &#123;</div><div class="line">	if (jobManagerTable.contains(jobId)) &#123;</div><div class="line">		JobManagerConnection oldJobManagerConnection = jobManagerTable.get(jobId);</div><div class="line"></div><div class="line">		if (Objects.equals(oldJobManagerConnection.getJobMasterId(), jobMasterGateway.getFencingToken())) &#123;</div><div class="line">			// we already are connected to the given job manager</div><div class="line">			log.debug(&quot;Ignore JobManager gained leadership message for &#123;&#125; because we are already connected to it.&quot;, jobMasterGateway.getFencingToken());</div><div class="line">			return;</div><div class="line">		&#125;</div><div class="line">	&#125;</div><div class="line">	ResourceID jobManagerResourceID = registrationSuccess.getResourceID();</div><div class="line">	JobManagerConnection newJobManagerConnection = associateWithJobManager(</div><div class="line">			jobId,</div><div class="line">			jobManagerResourceID,</div><div class="line">			jobMasterGateway);</div><div class="line">	jobManagerConnections.put(jobManagerResourceID, newJobManagerConnection);</div><div class="line">	jobManagerTable.put(jobId, newJobManagerConnection);  // 设置的是每个Job在TM这里的注册</div><div class="line"></div><div class="line">	// monitor the job manager as heartbeat target</div><div class="line">	jobManagerHeartbeatManager.monitorTarget(jobManagerResourceID, new HeartbeatTarget&lt;AccumulatorReport&gt;() &#123;</div><div class="line">		@Override</div><div class="line">		public void receiveHeartbeat(ResourceID resourceID, AccumulatorReport payload) &#123;</div><div class="line">			jobMasterGateway.heartbeatFromTaskManager(resourceID, payload);</div><div class="line">		&#125;</div><div class="line"></div><div class="line">		@Override</div><div class="line">		public void requestHeartbeat(ResourceID resourceID, AccumulatorReport payload) &#123;</div><div class="line">			// request heartbeat will never be called on the task manager side</div><div class="line">		&#125;</div><div class="line">	&#125;);</div><div class="line"></div><div class="line">	offerSlotsToJobManager(jobId);</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
 <p>主要做了如下事情:</p>
 <ol>
 <li>检查这个job是否已经在TM端注册了, 若注册了, 那么就直接返回</li>
@@ -612,15 +596,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">ReentrantLock</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
+                <a href="javascript:void(0)" class="js-tag color4">ReentrantLock</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">netty4, ServerBootstrap, Initiale</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -628,7 +612,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">netty4, ServerBootstrap, Initiale</a>
+                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
               </li>
              
               <li class="article-tag-list-item">
