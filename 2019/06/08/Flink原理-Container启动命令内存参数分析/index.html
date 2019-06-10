@@ -6,18 +6,19 @@
   <meta name="renderer" content="webkit">
   <meta http-equiv="X-UA-Compatible" content="IE=edge" >
   <link rel="dns-prefetch" href="https://kkewwei.github.io/elasticsearch_learning">
-  <title>Tag: netty4, ServerBootstrap, Initiale | Hexo</title>
+  <title>Flink原理-Container启动命令内存参数分析 | Hexo</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
   <meta name="google-site-verification" content="sCUXxLczmZVJ1Fkt5jSJGE9xPpdVD25hYciudlUUVNQ" />
-  <meta name="description" content="无名小辈">
-<meta property="og:type" content="website">
-<meta property="og:title" content="Hexo">
-<meta property="og:url" content="https://kkewwei.github.io/elasticsearch_learning/tags/netty4-ServerBootstrap-Initiale/index.html">
+  <meta name="description" content="如下是flink on yarn启动的一个示例:1/bin/flink run -m yarn-cluster -yd -yjm 1024 -ys 2 -ytm 2048 clink-with-dependencies.jar  --topic_name topic1 --log_name --source_num 50  --sink_num 50 其中我们定义了JobManager的大小为10">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Flink原理-Container启动命令内存参数分析">
+<meta property="og:url" content="https://kkewwei.github.io/elasticsearch_learning/2019/06/08/Flink原理-Container启动命令内存参数分析/index.html">
 <meta property="og:site_name" content="Hexo">
-<meta property="og:description" content="无名小辈">
+<meta property="og:description" content="如下是flink on yarn启动的一个示例:1/bin/flink run -m yarn-cluster -yd -yjm 1024 -ys 2 -ytm 2048 clink-with-dependencies.jar  --topic_name topic1 --log_name --source_num 50  --sink_num 50 其中我们定义了JobManager的大小为10">
+<meta property="og:updated_time" content="2019-06-08T14:53:30.000Z">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="Hexo">
-<meta name="twitter:description" content="无名小辈">
+<meta name="twitter:title" content="Flink原理-Container启动命令内存参数分析">
+<meta name="twitter:description" content="如下是flink on yarn启动的一个示例:1/bin/flink run -m yarn-cluster -yd -yjm 1024 -ys 2 -ytm 2048 clink-with-dependencies.jar  --topic_name topic1 --log_name --source_num 50  --sink_num 50 其中我们定义了JobManager的大小为10">
   
     <link rel="alternative" href="/atom.xml" title="Hexo" type="application/atom+xml">
   
@@ -141,60 +142,219 @@
             <canvas data-colors="#eaeaea" data-sectionHeight="100" data-contentId="js-content" id="myCanvas1" class="anm-canvas"></canvas>
           </div>
           <div id="js-content" class="content-ll">
-            
-  
-  
+            <article id="post-Flink原理-Container启动命令内存参数分析" class="article article-type-post " itemscope itemprop="blogPost">
+  <div class="article-inner">
     
-    
-      
-      
-      <section class="archives-wrap">
-        <div class="archive-year-wrap">
-          <a href="/elasticsearch_learning/archives/2018" class="archive-year">2018</a>
-        </div>
-        <div class="archives">
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      	<div class="article-meta">
-	      	<a href="/elasticsearch_learning/2018/01/14/ServerBootstrap初始篇/" class="archive-article-date">
-  	<time datetime="2018-01-14T10:32:43.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2018-01-14</time>
-</a>
-        </div>
-    	 
+      <header class="article-header">
+        
   
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/elasticsearch_learning/2018/01/14/ServerBootstrap初始篇/">ServerBootstrap初始篇</a>
+    <h1 class="article-title" itemprop="name">
+      Flink原理-Container启动命令内存参数分析
     </h1>
   
 
-        <div class="article-info info-on-right">
-          
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color4">netty4, ServerBootstrap, Initiale</a>
-        		</li>
-      		
-		</ul>
-	</div>
+        
+        <a href="/elasticsearch_learning/2019/06/08/Flink原理-Container启动命令内存参数分析/" class="archive-article-date">
+  	<time datetime="2019-06-08T11:22:29.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2019-06-08</time>
+</a>
+        
+      </header>
+    
 
-          
+    <!-- 目录内容 -->
+    
+      <p class="show-toc-btn" id="show-toc-btn" onclick="showToc();" style="display:none">
+        <span class="btn-bg"></span>
+        <span class="btn-text">文章导航</span>
+      </p>
+	    <div id="toc-article" class="toc-article">
+	      <span id="toc-close" class="toc-close" title="隐藏导航" onclick="showBtn();">×</span>
+		      <strong class="toc-title">文章目录</strong>
+        <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#JobManager内存参数设置"><span class="toc-number">1.</span> <span class="toc-text">JobManager内存参数设置</span></a></li></ol>
+         </div>
+   <script type="text/javascript">
+	function showToc(){
+		var toc_article = document.getElementById("toc-article");
+		var show_toc_btn = document.getElementById("show-toc-btn");
+		toc_article.setAttribute("style","display:block");
+		show_toc_btn.setAttribute("style","display:none");
+		};
+	function showBtn(){
+		var toc_article = document.getElementById("toc-article");
+		var show_toc_btn = document.getElementById("show-toc-btn");
+		toc_article.setAttribute("style","display:none");
+		show_toc_btn.setAttribute("style","display:block");
+		};
+   </script>
+      
+    <!-- 目录内容结束 -->
 
+    <div class="article-entry" itemprop="articleBody">
+      
+        <p>如下是flink on yarn启动的一个示例:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">/bin/flink run -m yarn-cluster -yd -yjm 1024 -ys 2 -ytm 2048 clink-with-dependencies.jar  --topic_name topic1 --log_name --source_num 50  --sink_num 50</div></pre></td></tr></table></figure></p>
+<p>其中我们定义了JobManager的大小为1024M, TaskManager大小为2048M, 但是通过实际观察发现JobManager heap大小为424M, TaskManager heap memory大小为1304M, direct memory大小为744M , 参数值为啥是这个呢?</p>
+<h1 id="JobManager内存参数设置"><a href="#JobManager内存参数设置" class="headerlink" title="JobManager内存参数设置"></a>JobManager内存参数设置</h1><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">121390 YarnJobClusterEntrypoint -Xmx424m -Dlog.file=/opt/meituan/hadoop-flink/hadoop-2.7.1/logs/userlogs/application_1554212859057_0525/container_1554212859057_0525_01_000001/jobmanager.log -Dlogback.configurationFile=file:logback.xml -Dlog4j.configuration=file:log4j.properties</div></pre></td></tr></table></figure>
+<p>可以看到, JM内存设置与实际严重不符, 我们直接上代码找下原因吧。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line">```</div><div class="line">#  TaskManager内存参数设置</div></pre></td></tr></table></figure></p>
+<p>183863 YarnTaskExecutorRunner -Xms1304m -Xmx1304m -XX:MaxDirectMemorySize=744m -Dlog.file=/opt/meituan/hadoop-flink/hadoop-2.7.1/logs/userlogs/application_1554212859057_0525/container_1554212859057_0525_01_000003/taskmanager.log -Dlogback.configurationFile=file:./logback.xml -Dlog4j.configuration=file:./log4j.properties<br>```</p>
+
+      
+
+      
+        <div class="page-reward">
+          <a href="javascript:;" class="page-reward-btn tooltip-top">
+            <div class="tooltip tooltip-east">
+            <span class="tooltip-item">
+              赏
+            </span>
+            <span class="tooltip-content">
+              <span class="tooltip-text">
+                <span class="tooltip-inner">
+                  <p class="reward-p"><i class="icon icon-quo-left"></i>谢谢阅读<i class="icon icon-quo-right"></i></p>
+                  <div class="reward-box">
+                    
+                    
+                  </div>
+                </span>
+              </span>
+            </span>
+          </div>
+          </a>
         </div>
-        <div class="clearfix"></div>
-    </header>
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+      
+
+      
+
+      
+        
+<div class="share-btn share-icons tooltip-left">
+  <div class="tooltip tooltip-east">
+    <span class="tooltip-item">
+      <a href="javascript:;" class="share-sns share-outer">
+        <i class="icon icon-share"></i>
+      </a>
+    </span>
+    <span class="tooltip-content">
+      <div class="share-wrap">
+        <div class="share-icons">
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="icon icon-weibo"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="icon icon-weixin"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="icon icon-qq"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="icon icon-douban"></i>
+          </a>
+          <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a>
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="icon icon-facebook"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="icon icon-twitter"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="icon icon-google"></i>
+          </a>
+        </div>
+      </div>
+    </span>
+  </div>
+</div>
+
+<div class="page-modal wx-share js-wx-box">
+    <a class="close js-modal-close" href="javascript:;"><i class="icon icon-close"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//pan.baidu.com/share/qrcode?url=https://kkewwei.github.io/elasticsearch_learning/2019/06/08/Flink原理-Container启动命令内存参数分析/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div class="mask js-mask"></div>
+      
+      <div class="clearfix"></div>
+    </div>
   </div>
 </article>
+
+  
+<nav id="article-nav">
   
   
-    </div></section>
+    <a href="/elasticsearch_learning/2019/04/20/Flink原理-Akka通信模块/" id="article-nav-older" class="article-nav-link-wrap">
+      <div class="article-nav-title">Flink原理-Akka通信&amp;TaskManager注册</div>
+      <i class="icon-circle-right"></i>
+    </a>
+  
+</nav>
+
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+        <div class="toc-container tooltip-left">
+            <i class="icon-font icon-category"></i>
+            <div class="tooltip tooltip-east">
+                <span class="tooltip-item">
+                </span>
+                <span class="tooltip-content">
+                    <div class="toc-article">
+                    <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#JobManager内存参数设置"><span class="toc-number">1.</span> <span class="toc-text">JobManager内存参数设置</span></a></li></ol>
+                    </div>
+                </span>
+            </div>
+        </div>
+        
+    </div>
+</aside>
+
+
+
   
 
-    
+  
+
+  
+
+  
+
+  
+  <div id="gitment-ctn"></div>
+<link rel="stylesheet" href="//imsun.github.io/gitment/style/default.css">
+<script src="//www.wenjunjiang.win/js/gitment.js "></script>
+<script>
+var gitment = new Gitment({
+  id: "Flink原理-Container启动命令内存参数分析",
+  owner: 'kkewwei',
+  repo: 'comments',
+  oauth: {
+    client_id: '9391e497d6b288887f33',
+    client_secret: 'db733731bff4ee2811d9530b1ac4cfc6767e8183',
+  },
+})
+gitment.render('gitment-ctn')
+</script>
+
+  
 
 
           </div>
@@ -235,9 +395,9 @@
 	var yiliaConfig = {
 		mathjax: false,
 		isHome: false,
-		isPost: false,
+		isPost: true,
 		isArchive: false,
-		isTag: true,
+		isTag: false,
 		isCategory: false,
 		open_in_new: false,
 		toc_hide_index: true,

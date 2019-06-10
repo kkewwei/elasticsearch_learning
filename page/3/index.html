@@ -143,6 +143,92 @@
           <div id="js-content" class="content-ll">
             
   
+    <article id="post-ConcurrentHashMap红黑树原理介绍" class="article article-type-post  article-index" itemscope itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/elasticsearch_learning/2017/11/06/ConcurrentHashMap红黑树原理介绍/">ConcurrentHashMap红黑树原理介绍</a>
+    </h1>
+  
+
+        
+        <a href="/elasticsearch_learning/2017/11/06/ConcurrentHashMap红黑树原理介绍/" class="archive-article-date">
+  	<time datetime="2017-11-06T09:48:34.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-11-06</time>
+</a>
+        
+      </header>
+    
+
+    <!-- 目录内容 -->
+    
+    <!-- 目录内容结束 -->
+
+    <div class="article-entry" itemprop="articleBody">
+      
+        <p>为了加快ConcurrentHashMap查找数据的速度, 若链表长度过长, 会将链表转化为红黑树, 本文主要讲解相关知识。</p>
+<h1 id="红黑树介绍"><a href="#红黑树介绍" class="headerlink" title="红黑树介绍"></a>红黑树介绍</h1><p>一棵二叉查找树如果满足下面的红黑性质, 则为一棵红黑树:<br>1）每个节点或者是黑的，或者是红的。<br>2）根节点是黑的。<br>3）每个叶子节点（NIL）是黑的。 [注意：这里叶子节点，是指为空(NIL或NULL)的叶子节点！]<br>4）如果一个节点是红的，则它的两个儿子都是黑的。<br>5）对每个节点, 从该节点到其子孙节点的所有路径上包含相同数目的黑节点。<br>红黑树示例如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/ConcurrentHashMap3.png" height="300" width="350"></p>
+<h2 id="链表转化为红黑树"><a href="#链表转化为红黑树" class="headerlink" title="链表转化为红黑树"></a>链表转化为红黑树</h2><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div></pre></td><td class="code"><pre><div class="line">TreeBin(TreeNode&lt;K,V&gt; b) &#123;</div><div class="line">    super(TREEBIN, null, null, null);</div><div class="line">    this.first = b;</div><div class="line">    //设置前置节点</div><div class="line">    TreeNode&lt;K,V&gt; r = null;</div><div class="line">    for (TreeNode&lt;K,V&gt; x = b, next; x != null; x = next) &#123;</div><div class="line">        next = (TreeNode&lt;K,V&gt;)x.next;</div><div class="line">        x.left = x.right = null;</div><div class="line">        //初始化节点</div><div class="line">        if (r == null) &#123;</div><div class="line">            x.parent = null;</div><div class="line">            x.red = false;</div><div class="line">            r = x;</div><div class="line">        &#125;</div><div class="line">        else &#123;</div><div class="line">            K k = x.key;</div><div class="line">            int h = x.hash;</div><div class="line">            Class&lt;?&gt; kc = null;</div><div class="line">            //从根节点开始找到合适的地方存放</div><div class="line">            for (TreeNode&lt;K,V&gt; p = r;;) &#123;</div><div class="line">                int dir, ph;</div><div class="line">                K pk = p.key;</div><div class="line">                //左边</div><div class="line">                if ((ph = p.hash) &gt; h)</div><div class="line">                    dir = -1;</div><div class="line">                //右边</div><div class="line">                else if (ph &lt; h)</div><div class="line">                    dir = 1;</div><div class="line">                else if ((kc == null &amp;&amp; //继续比较，类名接口名、hash值等方面来比较</div><div class="line">                          (kc = comparableClassFor(k)) == null) ||</div><div class="line">                         (dir = compareComparables(kc, k, pk)) == 0)</div><div class="line">                    dir = tieBreakOrder(k, pk);</div><div class="line">                    TreeNode&lt;K,V&gt; xp = p;</div><div class="line">                if ((p = (dir &lt;= 0) ? p.left : p.right) == null) &#123; //判断是否找到头了，</div><div class="line">                    x.parent = xp;</div><div class="line">                    if (dir &lt;= 0)</div><div class="line">                        xp.left = x;</div><div class="line">                    else</div><div class="line">                        xp.right = x;</div><div class="line">                    //开始调整</div><div class="line">                    r = balanceInsertion(r, x);</div><div class="line">                    break;</div><div class="line">                &#125;</div><div class="line">            &#125;</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line">    this.root = r;</div><div class="line">    assert checkInvariants(root);</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>主要做了如下事情:</p>
+<ul>
+<li>初始化TreeBin节点, 设置其hash=TREEBIN(-2)</li>
+<li>设置first结点, 这个节点就是链表的头, 根据这个头, 可以遍历整个红黑树。</li>
+<li>根据first开始遍历红黑树, 针对每个节点hash值, 插入红黑树中合适的位置, 然后调整该二叉树以满足红黑色的要求(balanceInsertion)。<h2 id="红黑树插入后平衡balanceInsertion"><a href="#红黑树插入后平衡balanceInsertion" class="headerlink" title="红黑树插入后平衡balanceInsertion"></a>红黑树插入后平衡balanceInsertion</h2>插入的节点为红色, 而可能导致红黑树出现红色的节点子节点还是红色, 违反4)条, 以下是调整过程:<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div></pre></td><td class="code"><pre><div class="line">static &lt;K,V&gt; TreeNode&lt;K,V&gt; balanceInsertion(TreeNode&lt;K,V&gt; root, TreeNode&lt;K,V&gt; x) &#123;</div><div class="line">    x.red = true;//首先赋值头为red</div><div class="line">    for (TreeNode&lt;K,V&gt; xp, xpp, xppl, xppr;;) &#123;</div><div class="line">        if ((xp = x.parent) == null) &#123; //如果插入的是头结点</div><div class="line">            x.red = false; //那么可以直接退出</div><div class="line">            return x;</div><div class="line">        &#125;</div><div class="line">        else if (!xp.red || (xpp = xp.parent) == null) //xp是插入的x的par</div><div class="line">            //只有两层，x是红色不改变黑节点高度，只有par是red才需要调整（两个red不能相连）</div><div class="line">            return root;</div><div class="line">        if (xp == (xppl = xpp.left)) &#123; //父节点是左孩子</div><div class="line">            if ((xppr = xpp.right) != null &amp;&amp; xppr.red) &#123; //叔叔节点是红色的</div><div class="line">                xppr.red = false;</div><div class="line">                xp.red = false;</div><div class="line">                xpp.red = true;</div><div class="line">                x = xpp; //x节点上移到祖父节点</div><div class="line">            &#125;</div><div class="line">            else &#123;</div><div class="line">                //叔叔节点是黑色节点，x是右节点，那么移动到左边</div><div class="line">                if (x == xp.right) &#123;</div><div class="line">                    //x变成xp的位置，结构没变，只是x指向变了</div><div class="line">                    root = rotateLeft(root, x = xp);</div><div class="line">                    xpp = (xp = x.parent) == null ? null : xp.parent;</div><div class="line">                &#125;</div><div class="line">                if (xp != null) &#123; //叔叔是黑色节点，x是左节点</div><div class="line">                    xp.red = false;</div><div class="line">                    if (xpp != null) &#123; //那么右旋就行了</div><div class="line">                        xpp.red = true;</div><div class="line">                        root = rotateRight(root, xpp);</div><div class="line">                    &#125;</div><div class="line">                &#125;</div><div class="line">            &#125;</div><div class="line">        &#125;</div><div class="line">        else &#123;</div><div class="line">           ...</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+</li>
+</ul>
+<p>首先设置插入的节点为红色, 若插入节点的父节点是黑色的,那么没有打破红黑树的原则, 可以不用调整直接退出, 当且仅当父节点是红色时候才需要调整, 这里主要讨论插入节点的父节点是祖父节点左孩子(又孩子一样)的情况, 分三种情况进行调整:<br>case1. 叔叔C是红色的<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/ConcurrentHashMap5.png" height="250" width="400"><br>调整: 父节点B与叔叔节点C变黑, 祖父节点A变红, 调整节点上移到祖父节点A<br>case2. 叔叔C是黑色的, 插入节点X是右孩子<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/ConcurrentHashMap6.png" height="250" width="400"><br>调整: 父节点B右旋, 将调整节点指向曾经的自己D, 变成case3的情况<br>case3. 叔叔C是黑色的, 插入节点X是左孩子<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/ConcurrentHashMap7.png" height="250" width="400"><br>调整: 祖父节点A右旋, 父节点B变黑, 祖父节A点变红, 调整完成, 退出函数。</p>
+<h2 id="红黑树删除后平衡balanceInsertion"><a href="#红黑树删除后平衡balanceInsertion" class="headerlink" title="红黑树删除后平衡balanceInsertion"></a>红黑树删除后平衡balanceInsertion</h2><p>红黑树删除分为两步:</p>
+<ul>
+<li>二叉树正常删除数据。红黑树在删除节点时, 若该节点做孩子或者右孩子最多只存在一个, 那么删除的就是本身节点; 若左右孩子同时存在, 那么结构上实际删除的节点将是<code>该节点的中序遍历的后继节点</code>, 然后再将实际删除的那个节点数据来置换理论上被删除的那个节点的数据, 所以:实际被删除的那个节点两个孩子不可能同时存在。</li>
+<li>删除节点后的调整。 删除后, 若删除的是黑色节点, 导致从该节点到其子孙节点的所有路径上包含相同不同数目的黑节点, 将违反第5)条。 以下是调整过程:<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div><div class="line">61</div><div class="line">62</div><div class="line">63</div></pre></td><td class="code"><pre><div class="line">//x点代表了一次删除的那个黑色</div><div class="line">static &lt;K,V&gt; TreeNode&lt;K,V&gt; balanceDeletion(TreeNode&lt;K,V&gt; root, TreeNode&lt;K,V&gt; x) &#123;</div><div class="line">    for (TreeNode&lt;K,V&gt; xp, xpl, xpr;;)  &#123;</div><div class="line">        if (x == null || x == root)</div><div class="line">            return root;</div><div class="line">        else if ((xp = x.parent) == null) &#123;</div><div class="line">            x.red = false;</div><div class="line">            return x;</div><div class="line">        &#125;</div><div class="line">         //红色的，那么直接将红色变成黑色</div><div class="line">        else if (x.red) &#123;</div><div class="line">            x.red = false;</div><div class="line">            return root;</div><div class="line">        &#125;</div><div class="line">        //开始分两种情况，都是一样的， x是左兄弟</div><div class="line">        else if ((xpl = xp.left) == x) &#123;</div><div class="line">         //第一种情况：有兄弟是红色的，先将兄弟变成红色的</div><div class="line">            if ((xpr = xp.right) != null &amp;&amp; xpr.red) &#123;</div><div class="line">                xpr.red = false;</div><div class="line">                xp.red = true;</div><div class="line">                root = rotateLeft(root, xp);</div><div class="line">                xpr = (xp = x.parent) == null ? null : xp.right;</div><div class="line">            &#125;</div><div class="line">            if (xpr == null)//若有兄弟不存在，可以向上移动一个节点</div><div class="line">                x = xp;</div><div class="line">            else &#123; //那么右兄弟为黑色的</div><div class="line">                TreeNode&lt;K,V&gt; sl = xpr.left, sr = xpr.right;</div><div class="line">                if ((sr == null || !sr.red) &amp;&amp;</div><div class="line">                 //右兄弟的两个孩子若存在，那么是黑色的</div><div class="line">                    (sl == null || !sl.red)) &#123;</div><div class="line">                    //右兄弟将提取一个黑色，和本节点一起组成一个复黑色给父亲节点</div><div class="line">                    xpr.red = true;</div><div class="line">                    x = xp;</div><div class="line">                &#125;</div><div class="line">                else &#123; //右兄弟为黑色</div><div class="line">                    //并且右兄弟的右孩子为若存在，是黑色。反过来说，左孩子一定存在，并且为红色</div><div class="line">                    if (sr == null || !sr.red) &#123;</div><div class="line">                        if (sl != null)//这里判断没有意义，一定是red</div><div class="line">                            sl.red = false;</div><div class="line">                        xpr.red = true;</div><div class="line">                        root = rotateRight(root, xpr);//右旋</div><div class="line">                        xpr = (xp = x.parent) == null ? //更新指向xpr和xp的指针</div><div class="line">                            null : xp.right;</div><div class="line">                    &#125;</div><div class="line">                    //右兄弟为黑色，右兄弟的右孩子一定为red</div><div class="line">                    if (xpr != null) &#123;</div><div class="line">                        xpr.red = (xp == null) ? false : xp.red;</div><div class="line">                        if ((sr = xpr.right) != null)</div><div class="line">                            sr.red = false;</div><div class="line">                    &#125;</div><div class="line">                    if (xp != null) &#123;</div><div class="line">                        xp.red = false;</div><div class="line">                        root = rotateLeft(root, xp);</div><div class="line">                    &#125;</div><div class="line">                    x = root;//那么旋转结束</div><div class="line">                &#125;</div><div class="line">            &#125;</div><div class="line">        &#125;</div><div class="line">        else &#123; // symmetric</div><div class="line">           ...</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+</li>
+</ul>
+<p>若删除了红节点, 那么对二叉树没有任何影响, 调整的都是删除节点是黑色的情况; 若删除节点的父节点是红色的,直接变成黑的就over, 这里仅仅讨论删除节点的父节点是左孩子(右孩子类似)的情况.<br>这里的x需要看成双重黑色, 平衡的目的是将这个双重黑色分摊到别的节点, 变成单黑色, 调整节点迁移到父节点<br>case1: 兄弟是红色的<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/ConcurrentHashMap12.png" height="350" width="400"><br>调整: 情况1: 若无右兄弟, 则将调整节点上移到父节点A; 若有右兄弟C, 对父节点A左旋, 父节点A变成红色, 兄弟节点C变成黑色<br>case2: 兄弟是黑色的, 兄弟的两个孩子(存在2个、1个、或者0个)没有一个是红色的<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/ConcurrentHashMap13.png" height="250" width="400"><br>调整: 将兄弟节点C变成红色, 调整节点上移到父节点C。<br>case3: 兄弟是黑色的, 兄弟的左孩子是红色。<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/ConcurrentHashMap14.png" height="250" width="400"><br>调整: 右旋兄弟节点C, 兄弟节点左孩子变成黑色, 兄弟节点C变成红色, 变成case4。<br>case3: 兄弟是黑色的, 兄弟的右孩子是红色。<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/ConcurrentHashMap15.png" height="250" width="400"><br>调整: 左旋父节点A, 将父节点A的颜色给兄弟节点, 父节点A变成黑色, 调整完成, 退出函数。</p>
+<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>红黑树重点是定义, 每次插入节点或者删除节点都会破坏红黑树的性能, 然后再通过调整修复这些性质就好了。</p>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+      
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/elasticsearch_learning/2017/11/06/ConcurrentHashMap红黑树原理介绍/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
     <article id="post-ConcurrentHashMap-put过程介绍" class="article article-type-post  article-index" itemscope itemprop="blogPost">
   <div class="article-inner">
     
@@ -1112,220 +1198,6 @@
 
 
   
-    <article id="post-gdb调试java基本用法" class="article article-type-post  article-index" itemscope itemprop="blogPost">
-  <div class="article-inner">
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/elasticsearch_learning/2016/12/20/gdb调试java基本用法/">gdb调试java基本用法</a>
-    </h1>
-  
-
-        
-        <a href="/elasticsearch_learning/2016/12/20/gdb调试java基本用法/" class="archive-article-date">
-  	<time datetime="2016-12-20T07:56:11.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2016-12-20</time>
-</a>
-        
-      </header>
-    
-
-    <!-- 目录内容 -->
-    
-    <!-- 目录内容结束 -->
-
-    <div class="article-entry" itemprop="articleBody">
-      
-        <p>jvm进程崩溃时, 可以产生coredump文件, 该dump文件记录了崩溃时cpu、jvm当前线程、当前内存的使用情况, 学会分析该coredump对于我们排查问题十分重要, 本文将主要讲解如何通过gdb分析该coredump文件。</p>
-<h2 id="coredump产生"><a href="#coredump产生" class="headerlink" title="coredump产生"></a>coredump产生</h2><p>第一步检查系统是否允许产生coredump文件<br>操作系统默认禁止coredump文件的产生, 可以通过<code>ulimit -c</code>查看是否允许产生coredump文件, 若显示为0, 则禁止线程崩溃时产生该core文件, 可以通过<code>echo &quot;ulimit  -c unlimited&quot; &gt;&gt; /etc/profile</code>. 我们也可以通过cat /pro/$pid/limits 查看设置情况<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div></pre></td><td class="code"><pre><div class="line">Limit                     Soft Limit           Hard Limit           Units</div><div class="line">Max cpu time              unlimited            unlimited            seconds</div><div class="line">Max file size             unlimited            unlimited            bytes</div><div class="line">Max data size             unlimited            unlimited            bytes</div><div class="line">Max stack size            8388608              unlimited            bytes</div><div class="line">Max core file size        unlimited            unlimited            bytes</div><div class="line">Max resident set          unlimited            unlimited            bytes</div><div class="line">Max processes             23262                23262                processes</div><div class="line">Max open files            4096                 4096                 files</div><div class="line">Max locked memory         65536                65536                bytes</div><div class="line">Max address space         unlimited            unlimited            bytes</div><div class="line">Max file locks            unlimited            unlimited            locks</div><div class="line">Max pending signals       23262                23262                signals</div><div class="line">Max msgqueue size         819200               819200               bytes</div><div class="line">Max nice priority         0                    0</div><div class="line">Max realtime priority     0                    0</div><div class="line">Max realtime timeout      unlimited            unlimited            us</div></pre></td></tr></table></figure></p>
-<p>可以看到Max core file size设置为unlimited, 是运行产生core 文件的。<br>第二步, 通过kill -6 pid 向进程发送abort信号产生core文件(默认文件名称)。</p>
-<h2 id="gdb基本使用"><a href="#gdb基本使用" class="headerlink" title="gdb基本使用"></a>gdb基本使用</h2><table>
-<thead>
-<tr>
-<th style="text-align:left">命令</th>
-<th style="text-align:left">简写</th>
-<th style="text-align:left">说明</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td style="text-align:left">list</td>
-<td style="text-align:left">l</td>
-<td style="text-align:left">显示多行源代码</td>
-</tr>
-<tr>
-<td style="text-align:left">break</td>
-<td style="text-align:left">b</td>
-<td style="text-align:left">设置断点,程序运行到断点的位置会停下来</td>
-</tr>
-<tr>
-<td style="text-align:left">info</td>
-<td style="text-align:left">i</td>
-<td style="text-align:left">描述程序的状态</td>
-</tr>
-<tr>
-<td style="text-align:left">run</td>
-<td style="text-align:left"></td>
-<td style="text-align:left">r</td>
-<td>开始运行程序</td>
-</tr>
-<tr>
-<td style="text-align:left">display</td>
-<td style="text-align:left">disp</td>
-<td style="text-align:left">跟踪查看某个变量,每次停下来都显示它的值</td>
-</tr>
-<tr>
-<td style="text-align:left">step</td>
-<td style="text-align:left">s</td>
-<td style="text-align:left">执行下一条语句,如果该语句为函数调用,则进入函数执行其中的第一条语句</td>
-</tr>
-<tr>
-<td style="text-align:left">next</td>
-<td style="text-align:left">n</td>
-<td style="text-align:left">执行下一条语句,如果该语句为函数调用,不会进入函数内部执行(即不会一步步地调试函数内部语句)</td>
-</tr>
-<tr>
-<td style="text-align:left">print</td>
-<td style="text-align:left">p</td>
-<td style="text-align:left">打印内部变量值</td>
-</tr>
-<tr>
-<td style="text-align:left">continue</td>
-<td style="text-align:left">c</td>
-<td style="text-align:left">继续程序的运行,直到遇到下一个断点</td>
-</tr>
-<tr>
-<td style="text-align:left">set var name=v</td>
-<td style="text-align:left"></td>
-<td style="text-align:left">设置变量的值</td>
-</tr>
-<tr>
-<td style="text-align:left">start</td>
-<td style="text-align:left">st</td>
-<td style="text-align:left">开始执行程序,在main函数的第一条语句前面停下来</td>
-</tr>
-<tr>
-<td style="text-align:left">file</td>
-<td style="text-align:left"></td>
-<td style="text-align:left">装入需要调试的程序</td>
-</tr>
-<tr>
-<td style="text-align:left">kill</td>
-<td style="text-align:left">k</td>
-<td style="text-align:left">终止正在调试的程序</td>
-</tr>
-<tr>
-<td style="text-align:left">watch</td>
-<td style="text-align:left"></td>
-<td style="text-align:left">监视变量值的变化</td>
-</tr>
-<tr>
-<td style="text-align:left">backtrace</td>
-<td style="text-align:left">bt</td>
-<td style="text-align:left">产看函数调用信息(堆栈)</td>
-</tr>
-<tr>
-<td style="text-align:left">frame</td>
-<td style="text-align:left">f</td>
-<td style="text-align:left">查看栈帧, 比如打印当前线程栈第5行详细信息: f 5</td>
-</tr>
-<tr>
-<td style="text-align:left">quit</td>
-<td style="text-align:left">q</td>
-<td style="text-align:left">退出GDB环境</td>
-</tr>
-</tbody>
-</table>
-<p>(参考<a href="https://blog.csdn.net/zdy0_2004/article/details/80102076" target="_blank" rel="external">gdb调试的基本使用</a>)</p>
-<h2 id="分析coredump文件"><a href="#分析coredump文件" class="headerlink" title="分析coredump文件"></a>分析coredump文件</h2><ul>
-<li>gdb java core<br>调用如上命令加载core文件(这里的core指的是core文件名称)。</li>
-</ul>
-<ol>
-<li>执行<code>info threads</code><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div></pre></td><td class="code"><pre><div class="line">#0  0xb776b424 in __kernel_vsyscall ()</div><div class="line">(gdb) info threads</div><div class="line">  Id   Target Id         Frame</div><div class="line">  12   Thread 0xb6a84b40 (LWP 5553) 0xb776b424 in __kernel_vsyscall ()</div><div class="line">  11   Thread 0xad2ffb40 (LWP 5563) 0xb776b424 in __kernel_vsyscall ()</div><div class="line">  10   Thread 0xad350b40 (LWP 5562) 0xb776b424 in __kernel_vsyscall ()</div><div class="line">  9    Thread 0xad3d1b40 (LWP 5561) 0xb776b424 in __kernel_vsyscall ()</div><div class="line">  8    Thread 0xad422b40 (LWP 5560) 0xb776b424 in __kernel_vsyscall ()</div><div class="line">  7    Thread 0xad473b40 (LWP 5559) 0xb776b424 in __kernel_vsyscall ()</div><div class="line">  6    Thread 0xad6c4b40 (LWP 5558) 0xb776b424 in __kernel_vsyscall ()</div><div class="line">  5    Thread 0xad715b40 (LWP 5557) 0xb776b424 in __kernel_vsyscall ()</div><div class="line">  4    Thread 0xad796b40 (LWP 5556) 0xb776b424 in __kernel_vsyscall ()</div><div class="line">  3    Thread 0xadee6b40 (LWP 5555) 0xb776b424 in __kernel_vsyscall ()</div><div class="line">  2    Thread 0xb4817b40 (LWP 5554) 0xb776b424 in __kernel_vsyscall ()</div><div class="line">* 1    Thread 0xb756f700 (LWP 5552) 0xb776b424 in __kernel_vsyscall ()</div><div class="line">(gdb)</div></pre></td></tr></table></figure>
-</li>
-</ol>
-<p>这里将展示目前已知的所有线程, *开头的代表当前处于调试的线程。这里可以通过输入info可以查看所有的命令。 切换当前调试线程可以通过<code>thread ID</code>方式, id取值上图第一列。其实我们查看每个线程在干什么, 也可以直接使用<code>pstack pid</code>即可</p>
-<ol>
-<li><p>假如想查看id为1的线程当前栈调用情况, 那么执行继续<code>bt</code></p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div></pre></td><td class="code"><pre><div class="line">#0  0xb776b424 in __kernel_vsyscall ()</div><div class="line">(gdb) bt</div><div class="line">#0  0xb776b424 in __kernel_vsyscall ()</div><div class="line">#1  0xb7742178 in pthread_join (threadid=3064482624, thread_return=0xbfb1b944) at pthread_join.c:92</div><div class="line">#2  0xb772eeda in ContinueInNewThread0 () from /home/kewei/Downloads/work_soft/jdk1.8.0_121/bin/../lib/i386/jli/libjli.so</div><div class="line">#3  0xb772a266 in ContinueInNewThread () from /home/kewei/Downloads/work_soft/jdk1.8.0_121/bin/../lib/i386/jli/libjli.so</div><div class="line">#4  0xb772edab in JVMInit () from /home/kewei/Downloads/work_soft/jdk1.8.0_121/bin/../lib/i386/jli/libjli.so</div><div class="line">#5  0xb772d149 in JLI_Launch () from /home/kewei/Downloads/work_soft/jdk1.8.0_121/bin/../lib/i386/jli/libjli.so</div><div class="line">#6  0x0804858d in main ()</div></pre></td></tr></table></figure>
-</li>
-<li><p>查看每个register值</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div></pre></td><td class="code"><pre><div class="line">        0xfffffe00	-512</div><div class="line">ecx            0x0	0</div><div class="line">edx            0x25d5	9685</div><div class="line">ebx            0xb6a5dba8	-1230644312</div><div class="line">esp            0xbfd1a6e0	0xbfd1a6e0</div><div class="line">ebp            0xb6a5db40	0xb6a5db40</div><div class="line">esi            0x0	0</div><div class="line">edi            0xb772c000	-1217216512</div><div class="line">eip            0xb7744424	0xb7744424 &lt;__kernel_vsyscall+16&gt;</div><div class="line">eflags         0x246	[ PF ZF IF ]</div><div class="line">......</div></pre></td></tr></table></figure>
-</li>
-</ol>
-<p>左边是寄存器名称, 中间是寄存器地址, 右边是寄存器值, 可以通过<code>print $ecx</code>验证寄存器值</p>
-<ul>
-<li>查看反汇编语言<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div></pre></td><td class="code"><pre><div class="line">(gdb) disassemble</div><div class="line">Dump of assembler code for function __kernel_vsyscall:</div><div class="line">   0xb7744414 &lt;+0&gt;:	push   %ecx</div><div class="line">   0xb7744415 &lt;+1&gt;:	push   %edx</div><div class="line">   0xb7744416 &lt;+2&gt;:	push   %ebp</div><div class="line">   0xb7744417 &lt;+3&gt;:	mov    %esp,%ebp</div><div class="line">   0xb7744419 &lt;+5&gt;:	sysenter</div><div class="line">   0xb774441b &lt;+7&gt;:	nop</div><div class="line">   0xb774441c &lt;+8&gt;:	nop</div><div class="line">   0xb774441d &lt;+9&gt;:	nop</div><div class="line">   0xb774441e &lt;+10&gt;:	nop</div><div class="line">   0xb774441f &lt;+11&gt;:	nop</div><div class="line">   0xb7744420 &lt;+12&gt;:	nop</div><div class="line">   0xb7744421 &lt;+13&gt;:	nop</div><div class="line">   0xb7744422 &lt;+14&gt;:	int    $0x80</div><div class="line">=&gt; 0xb7744424 &lt;+16&gt;:	pop    %ebp</div><div class="line">   0xb7744425 &lt;+17&gt;:	pop    %edx</div><div class="line">   0xb7744426 &lt;+18&gt;:	pop    %ecx</div><div class="line">   0xb7744427 &lt;+19&gt;:	ret</div><div class="line">End of assembler dump.</div></pre></td></tr></table></figure>
-</li>
-</ul>
-<p>也可以反汇编一个函数<code>disass func_name</code>, 如下:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div></pre></td><td class="code"><pre><div class="line">(gdb) disass main</div><div class="line">Dump of assembler code for function main:</div><div class="line">   0x0000000000400620 &lt;+0&gt;:	push   %rbp</div><div class="line">   0x0000000000400621 &lt;+1&gt;:	mov    %rsp,%rbp</div><div class="line">   0x0000000000400624 &lt;+4&gt;:	sub    $0x40,%rsp</div><div class="line">   0x0000000000400628 &lt;+8&gt;:	mov    0x200271(%rip),%rdx        # 0x6008a0 &lt;const_launcher&gt;</div><div class="line">   0x000000000040062f &lt;+15&gt;:	test   %rdx,%rdx</div><div class="line">   0x0000000000400632 &lt;+18&gt;:	je     0x4006a0 &lt;main+128&gt;</div><div class="line">   0x0000000000400634 &lt;+20&gt;:	mov    0x20026d(%rip),%rax        # 0x6008a8 &lt;const_progname&gt;</div><div class="line">   0x000000000040063b &lt;+27&gt;:	test   %rax,%rax</div><div class="line">   0x000000000040063e &lt;+30&gt;:	je     0x4006b0 &lt;main+144&gt;</div><div class="line">   0x0000000000400640 &lt;+32&gt;:	mov    %rax,0x10(%rsp)</div></pre></td></tr></table></figure></p>
-<ul>
-<li>查看当前线程情况<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div></pre></td><td class="code"><pre><div class="line">xxxxxx@slave1:~$jstack /home/kewei/Downloads/work_soft/jdk1.8.0_121/bin/java core</div><div class="line">Attaching to core core from executable /home/kewei/Downloads/work_soft/jdk1.8.0_121/bin/java, please wait...</div><div class="line">Debugger attached successfully.</div><div class="line">Client compiler detected.</div><div class="line">JVM version is 25.121-b13</div><div class="line">Deadlock Detection:</div><div class="line"></div><div class="line">No deadlocks found.</div><div class="line"></div><div class="line">Thread 9692: (state = BLOCKED)</div><div class="line"></div><div class="line"></div><div class="line">Thread 9691: (state = BLOCKED)</div><div class="line"></div><div class="line"></div><div class="line">Thread 9690: (state = BLOCKED)</div><div class="line"> - java.lang.Object.wait(long) @bci=0 (Interpreted frame)</div><div class="line"> - java.lang.ref.ReferenceQueue.remove(long) @bci=59, line=143 (Interpreted frame)</div><div class="line"> - java.lang.ref.ReferenceQueue.remove() @bci=2, line=164 (Interpreted frame)</div><div class="line"> - java.lang.ref.Finalizer$FinalizerThread.run() @bci=36, line=209 (Interpreted frame)</div><div class="line">......</div></pre></td></tr></table></figure>
-</li>
-</ul>
-<p>注意java命令的路径不能省略, 否则会报如下异常:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line">Attaching to core core from executable java, please wait...</div><div class="line">Error attaching to core file: cannot open binary file</div><div class="line">sun.jvm.hotspot.debugger.DebuggerException: cannot open binary file</div><div class="line">	at sun.jvm.hotspot.debugger.linux.LinuxDebuggerLocal.attach0(Native Method)</div></pre></td></tr></table></figure></p>
-<ul>
-<li><p>查看当前内存使用</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div></pre></td><td class="code"><pre><div class="line">xxxxx@slave1:~$ jmap /home/kewei/Downloads/work_soft/jdk1.8.0_121/bin/java core</div><div class="line">Attaching to core core from executable /home/kewei/Downloads/work_soft/jdk1.8.0_121/bin/java, please wait...</div><div class="line">Debugger attached successfully.</div><div class="line">Client compiler detected.</div><div class="line">JVM version is 25.121-b13</div><div class="line">0x08048000	5K	/home/kewei/Downloads/work_soft/jdk1.8.0_121/bin/java</div><div class="line">0xb7713000	127K	/lib/i386-linux-gnu/libpthread.so.0</div><div class="line">0xb76fd000	93K	/home/kewei/Downloads/work_soft/jdk1.8.0_121/bin/../lib/i386/jli/libjli.so</div><div class="line">0xb76f8000	13K	/lib/i386-linux-gnu/libdl.so.2</div><div class="line">0xb7549000	1717K	/lib/i386-linux-gnu/libc.so.6</div><div class="line">0xb7745000	131K	/lib/ld-linux.so.2</div><div class="line">0xb6aa4000	8162K	/home/kewei/Downloads/work_soft/jdk1.8.0_121/jre/lib/i386/client/libjvm.so</div><div class="line">0xb6a5e000	273K	/lib/i386-linux-gnu/libm.so.6</div><div class="line">0xb6a04000	29K	/lib/i386-linux-gnu/librt.so.1</div><div class="line">0xb7736000	54K	/home/kewei/Downloads/work_soft/jdk1.8.0_121/jre/lib/i386/libverify.so</div><div class="line">0xb68db000	187K	/home/kewei/Downloads/work_soft/jdk1.8.0_121/jre/lib/i386/libjava.so</div><div class="line">0xb68bf000	29K	/lib/i386-linux-gnu/libnss_compat.so.2</div><div class="line">0xb68a6000	89K	/lib/i386-linux-gnu/libnsl.so.1</div><div class="line">0xb689a000	41K	/lib/i386-linux-gnu/libnss_nis.so.2</div><div class="line">0xb688d000	45K	/lib/i386-linux-gnu/libnss_files.so.2</div><div class="line">0xb6873000	114K	/home/kewei/Downloads/work_soft/jdk1.8.0_121/jre/lib/i386/libzip.so</div></pre></td></tr></table></figure>
-</li>
-<li><p>通过core文件产生heapdump文件<br><code>xxxxx@slave1:~$ jmap -dump:format=b,file=dump.hprof $JAVA_HOME/bin/java core</code></p>
-</li>
-</ul>
-<h1 id="dump内存区域"><a href="#dump内存区域" class="headerlink" title="dump内存区域"></a>dump内存区域</h1><h1 id="参考"><a href="#参考" class="headerlink" title="参考"></a>参考</h1><p><a href="https://blog.csdn.net/zdy0_2004/article/details/80102076" target="_blank" rel="external">https://blog.csdn.net/zdy0_2004/article/details/80102076</a><br><a href="https://www.cnblogs.com/xuxm2007/archive/2011/04/01/2002162.html" target="_blank" rel="external">https://www.cnblogs.com/xuxm2007/archive/2011/04/01/2002162.html</a></p>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color4">gdb</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/elasticsearch_learning/2016/12/20/gdb调试java基本用法/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
   
     <nav id="page-nav">
       <a class="extend prev" rel="prev" href="/elasticsearch_learning/page/2/">&laquo; Prev</a><a class="page-number" href="/elasticsearch_learning/">1</a><a class="page-number" href="/elasticsearch_learning/page/2/">2</a><span class="page-number current">3</span><a class="page-number" href="/elasticsearch_learning/page/4/">4</a><a class="extend next" rel="next" href="/elasticsearch_learning/page/4/">Next &raquo;</a>
@@ -1457,11 +1329,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
+                <a href="javascript:void(0)" class="js-tag color4">ReentrantLock</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">ReentrantLock</a>
+                <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
               </li>
              
               <li class="article-tag-list-item">

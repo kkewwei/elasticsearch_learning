@@ -143,6 +143,128 @@
           <div id="js-content" class="content-ll">
             
   
+    <article id="post-Netty-PoolChunk原理探究" class="article article-type-post  article-index" itemscope itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/elasticsearch_learning/2018/07/20/Netty-PoolChunk原理探究/">Netty PoolChunk原理探究</a>
+    </h1>
+  
+
+        
+        <a href="/elasticsearch_learning/2018/07/20/Netty-PoolChunk原理探究/" class="archive-article-date">
+  	<time datetime="2018-07-20T10:48:20.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2018-07-20</time>
+</a>
+        
+      </header>
+    
+
+    <!-- 目录内容 -->
+    
+    <!-- 目录内容结束 -->
+
+    <div class="article-entry" itemprop="articleBody">
+      
+        <p>Netty分配内存(0~16M)与回收主要是在PoolChunk上完成的, 在内存分配时希望是有序的。当没有内存可分配时, 一次申请到16M PoolChunk内存, 用户实际使用时可能一次性不能使用16M, 所以逻辑上将PoolChunk划分成不同的块, 使用平衡二叉树进行管理内存的分配, 构建的二叉树结构如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/PoolChunk1.png" height="400" width="450"><br>该二叉树将PoolChunk分11层, 第一层为1个16M, 第二层为2个8MB,第三层为4个4MB的内存块, 直到第11层为2048个8KB的内存块,  8kb的内存块称之为page。</p>
+<ul>
+<li>如果我们申请16M的内存, 那么将直接在该二叉树第一层申请。</li>
+<li>若申请32K的内存, 那么在该二叉树第8层申请。</li>
+<li>若申请8K的内存, 那么将直接在第11层申请。<br>*实际申请内存大小时, size一定限定为2^x, 参考<a href="https://kkewwei.github.io/elasticsearch_learning/2018/05/23/Netty%E5%86%85%E5%AD%98%E5%AD%A6%E4%B9%A0/">Netty PoolArea原理探究</a><br>接下来介绍PoolChunk的成员属性:<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div></pre></td><td class="code"><pre><div class="line">//该PoolChunk所属的PoolArena, 上层PoolArena控制着在哪块PoolArena上分配</div><div class="line">final PoolArena&lt;T&gt; arena;。</div><div class="line">//对外内存: DirectByteBuffer, 堆内内存 byte[]。</div><div class="line">final T memory;</div><div class="line">// 是内存池还是非内存池方式</div><div class="line">final boolean unpooled;</div><div class="line">private final byte[] memoryMap;  //PoolChunk的物理视图是连续的PoolSubpage,用PoolSubpage保持，而memoryMap是所有PoolSubpage的逻辑映射，映射为一颗平衡二叉数，用来标记每一个PoolSubpage是否被分配。下文会更进一步说明</div><div class="line">private final byte[] depthMap;    //而depthMap中保存的值表示各个id对应的深度，是个固定值，初始化后不再变更。</div><div class="line">//与叶子节点个数相同, 一个叶子节点可以映射PoolSupage中一个元素, 若叶子节点与该元素完成了映射, 说明该叶子节点已经被分配出去了</div><div class="line">private final PoolSubpage&lt;T&gt;[] subpages;</div><div class="line">/** Used to determine if the requested capacity is equal to or greater than pageSize. */</div><div class="line">//用来判断申请的内存是否超过pageSize大小</div><div class="line">private final int subpageOverflowMask;</div><div class="line">//每个PoolSubpage的大小，默认为8192个字节（8K)</div><div class="line">private final int pageSize;</div><div class="line">//pageSize 2的 pageShifts幂</div><div class="line">private final int pageShifts;</div><div class="line">// 平衡二叉树的深度，</div><div class="line">private final int maxOrder;</div><div class="line">//PoolChunk的总内存大小,chunkSize =   (1&lt;&lt;maxOrder) * pageSize。</div><div class="line">private final int chunkSize;</div><div class="line">// PoolChunk由maxSubpageAllocs个PoolSubpage组成, 默认2048个。</div><div class="line">private final int maxSubpageAllocs;</div><div class="line">/** Used to mark memory as unusable */</div><div class="line">//标记为已被分配的值，该值为 maxOrder + 1=12, 当memoryMap[id] = unusable时，则表示id节点已被分配</div><div class="line">private final byte unusable;</div><div class="line"></div><div class="line">//当前PoolChunk剩余可分配内存, 初始为16M。</div><div class="line">private int freeBytes;</div><div class="line"></div><div class="line">//一个PoolChunk分配后，会根据其使用率挂在一个PoolChunkList中(q050, q025...)</div><div class="line">PoolChunkList&lt;T&gt; parent;</div></pre></td></tr></table></figure>
+</li>
+</ul>
+<p>当我们需要分配内存时, 会在二叉树上查找满足大小的节点, 我们需要考虑的一个问题: 若申请了第11层下标为2048节点的8k内存, 下标为1024的父节点怎么才能避免被不被16k的申请所申请到呢?<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/PoolChunk2.png" height="200" width="250"><br>Netty为每一层分配的一个层号, 根据层号可以直接获取该节点剩余最大可分配的内存空间。<br>当第11层下标为2048的节点被分配出去:</p>
+<ol>
+<li>则该节点的层号被修改为12, 表示该节点不可再分配。</li>
+<li>同时id为1024的父节点层号改为11, id为512的节点层号改为10, …, id为1的节点层号改为2.</li>
+</ol>
+<p>当申请16k的内存时, 分配的节点的层号必须等于(11-log(16k/8k)) = 10, id为1024的节点自然被淘汰了。动态记录每个节点层数的成员属性为memoryMap, 记录每个节点深度的成员属性为depthMap, 其中memoryMap值是可以动态改变的, 而depthMap是静态不变的。<br>构造函数中该成员斌量初始过程如下:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div></pre></td><td class="code"><pre><div class="line">memoryMap = new byte[maxSubpageAllocs &lt;&lt; 1];</div><div class="line">depthMap = new byte[memoryMap.length];</div><div class="line">int memoryMapIndex = 1;</div><div class="line">for (int d = 0; d &lt;= maxOrder; ++ d) &#123; // move down the tree one level at a time</div><div class="line">    int depth = 1 &lt;&lt; d;</div><div class="line">    for (int p = 0; p &lt; depth; ++ p) &#123;</div><div class="line">        // in each level traverse left to right and set value to the depth of subtree</div><div class="line">        memoryMap[memoryMapIndex] = (byte) d;</div><div class="line">        depthMap[memoryMapIndex] = (byte) d;</div><div class="line">        memoryMapIndex ++;</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>实际操作中, 针对数据构造二叉树, 实际从memoryMap下标为1的节点开始使用, 数组元素个数为4096。</p>
+<h1 id="PoolChunk分配内存"><a href="#PoolChunk分配内存" class="headerlink" title="PoolChunk分配内存"></a>PoolChunk分配内存</h1><p>在PoolArea.allocateNormal()中调用newChunk产生PoolChunk<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div></pre></td><td class="code"><pre><div class="line">protected PoolChunk&lt;ByteBuffer&gt; newChunk(int pageSize, int maxOrder,</div><div class="line">        int pageShifts, int chunkSize) &#123;</div><div class="line">    //</div><div class="line">    if (directMemoryCacheAlignment == 0) &#123;</div><div class="line">        return new PoolChunk&lt;ByteBuffer&gt;(this,</div><div class="line">                 //allocateDirect(chunkSize)会直接创建直接内存， 用直接内存地址构建的DirectByteBuffer</div><div class="line">                allocateDirect(chunkSize), pageSize, maxOrder,</div><div class="line">                pageShifts, chunkSize, 0);  //pageShifts= log8k = 13</div><div class="line">    &#125;</div><div class="line">    final ByteBuffer memory = allocateDirect(chunkSize</div><div class="line">            + directMemoryCacheAlignment);</div><div class="line">    return new PoolChunk&lt;ByteBuffer&gt;(this, memory, pageSize,</div><div class="line">            maxOrder, pageShifts, chunkSize,</div><div class="line">            offsetCacheLine(memory));</div></pre></td></tr></table></figure></p>
+<p>我们需要关注下如何通过allocateDirect()产生堆外内存的:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div></pre></td><td class="code"><pre><div class="line"> private static ByteBuffer allocateDirect(int capacity) &#123;</div><div class="line">    //如果不是调用cleaner来回收对象，那么将使用DirectByteBuff来回收对象</div><div class="line">    return PlatformDependent.useDirectBufferNoCleaner() ?</div><div class="line">            PlatformDependent.allocateDirectNoCleaner(capacity) : ByteBuffer.allocateDirect(capacity);</div><div class="line">&#125;</div><div class="line">static ByteBuffer allocateDirectNoCleaner(int capacity) &#123;</div><div class="line">return newDirectBuffer(UNSAFE.allocateMemory(capacity), capacity);</div></pre></td></tr></table></figure></p>
+<p>最终是通过直接内存地址的address来产生DirectByteBuffer的, 此时该对象没有cleaner成员变量, 将不能通过cleaner来回收直接内存。<br>接下来看看如何是从PoolChunk中分配内存的:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div></pre></td><td class="code"><pre><div class="line">long allocate(int normCapacity) &#123;</div><div class="line">    if ((normCapacity &amp; subpageOverflowMask) != 0) &#123;</div><div class="line">        return allocateRun(normCapacity);  //// 大于等于pageSize时返回的是可分配normCapacity的节点的id</div><div class="line">    &#125; else &#123;  //分配小于8k</div><div class="line">        return allocateSubpage(normCapacity); //（small）返回是第几个long,long第几位</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<ul>
+<li>返回值handle可以定位出该内存块的处在该PoolChunk中具体的位置信息。</li>
+<li>若申请的内存大于等于page(8k), 进入allocateRun进行申请, 返回值handler就是找到的节点在二叉树中的下标(int长度); 若申请的内存小于8K, 进入allocateSubpage进行申请, 返回长度是个long。</li>
+</ul>
+<h2 id="分配大于page的内存"><a href="#分配大于page的内存" class="headerlink" title="分配大于page的内存"></a>分配大于page的内存</h2><p>我们首先看allocateRun是如何操作的<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div></pre></td><td class="code"><pre><div class="line"> private long allocateRun(int normCapacity) &#123;//64k</div><div class="line">     //算出当前大小的内存需要在那一层完成分配</div><div class="line">    int d = maxOrder - (log2(normCapacity) - pageShifts);</div><div class="line">    int id = allocateNode(d);</div><div class="line">    if (id &lt; 0) &#123;</div><div class="line">        return id;</div><div class="line">    &#125;</div><div class="line">    freeBytes -= runLength(id);</div><div class="line">    return id;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<ol>
+<li>首先计算出在二叉树哪层分配内存, 比如申请32k的内存, 那么d = maxOrder - (log2(normCapacity) - pageShifts) = 11 - (log2(32k) - 13) = 9, 说明只能在该二叉树第9层找到合适的节点。 为啥减13, 因为默认pag为8k, log2(8k)=13。</li>
+<li>开始进入二叉树对应的d层中通过allocateNode查找哪个节点还没有分配出去:<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div></pre></td><td class="code"><pre><div class="line">private int allocateNode(int d) &#123;</div><div class="line">    int id = 1;</div><div class="line">    int initial = - (1 &lt;&lt; d); // has last d bits = 0 and rest all = 1</div><div class="line">    byte val = value(id);</div><div class="line">    //若第一层的深度不够，那么该chunkend不够分配</div><div class="line">    if (val &gt; d) &#123; // unusable</div><div class="line">        return -1;</div><div class="line">    &#125;</div><div class="line">    // id &amp; initial == 1 &lt;&lt; d for all ids at depth d, for &lt; d it is 0</div><div class="line">    while (val &lt; d || (id &amp; initial) == 0) &#123;</div><div class="line">        id &lt;&lt;= 1;</div><div class="line">        val = value(id);</div><div class="line">        if (val &gt; d) &#123;</div><div class="line">            id ^= 1;</div><div class="line">            val = value(id);</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line">    byte value = value(id);</div><div class="line">    assert value == d &amp;&amp; (id &amp; initial) == 1 &lt;&lt; d :</div><div class="line">    String.format(&quot;val = %d, id &amp; initial = %d, d = %d&quot;, value, id &amp; initial, d);</div><div class="line">    setValue(id, unusable); // mark as unusable</div><div class="line">    updateParentsAlloc(id);</div><div class="line">    return id; //返回的是查找到的那个节点的下标</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+</li>
+</ol>
+<p>主要做了如下工作:</p>
+<ol>
+<li>从根节点开始遍历, 首先检查第1层的层号, 若大于申请的层号, 那么该节点不够申请的大小, 直接退出。(<code>若不退出的话, 那就意味该二叉树一定可以找到大小为d层号的节点</code>, 并且在该节点的下标一定&gt;=2^d)</li>
+<li>若当前节点层数<d, 或者当前节点的下标="" <="" 2^d,="" 那么继续下一层左孩子节点查找,="" 直到找到某一个节点的层数="=目前层数d," 则完成查找。若发现该节点剩余大小不够分配,="" 则在兄弟节点继续查找。="" 如下图,="" 当查找层号为11的节点,="" 找到符合下标id="">=x 2^11的节点 &amp;&amp; 层号 == 11的节点 , 只能在下标为2049的那个节点。<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/PoolChunke_allocation_select.png" height="300" width="350"><br>其中 (id &amp; initial) == 0) 等价于id &lt;2^d, 作用: 若当前节点的下标&lt; 2^s, 则会继续在当前节点的孩子节点查找。</d,></li>
+<li>将成功找到的那个节点层号标为不可分配unusable, 意味着已经分配出去了。</li>
+<li>更新该节点的所有祖父父节点层号:<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div></pre></td><td class="code"><pre><div class="line">private void updateParentsAlloc(int id) &#123;</div><div class="line">     while (id &gt; 1) &#123;  //开始更新父类节点的值</div><div class="line">         int parentId = id &gt;&gt;&gt; 1;</div><div class="line">         byte val1 = value(id);</div><div class="line">         byte val2 = value(id ^ 1);  //获取相邻节点的值</div><div class="line">         byte val = val1 &lt; val2 ? val1 : val2;</div><div class="line">         setValue(parentId, val);</div><div class="line">         id = parentId;</div><div class="line">     &#125;</div><div class="line"> &#125;</div></pre></td></tr></table></figure>
+</li>
+</ol>
+<p>父节点的层号选取两个子节点层号最小的那个层号, 表示该父节点能分配的最大内存。</p>
+<h2 id="分配小于page的内存"><a href="#分配小于page的内存" class="headerlink" title="分配小于page的内存"></a>分配小于page的内存</h2><p>我们来看是如何分配小于8k的内存。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div></pre></td><td class="code"><pre><div class="line">private long allocateSubpage(int normCapacity) &#123;</div><div class="line">    // Obtain the head of the PoolSubPage pool that is owned by the PoolArena and synchronize on it.</div><div class="line">    // This is need as we may add it back and so alter the linked-list structure.</div><div class="line">    PoolSubpage&lt;T&gt; head = arena.findSubpagePoolHead(normCapacity);  //// 找到arena中对应阶级的subpage头节点，不存数据的头结点</div><div class="line">    synchronized (head) &#123;</div><div class="line">        int d = maxOrder; // subpages are only be allocated from pages i.e., leaves   subpage只能从叶子节点开始找起</div><div class="line">        int id = allocateNode(d); //只在叶子节点找到一个为8k的节点，肯定可以找到一个节点</div><div class="line">        if (id &lt; 0) &#123;</div><div class="line">            return id;</div><div class="line">        &#125;</div><div class="line"></div><div class="line">        final PoolSubpage&lt;T&gt;[] subpages = this.subpages;</div><div class="line">        final int pageSize = this.pageSize;</div><div class="line"></div><div class="line">        freeBytes -= pageSize;//（就是一个16M的空间）</div><div class="line"></div><div class="line">        int subpageIdx = subpageIdx(id);  //第几个PoolSubpage（叶子节点）</div><div class="line">        PoolSubpage&lt;T&gt; subpage = subpages[subpageIdx];</div><div class="line">        if (subpage == null) &#123;  //说明这个PoolSubpagte还没有分配出去</div><div class="line">            subpage = new PoolSubpage&lt;T&gt;(head, this, id, runOffset(id), pageSize, normCapacity);</div><div class="line">            subpages[subpageIdx] = subpage;</div><div class="line">        &#125; else &#123;</div><div class="line">            subpage.init(head, normCapacity);</div><div class="line">        &#125;</div><div class="line">        return subpage.allocate();</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>主要做了如下事情:</p>
+<ul>
+<li>我们需要知道, 小于8k的内存分配都是在叶子节点里面分配的, 首先先从二叉树中查找层号为11(叶子节点)的可用节点。</li>
+<li>查看该节点是第几个叶子节点: subpageIdx。</li>
+<li>获取该叶子节点对应的PoolSubpage, subpage为null的可能为: PoolSubpage释放时, 并没有从subpages中取出, 该PoolSubpage还存放在subpages的数组里, 可参考<a href="https://kkewwei.github.io/elasticsearch_learning/2018/07/22/Netty-PoolSubpage%E5%8E%9F%E7%90%86%E6%8E%A2%E7%A9%B6/">Netty-PoolSubpage原理探究</a> free()函数, 至于从PoolSubpage中分配内存的过程放在<a href="https://kkewwei.github.io/elasticsearch_learning/2018/07/22/Netty-PoolSubpage%E5%8E%9F%E7%90%86%E6%8E%A2%E7%A9%B6/">Netty-PoolSubpage原理探究</a>中详细描述。</li>
+</ul>
+<h2 id="释放内存"><a href="#释放内存" class="headerlink" title="释放内存"></a>释放内存</h2><p>上面讲的在allocate中申请内存时, 返回的是一个handle , 该释放内存时的参数也是该handle。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div></pre></td><td class="code"><pre><div class="line">void free(long handle) &#123;</div><div class="line">    int memoryMapIdx = memoryMapIdx(handle);</div><div class="line">    int bitmapIdx = bitmapIdx(handle);</div><div class="line"></div><div class="line">    if (bitmapIdx != 0) &#123; // free a subpage</div><div class="line">        PoolSubpage&lt;T&gt; subpage = subpages[subpageIdx(memoryMapIdx)];</div><div class="line">        assert subpage != null &amp;&amp; subpage.doNotDestroy;</div><div class="line"></div><div class="line">        // Obtain the head of the PoolSubPage pool that is owned by the PoolArena and synchronize on it.</div><div class="line">        // This is need as we may add it back and so alter the linked-list structure.</div><div class="line">        PoolSubpage&lt;T&gt; head = arena.findSubpagePoolHead(subpage.elemSize);</div><div class="line">        synchronized (head) &#123;</div><div class="line">            if (subpage.free(head, bitmapIdx &amp; 0x3FFFFFFF)) &#123;</div><div class="line">                return;</div><div class="line">            &#125;</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line">    freeBytes += runLength(memoryMapIdx);</div><div class="line">    setValue(memoryMapIdx, depth(memoryMapIdx));</div><div class="line">    updateParentsFree(memoryMapIdx);</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>做了如下事情:</p>
+<ul>
+<li>首先通过handle获取属于哪个page: memoryMapIdx、属于PoolSubpage里面哪个子内存块:bitmapIdx。<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div></pre></td><td class="code"><pre><div class="line">private static int memoryMapIdx(long handle) &#123; //低32位</div><div class="line">    return (int) handle;</div><div class="line">&#125;</div><div class="line">////高32放着一个PoolSubpage里面哪段的哪个，低32位放着哪个叶子节点</div><div class="line">private static int bitmapIdx(long handle) &#123; //高32位</div><div class="line">    return (int) (handle &gt;&gt;&gt; Integer.SIZE);</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+</li>
+</ul>
+<p>handlee低32位字段即为memoryMapIdx, 高32为字段即为bitmapIdx。</p>
+<ul>
+<li>判是PoolSubpage的子块bitmapIdx不为0, 那么一定是小于8K的内存释放, 请参考<a href="https://kkewwei.github.io/elasticsearch_learning/2018/07/22/Netty-PoolSubpage%E5%8E%9F%E7%90%86%E6%8E%A2%E7%A9%B6/">Netty-PoolSubpage原理探究</a>toHandle函数</li>
+<li>若是PoolSubpage的子块bitmapIdx为0 , 那么一定是大于8K的内存释放, 释放时修改该节点祖辈的层号, 修改该chunk的大小。</li>
+</ul>
+<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>Netty PoolChunk讲完了, 主要理解二叉树的构建, 当分配大于8K的内存时, 怎么从二叉树中查找合适的节点, 怎么释放该二叉树上的节点块就可以了。 若分配小于8K的内存块, 主要是在子节点内部分配, 将放在<a href="https://kkewwei.github.io/elasticsearch_learning/2018/07/22/Netty-PoolSubpage%E5%8E%9F%E7%90%86%E6%8E%A2%E7%A9%B6/">Netty-PoolSubpage原理探究</a>详细探究。</p>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+      
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/elasticsearch_learning/2018/07/20/Netty-PoolChunk原理探究/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
     <article id="post-Netty-PoolThreadCache源码探究" class="article article-type-post  article-index" itemscope itemprop="blogPost">
   <div class="article-inner">
     
@@ -1225,92 +1347,6 @@
 
 
   
-    <article id="post-ConcurrentHashMap红黑树原理介绍" class="article article-type-post  article-index" itemscope itemprop="blogPost">
-  <div class="article-inner">
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/elasticsearch_learning/2017/11/06/ConcurrentHashMap红黑树原理介绍/">ConcurrentHashMap红黑树原理介绍</a>
-    </h1>
-  
-
-        
-        <a href="/elasticsearch_learning/2017/11/06/ConcurrentHashMap红黑树原理介绍/" class="archive-article-date">
-  	<time datetime="2017-11-06T09:48:34.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-11-06</time>
-</a>
-        
-      </header>
-    
-
-    <!-- 目录内容 -->
-    
-    <!-- 目录内容结束 -->
-
-    <div class="article-entry" itemprop="articleBody">
-      
-        <p>为了加快ConcurrentHashMap查找数据的速度, 若链表长度过长, 会将链表转化为红黑树, 本文主要讲解相关知识。</p>
-<h1 id="红黑树介绍"><a href="#红黑树介绍" class="headerlink" title="红黑树介绍"></a>红黑树介绍</h1><p>一棵二叉查找树如果满足下面的红黑性质, 则为一棵红黑树:<br>1）每个节点或者是黑的，或者是红的。<br>2）根节点是黑的。<br>3）每个叶子节点（NIL）是黑的。 [注意：这里叶子节点，是指为空(NIL或NULL)的叶子节点！]<br>4）如果一个节点是红的，则它的两个儿子都是黑的。<br>5）对每个节点, 从该节点到其子孙节点的所有路径上包含相同数目的黑节点。<br>红黑树示例如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/ConcurrentHashMap3.png" height="300" width="350"></p>
-<h2 id="链表转化为红黑树"><a href="#链表转化为红黑树" class="headerlink" title="链表转化为红黑树"></a>链表转化为红黑树</h2><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div></pre></td><td class="code"><pre><div class="line">TreeBin(TreeNode&lt;K,V&gt; b) &#123;</div><div class="line">    super(TREEBIN, null, null, null);</div><div class="line">    this.first = b;</div><div class="line">    //设置前置节点</div><div class="line">    TreeNode&lt;K,V&gt; r = null;</div><div class="line">    for (TreeNode&lt;K,V&gt; x = b, next; x != null; x = next) &#123;</div><div class="line">        next = (TreeNode&lt;K,V&gt;)x.next;</div><div class="line">        x.left = x.right = null;</div><div class="line">        //初始化节点</div><div class="line">        if (r == null) &#123;</div><div class="line">            x.parent = null;</div><div class="line">            x.red = false;</div><div class="line">            r = x;</div><div class="line">        &#125;</div><div class="line">        else &#123;</div><div class="line">            K k = x.key;</div><div class="line">            int h = x.hash;</div><div class="line">            Class&lt;?&gt; kc = null;</div><div class="line">            //从根节点开始找到合适的地方存放</div><div class="line">            for (TreeNode&lt;K,V&gt; p = r;;) &#123;</div><div class="line">                int dir, ph;</div><div class="line">                K pk = p.key;</div><div class="line">                //左边</div><div class="line">                if ((ph = p.hash) &gt; h)</div><div class="line">                    dir = -1;</div><div class="line">                //右边</div><div class="line">                else if (ph &lt; h)</div><div class="line">                    dir = 1;</div><div class="line">                else if ((kc == null &amp;&amp; //继续比较，类名接口名、hash值等方面来比较</div><div class="line">                          (kc = comparableClassFor(k)) == null) ||</div><div class="line">                         (dir = compareComparables(kc, k, pk)) == 0)</div><div class="line">                    dir = tieBreakOrder(k, pk);</div><div class="line">                    TreeNode&lt;K,V&gt; xp = p;</div><div class="line">                if ((p = (dir &lt;= 0) ? p.left : p.right) == null) &#123; //判断是否找到头了，</div><div class="line">                    x.parent = xp;</div><div class="line">                    if (dir &lt;= 0)</div><div class="line">                        xp.left = x;</div><div class="line">                    else</div><div class="line">                        xp.right = x;</div><div class="line">                    //开始调整</div><div class="line">                    r = balanceInsertion(r, x);</div><div class="line">                    break;</div><div class="line">                &#125;</div><div class="line">            &#125;</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line">    this.root = r;</div><div class="line">    assert checkInvariants(root);</div><div class="line">&#125;</div></pre></td></tr></table></figure>
-<p>主要做了如下事情:</p>
-<ul>
-<li>初始化TreeBin节点, 设置其hash=TREEBIN(-2)</li>
-<li>设置first结点, 这个节点就是链表的头, 根据这个头, 可以遍历整个红黑树。</li>
-<li>根据first开始遍历红黑树, 针对每个节点hash值, 插入红黑树中合适的位置, 然后调整该二叉树以满足红黑色的要求(balanceInsertion)。<h2 id="红黑树插入后平衡balanceInsertion"><a href="#红黑树插入后平衡balanceInsertion" class="headerlink" title="红黑树插入后平衡balanceInsertion"></a>红黑树插入后平衡balanceInsertion</h2>插入的节点为红色, 而可能导致红黑树出现红色的节点子节点还是红色, 违反4)条, 以下是调整过程:<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div></pre></td><td class="code"><pre><div class="line">static &lt;K,V&gt; TreeNode&lt;K,V&gt; balanceInsertion(TreeNode&lt;K,V&gt; root, TreeNode&lt;K,V&gt; x) &#123;</div><div class="line">    x.red = true;//首先赋值头为red</div><div class="line">    for (TreeNode&lt;K,V&gt; xp, xpp, xppl, xppr;;) &#123;</div><div class="line">        if ((xp = x.parent) == null) &#123; //如果插入的是头结点</div><div class="line">            x.red = false; //那么可以直接退出</div><div class="line">            return x;</div><div class="line">        &#125;</div><div class="line">        else if (!xp.red || (xpp = xp.parent) == null) //xp是插入的x的par</div><div class="line">            //只有两层，x是红色不改变黑节点高度，只有par是red才需要调整（两个red不能相连）</div><div class="line">            return root;</div><div class="line">        if (xp == (xppl = xpp.left)) &#123; //父节点是左孩子</div><div class="line">            if ((xppr = xpp.right) != null &amp;&amp; xppr.red) &#123; //叔叔节点是红色的</div><div class="line">                xppr.red = false;</div><div class="line">                xp.red = false;</div><div class="line">                xpp.red = true;</div><div class="line">                x = xpp; //x节点上移到祖父节点</div><div class="line">            &#125;</div><div class="line">            else &#123;</div><div class="line">                //叔叔节点是黑色节点，x是右节点，那么移动到左边</div><div class="line">                if (x == xp.right) &#123;</div><div class="line">                    //x变成xp的位置，结构没变，只是x指向变了</div><div class="line">                    root = rotateLeft(root, x = xp);</div><div class="line">                    xpp = (xp = x.parent) == null ? null : xp.parent;</div><div class="line">                &#125;</div><div class="line">                if (xp != null) &#123; //叔叔是黑色节点，x是左节点</div><div class="line">                    xp.red = false;</div><div class="line">                    if (xpp != null) &#123; //那么右旋就行了</div><div class="line">                        xpp.red = true;</div><div class="line">                        root = rotateRight(root, xpp);</div><div class="line">                    &#125;</div><div class="line">                &#125;</div><div class="line">            &#125;</div><div class="line">        &#125;</div><div class="line">        else &#123;</div><div class="line">           ...</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
-</li>
-</ul>
-<p>首先设置插入的节点为红色, 若插入节点的父节点是黑色的,那么没有打破红黑树的原则, 可以不用调整直接退出, 当且仅当父节点是红色时候才需要调整, 这里主要讨论插入节点的父节点是祖父节点左孩子(又孩子一样)的情况, 分三种情况进行调整:<br>case1. 叔叔C是红色的<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/ConcurrentHashMap5.png" height="250" width="400"><br>调整: 父节点B与叔叔节点C变黑, 祖父节点A变红, 调整节点上移到祖父节点A<br>case2. 叔叔C是黑色的, 插入节点X是右孩子<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/ConcurrentHashMap6.png" height="250" width="400"><br>调整: 父节点B右旋, 将调整节点指向曾经的自己D, 变成case3的情况<br>case3. 叔叔C是黑色的, 插入节点X是左孩子<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/ConcurrentHashMap7.png" height="250" width="400"><br>调整: 祖父节点A右旋, 父节点B变黑, 祖父节A点变红, 调整完成, 退出函数。</p>
-<h2 id="红黑树删除后平衡balanceInsertion"><a href="#红黑树删除后平衡balanceInsertion" class="headerlink" title="红黑树删除后平衡balanceInsertion"></a>红黑树删除后平衡balanceInsertion</h2><p>红黑树删除分为两步:</p>
-<ul>
-<li>二叉树正常删除数据。红黑树在删除节点时, 若该节点做孩子或者右孩子最多只存在一个, 那么删除的就是本身节点; 若左右孩子同时存在, 那么结构上实际删除的节点将是<code>该节点的中序遍历的后继节点</code>, 然后再将实际删除的那个节点数据来置换理论上被删除的那个节点的数据, 所以:实际被删除的那个节点两个孩子不可能同时存在。</li>
-<li>删除节点后的调整。 删除后, 若删除的是黑色节点, 导致从该节点到其子孙节点的所有路径上包含相同不同数目的黑节点, 将违反第5)条。 以下是调整过程:<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div><div class="line">61</div><div class="line">62</div><div class="line">63</div></pre></td><td class="code"><pre><div class="line">//x点代表了一次删除的那个黑色</div><div class="line">static &lt;K,V&gt; TreeNode&lt;K,V&gt; balanceDeletion(TreeNode&lt;K,V&gt; root, TreeNode&lt;K,V&gt; x) &#123;</div><div class="line">    for (TreeNode&lt;K,V&gt; xp, xpl, xpr;;)  &#123;</div><div class="line">        if (x == null || x == root)</div><div class="line">            return root;</div><div class="line">        else if ((xp = x.parent) == null) &#123;</div><div class="line">            x.red = false;</div><div class="line">            return x;</div><div class="line">        &#125;</div><div class="line">         //红色的，那么直接将红色变成黑色</div><div class="line">        else if (x.red) &#123;</div><div class="line">            x.red = false;</div><div class="line">            return root;</div><div class="line">        &#125;</div><div class="line">        //开始分两种情况，都是一样的， x是左兄弟</div><div class="line">        else if ((xpl = xp.left) == x) &#123;</div><div class="line">         //第一种情况：有兄弟是红色的，先将兄弟变成红色的</div><div class="line">            if ((xpr = xp.right) != null &amp;&amp; xpr.red) &#123;</div><div class="line">                xpr.red = false;</div><div class="line">                xp.red = true;</div><div class="line">                root = rotateLeft(root, xp);</div><div class="line">                xpr = (xp = x.parent) == null ? null : xp.right;</div><div class="line">            &#125;</div><div class="line">            if (xpr == null)//若有兄弟不存在，可以向上移动一个节点</div><div class="line">                x = xp;</div><div class="line">            else &#123; //那么右兄弟为黑色的</div><div class="line">                TreeNode&lt;K,V&gt; sl = xpr.left, sr = xpr.right;</div><div class="line">                if ((sr == null || !sr.red) &amp;&amp;</div><div class="line">                 //右兄弟的两个孩子若存在，那么是黑色的</div><div class="line">                    (sl == null || !sl.red)) &#123;</div><div class="line">                    //右兄弟将提取一个黑色，和本节点一起组成一个复黑色给父亲节点</div><div class="line">                    xpr.red = true;</div><div class="line">                    x = xp;</div><div class="line">                &#125;</div><div class="line">                else &#123; //右兄弟为黑色</div><div class="line">                    //并且右兄弟的右孩子为若存在，是黑色。反过来说，左孩子一定存在，并且为红色</div><div class="line">                    if (sr == null || !sr.red) &#123;</div><div class="line">                        if (sl != null)//这里判断没有意义，一定是red</div><div class="line">                            sl.red = false;</div><div class="line">                        xpr.red = true;</div><div class="line">                        root = rotateRight(root, xpr);//右旋</div><div class="line">                        xpr = (xp = x.parent) == null ? //更新指向xpr和xp的指针</div><div class="line">                            null : xp.right;</div><div class="line">                    &#125;</div><div class="line">                    //右兄弟为黑色，右兄弟的右孩子一定为red</div><div class="line">                    if (xpr != null) &#123;</div><div class="line">                        xpr.red = (xp == null) ? false : xp.red;</div><div class="line">                        if ((sr = xpr.right) != null)</div><div class="line">                            sr.red = false;</div><div class="line">                    &#125;</div><div class="line">                    if (xp != null) &#123;</div><div class="line">                        xp.red = false;</div><div class="line">                        root = rotateLeft(root, xp);</div><div class="line">                    &#125;</div><div class="line">                    x = root;//那么旋转结束</div><div class="line">                &#125;</div><div class="line">            &#125;</div><div class="line">        &#125;</div><div class="line">        else &#123; // symmetric</div><div class="line">           ...</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
-</li>
-</ul>
-<p>若删除了红节点, 那么对二叉树没有任何影响, 调整的都是删除节点是黑色的情况; 若删除节点的父节点是红色的,直接变成黑的就over, 这里仅仅讨论删除节点的父节点是左孩子(右孩子类似)的情况.<br>这里的x需要看成双重黑色, 平衡的目的是将这个双重黑色分摊到别的节点, 变成单黑色, 调整节点迁移到父节点<br>case1: 兄弟是红色的<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/ConcurrentHashMap12.png" height="350" width="400"><br>调整: 情况1: 若无右兄弟, 则将调整节点上移到父节点A; 若有右兄弟C, 对父节点A左旋, 父节点A变成红色, 兄弟节点C变成黑色<br>case2: 兄弟是黑色的, 兄弟的两个孩子(存在2个、1个、或者0个)没有一个是红色的<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/ConcurrentHashMap13.png" height="250" width="400"><br>调整: 将兄弟节点C变成红色, 调整节点上移到父节点C。<br>case3: 兄弟是黑色的, 兄弟的左孩子是红色。<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/ConcurrentHashMap14.png" height="250" width="400"><br>调整: 右旋兄弟节点C, 兄弟节点左孩子变成黑色, 兄弟节点C变成红色, 变成case4。<br>case3: 兄弟是黑色的, 兄弟的右孩子是红色。<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/ConcurrentHashMap15.png" height="250" width="400"><br>调整: 左旋父节点A, 将父节点A的颜色给兄弟节点, 父节点A变成黑色, 调整完成, 退出函数。</p>
-<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>红黑树重点是定义, 每次插入节点或者删除节点都会破坏红黑树的性能, 然后再通过调整修复这些性质就好了。</p>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-      
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/elasticsearch_learning/2017/11/06/ConcurrentHashMap红黑树原理介绍/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
   
     <nav id="page-nav">
       <a class="extend prev" rel="prev" href="/elasticsearch_learning/">&laquo; Prev</a><a class="page-number" href="/elasticsearch_learning/">1</a><span class="page-number current">2</span><a class="page-number" href="/elasticsearch_learning/page/3/">3</a><a class="page-number" href="/elasticsearch_learning/page/4/">4</a><a class="extend next" rel="next" href="/elasticsearch_learning/page/3/">Next &raquo;</a>
@@ -1442,11 +1478,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
+                <a href="javascript:void(0)" class="js-tag color4">ReentrantLock</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">ReentrantLock</a>
+                <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
               </li>
              
               <li class="article-tag-list-item">
