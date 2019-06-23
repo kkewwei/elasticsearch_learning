@@ -41,55 +41,39 @@
   <div id="container" q-class="show:isCtnShow">
     <canvas id="anm-canvas" class="anm-canvas"></canvas>
     <div class="left-col" q-class="show:isShow">
-      
-<div class="overlay" style="background: #4d4d4d"></div>
+      <% var defaultBg = '#4d4d4d'; %>
+<div class="overlay" style="background: <%= theme.style && theme.style.header ? theme.style.header : defaultBg %>"></div>
 <div class="intrude-less">
 	<header id="header" class="inner">
-		<a href="/" class="profilepic">
-      <img src="https://kkewwei.github.io/elasticsearch_learning/img/myself.png" class="js-avatar">
+		<a href="<%=theme.root%>" class="profilepic">
+			<img src="<%=theme.avatar%>" class="js-avatar">
 		</a>
 		<hgroup>
-		  <h1 class="header-author"><a href="/">xiaoyu</a></h1>
+		  <h1 class="header-author"><a href="<%=theme.root%>"><%=theme.author%></a></h1>
 		</hgroup>
-		
-		<p class="header-subtitle">往事随风</p>
-		
+		<% if (theme.subtitle){ %>
+		<p class="header-subtitle"><%=theme.subtitle%></p>
+		<%}%>
 
 		<nav class="header-menu">
 			<ul>
-			
-				<li><a href="/elasticsearch_learning/">主页</a></li>
-	        
-				<li><a href="/elasticsearch_learning/tags/随笔/">随笔</a></li>
-	        
+			<% for (var i in theme.menu){ %>
+				<li><a href="<%- url_for(theme.menu[i]) %>"><%= i %></a></li>
+	        <%}%>
 			</ul>
 		</nav>
 		<nav class="header-smart-menu">
-    		
-    			
-    			<a q-on="click: openSlider(e, 'innerArchive')" href="javascript:void(0)">所有文章</a>
-    			
-            
-    			
-    			<a q-on="click: openSlider(e, 'friends')" href="javascript:void(0)">友链</a>
-    			
-            
-    			
-    			<a q-on="click: openSlider(e, 'aboutme')" href="javascript:void(0)">关于我</a>
-    			
-            
+    		<% for (var i in theme.smart_menu){ %>
+    			<% if(theme.smart_menu[i]){ %>
+    			<a q-on="click: openSlider(e, '<%-i%>')" href="javascript:void(0)"><%= theme.smart_menu[i] %></a>
+    			<% } %>
+            <%}%>
 		</nav>
 		<nav class="header-nav">
 			<div class="social">
-				
-					<a class="github" target="_blank" href="#" title="github"><i class="icon-github"></i></a>
-		        
-					<a class="weibo" target="_blank" href="#" title="weibo"><i class="icon-weibo"></i></a>
-		        
-					<a class="rss" target="_blank" href="#" title="rss"><i class="icon-rss"></i></a>
-		        
-					<a class="zhihu" target="_blank" href="#" title="zhihu"><i class="icon-zhihu"></i></a>
-		        
+				<% for (var i in theme.subnav){ %>
+					<a class="<%= i %>" target="_blank" href="<%- url_for(theme.subnav[i]) %>" title="<%= i %>"><i class="icon-<%= i %>"></i></a>
+		        <%}%>
 			</div>
 		</nav>
 	</header>
@@ -158,6 +142,96 @@
           </div>
           <div id="js-content" class="content-ll">
             
+  
+    <article id="post-Netty-PoolSubpage原理探究" class="article article-type-post  article-index" itemscope itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/elasticsearch_learning/2018/07/22/Netty-PoolSubpage原理探究/">Netty-PoolSubpage原理探究</a>
+    </h1>
+  
+
+        
+        <a href="/elasticsearch_learning/2018/07/22/Netty-PoolSubpage原理探究/" class="archive-article-date">
+  	<time datetime="2018-07-21T17:02:45.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2018-07-22</time>
+</a>
+        
+      </header>
+    
+
+    <!-- 目录内容 -->
+    
+    <!-- 目录内容结束 -->
+
+    <div class="article-entry" itemprop="articleBody">
+      
+        <p>Netty中大于8K的内存是通过PoolChunk来分配的, 小于8k的内存是通过PoolSubpage分配的, 本章将详细描述如何通过PoolSubpage分配小于8K的内存。当申请小于8K的内存时, 会从分配一个8k的叶子节点, 若用不完的话, 存在很大的浪费, 所以通过PoolSubpage来管理8K的内存, 如下图<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/PoolSubpage.png" height="400" width="450"><br>每一个PoolSubpage都会与PoolChunk里面的一个叶子节点映射起来, 然后将PoolSubpage根据用户申请的ElementSize化成几等分, 之后只要再次申请ElementSize大小的内存, 将直接从这个PoolSubpage中分配。<br>下面是PoolSubpage的构造函数:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div></pre></td><td class="code"><pre><div class="line">PoolSubpage(PoolSubpage&lt;T&gt; head, PoolChunk&lt;T&gt; chunk, int memoryMapIdx, int runOffset, int pageSize, int elemSize) &#123;</div><div class="line">     this.chunk = chunk;</div><div class="line">     //与PoolChunkPage中哪个节点映射一起来</div><div class="line">     this.memoryMapIdx = memoryMapIdx;</div><div class="line">     this.runOffset = runOffset;</div><div class="line">     //该叶子节点的大小</div><div class="line">     this.pageSize = pageSize;</div><div class="line">     //bitmap的每一位都描述的是一个element的使用情况</div><div class="line">     bitmap = new long[pageSize &gt;&gt;&gt; 10];</div><div class="line">     init(head, elemSize);</div><div class="line"> &#125;</div><div class="line"> //init根据当前需要分配的内存大小，确定需要多少个bitmap元素</div><div class="line"> void init(PoolSubpage&lt;T&gt; head, int elemSize) &#123;   ///elemSize代表此次申请的大小，比如申请64byte，那么这个page被分成了8k/64=2^7=128个</div><div class="line">     doNotDestroy = true;</div><div class="line">     this.elemSize = elemSize;</div><div class="line">     if (elemSize != 0) &#123;</div><div class="line">         maxNumElems = numAvail = pageSize / elemSize; //被分成了128份64大小的内存</div><div class="line">         nextAvail = 0;</div><div class="line">         bitmapLength = maxNumElems &gt;&gt;&gt; 6;  //6代表着long长度 = 2</div><div class="line">         if ((maxNumElems &amp; 63) != 0) &#123;//低6位</div><div class="line">             bitmapLength ++;</div><div class="line">         &#125;</div><div class="line"></div><div class="line">         for (int i = 0; i &lt; bitmapLength; i ++) &#123;</div><div class="line">             bitmap[i] = 0;</div><div class="line">         &#125;</div><div class="line">     &#125;</div><div class="line">     addToPool(head);</div><div class="line"> &#125;</div></pre></td></tr></table></figure></p>
+<p>有人会有疑问: 为啥bitmap = new long[pageSize &gt;&gt;&gt; 10], 因为小于8K的内存, 最小是以16b为单位来分配的, 一个long类型为64位, 最多需要pageSize/(16*64)个long就可以将一个PoolSubpage中所有element是否分配描述清楚了, log2(16*64)=10。<br>然后再调用init来对PoolSubpage结构进行初始化:</p>
+<ol>
+<li>总共可以分成<code>pageSize/elemSize</code>个element。 bitmap所有元素也不一定需要全部用上, 实际会用<code>maxNumElems &gt;&gt;&gt; 6</code>个long就可以了。</li>
+<li>然后根据头插法将该PoolSubpage插入tinySubpagePools或者smallSubpagePools(参考<a href="https://kkewwei.github.io/elasticsearch_learning/2018/05/23/Netty%E5%86%85%E5%AD%98%E5%AD%A6%E4%B9%A0/">Netty PoolArea原理探究</a>)对应级别的链中。</li>
+</ol>
+<h1 id="PoolSubpage的内存分配"><a href="#PoolSubpage的内存分配" class="headerlink" title="PoolSubpage的内存分配"></a>PoolSubpage的内存分配</h1><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div></pre></td><td class="code"><pre><div class="line">long allocate() &#123; //找到一位</div><div class="line">    if (elemSize == 0) &#123;</div><div class="line">        return toHandle(0);</div><div class="line">    &#125;</div><div class="line">    if (numAvail == 0 || !doNotDestroy) &#123;</div><div class="line">        return -1;</div><div class="line">    &#125;</div><div class="line">    final int bitmapIdx = getNextAvail(); //64进制</div><div class="line">    int q = bitmapIdx &gt;&gt;&gt; 6;//第几位long</div><div class="line">    int r = bitmapIdx &amp; 63; //这个long第几位</div><div class="line">    assert (bitmap[q] &gt;&gt;&gt; r &amp; 1) == 0;</div><div class="line">    bitmap[q] |= 1L &lt;&lt; r;  //将相关位置置为1</div><div class="line">    if (-- numAvail == 0) &#123; //这个page没有再能够提供的bit位</div><div class="line">        removeFromPool(); //从可分配链中去掉</div><div class="line">    &#125;</div><div class="line">    return toHandle(bitmapIdx);</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>若可分配的element个数为0, 则将相应可分配链中去掉(该链结构可参考<a href="https://kkewwei.github.io/elasticsearch_learning/2018/05/23/Netty%E5%86%85%E5%AD%98%E5%AD%A6%E4%B9%A0/">Netty PoolArea原理探究</a>)。 PoolSubpage在初始化时候已经规定了可分配内存块的大小, 所以调用的函数中不需要告诉需要分配的内存大小, 在PoolSubpage中查找可用的element通过findNextAvail0实现的:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div></pre></td><td class="code"><pre><div class="line">private int findNextAvail0(int i, long bits) &#123;</div><div class="line">    final int maxNumElems = this.maxNumElems; //包含的段个数</div><div class="line">    final int baseVal = i &lt;&lt; 6; //64进制，第2位，最大数也只是8*64 + 64</div><div class="line"></div><div class="line">    for (int j = 0; j &lt; 64; j ++) &#123;</div><div class="line">        if ((bits &amp; 1) == 0) &#123; //bits哪位为0，局说明哪位可用</div><div class="line">            int val = baseVal | j; //第4个long+9  i&lt;&lt;6 + j</div><div class="line">            if (val &lt; maxNumElems) &#123; //不能大于总段数</div><div class="line">                return val;</div><div class="line">            &#125; else &#123;</div><div class="line">                break;</div><div class="line">            &#125;</div><div class="line">        &#125;</div><div class="line">        bits &gt;&gt;&gt;= 1;  //一位位找，直到找到某位为0</div><div class="line">    &#125;</div><div class="line">    return -1;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>主要做了如下事情:</p>
+<ol>
+<li>遍历bitmap中所有元素, 找到一个bit为0的元素, 说明还有element没有分配出去。</li>
+<li>检查该元素每一个bit是否为0, 找到后, 返回值为<code>i &lt;&lt; 6 | j</code>, 包含第几个元素 + 元素内第几个bit位。<br>再返回到allocate函数中, 将该元素对应的bit置为1, 并构造handle:<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line">private long toHandle(int bitmapIdx) &#123;</div><div class="line">    ////高32放着一个PoolSubpage里面哪段的哪个，低32位放着哪个叶子节点</div><div class="line">    return 0x4000000000000000L | (long) bitmapIdx &lt;&lt; 32 | memoryMapIdx;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+</li>
+</ol>
+<p>可以得知针对小于8K的分配, 返回的handle一定是大于int类型的数据, 若handle高位不为0, 则该handle映射的内存块一定是小于8K的内存块。该handle将page、element的位置信息全部编码进去了, 这些信息也很容易解码出来。</p>
+<h1 id="PoolSubpage的内存释放"><a href="#PoolSubpage的内存释放" class="headerlink" title="PoolSubpage的内存释放"></a>PoolSubpage的内存释放</h1><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div></pre></td><td class="code"><pre><div class="line">boolean free(PoolSubpage&lt;T&gt; head, int bitmapIdx) &#123;</div><div class="line">    if (elemSize == 0) &#123;</div><div class="line">        return true;</div><div class="line">    &#125;</div><div class="line">    int q = bitmapIdx &gt;&gt;&gt; 6;</div><div class="line">    int r = bitmapIdx &amp; 63;</div><div class="line">    assert (bitmap[q] &gt;&gt;&gt; r &amp; 1) != 0;</div><div class="line">    bitmap[q] ^= 1L &lt;&lt; r;</div><div class="line"></div><div class="line">    setNextAvail(bitmapIdx);</div><div class="line"></div><div class="line">    if (numAvail ++ == 0) &#123;</div><div class="line">        addToPool(head);</div><div class="line">        return true;</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    if (numAvail != maxNumElems) &#123;</div><div class="line">        return true;</div><div class="line">    &#125; else &#123;</div><div class="line">        // Subpage not in use (numAvail == maxNumElems)</div><div class="line">        if (prev == next) &#123;</div><div class="line">            // Do not remove if this subpage is the only one left in the pool.</div><div class="line">            return true;</div><div class="line">        &#125;</div><div class="line"></div><div class="line">        // Remove this subpage from the pool if there are other subpages left in the pool.</div><div class="line">        doNotDestroy = false;</div><div class="line">        removeFromPool();</div><div class="line">        return false;</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>释放的时候并不会将该PoolSubpage从subpages(见<a href="https://kkewwei.github.io/elasticsearch_learning/2018/07/20/Netty-PoolChunk%E5%8E%9F%E7%90%86%E6%8E%A2%E7%A9%B6/">Netty PoolChunk原理探究</a>)中取出, 释放逻辑也比较简单, 除了将bitmap中相应long置为0, 别的工作就是检查该PoolSubpage是否需要加入对应的链或者从对应的链中取出:</p>
+<ol>
+<li>若当前可用的element为0, 则说明已经从相应可分配链中去掉了, 此时再通过头插法加入对应的可分配链中, 说明还在使用。</li>
+<li>若目前剩余可用element小于最大剩余可用的, 同样说明还在使用。</li>
+<li>反之说明该PoolSubpage没有element被分配出去。 若该级别的链大于1个PoolSubpage还在使用, 则返回该链可以释放了; 只剩余这个PoolSubpage还没有释放, 那暂时先不释放等待之后的内存分配。</li>
+</ol>
+<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>PoolSubpage主要管理小于8K的内存分配, 内存返回的handle可以唯一确定PoolChunk、poolSubpage中具体哪个element。 当PoolSubpage没有使用的内存时, 可能从对应的链中取出。同时一定没有从subpages中去掉。</p>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+      
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/elasticsearch_learning/2018/07/22/Netty-PoolSubpage原理探究/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
   
     <article id="post-Netty-PoolChunk原理探究" class="article article-type-post  article-index" itemscope itemprop="blogPost">
   <div class="article-inner">
@@ -1265,104 +1339,6 @@
 
 
   
-    <article id="post-ConcurrentHashMap扩容过程介绍" class="article article-type-post  article-index" itemscope itemprop="blogPost">
-  <div class="article-inner">
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/elasticsearch_learning/2017/11/14/ConcurrentHashMap扩容过程介绍/">ConcurrentHashMap扩容源码介绍</a>
-    </h1>
-  
-
-        
-        <a href="/elasticsearch_learning/2017/11/14/ConcurrentHashMap扩容过程介绍/" class="archive-article-date">
-  	<time datetime="2017-11-14T03:21:07.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-11-14</time>
-</a>
-        
-      </header>
-    
-
-    <!-- 目录内容 -->
-    
-    <!-- 目录内容结束 -->
-
-    <div class="article-entry" itemprop="articleBody">
-      
-        <p>在<a href="https://kkewwei.github.io/elasticsearch_learning/2017/11/05/ConcurrentHashMap-put%E8%BF%87%E7%A8%8B%E4%BB%8B%E7%BB%8D/">ConcurrentHashMap Put源码介绍</a>我们讲过, ConcurrentHashMap由三部分构成, table+链表+红黑树, 其中table是一个数组, 既然是数组, 必须要在使用时确定数组的大小, 当table存放的元素过多时, 就需要扩容, 以减少碰撞发生次数, 本文就讲解扩容的过程。扩容检查主要发生在插入元素(<a href="https://kkewwei.github.io/elasticsearch_learning/2017/11/05/ConcurrentHashMap-put%E8%BF%87%E7%A8%8B%E4%BB%8B%E7%BB%8D/">ConcurrentHashMap Put源码介绍</a> putVal())的过程:</p>
-<ul>
-<li>一个线程插完元素后, 检查table使用率, 若超过阈值, 调用transfer进行扩容</li>
-<li>一个线程插入数据时, 发现table对应元素的hash=MOVED, 那么调用helpTransfer()协助扩容。</li>
-</ul>
-<h1 id="协助扩容helpTransfer"><a href="#协助扩容helpTransfer" class="headerlink" title="协助扩容helpTransfer()"></a>协助扩容helpTransfer()</h1><p>下面是协助扩容的过程:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div></pre></td><td class="code"><pre><div class="line">final Node&lt;K,V&gt;[] helpTransfer(Node&lt;K,V&gt;[] tab, Node&lt;K,V&gt; f) &#123; //table扩容</div><div class="line">        Node&lt;K,V&gt;[] nextTab; int sc;</div><div class="line">        if (tab != null &amp;&amp; (f instanceof ForwardingNode) &amp;&amp;</div><div class="line">            (nextTab = ((ForwardingNode&lt;K,V&gt;)f).nextTable) != null) &#123;</div><div class="line">            // 根据 length 得到一个标识符号</div><div class="line">            int rs = resizeStamp(tab.length);</div><div class="line">            while (nextTab == nextTable &amp;&amp; table == tab &amp;&amp;</div><div class="line">                   (sc = sizeCtl) &lt; 0) &#123;//说明还在扩容</div><div class="line">                //判断是否标志发生了变化||  扩容结束了</div><div class="line">                if ((sc &gt;&gt;&gt; RESIZE_STAMP_SHIFT) != rs || sc == rs + 1 ||</div><div class="line">                     //达到最大的帮助线程 ||  判断扩容转移下标是否在调整（扩容结束）</div><div class="line">                    sc == rs + MAX_RESIZERS || transferIndex &lt;= 0)</div><div class="line">                    break;</div><div class="line">                // 将 sizeCtl + 1, （表示增加了一个线程帮助其扩容）</div><div class="line">                if (U.compareAndSwapInt(this, SIZECTL, sc, sc + 1)) &#123;</div><div class="line">                    transfer(tab, nextTab);</div><div class="line">                    break;</div><div class="line">                &#125;</div><div class="line">            &#125;</div><div class="line">            return nextTab;</div><div class="line">        &#125;</div><div class="line">        return table;</div><div class="line">    &#125;</div></pre></td></tr></table></figure></p>
-<p>主要做了如下事情:</p>
-<ul>
-<li>检查是否扩容完成<br>扩容期间c &gt;&gt;&gt; RESIZE_STAMP_SHIFT == rs是成立的, 扩容完成后, transferIndex &lt;= 0是成立的。而这里的sc == rs + 1和sc == rs + MAX_RESIZERS并没有看到什么意义, 网上说的是检查扩容结束和扩容现成的控制。但是要是扩容结束, 应该是sc == rs &lt;&lt; RESIZE_STAMP_SHIFT + 1才对, 若是对线程控制, sc == rs + MAX_RESIZERS里面sc=resizeStamp(n)&lt;&lt;RESIZE_STAMP_SHIFT+2, 是一个大于-2^16的负数, 就算每个线程对sc+1, 那么需要2^16才能大于0, 相等基本也是不可能的。</li>
-<li>对sizeCtrl = sizeCtrl+1, 然后调用transfer()进行真正的扩容。</li>
-</ul>
-<h2 id="扩容transfer"><a href="#扩容transfer" class="headerlink" title="扩容transfer"></a>扩容transfer</h2><p>扩容的整体步骤就是新建一个nextTab, size是之前的2倍, 将table上的非空元素迁移到nextTab上面去。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div><div class="line">61</div><div class="line">62</div><div class="line">63</div><div class="line">64</div><div class="line">65</div><div class="line">66</div><div class="line">67</div><div class="line">68</div><div class="line">69</div><div class="line">70</div><div class="line">71</div><div class="line">72</div><div class="line">73</div><div class="line">74</div><div class="line">75</div><div class="line">76</div><div class="line">77</div><div class="line">78</div><div class="line">79</div><div class="line">80</div><div class="line">81</div><div class="line">82</div><div class="line">83</div><div class="line">84</div><div class="line">85</div><div class="line">86</div><div class="line">87</div><div class="line">88</div><div class="line">89</div><div class="line">90</div><div class="line">91</div><div class="line">92</div><div class="line">93</div><div class="line">94</div><div class="line">95</div><div class="line">96</div><div class="line">97</div><div class="line">98</div><div class="line">99</div><div class="line">100</div><div class="line">101</div><div class="line">102</div><div class="line">103</div><div class="line">104</div><div class="line">105</div><div class="line">106</div><div class="line">107</div><div class="line">108</div><div class="line">109</div><div class="line">110</div><div class="line">111</div><div class="line">112</div><div class="line">113</div><div class="line">114</div><div class="line">115</div><div class="line">116</div><div class="line">117</div><div class="line">118</div><div class="line">119</div><div class="line">120</div><div class="line">121</div><div class="line">122</div><div class="line">123</div><div class="line">124</div><div class="line">125</div><div class="line">126</div><div class="line">127</div><div class="line">128</div><div class="line">129</div><div class="line">130</div><div class="line">131</div><div class="line">132</div><div class="line">133</div><div class="line">134</div><div class="line">135</div><div class="line">136</div><div class="line">137</div><div class="line">138</div><div class="line">139</div><div class="line">140</div><div class="line">141</div><div class="line">142</div><div class="line">143</div><div class="line">144</div><div class="line">145</div><div class="line">146</div><div class="line">147</div><div class="line">148</div><div class="line">149</div><div class="line">150</div></pre></td><td class="code"><pre><div class="line">private final void transfer(Node&lt;K,V&gt;[] tab, Node&lt;K,V&gt;[] nextTab) &#123;</div><div class="line">    int n = tab.length, stride;</div><div class="line">    if ((stride = (NCPU &gt; 1) ? (n &gt;&gt;&gt; 3) / NCPU : n) &lt; MIN_TRANSFER_STRIDE)</div><div class="line">       // subdivide range，每个线程最少迁移16个槽位，大的话，最多</div><div class="line">        stride = MIN_TRANSFER_STRIDE;</div><div class="line">    // initiating  才开始初始化新的nextTab</div><div class="line">    if (nextTab == null) &#123;</div><div class="line">        try &#123;</div><div class="line">            @SuppressWarnings(&quot;unchecked&quot;)</div><div class="line">            Node&lt;K,V&gt;[] nt = (Node&lt;K,V&gt;[])new Node&lt;?,?&gt;[n &lt;&lt; 1];  //扩容2倍</div><div class="line">            nextTab = nt;</div><div class="line">        &#125; catch (Throwable ex) &#123;      // try to cope with OOME</div><div class="line">            sizeCtl = Integer.MAX_VALUE;</div><div class="line">            return;</div><div class="line">        &#125;</div><div class="line">        nextTable = nextTab;</div><div class="line">        transferIndex = n;//更新的转移下标，</div><div class="line">    &#125;</div><div class="line">    int nextn = nextTab.length;</div><div class="line">    ForwardingNode&lt;K,V&gt; fwd = new ForwardingNode&lt;K,V&gt;(nextTab);</div><div class="line">    //是否能够向前推进到下一个周期</div><div class="line">    boolean advance = true;</div><div class="line">    // to ensure sweep before committing nextTab，完成状态，如果是，则结束此方法</div><div class="line">    boolean finishing = false;</div><div class="line">    for (int i = 0, bound = 0;;) &#123;</div><div class="line">        Node&lt;K,V&gt; f; int fh;</div><div class="line">        while (advance) &#123; //取下一个周期</div><div class="line">            int nextIndex, nextBound;</div><div class="line">            //本线程处理的区间范围为[bound, i),范围还没有处理完成，那么就继续处理</div><div class="line">            if (--i &gt;= bound || finishing)</div><div class="line">                advance = false;</div><div class="line">            //目前处理到了这里（从大到小， 下线），开始找新的一轮的区间</div><div class="line">            else if ((nextIndex = transferIndex) &lt;= 0) &#123;</div><div class="line">                i = -1;</div><div class="line">                advance = false;</div><div class="line">            &#125;</div><div class="line">            //这个条件改变的是transferIndex的值，从16变成了1</div><div class="line">            else if (U.compareAndSwapInt</div><div class="line">                     (this, TRANSFERINDEX, nextIndex,</div><div class="line">                     //nextBound 是这次迁移任务的边界，注意，是从后往前</div><div class="line">                      nextBound = (nextIndex &gt; stride ?</div><div class="line">                                   nextIndex - stride : 0))) &#123;</div><div class="line">                bound = nextBound; //一块区间最小桶的下标</div><div class="line">                i = nextIndex - 1; //能够处理的最大桶的下标</div><div class="line">                advance = false;</div><div class="line">            &#125;</div><div class="line">        &#125;</div><div class="line">        if (i &lt; 0 || i &gt;= n || i + n &gt;= nextn) &#123; //每个迁移线程都能达到这里</div><div class="line">            int sc;</div><div class="line">            if (finishing) &#123; //迁移完成</div><div class="line">                nextTable = null;</div><div class="line">                //直接把以前的table丢弃了，上面的MOVE等标志全部丢弃，使用新的</div><div class="line">                table = nextTab;</div><div class="line">                sizeCtl = (n &lt;&lt; 1) - (n &gt;&gt;&gt; 1); //扩大2n-0.5n = 1.50n, 更新新的容量阈值</div><div class="line">                return;</div><div class="line">            &#125;</div><div class="line">            //表示当前线程迁移完成了</div><div class="line">            if (U.compareAndSwapInt(this, SIZECTL, sc = sizeCtl, sc - 1)) &#123;</div><div class="line">                 //注意此时sc的值并不等于sizeCtl，上一步，sizeCtl=sizeCtl-1了。这两个对象还是分割的</div><div class="line">                if ((sc - 2) != resizeStamp(n) &lt;&lt; RESIZE_STAMP_SHIFT)</div><div class="line">                    return;</div><div class="line">                finishing = advance = true;</div><div class="line">                i = n; // recheck before commit</div><div class="line">            &#125;</div><div class="line">        &#125;</div><div class="line">        //如果对应位置为null， 则将ForwardingNode放在对应的地方</div><div class="line">        else if ((f = tabAt(tab, i)) == null)</div><div class="line">            advance = casTabAt(tab, i, null, fwd);</div><div class="line">        else if ((fh = f.hash) == MOVED) //别的线程已经在处理了，再推进一个下标</div><div class="line">            advance = true; // already processed，推动到下一个周期，仍然会检查i与bound是否结束</div><div class="line">        else &#123; //说明位置上有值了，</div><div class="line">            //需要加锁，防止再向里面放值，在放数据时，也会锁住。比如整个table正在迁移，还没有迁移到这个元素，另外一个线程像这个节点插入数据，此时迁移到这里了，会被阻塞住</div><div class="line">            synchronized (f) &#123;</div><div class="line">                if (tabAt(tab, i) == f) &#123;//判断i下标和f是否相同</div><div class="line">                    Node&lt;K,V&gt; ln, hn; //高位桶， 地位桶</div><div class="line">                    if (fh &gt;= 0) &#123;</div><div class="line">                        int runBit = fh &amp; n;//n为2^n, 取余后只能是2^n</div><div class="line">                        Node&lt;K,V&gt; lastRun = f;</div><div class="line">                        ///找到最后一个不和fn相同的节点</div><div class="line">                        for (Node&lt;K,V&gt; p = f.next; p != null; p = p.next) &#123;</div><div class="line">                            int b = p.hash &amp; n;</div><div class="line">                            //只要找到这，之后的取值都是一样的，下次循环时，就不用再循环后面的</div><div class="line">                            if (b != runBit) &#123;</div><div class="line">                                runBit = b;</div><div class="line">                                lastRun = p;</div><div class="line">                            &#125;</div><div class="line">                        &#125;</div><div class="line">                        if (runBit == 0) &#123;</div><div class="line">                            ln = lastRun;</div><div class="line">                            hn = null;</div><div class="line">                        &#125;</div><div class="line">                        else &#123; //比如1，16，32,如果低位%16，那么肯定是0。</div><div class="line">                            hn = lastRun;</div><div class="line">                            ln = null;</div><div class="line">                        &#125;</div><div class="line">                        for (Node&lt;K,V&gt; p = f; p != lastRun; p = p.next) &#123;</div><div class="line">                            int ph = p.hash; K pk = p.key; V pv = p.val;</div><div class="line">                            if ((ph &amp; n) == 0)</div><div class="line">                                 //这样就把相同串的给串起来了</div><div class="line">                                ln = new Node&lt;K,V&gt;(ph, pk, pv, ln);</div><div class="line">                            else</div><div class="line">                                //这样就把相同串的给串起来了，注意这里ln用法，第一个next为null，烦着串起来了。</div><div class="line">                                hn = new Node&lt;K,V&gt;(ph, pk, pv, hn);</div><div class="line">                        &#125;</div><div class="line">                        setTabAt(nextTab, i, ln); //反着给串起来了</div><div class="line">                        setTabAt(nextTab, i + n, hn);</div><div class="line">                        setTabAt(tab, i, fwd);</div><div class="line">                        advance = true;</div><div class="line">                    &#125;</div><div class="line">                    else if (f instanceof TreeBin) &#123;// 如果是红黑树</div><div class="line">                        TreeBin&lt;K,V&gt; t = (TreeBin&lt;K,V&gt;)f;</div><div class="line">                        TreeNode&lt;K,V&gt; lo = null, loTail = null; //也是高低节点</div><div class="line">                        TreeNode&lt;K,V&gt; hi = null, hiTail = null;//也是高低节点</div><div class="line">                        int lc = 0, hc = 0;</div><div class="line">                        for (Node&lt;K,V&gt; e = t.first; e != null; e = e.next) &#123; //中序遍历红黑树</div><div class="line">                            int h = e.hash;</div><div class="line">                            TreeNode&lt;K,V&gt; p = new TreeNode&lt;K,V&gt;</div><div class="line">                                (h, e.key, e.val, null, null);</div><div class="line">                            if ((h &amp; n) == 0) &#123; //0的放低位</div><div class="line">                                //注意这里p.prev = loTail，每一个p都是下一个的prev</div><div class="line">                                if ((p.prev = loTail) == null)</div><div class="line">                                    lo = p; //把头记住</div><div class="line">                                else</div><div class="line">                                    loTail.next = p;  //上一次的p的next是这次的p</div><div class="line">                                loTail = p; //把上次p给记住</div><div class="line">                                ++lc;</div><div class="line">                            &#125;</div><div class="line">                            else &#123; //高位</div><div class="line">                                if ((p.prev = hiTail) == null)</div><div class="line">                                    hi = p; //把尾记住</div><div class="line">                                else</div><div class="line">                                    hiTail.next = p;</div><div class="line">                                hiTail = p;</div><div class="line">                                ++hc;</div><div class="line">                            &#125;</div><div class="line">                        &#125;</div><div class="line">                        ln = (lc &lt;= UNTREEIFY_THRESHOLD) ? untreeify(lo) :// //判断是否需要转化为树</div><div class="line">                            (hc != 0) ? new TreeBin&lt;K,V&gt;(lo) : t; //如果没有高低的话，则部分为两个树</div><div class="line">                        hn = (hc &lt;= UNTREEIFY_THRESHOLD) ? untreeify(hi) :</div><div class="line">                            (lc != 0) ? new TreeBin&lt;K,V&gt;(hi) : t;</div><div class="line">                        setTabAt(nextTab, i, ln);</div><div class="line">                        setTabAt(nextTab, i + n, hn);</div><div class="line">                        setTabAt(tab, i, fwd);</div><div class="line">                        advance = true;</div><div class="line">                    &#125;</div><div class="line">                &#125;</div><div class="line">            &#125;</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
-<p>其中有两个变量需要了解下:<br>advance: 表示是否可以向下一个轮元素进行迁移。<br>finishing: table所有元素是否迁移完成。<br>大致做了如下事情:</p>
-<ul>
-<li>确定线程每轮迁移元素的个数stride, 比如进来一个线程, 确定扩容table下标为(a,b]之间元素, 下一个线程扩容(b,c]。这里对b-a或者c-b也是由最小值16限制的。 也就是说每个线程最少扩容连续16个table的元素。而标志当前迁移的下标保存在transferIndex里面。</li>
-<li>检查nextTab是否完成初始化, 若没有的话, 说明是第一个迁移的线程, 先初始化nextTab, size是之前table的2倍。</li>
-<li>进入while循环查找本轮迁移的table下标元素区间, 保存在(bound, i]中, 注意这里是半开半闭区间。</li>
-<li>从i -&gt; bound开始遍历table中每个元素, 这里是<code>从大到小</code>遍历的:</li>
-</ul>
-<ol>
-<li>若该元素为空, 则向该元素标写入ForwardingNode, 然后检查下一个元素。 当别的线程向这个元素插入数据时, 根据这个标志符知道了table正在被别的线程迁移, 在putVal中就会调用helpTransfer帮着迁移。</li>
-<li>若该元素的hash=MOVED, 代表次table正在处于迁移之中, 跳过。 按道理不会跑着这里的。</li>
-<li>否则说明该元素跟着的是一个链表或者是个红黑树结构, 若hash&gt;0, 则说明是个链表, 若f instanceof TreeBin, 则说明是个红黑树结构。</li>
-</ol>
-<ul>
-<li>链表迁移原理如下: <code>遍历链表每个节点。 若节点的f.hash&amp;n==0成立, 则将节点放在i, 否则, 则将节点放在n+i上面</code>。<br>迁移前, 对该元素进行加锁。 遍历链表时, 这里使用lastRun变量, 保留的是上次hash的值, 假如整个链表全部节点f.hash&amp;n==0, 那么第二次遍历, 只要找到lastRun的值, 那么认为之后的节点都是相同值, 减少了不必要的f.hash&amp;n取值。遍历完所有的节点后, 此时形成了两条链表, ln存放的是f.hash&amp;n=0的节点, hn存放的是非0的节点, 然后将ln存放在nextTable第i元素的位置, n+i存放在n+i的位置。<br>首先放一个张图展示扩容的变化:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/ConcurrentHashMap18.png" height="450" width="650"><br>蓝色节点代表:f.hash&amp;n==0, 绿色节点代表f.hash&amp;n!=0。 最终蓝色的节点仍在存放在(0, n)范围里, 绿的的节点存放在(n, 2n-1)的范围之内。</li>
-<li>迁移链表和红黑树的原理是一样的, 在红黑树中, 我们记录了每个红黑树的first(这个节点不是hash最小的节点)和每个节点的next, 根据这两个元素, 我们可以访问红黑树所有的元素, 红黑树此时也是一个链表, 红黑树和链表迁移的过程一样。红黑树根据迁移后拆分成了hn和ln, 根据链表长度确定链表是红黑树结构还是退化为了链表。<br>4.如何确定table所有元素迁移完成:<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div></pre></td><td class="code"><pre><div class="line">//表示当前线程迁移完成了</div><div class="line">if (U.compareAndSwapInt(this, SIZECTL, sc = sizeCtl, sc - 1)) &#123;</div><div class="line">     //注意此时sc的值并不等于sizeCtl，上一步，sizeCtl=sizeCtl-1了。这两个对象还是分割的</div><div class="line">    if ((sc - 2) != resizeStamp(n) &lt;&lt; RESIZE_STAMP_SHIFT)</div><div class="line">        return;</div><div class="line">    finishing = advance = true;</div><div class="line">    i = n; // recheck before commit</div><div class="line">&#125;</div></pre></td></tr></table></figure>
-</li>
-</ul>
-<p>第一个线程开始迁移时, 设置了sizeCtl= resizeStamp(n) &lt;&lt; RESIZE_STAMP_SHIFT+2, 此后每个新来帮助迁移的线程都会sizeCtl=sizeCtl+1, 完成迁移后,sizeCtl-1, 那么只要有一个线程还处于迁移状态, 那么sizeCtl&gt; resizeStamp(n) &lt;&lt; RESIZE_STAMP_SHIFT+2一直成立, 当只有最后一个线程完成迁移之后, 等式两边才成立。 可能大家会有疑问, 第一个线程并没有对sizeCtl=sizeCtl+1, 此时完成后再减一, 那不是不相等了吗, 注意这里, sizeCtl在减一前, 将值赋给了sc, 等式比较的是sc。</p>
-<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>table扩容过程就是将table元素迁移到新的table上, 在元素迁移时, 可以并发完成, 加快了迁移速度, 同时不至于阻塞线程。所有元素迁移完成后, 旧的table直接丢失, 直接使用新的table。</p>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-      
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/elasticsearch_learning/2017/11/14/ConcurrentHashMap扩容过程介绍/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
   
     <nav id="page-nav">
       <a class="extend prev" rel="prev" href="/elasticsearch_learning/">&laquo; Prev</a><a class="page-number" href="/elasticsearch_learning/">1</a><span class="page-number current">2</span><a class="page-number" href="/elasticsearch_learning/page/3/">3</a><a class="page-number" href="/elasticsearch_learning/page/4/">4</a><a class="extend next" rel="next" href="/elasticsearch_learning/page/3/">Next &raquo;</a>
@@ -1494,11 +1470,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
+                <a href="javascript:void(0)" class="js-tag color4">ReentrantLock</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">ReentrantLock</a>
+                <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
               </li>
              
               <li class="article-tag-list-item">

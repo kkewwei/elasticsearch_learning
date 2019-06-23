@@ -41,55 +41,39 @@
   <div id="container" q-class="show:isCtnShow">
     <canvas id="anm-canvas" class="anm-canvas"></canvas>
     <div class="left-col" q-class="show:isShow">
-      
-<div class="overlay" style="background: #4d4d4d"></div>
+      <% var defaultBg = '#4d4d4d'; %>
+<div class="overlay" style="background: <%= theme.style && theme.style.header ? theme.style.header : defaultBg %>"></div>
 <div class="intrude-less">
 	<header id="header" class="inner">
-		<a href="/" class="profilepic">
-      <img src="https://kkewwei.github.io/elasticsearch_learning/img/myself.png" class="js-avatar">
+		<a href="<%=theme.root%>" class="profilepic">
+			<img src="<%=theme.avatar%>" class="js-avatar">
 		</a>
 		<hgroup>
-		  <h1 class="header-author"><a href="/">xiaoyu</a></h1>
+		  <h1 class="header-author"><a href="<%=theme.root%>"><%=theme.author%></a></h1>
 		</hgroup>
-		
-		<p class="header-subtitle">往事随风</p>
-		
+		<% if (theme.subtitle){ %>
+		<p class="header-subtitle"><%=theme.subtitle%></p>
+		<%}%>
 
 		<nav class="header-menu">
 			<ul>
-			
-				<li><a href="/elasticsearch_learning/">主页</a></li>
-	        
-				<li><a href="/elasticsearch_learning/tags/随笔/">随笔</a></li>
-	        
+			<% for (var i in theme.menu){ %>
+				<li><a href="<%- url_for(theme.menu[i]) %>"><%= i %></a></li>
+	        <%}%>
 			</ul>
 		</nav>
 		<nav class="header-smart-menu">
-    		
-    			
-    			<a q-on="click: openSlider(e, 'innerArchive')" href="javascript:void(0)">所有文章</a>
-    			
-            
-    			
-    			<a q-on="click: openSlider(e, 'friends')" href="javascript:void(0)">友链</a>
-    			
-            
-    			
-    			<a q-on="click: openSlider(e, 'aboutme')" href="javascript:void(0)">关于我</a>
-    			
-            
+    		<% for (var i in theme.smart_menu){ %>
+    			<% if(theme.smart_menu[i]){ %>
+    			<a q-on="click: openSlider(e, '<%-i%>')" href="javascript:void(0)"><%= theme.smart_menu[i] %></a>
+    			<% } %>
+            <%}%>
 		</nav>
 		<nav class="header-nav">
 			<div class="social">
-				
-					<a class="github" target="_blank" href="#" title="github"><i class="icon-github"></i></a>
-		        
-					<a class="weibo" target="_blank" href="#" title="weibo"><i class="icon-weibo"></i></a>
-		        
-					<a class="rss" target="_blank" href="#" title="rss"><i class="icon-rss"></i></a>
-		        
-					<a class="zhihu" target="_blank" href="#" title="zhihu"><i class="icon-zhihu"></i></a>
-		        
+				<% for (var i in theme.subnav){ %>
+					<a class="<%= i %>" target="_blank" href="<%- url_for(theme.subnav[i]) %>" title="<%= i %>"><i class="icon-<%= i %>"></i></a>
+		        <%}%>
 			</div>
 		</nav>
 	</header>
@@ -158,6 +142,104 @@
           </div>
           <div id="js-content" class="content-ll">
             
+  
+    <article id="post-ConcurrentHashMap扩容过程介绍" class="article article-type-post  article-index" itemscope itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/elasticsearch_learning/2017/11/14/ConcurrentHashMap扩容过程介绍/">ConcurrentHashMap扩容源码介绍</a>
+    </h1>
+  
+
+        
+        <a href="/elasticsearch_learning/2017/11/14/ConcurrentHashMap扩容过程介绍/" class="archive-article-date">
+  	<time datetime="2017-11-14T03:21:07.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-11-14</time>
+</a>
+        
+      </header>
+    
+
+    <!-- 目录内容 -->
+    
+    <!-- 目录内容结束 -->
+
+    <div class="article-entry" itemprop="articleBody">
+      
+        <p>在<a href="https://kkewwei.github.io/elasticsearch_learning/2017/11/05/ConcurrentHashMap-put%E8%BF%87%E7%A8%8B%E4%BB%8B%E7%BB%8D/">ConcurrentHashMap Put源码介绍</a>我们讲过, ConcurrentHashMap由三部分构成, table+链表+红黑树, 其中table是一个数组, 既然是数组, 必须要在使用时确定数组的大小, 当table存放的元素过多时, 就需要扩容, 以减少碰撞发生次数, 本文就讲解扩容的过程。扩容检查主要发生在插入元素(<a href="https://kkewwei.github.io/elasticsearch_learning/2017/11/05/ConcurrentHashMap-put%E8%BF%87%E7%A8%8B%E4%BB%8B%E7%BB%8D/">ConcurrentHashMap Put源码介绍</a> putVal())的过程:</p>
+<ul>
+<li>一个线程插完元素后, 检查table使用率, 若超过阈值, 调用transfer进行扩容</li>
+<li>一个线程插入数据时, 发现table对应元素的hash=MOVED, 那么调用helpTransfer()协助扩容。</li>
+</ul>
+<h1 id="协助扩容helpTransfer"><a href="#协助扩容helpTransfer" class="headerlink" title="协助扩容helpTransfer()"></a>协助扩容helpTransfer()</h1><p>下面是协助扩容的过程:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div></pre></td><td class="code"><pre><div class="line">final Node&lt;K,V&gt;[] helpTransfer(Node&lt;K,V&gt;[] tab, Node&lt;K,V&gt; f) &#123; //table扩容</div><div class="line">        Node&lt;K,V&gt;[] nextTab; int sc;</div><div class="line">        if (tab != null &amp;&amp; (f instanceof ForwardingNode) &amp;&amp;</div><div class="line">            (nextTab = ((ForwardingNode&lt;K,V&gt;)f).nextTable) != null) &#123;</div><div class="line">            // 根据 length 得到一个标识符号</div><div class="line">            int rs = resizeStamp(tab.length);</div><div class="line">            while (nextTab == nextTable &amp;&amp; table == tab &amp;&amp;</div><div class="line">                   (sc = sizeCtl) &lt; 0) &#123;//说明还在扩容</div><div class="line">                //判断是否标志发生了变化||  扩容结束了</div><div class="line">                if ((sc &gt;&gt;&gt; RESIZE_STAMP_SHIFT) != rs || sc == rs + 1 ||</div><div class="line">                     //达到最大的帮助线程 ||  判断扩容转移下标是否在调整（扩容结束）</div><div class="line">                    sc == rs + MAX_RESIZERS || transferIndex &lt;= 0)</div><div class="line">                    break;</div><div class="line">                // 将 sizeCtl + 1, （表示增加了一个线程帮助其扩容）</div><div class="line">                if (U.compareAndSwapInt(this, SIZECTL, sc, sc + 1)) &#123;</div><div class="line">                    transfer(tab, nextTab);</div><div class="line">                    break;</div><div class="line">                &#125;</div><div class="line">            &#125;</div><div class="line">            return nextTab;</div><div class="line">        &#125;</div><div class="line">        return table;</div><div class="line">    &#125;</div></pre></td></tr></table></figure></p>
+<p>主要做了如下事情:</p>
+<ul>
+<li>检查是否扩容完成<br>扩容期间c &gt;&gt;&gt; RESIZE_STAMP_SHIFT == rs是成立的, 扩容完成后, transferIndex &lt;= 0是成立的。而这里的sc == rs + 1和sc == rs + MAX_RESIZERS并没有看到什么意义, 网上说的是检查扩容结束和扩容现成的控制。但是要是扩容结束, 应该是sc == rs &lt;&lt; RESIZE_STAMP_SHIFT + 1才对, 若是对线程控制, sc == rs + MAX_RESIZERS里面sc=resizeStamp(n)&lt;&lt;RESIZE_STAMP_SHIFT+2, 是一个大于-2^16的负数, 就算每个线程对sc+1, 那么需要2^16才能大于0, 相等基本也是不可能的。</li>
+<li>对sizeCtrl = sizeCtrl+1, 然后调用transfer()进行真正的扩容。</li>
+</ul>
+<h2 id="扩容transfer"><a href="#扩容transfer" class="headerlink" title="扩容transfer"></a>扩容transfer</h2><p>扩容的整体步骤就是新建一个nextTab, size是之前的2倍, 将table上的非空元素迁移到nextTab上面去。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div><div class="line">61</div><div class="line">62</div><div class="line">63</div><div class="line">64</div><div class="line">65</div><div class="line">66</div><div class="line">67</div><div class="line">68</div><div class="line">69</div><div class="line">70</div><div class="line">71</div><div class="line">72</div><div class="line">73</div><div class="line">74</div><div class="line">75</div><div class="line">76</div><div class="line">77</div><div class="line">78</div><div class="line">79</div><div class="line">80</div><div class="line">81</div><div class="line">82</div><div class="line">83</div><div class="line">84</div><div class="line">85</div><div class="line">86</div><div class="line">87</div><div class="line">88</div><div class="line">89</div><div class="line">90</div><div class="line">91</div><div class="line">92</div><div class="line">93</div><div class="line">94</div><div class="line">95</div><div class="line">96</div><div class="line">97</div><div class="line">98</div><div class="line">99</div><div class="line">100</div><div class="line">101</div><div class="line">102</div><div class="line">103</div><div class="line">104</div><div class="line">105</div><div class="line">106</div><div class="line">107</div><div class="line">108</div><div class="line">109</div><div class="line">110</div><div class="line">111</div><div class="line">112</div><div class="line">113</div><div class="line">114</div><div class="line">115</div><div class="line">116</div><div class="line">117</div><div class="line">118</div><div class="line">119</div><div class="line">120</div><div class="line">121</div><div class="line">122</div><div class="line">123</div><div class="line">124</div><div class="line">125</div><div class="line">126</div><div class="line">127</div><div class="line">128</div><div class="line">129</div><div class="line">130</div><div class="line">131</div><div class="line">132</div><div class="line">133</div><div class="line">134</div><div class="line">135</div><div class="line">136</div><div class="line">137</div><div class="line">138</div><div class="line">139</div><div class="line">140</div><div class="line">141</div><div class="line">142</div><div class="line">143</div><div class="line">144</div><div class="line">145</div><div class="line">146</div><div class="line">147</div><div class="line">148</div><div class="line">149</div><div class="line">150</div></pre></td><td class="code"><pre><div class="line">private final void transfer(Node&lt;K,V&gt;[] tab, Node&lt;K,V&gt;[] nextTab) &#123;</div><div class="line">    int n = tab.length, stride;</div><div class="line">    if ((stride = (NCPU &gt; 1) ? (n &gt;&gt;&gt; 3) / NCPU : n) &lt; MIN_TRANSFER_STRIDE)</div><div class="line">       // subdivide range，每个线程最少迁移16个槽位，大的话，最多</div><div class="line">        stride = MIN_TRANSFER_STRIDE;</div><div class="line">    // initiating  才开始初始化新的nextTab</div><div class="line">    if (nextTab == null) &#123;</div><div class="line">        try &#123;</div><div class="line">            @SuppressWarnings(&quot;unchecked&quot;)</div><div class="line">            Node&lt;K,V&gt;[] nt = (Node&lt;K,V&gt;[])new Node&lt;?,?&gt;[n &lt;&lt; 1];  //扩容2倍</div><div class="line">            nextTab = nt;</div><div class="line">        &#125; catch (Throwable ex) &#123;      // try to cope with OOME</div><div class="line">            sizeCtl = Integer.MAX_VALUE;</div><div class="line">            return;</div><div class="line">        &#125;</div><div class="line">        nextTable = nextTab;</div><div class="line">        transferIndex = n;//更新的转移下标，</div><div class="line">    &#125;</div><div class="line">    int nextn = nextTab.length;</div><div class="line">    ForwardingNode&lt;K,V&gt; fwd = new ForwardingNode&lt;K,V&gt;(nextTab);</div><div class="line">    //是否能够向前推进到下一个周期</div><div class="line">    boolean advance = true;</div><div class="line">    // to ensure sweep before committing nextTab，完成状态，如果是，则结束此方法</div><div class="line">    boolean finishing = false;</div><div class="line">    for (int i = 0, bound = 0;;) &#123;</div><div class="line">        Node&lt;K,V&gt; f; int fh;</div><div class="line">        while (advance) &#123; //取下一个周期</div><div class="line">            int nextIndex, nextBound;</div><div class="line">            //本线程处理的区间范围为[bound, i),范围还没有处理完成，那么就继续处理</div><div class="line">            if (--i &gt;= bound || finishing)</div><div class="line">                advance = false;</div><div class="line">            //目前处理到了这里（从大到小， 下线），开始找新的一轮的区间</div><div class="line">            else if ((nextIndex = transferIndex) &lt;= 0) &#123;</div><div class="line">                i = -1;</div><div class="line">                advance = false;</div><div class="line">            &#125;</div><div class="line">            //这个条件改变的是transferIndex的值，从16变成了1</div><div class="line">            else if (U.compareAndSwapInt</div><div class="line">                     (this, TRANSFERINDEX, nextIndex,</div><div class="line">                     //nextBound 是这次迁移任务的边界，注意，是从后往前</div><div class="line">                      nextBound = (nextIndex &gt; stride ?</div><div class="line">                                   nextIndex - stride : 0))) &#123;</div><div class="line">                bound = nextBound; //一块区间最小桶的下标</div><div class="line">                i = nextIndex - 1; //能够处理的最大桶的下标</div><div class="line">                advance = false;</div><div class="line">            &#125;</div><div class="line">        &#125;</div><div class="line">        if (i &lt; 0 || i &gt;= n || i + n &gt;= nextn) &#123; //每个迁移线程都能达到这里</div><div class="line">            int sc;</div><div class="line">            if (finishing) &#123; //迁移完成</div><div class="line">                nextTable = null;</div><div class="line">                //直接把以前的table丢弃了，上面的MOVE等标志全部丢弃，使用新的</div><div class="line">                table = nextTab;</div><div class="line">                sizeCtl = (n &lt;&lt; 1) - (n &gt;&gt;&gt; 1); //扩大2n-0.5n = 1.50n, 更新新的容量阈值</div><div class="line">                return;</div><div class="line">            &#125;</div><div class="line">            //表示当前线程迁移完成了</div><div class="line">            if (U.compareAndSwapInt(this, SIZECTL, sc = sizeCtl, sc - 1)) &#123;</div><div class="line">                 //注意此时sc的值并不等于sizeCtl，上一步，sizeCtl=sizeCtl-1了。这两个对象还是分割的</div><div class="line">                if ((sc - 2) != resizeStamp(n) &lt;&lt; RESIZE_STAMP_SHIFT)</div><div class="line">                    return;</div><div class="line">                finishing = advance = true;</div><div class="line">                i = n; // recheck before commit</div><div class="line">            &#125;</div><div class="line">        &#125;</div><div class="line">        //如果对应位置为null， 则将ForwardingNode放在对应的地方</div><div class="line">        else if ((f = tabAt(tab, i)) == null)</div><div class="line">            advance = casTabAt(tab, i, null, fwd);</div><div class="line">        else if ((fh = f.hash) == MOVED) //别的线程已经在处理了，再推进一个下标</div><div class="line">            advance = true; // already processed，推动到下一个周期，仍然会检查i与bound是否结束</div><div class="line">        else &#123; //说明位置上有值了，</div><div class="line">            //需要加锁，防止再向里面放值，在放数据时，也会锁住。比如整个table正在迁移，还没有迁移到这个元素，另外一个线程像这个节点插入数据，此时迁移到这里了，会被阻塞住</div><div class="line">            synchronized (f) &#123;</div><div class="line">                if (tabAt(tab, i) == f) &#123;//判断i下标和f是否相同</div><div class="line">                    Node&lt;K,V&gt; ln, hn; //高位桶， 地位桶</div><div class="line">                    if (fh &gt;= 0) &#123;</div><div class="line">                        int runBit = fh &amp; n;//n为2^n, 取余后只能是2^n</div><div class="line">                        Node&lt;K,V&gt; lastRun = f;</div><div class="line">                        ///找到最后一个不和fn相同的节点</div><div class="line">                        for (Node&lt;K,V&gt; p = f.next; p != null; p = p.next) &#123;</div><div class="line">                            int b = p.hash &amp; n;</div><div class="line">                            //只要找到这，之后的取值都是一样的，下次循环时，就不用再循环后面的</div><div class="line">                            if (b != runBit) &#123;</div><div class="line">                                runBit = b;</div><div class="line">                                lastRun = p;</div><div class="line">                            &#125;</div><div class="line">                        &#125;</div><div class="line">                        if (runBit == 0) &#123;</div><div class="line">                            ln = lastRun;</div><div class="line">                            hn = null;</div><div class="line">                        &#125;</div><div class="line">                        else &#123; //比如1，16，32,如果低位%16，那么肯定是0。</div><div class="line">                            hn = lastRun;</div><div class="line">                            ln = null;</div><div class="line">                        &#125;</div><div class="line">                        for (Node&lt;K,V&gt; p = f; p != lastRun; p = p.next) &#123;</div><div class="line">                            int ph = p.hash; K pk = p.key; V pv = p.val;</div><div class="line">                            if ((ph &amp; n) == 0)</div><div class="line">                                 //这样就把相同串的给串起来了</div><div class="line">                                ln = new Node&lt;K,V&gt;(ph, pk, pv, ln);</div><div class="line">                            else</div><div class="line">                                //这样就把相同串的给串起来了，注意这里ln用法，第一个next为null，烦着串起来了。</div><div class="line">                                hn = new Node&lt;K,V&gt;(ph, pk, pv, hn);</div><div class="line">                        &#125;</div><div class="line">                        setTabAt(nextTab, i, ln); //反着给串起来了</div><div class="line">                        setTabAt(nextTab, i + n, hn);</div><div class="line">                        setTabAt(tab, i, fwd);</div><div class="line">                        advance = true;</div><div class="line">                    &#125;</div><div class="line">                    else if (f instanceof TreeBin) &#123;// 如果是红黑树</div><div class="line">                        TreeBin&lt;K,V&gt; t = (TreeBin&lt;K,V&gt;)f;</div><div class="line">                        TreeNode&lt;K,V&gt; lo = null, loTail = null; //也是高低节点</div><div class="line">                        TreeNode&lt;K,V&gt; hi = null, hiTail = null;//也是高低节点</div><div class="line">                        int lc = 0, hc = 0;</div><div class="line">                        for (Node&lt;K,V&gt; e = t.first; e != null; e = e.next) &#123; //中序遍历红黑树</div><div class="line">                            int h = e.hash;</div><div class="line">                            TreeNode&lt;K,V&gt; p = new TreeNode&lt;K,V&gt;</div><div class="line">                                (h, e.key, e.val, null, null);</div><div class="line">                            if ((h &amp; n) == 0) &#123; //0的放低位</div><div class="line">                                //注意这里p.prev = loTail，每一个p都是下一个的prev</div><div class="line">                                if ((p.prev = loTail) == null)</div><div class="line">                                    lo = p; //把头记住</div><div class="line">                                else</div><div class="line">                                    loTail.next = p;  //上一次的p的next是这次的p</div><div class="line">                                loTail = p; //把上次p给记住</div><div class="line">                                ++lc;</div><div class="line">                            &#125;</div><div class="line">                            else &#123; //高位</div><div class="line">                                if ((p.prev = hiTail) == null)</div><div class="line">                                    hi = p; //把尾记住</div><div class="line">                                else</div><div class="line">                                    hiTail.next = p;</div><div class="line">                                hiTail = p;</div><div class="line">                                ++hc;</div><div class="line">                            &#125;</div><div class="line">                        &#125;</div><div class="line">                        ln = (lc &lt;= UNTREEIFY_THRESHOLD) ? untreeify(lo) :// //判断是否需要转化为树</div><div class="line">                            (hc != 0) ? new TreeBin&lt;K,V&gt;(lo) : t; //如果没有高低的话，则部分为两个树</div><div class="line">                        hn = (hc &lt;= UNTREEIFY_THRESHOLD) ? untreeify(hi) :</div><div class="line">                            (lc != 0) ? new TreeBin&lt;K,V&gt;(hi) : t;</div><div class="line">                        setTabAt(nextTab, i, ln);</div><div class="line">                        setTabAt(nextTab, i + n, hn);</div><div class="line">                        setTabAt(tab, i, fwd);</div><div class="line">                        advance = true;</div><div class="line">                    &#125;</div><div class="line">                &#125;</div><div class="line">            &#125;</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>其中有两个变量需要了解下:<br>advance: 表示是否可以向下一个轮元素进行迁移。<br>finishing: table所有元素是否迁移完成。<br>大致做了如下事情:</p>
+<ul>
+<li>确定线程每轮迁移元素的个数stride, 比如进来一个线程, 确定扩容table下标为(a,b]之间元素, 下一个线程扩容(b,c]。这里对b-a或者c-b也是由最小值16限制的。 也就是说每个线程最少扩容连续16个table的元素。而标志当前迁移的下标保存在transferIndex里面。</li>
+<li>检查nextTab是否完成初始化, 若没有的话, 说明是第一个迁移的线程, 先初始化nextTab, size是之前table的2倍。</li>
+<li>进入while循环查找本轮迁移的table下标元素区间, 保存在(bound, i]中, 注意这里是半开半闭区间。</li>
+<li>从i -&gt; bound开始遍历table中每个元素, 这里是<code>从大到小</code>遍历的:</li>
+</ul>
+<ol>
+<li>若该元素为空, 则向该元素标写入ForwardingNode, 然后检查下一个元素。 当别的线程向这个元素插入数据时, 根据这个标志符知道了table正在被别的线程迁移, 在putVal中就会调用helpTransfer帮着迁移。</li>
+<li>若该元素的hash=MOVED, 代表次table正在处于迁移之中, 跳过。 按道理不会跑着这里的。</li>
+<li>否则说明该元素跟着的是一个链表或者是个红黑树结构, 若hash&gt;0, 则说明是个链表, 若f instanceof TreeBin, 则说明是个红黑树结构。</li>
+</ol>
+<ul>
+<li>链表迁移原理如下: <code>遍历链表每个节点。 若节点的f.hash&amp;n==0成立, 则将节点放在i, 否则, 则将节点放在n+i上面</code>。<br>迁移前, 对该元素进行加锁。 遍历链表时, 这里使用lastRun变量, 保留的是上次hash的值, 假如整个链表全部节点f.hash&amp;n==0, 那么第二次遍历, 只要找到lastRun的值, 那么认为之后的节点都是相同值, 减少了不必要的f.hash&amp;n取值。遍历完所有的节点后, 此时形成了两条链表, ln存放的是f.hash&amp;n=0的节点, hn存放的是非0的节点, 然后将ln存放在nextTable第i元素的位置, n+i存放在n+i的位置。<br>首先放一个张图展示扩容的变化:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/ConcurrentHashMap18.png" height="450" width="650"><br>蓝色节点代表:f.hash&amp;n==0, 绿色节点代表f.hash&amp;n!=0。 最终蓝色的节点仍在存放在(0, n)范围里, 绿的的节点存放在(n, 2n-1)的范围之内。</li>
+<li>迁移链表和红黑树的原理是一样的, 在红黑树中, 我们记录了每个红黑树的first(这个节点不是hash最小的节点)和每个节点的next, 根据这两个元素, 我们可以访问红黑树所有的元素, 红黑树此时也是一个链表, 红黑树和链表迁移的过程一样。红黑树根据迁移后拆分成了hn和ln, 根据链表长度确定链表是红黑树结构还是退化为了链表。<br>4.如何确定table所有元素迁移完成:<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div></pre></td><td class="code"><pre><div class="line">//表示当前线程迁移完成了</div><div class="line">if (U.compareAndSwapInt(this, SIZECTL, sc = sizeCtl, sc - 1)) &#123;</div><div class="line">     //注意此时sc的值并不等于sizeCtl，上一步，sizeCtl=sizeCtl-1了。这两个对象还是分割的</div><div class="line">    if ((sc - 2) != resizeStamp(n) &lt;&lt; RESIZE_STAMP_SHIFT)</div><div class="line">        return;</div><div class="line">    finishing = advance = true;</div><div class="line">    i = n; // recheck before commit</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+</li>
+</ul>
+<p>第一个线程开始迁移时, 设置了sizeCtl= resizeStamp(n) &lt;&lt; RESIZE_STAMP_SHIFT+2, 此后每个新来帮助迁移的线程都会sizeCtl=sizeCtl+1, 完成迁移后,sizeCtl-1, 那么只要有一个线程还处于迁移状态, 那么sizeCtl&gt; resizeStamp(n) &lt;&lt; RESIZE_STAMP_SHIFT+2一直成立, 当只有最后一个线程完成迁移之后, 等式两边才成立。 可能大家会有疑问, 第一个线程并没有对sizeCtl=sizeCtl+1, 此时完成后再减一, 那不是不相等了吗, 注意这里, sizeCtl在减一前, 将值赋给了sc, 等式比较的是sc。</p>
+<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>table扩容过程就是将table元素迁移到新的table上, 在元素迁移时, 可以并发完成, 加快了迁移速度, 同时不至于阻塞线程。所有元素迁移完成后, 旧的table直接丢失, 直接使用新的table。</p>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+      
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/elasticsearch_learning/2017/11/14/ConcurrentHashMap扩容过程介绍/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
   
     <article id="post-ConcurrentHashMap红黑树原理介绍" class="article article-type-post  article-index" itemscope itemprop="blogPost">
   <div class="article-inner">
@@ -879,7 +961,8 @@
 
     <div class="article-entry" itemprop="articleBody">
       
-        <p>ReentrantLock作为线程之间相互通信的工具, 在实际项目中较多的被使用到, 了解ReentrantLock, 就不得不提AbstractQueuedSynchronizer(AQS), 本文章将对这两个类展开详述。<br>基本使用如下:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div></pre></td><td class="code"><pre><div class="line">ReentrantLock lock = new ReentrantLock(true);</div><div class="line">//尝试获取锁,获取不到就阻塞</div><div class="line">lock.lock();</div><div class="line">//释放锁,获取完了唤醒被阻塞的线程</div><div class="line">lock.unlock();</div></pre></td></tr></table></figure></p>
+        <p>ReentrantLock作为线程之间相互通信的工具, 在实际项目中较多的被使用到, 了解ReentrantLock, 就不得不提AbstractQueuedSynchronizer(AQS), 本文章将对这两个类展开详述。<br>基本使用如下:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div></pre></td><td class="code"><pre><div class="line">ReentrantLock lock = new ReentrantLock(true);</div><div class="line">//尝试获取锁,获取不到就阻塞</div><div class="line">lock.lock();</div><div class="line">......</div><div class="line">//释放锁,获取完了唤醒被阻塞的线程</div><div class="line">lock.unlock();</div></pre></td></tr></table></figure></p>
+<p>我们需要注意, 调用lock.lock()和lock.unlock()的线程必须是一个, lock.unlock()会对线程检查, 只有当调用lock.lock()的线程和本线程一致, 才可以解锁。可以看到, 是不是很像关键字synchronized的作用?</p>
 <h1 id="简介"><a href="#简介" class="headerlink" title="简介"></a>简介</h1><p>AbstractQueuedSynchronizer，顾名思义，抽象队列同步器，作为抽象类，使用FIFO链，实现了锁的语义, 在CountDownLatch、Semaphore都可以看到该类的实现。</p>
 <h2 id="AbstractQueuedSynchronizer详解"><a href="#AbstractQueuedSynchronizer详解" class="headerlink" title="AbstractQueuedSynchronizer详解"></a>AbstractQueuedSynchronizer详解</h2><p>接下来将首先介绍两个重要的属性变量:<br><code>state</code><br>AbstractQueuedSynchronizer主要针对属性state来实现锁的含义，用户通过针对state赋予不同的值，实现不同锁的含义。 在多线程针对state的操作，必须保证state状态的原子性，使用了<code>volatile</code>关键字，这里没使用Synchronized来保证原子性的原因:</p>
 <ul>
@@ -1109,111 +1192,6 @@
 
 
   
-    <article id="post-git-基本命令学习心得" class="article article-type-post  article-index" itemscope itemprop="blogPost">
-  <div class="article-inner">
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/elasticsearch_learning/2017/03/08/git-基本命令学习心得/">git 基本命令学习心得-1</a>
-    </h1>
-  
-
-        
-        <a href="/elasticsearch_learning/2017/03/08/git-基本命令学习心得/" class="archive-article-date">
-  	<time datetime="2017-03-08T04:46:57.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-03-08</time>
-</a>
-        
-      </header>
-    
-
-    <!-- 目录内容 -->
-    
-    <!-- 目录内容结束 -->
-
-    <div class="article-entry" itemprop="articleBody">
-      
-        <p>一般在公共分支上操作,不能修改分支的提交记录, 但是可以使用cherry-pick, revert这样的可以使用, 而rebase, reset这样的命令一般在私有分支上才可用。</p>
-<h1 id="rebase"><a href="#rebase" class="headerlink" title="rebase"></a>rebase</h1><p>git rebase是用来更改提交的基, 通过重新在当前分支提交一连串的commit来实现的, 比如dev分支从master A提交产生的, 在master分支又进行了B、C、D提交, 在dev分支进行了E、F、G提交, 此时为了保证D能够合并到master最新的D提交上, 那么就使用rebase。<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/git_rebase3.png" height="300" width="550"><br><code>git:(dev) git rebase master</code>, 此时处于G(最新提交)操作。变基是以共同祖先节点开始变的, 执行后就像放电影一样, 会将E、F、G的所有内容顺序与D合并。比如基于D与E合并后变成D’, 基于D’与F合并变成F’, 基于F’和G合并变成G’。箭头代表着基于哪些commit进行了merge。 完成rebase操作后, 提交链路被就改了。<br>用法:1.git rebase master 2. 通过vim解决冲突, 3.使用git add .保存 4.git rebase –continue继续解决下一个冲突<br>注意: 并没有要求修改comment, commit不变</p>
-<h2 id="半路rebase"><a href="#半路rebase" class="headerlink" title="半路rebase"></a>半路rebase</h2><p>以上示例是我们在dev分支的最新提交H上进行rebase的, 假如我们不在最新G上操作, 而是在F上进行rebase操作, 会出现什么结果呢?<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/git_rebase2.png" height="300" width="550"><br>可以看到dev分支没有任何变化, 而是将EF提交分别与D提交合并, 使EF部分变基到master分支上。</p>
-<h2 id="rebase-i-参数"><a href="#rebase-i-参数" class="headerlink" title="rebase -i 参数"></a>rebase -i 参数</h2><p>-i参数使rebase将于用户交互的形式完成merge, 根据这个参数, 用户可以完成多次提交顺序的复制、删除、编辑commit、修改提交顺序等一系列操作。<br><code>git:(dev): git rebase -i master</code>之后, 将弹出这样的界面:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/git_rebase5.png" height="350" width="450"></p>
-<p>红框1说明dev分支从master分支产生之后, 进行了三次提交, 这三次提交会和master最新的提交分别顺序进行合并。 红框1里面每行分为三部分:</p>
-<ul>
-<li>操作action</li>
-<li>commit hash值</li>
-<li>commit commit<br>其中action介绍在红框2中, 主要分为这几种类型:<br>1) p pick = use commit: 提交这次commit, 分别修改每次提交的comment内容。<br>git rebase -i master这种和别的分支进行rebase, 所有提交的comment是可以修改成功的。<br>git rebase -i HEAD~3 这种和本身历史提交进行rebase, 也提示需要修改comment, 但是最终没有生效。<br>2) r, reword = use commit, but edit the commit message: 提交这次commit, 同时修改这次comment的内容<br>git rebase -i HEAD~3 这种和本身历史提交进行rebase, 也提示需要修改comment, 同时修改这次comment的内容, 可以成功, 仅仅当前一次提交。(与说明相符)<br>git rebase -i master这种和别的分支进行rebase, 修改comment是可以修改成功的。 但是总是发生某些提交丢失的情况, 一般禁止使用。<br>3) e, edit = use commit, but stop for amending<br>git rebase -i master: 和p参数没啥区别, 能修改所有提交的comment<br>git rebase -i HEAD~3 : 可以停下来让你修改当前comment, 直到你调用–continue才能继续<br>4) s, squash = use commit, but meld into previous commit: 提交这次commit, 将本次提交和上次的提交合并(提交内容和提交comment都合并进去),使看起来是一次提交。<br>执行以下命令:<code>git:(dev): git rebase -i HEAD~3</code>, 并且修改action如下:<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line">pick 159f932 d1</div><div class="line">squash 4279e75 d2</div><div class="line">pick 116755e d3</div></pre></td></tr></table></figure>
-</li>
-</ul>
-<p><img src="https://kkewwei.github.io/elasticsearch_learning/img/git_rebase6.png" height="350" width="450"><br>git log展示如上, 可以看出第一个和第二次的提交合并了, 所有的提交comment都修改了。<br>git rebase -i master也能和描述也是一致的。<br>5) f, fixup = like “squash”, but discard this commit’s log message: 和squash效果一样, 和之前提交的commit会合并到一起, 本次提交的comment会直接丢弃。<br>git rebase -i master: 可以一起修改前缀的comment(也可以将#去掉,同一个comment分两行显示两个comment), 后续的提交还可以修改comment。<br>git rebase -i HEAD~3 : 这次提交的coment直接丢弃, 所有提交都不给改的机会。<br>6) x, exec = run command (the rest of the line) using shell :执行shell命令, 可以忽略使用<br>7) d, drop = remove commit 直接丢弃这次提交(包括提交内容与comment)</p>
-<h2 id="i参数控制复制、删除、重置提交顺序等"><a href="#i参数控制复制、删除、重置提交顺序等" class="headerlink" title="i参数控制复制、删除、重置提交顺序等"></a>i参数控制复制、删除、重置提交顺序等</h2><p>rebase -i参数可以通过重复上面的提交记录操作这些操作, 比如:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line">pick 159f932 d1</div><div class="line">squash 4279e75 d2</div><div class="line">pick 116755e d3</div><div class="line">pick 159f932 d1</div></pre></td></tr></table></figure></p>
-<p>该提交将重复提交第一次提交, 提交结果如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/git_rebase7.png" height="350" width="450"><br>本地rebase之后再向远程推送, 可能会冲突, 这时确定没有人在基于那个分支分发的话, 可以通过git push –force origin mybranch分支。 master一般不允许直接这么弄</p>
-<h1 id="cherry-pick"><a href="#cherry-pick" class="headerlink" title="cherry-pick"></a>cherry-pick</h1><p>cherry-pick主要是将一个分支单独的提交变化合并到另外一个分支上, 以下图为例, 当前处于master的D提交上, 想让dev分支上的G提交改变合并到当前master分支上, 那么就执行:<br><code>git:(master D提交): git cherry-pick G</code>, 提交完成后, G提交出的变化代码就会和master分支D处全部代码合并, 产生提交D’。注意,这里虽然合并了, 但是并没有改变分支提交记录, 图中用虚线表达着从提交历史上看, D’和G毫无关联。<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/git_rebase10.png" height="350" width="450"><br>cherry-pick在提取G提交的变化时, 能将变化抽取出来的, 就将变化提取出来, 能合并就合并。变化合并到D时, 有冲突就解决冲突。<br>cherry-pick与rebase使用上的区别:<br>rebase: 修改提交历史, 改变的是整个分支的提交基, 将每次提交都与另外一个分支提交一一合并。<br>cherry-pick: 不会修改提交历史,仅仅产生一个新的提交。像挑选樱桃一样, 可以某个分支某次提交与另一个分支提交代码合并。<br>-m 参数<br>git cherry-pick G -m 1/2等<br>git show –pretty=raw xszdsdsdds<br><a href="https://stackoverflow.com/questions/12626754/git-cherry-pick-syntax-and-merge-branches/12628579#12628579" target="_blank" rel="external">https://stackoverflow.com/questions/12626754/git-cherry-pick-syntax-and-merge-branches/12628579#12628579</a></p>
-<h1 id="revert"><a href="#revert" class="headerlink" title="revert"></a>revert</h1><p>revert的含义是撤销(丢弃)某次提交, 下图为例, 比如想撤销G提交: <code>git:(master D提交): git revert G</code>, 实际就是丢弃G的提交, 具体实现是将G提交变化从当前提交D中去掉, 然后产生新的提交D’。<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/git_revert1.png" height="350" width="450"><br>同cherry-pick一样, 并不改变历史提交记录, 仅仅将D和F(G的父提交)合并, 产生的新提交D’与G提交没有任何关系。<br>比如<code>git:(master D提交): git revert HEAD</code>, 撤销最近一次提交(也就提交D提交), 可能要产生冲突, 解决冲突后通过git add、git revert –continue来完成此次操作。</p>
-<h1 id="checkout"><a href="#checkout" class="headerlink" title="checkout"></a>checkout</h1><p>checkout主要是从<code>对象库中(仓库)</code>拿出一个提交, 然后放在工作目录中, HEAD会指向当前提交(前提是工作区、暂存区、本地仓库一致, 否则会冲突); 附带功能是从<code>暂存区(索引)</code>中检出文件来重置工作区的文件, 使用示例如下:</p>
-<ul>
-<li>git:(master D提交): git checkout G<br>将当前分支切换到G提交上面去, 此时工作区、暂存区、本地仓库代码将一致</li>
-<li>git:(master D提交): git checkout – file1<br>用<code>暂存区</code>的文件file1来重置<code>工作区</code>的file1, 而不是从本地代码仓库来恢复。</li>
-<li>git:(master D提交): git checkout G – file1<br>用G提交的代码<code>暂存区</code>的文件file1来重置<code>工作区</code>的file1。<br>checkout不会去修改提交记录, 仅仅是修改了HEAD。</li>
-</ul>
-<h1 id="reset"><a href="#reset" class="headerlink" title="reset"></a>reset</h1><p>reset主要是将仓库中的某次提交拿出来, 然后放回到暂存区、工作目录中, HEAD, master会指向当前提交, 提交历史会被改变。</p>
-<ul>
-<li>在切换到某一次提交时, 可使用 三个参数:<br>—soft: 仅仅是将当前master、HEAD指针指向commit3<br>—mixed: 在—soft的基础上, 用commit3的提交来重置暂存区。(默认)<br>—hard: 在—hard的集群上, 用commit3的提交来重置暂存区、工作区。<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/git_reset.png" height="250" width="700"></li>
-<li>git:(master D提交): git reset HEAD file1<br>用<code>本地代码仓库</code>的文件file1来重置<code>暂存区</code>(索引)的file1。</li>
-</ul>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color2">git, rebase, cherry-pick, reset, checkout</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/elasticsearch_learning/2017/03/08/git-基本命令学习心得/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
   
     <nav id="page-nav">
       <a class="extend prev" rel="prev" href="/elasticsearch_learning/page/2/">&laquo; Prev</a><a class="page-number" href="/elasticsearch_learning/">1</a><a class="page-number" href="/elasticsearch_learning/page/2/">2</a><span class="page-number current">3</span><a class="page-number" href="/elasticsearch_learning/page/4/">4</a><a class="extend next" rel="next" href="/elasticsearch_learning/page/4/">Next &raquo;</a>
@@ -1345,11 +1323,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
+                <a href="javascript:void(0)" class="js-tag color4">ReentrantLock</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">ReentrantLock</a>
+                <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
               </li>
              
               <li class="article-tag-list-item">

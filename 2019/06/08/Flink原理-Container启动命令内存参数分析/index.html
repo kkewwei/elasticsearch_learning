@@ -15,7 +15,7 @@
 <meta property="og:url" content="https://kkewwei.github.io/elasticsearch_learning/2019/06/08/Flink原理-Container启动命令内存参数分析/index.html">
 <meta property="og:site_name" content="Hexo">
 <meta property="og:description" content="如下是flink on yarn启动的一个示例:1/bin/flink run -m yarn-cluster -yd -yjm 1024 -ys 2 -ytm 2048 clink-with-dependencies.jar  --topic_name topic1 --log_name --source_num 50  --sink_num 50 其中我们定义了JobManager的大小为10">
-<meta property="og:updated_time" content="2019-06-08T14:53:30.000Z">
+<meta property="og:updated_time" content="2019-06-12T01:31:19.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Flink原理-Container启动命令内存参数分析">
 <meta name="twitter:description" content="如下是flink on yarn启动的一个示例:1/bin/flink run -m yarn-cluster -yd -yjm 1024 -ys 2 -ytm 2048 clink-with-dependencies.jar  --topic_name topic1 --log_name --source_num 50  --sink_num 50 其中我们定义了JobManager的大小为10">
@@ -42,55 +42,39 @@
   <div id="container" q-class="show:isCtnShow">
     <canvas id="anm-canvas" class="anm-canvas"></canvas>
     <div class="left-col" q-class="show:isShow">
-      
-<div class="overlay" style="background: #4d4d4d"></div>
+      <% var defaultBg = '#4d4d4d'; %>
+<div class="overlay" style="background: <%= theme.style && theme.style.header ? theme.style.header : defaultBg %>"></div>
 <div class="intrude-less">
 	<header id="header" class="inner">
-		<a href="/" class="profilepic">
-      <img src="https://kkewwei.github.io/elasticsearch_learning/img/myself.png" class="js-avatar">
+		<a href="<%=theme.root%>" class="profilepic">
+			<img src="<%=theme.avatar%>" class="js-avatar">
 		</a>
 		<hgroup>
-		  <h1 class="header-author"><a href="/">xiaoyu</a></h1>
+		  <h1 class="header-author"><a href="<%=theme.root%>"><%=theme.author%></a></h1>
 		</hgroup>
-		
-		<p class="header-subtitle">往事随风</p>
-		
+		<% if (theme.subtitle){ %>
+		<p class="header-subtitle"><%=theme.subtitle%></p>
+		<%}%>
 
 		<nav class="header-menu">
 			<ul>
-			
-				<li><a href="/elasticsearch_learning/">主页</a></li>
-	        
-				<li><a href="/elasticsearch_learning/tags/随笔/">随笔</a></li>
-	        
+			<% for (var i in theme.menu){ %>
+				<li><a href="<%- url_for(theme.menu[i]) %>"><%= i %></a></li>
+	        <%}%>
 			</ul>
 		</nav>
 		<nav class="header-smart-menu">
-    		
-    			
-    			<a q-on="click: openSlider(e, 'innerArchive')" href="javascript:void(0)">所有文章</a>
-    			
-            
-    			
-    			<a q-on="click: openSlider(e, 'friends')" href="javascript:void(0)">友链</a>
-    			
-            
-    			
-    			<a q-on="click: openSlider(e, 'aboutme')" href="javascript:void(0)">关于我</a>
-    			
-            
+    		<% for (var i in theme.smart_menu){ %>
+    			<% if(theme.smart_menu[i]){ %>
+    			<a q-on="click: openSlider(e, '<%-i%>')" href="javascript:void(0)"><%= theme.smart_menu[i] %></a>
+    			<% } %>
+            <%}%>
 		</nav>
 		<nav class="header-nav">
 			<div class="social">
-				
-					<a class="github" target="_blank" href="#" title="github"><i class="icon-github"></i></a>
-		        
-					<a class="weibo" target="_blank" href="#" title="weibo"><i class="icon-weibo"></i></a>
-		        
-					<a class="rss" target="_blank" href="#" title="rss"><i class="icon-rss"></i></a>
-		        
-					<a class="zhihu" target="_blank" href="#" title="zhihu"><i class="icon-zhihu"></i></a>
-		        
+				<% for (var i in theme.subnav){ %>
+					<a class="<%= i %>" target="_blank" href="<%- url_for(theme.subnav[i]) %>" title="<%= i %>"><i class="icon-<%= i %>"></i></a>
+		        <%}%>
 			</div>
 		</nav>
 	</header>
@@ -209,9 +193,101 @@
       
         <p>如下是flink on yarn启动的一个示例:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">/bin/flink run -m yarn-cluster -yd -yjm 1024 -ys 2 -ytm 2048 clink-with-dependencies.jar  --topic_name topic1 --log_name --source_num 50  --sink_num 50</div></pre></td></tr></table></figure></p>
 <p>其中我们定义了JobManager的大小为1024M, TaskManager大小为2048M, 但是通过实际观察发现JobManager heap大小为424M, TaskManager heap memory大小为1304M, direct memory大小为744M , 参数值为啥是这个呢?</p>
-<h1 id="JobManager内存参数设置"><a href="#JobManager内存参数设置" class="headerlink" title="JobManager内存参数设置"></a>JobManager内存参数设置</h1><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">121390 YarnJobClusterEntrypoint -Xmx424m -Dlog.file=/opt/meituan/hadoop-flink/hadoop-2.7.1/logs/userlogs/application_1554212859057_0525/container_1554212859057_0525_01_000001/jobmanager.log -Dlogback.configurationFile=file:logback.xml -Dlog4j.configuration=file:log4j.properties</div></pre></td></tr></table></figure>
-<p>可以看到, JM内存设置与实际严重不符, 我们直接上代码找下原因吧。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line">```</div><div class="line">#  TaskManager内存参数设置</div></pre></td></tr></table></figure></p>
-<p>183863 YarnTaskExecutorRunner -Xms1304m -Xmx1304m -XX:MaxDirectMemorySize=744m -Dlog.file=/opt/meituan/hadoop-flink/hadoop-2.7.1/logs/userlogs/application_1554212859057_0525/container_1554212859057_0525_01_000003/taskmanager.log -Dlogback.configurationFile=file:./logback.xml -Dlog4j.configuration=file:./log4j.properties<br>```</p>
+<h1 id="JobManager内存参数设置"><a href="#JobManager内存参数设置" class="headerlink" title="JobManager内存参数设置"></a>JobManager内存参数设置</h1><p>可以看到, JM内存设置与实际严重不符, 我们直接上代码找下原因吧。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">121390 YarnJobClusterEntrypoint -Xmx424m -Dlog.file=/opt/meituan/hadoop-flink/hadoop-2.7.1/logs/userlogs/application_1554212859057_0525/container_1554212859057_0525_01_000001/jobmanager.log -Dlogback.configurationFile=file:logback.xml -Dlog4j.configuration=file:log4j.properties</div></pre></td></tr></table></figure></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line">```</div><div class="line">#  TaskManager内存参数设置</div><div class="line">如下是TM启动后的参数, 可以发现, 堆内内存+对外内存=申请的内存, 那么这个内存如何确定比例的?</div></pre></td></tr></table></figure>
+<p>183863 YarnTaskExecutorRunner -Xms1304m -Xmx1304m -XX:MaxDirectMemorySize=744m -Dlog.file=/opt/meituan/hadoop-flink/hadoop-2.7.1/logs/userlogs/application_1554212859057_0525/container_1554212859057_0525_01_000003/taskmanager.log -Dlogback.configurationFile=file:./logback.xml -Dlog4j.configuration=file:./log4j.properties<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">当JM为TM申请container成功后, 在&lt;a href=&quot;https://kkewwei.github.io/elasticsearch_learning/2019/03/12/Flink%E5%8E%9F%E7%90%86-slot%E5%88%86%E9%85%8D/#%E7%94%B3%E8%AF%B7container%E6%88%90%E5%8A%9F&quot;&gt;createTaskExecutorLaunchContext&lt;/a&gt;中确定JM启动参数, 最终进入到了ContaineredTaskManagerParameters.create中:</div></pre></td></tr></table></figure></p>
+<pre><code>public static ContaineredTaskManagerParameters create(
+        Configuration config,
+        long containerMemoryMB,
+        int numSlots) {
+    // (1) try to compute how much memory used by container
+    // 首先确定yarn Container使用多少内存(算是堆外内存)
+    final long cutoffMB = calculateCutoffMB(config, containerMemoryMB);
+
+    // (2) split the remaining Java memory between heap and off-heap
+    //确定堆内内存大小
+    final long heapSizeMB = TaskManagerServices.calculateHeapSizeMB(containerMemoryMB - cutoffMB, config);
+    // use the cut-off memory for off-heap (that was its intention)
+    // 堆内内存以外的全是堆内内存
+    final long offHeapSizeMB = containerMemoryMB - heapSizeMB;
+
+    // (3) obtain the additional environment variables from the configuration
+    final HashMap&lt;String, String&gt; envVars = new HashMap&lt;&gt;();
+    final String prefix = ResourceManagerOptions.CONTAINERIZED_TASK_MANAGER_ENV_PREFIX;
+
+    for (String key : config.keySet()) {
+        if (key.startsWith(prefix) &amp;&amp; key.length() &gt; prefix.length()) {
+            // remove prefix
+            String envVarKey = key.substring(prefix.length());
+            envVars.put(envVarKey, config.getString(key, null));
+        }
+    }
+
+    // done
+    return new ContaineredTaskManagerParameters(
+        containerMemoryMB, heapSizeMB, offHeapSizeMB, numSlots, envVars);
+}
+</code></pre><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div></pre></td><td class="code"><pre><div class="line">该函数主要做了如下逻辑:</div><div class="line">1. 确定yarn container本身需要的内存(算是堆外内存)。</div><div class="line">2. 确定堆内的内存大小。</div><div class="line">3. 确定堆外内存大小, 不是堆内的内存就全部算是堆外内存。</div><div class="line">首先我们看下如何确定yarn container大小的:</div></pre></td></tr></table></figure>
+<pre><code>public static long calculateCutoffMB(Configuration config, long containerMemoryMB) {
+    Preconditions.checkArgument(containerMemoryMB &gt; 0);
+    // (1) check cutoff ratio  // 默认值0.25f
+    final float memoryCutoffRatio = config.getFloat(
+        ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_RATIO);
+    // (2) check min cutoff value   最少预留大小默认600MB
+    final int minCutoff = config.getInteger(
+        ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_MIN);
+    // (3) check between heap and off-heap
+    long cutoff = (long) (containerMemoryMB * memoryCutoffRatio);
+    //取最大值
+    if (cutoff &lt; minCutoff) {
+        cutoff = minCutoff;
+    }
+    return cutoff;  //至少预留600MB，
+}
+</code></pre><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line">yarn container大小取值原则: 在申请内存的containerized.heap-cutoff-ratio(默认25%)与containerized.heap-cutoff-min(默认600M)之前取最大值。本示例中, container占用600M</div><div class="line">接下来我们看下如何确定堆内内存的:</div></pre></td></tr></table></figure>
+<pre><code>public static long calculateHeapSizeMB(long totalJavaMemorySizeMB, Configuration config) {
+    // subtract the Java memory used for network buffers (always off-heap)
+    //  网络buffer, 最小64M，最大1GB, 是totalJavaMemorySizeMB*0.1
+    final long networkBufMB =
+        calculateNetworkBufferMemory(
+            totalJavaMemorySizeMB &lt;&lt; 20, // megabytes to bytes
+            config) &gt;&gt; 20; // bytes to megabytes
+    final long remainingJavaMemorySizeMB = totalJavaMemorySizeMB - networkBufMB;
+    // split the available Java memory between heap and off-heap
+    final boolean useOffHeap = config.getBoolean(TaskManagerOptions.MEMORY_OFF_HEAP);  // 默认为false
+
+    final long heapSizeMB;
+    if (useOffHeap) {// 默认线上是关闭的
+        long offHeapSize;
+        String managedMemorySizeDefaultVal = TaskManagerOptions.MANAGED_MEMORY_SIZE.defaultValue();
+        if (!config.getString(TaskManagerOptions.MANAGED_MEMORY_SIZE).equals(managedMemorySizeDefaultVal)) {
+            try {// 将划去networkBuffer大小*一个堆外的系数（默认是0.7）得到其他的堆外内存
+                offHeapSize = MemorySize.parse(config.getString(TaskManagerOptions.MANAGED_MEMORY_SIZE), MEGA_BYTES).getMebiBytes();
+            }
+        } else {
+            offHeapSize = Long.valueOf(managedMemorySizeDefaultVal);
+        }
+
+        if (offHeapSize &lt;= 0) {
+            // calculate off-heap section via fraction
+            double fraction = config.getFloat(TaskManagerOptions.MANAGED_MEMORY_FRACTION);
+            offHeapSize = (long) (fraction * remainingJavaMemorySizeMB);
+        }
+
+        TaskManagerServicesConfiguration
+            .checkConfigParameter(offHeapSize &lt; remainingJavaMemorySizeMB, offHeapSize,
+                TaskManagerOptions.MANAGED_MEMORY_SIZE.key(),
+                &quot;Managed memory size too large for &quot; + networkBufMB +
+                    &quot; MB network buffer memory and a total of &quot; + totalJavaMemorySizeMB +
+                    &quot; MB JVM memory&quot;);
+        heapSizeMB = remainingJavaMemorySizeMB - offHeapSize;
+    } else {
+        heapSizeMB = remainingJavaMemorySizeMB;
+    }
+
+    return heapSizeMB;
+}
+</code></pre><p>```</p>
 
       
 
@@ -304,6 +380,15 @@
 
   
 <nav id="article-nav">
+  
+    <a href="/elasticsearch_learning/2019/06/16/ES原理-下线节点时分片并发rebalance的思考/" id="article-nav-newer" class="article-nav-link-wrap">
+      <i class="icon-circle-left"></i>
+      <div class="article-nav-title">
+        
+          ES原理-下线节点时分片并发rebalance的思考
+        
+      </div>
+    </a>
   
   
     <a href="/elasticsearch_learning/2019/04/20/Flink原理-Akka通信模块/" id="article-nav-older" class="article-nav-link-wrap">
@@ -497,11 +582,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
+                <a href="javascript:void(0)" class="js-tag color4">ReentrantLock</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">ReentrantLock</a>
+                <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
               </li>
              
               <li class="article-tag-list-item">
