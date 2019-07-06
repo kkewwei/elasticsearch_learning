@@ -159,6 +159,73 @@
           <div id="js-content" class="content-ll">
             
   
+    <article id="post-maven插件学习" class="article article-type-post  article-index" itemscope itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/elasticsearch_learning/2019/07/06/maven插件学习/">maven插件学习</a>
+    </h1>
+  
+
+        
+        <a href="/elasticsearch_learning/2019/07/06/maven插件学习/" class="archive-article-date">
+  	<time datetime="2019-07-06T05:32:36.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2019-07-06</time>
+</a>
+        
+      </header>
+    
+
+    <!-- 目录内容 -->
+    
+    <!-- 目录内容结束 -->
+
+    <div class="article-entry" itemprop="articleBody">
+      
+        
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+      
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/elasticsearch_learning/2019/07/06/maven插件学习/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
     <article id="post-ES原理-下线节点时分片并发rebalance的思考" class="article article-type-post  article-index" itemscope itemprop="blogPost">
   <div class="article-inner">
     
@@ -1194,88 +1261,6 @@
 
 
   
-    <article id="post-DirectByteBuffer堆外内存详解" class="article article-type-post  article-index" itemscope itemprop="blogPost">
-  <div class="article-inner">
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/elasticsearch_learning/2018/07/27/DirectByteBuffer堆外内存详解/">DirectByteBuffer堆外内存详解</a>
-    </h1>
-  
-
-        
-        <a href="/elasticsearch_learning/2018/07/27/DirectByteBuffer堆外内存详解/" class="archive-article-date">
-  	<time datetime="2018-07-27T08:33:58.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2018-07-27</time>
-</a>
-        
-      </header>
-    
-
-    <!-- 目录内容 -->
-    
-    <!-- 目录内容结束 -->
-
-    <div class="article-entry" itemprop="articleBody">
-      
-        <p>我们知道, 在使用IO传输数据时, 首先会将数据传输到堆外直接内存中, 然后才通过网络发送出去。这样的话, 数据多了次中间copy, 能否不经过copy而直接将数据发送出去呢, 其实是可以的, 存放的位置就是本文要讲的主角:DirectByteBuffer 。JVM内存主要分为heap内存和堆外内存(一般我们也会称呼为直接内存), heap内存我们不用care, jvm能自动帮我们管理, 而堆外内存回收不受JVM GC控制, 因此, 堆外内存使用必须小心。本文就主要讲jvm中堆外内存的实现及原理。</p>
-<h2 id="DirectByteBuffer使用"><a href="#DirectByteBuffer使用" class="headerlink" title="DirectByteBuffer使用"></a>DirectByteBuffer使用</h2><p>在程序中, 我们可以通过如下方式获取到DirectByteBuffer, 并且直接作为IO的缓存:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div></pre></td><td class="code"><pre><div class="line">public void sendAndRecv(String words) throws IOException</div><div class="line">   &#123;</div><div class="line">       byte[] msg = new String(words).getBytes();</div><div class="line">       ByteBuffer buffer = ByteBuffer.allocateDirect(msg.length);</div><div class="line">       buffer.put(msg);</div><div class="line">       //读写模式相互转化写</div><div class="line">       buffer.flip();</div><div class="line">       System.out.println(&quot;Client sending: &quot; + words);</div><div class="line">       channel.write(buffer);</div><div class="line">       channel.close();</div><div class="line">   &#125;</div></pre></td></tr></table></figure></p>
-<p>DirectByteBuffer是不能直接被外界引用的, 类成员变量如下:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div></pre></td><td class="code"><pre><div class="line">DirectByteBuffer(int cap) &#123;</div><div class="line">    super(-1, 0, cap, cap);</div><div class="line">    //是否页对齐</div><div class="line">    boolean pa = VM.isDirectMemoryPageAligned();</div><div class="line">    //页的大小4K</div><div class="line">    int ps = Bits.pageSize();</div><div class="line">    //最小申请1K，若需要页对齐，那么多申请1页，以应对初始地址的页对齐问题</div><div class="line">    long size = Math.max(1L, (long)cap + (pa ? ps : 0));</div><div class="line">    //检查堆外内存是否够用, 并对分配的直接内存做一个记录</div><div class="line">    Bits.reserveMemory(size, cap);</div><div class="line">    long base = 0;</div><div class="line">    try &#123;</div><div class="line">        //直接内存的初始地址, 返回初始地址</div><div class="line">        base = unsafe.allocateMemory(size);</div><div class="line">    &#125; catch (OutOfMemoryError x) &#123;</div><div class="line">        Bits.unreserveMemory(size, cap);</div><div class="line">        throw x;</div><div class="line">    &#125;</div><div class="line">    //对直接内存初始化</div><div class="line">    unsafe.setMemory(base, size, (byte) 0);</div><div class="line">    //若需要页对其，并且不是页的整数倍，在需要将页对齐（默认是不需要进行页对齐的）</div><div class="line">    if (pa &amp;&amp; (base % ps != 0)) &#123;</div><div class="line">        // Round up to page boundary //初始地址取整页，注意申请的地址为取整数页</div><div class="line">        address = base + ps - (base &amp; (ps - 1));</div><div class="line">    &#125; else &#123;</div><div class="line">        address = base;</div><div class="line">    &#125;</div><div class="line">    //声明一个Cleaner对象用于清理该DirectBuffer内存</div><div class="line">    cleaner = Cleaner.create(this, new Deallocator(base, size, cap));</div><div class="line">    att = null;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
-<p>可以看到, DirectByteBuffer通过直接调用base=unsafe.allocateMemory(size)操作堆外内存, 返回的是该堆外内存的直接地址, 存放在address中, 以便通过address进行堆外数据的读取与写入。 unsafe的使用可以参考:<a href="https://kkewwei.github.io/elasticsearch_learning/2018/11/10/LockSupport%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB/">LockSupport原理分析</a><br>我们需要了解下, Bits.reserveMemory()如何判断堆外内存是否可用的:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div></pre></td><td class="code"><pre><div class="line">static void reserveMemory(long size, int cap) &#123;  ////对分配的直接内存做一个记录</div><div class="line">       synchronized (Bits.class) &#123;</div><div class="line">           if (!memoryLimitSet &amp;&amp; VM.isBooted())</div><div class="line">           &#123;</div><div class="line">               //堆外直接内存默认等于堆内内存大小, 可以通过</div><div class="line">               maxMemory = VM.maxDirectMemory();</div><div class="line">               memoryLimitSet = true;</div><div class="line">           &#125;</div><div class="line">           // -XX:MaxDirectMemorySize limits the total capacity rather than the</div><div class="line">           // actual memory usage, which will differ when buffers are page</div><div class="line">           // aligned.</div><div class="line">           //如果够分的话，则直接退出</div><div class="line">           if (cap &lt;= maxMemory - totalCapacity) &#123;</div><div class="line">               reservedMemory += size;</div><div class="line">               totalCapacity += cap; //</div><div class="line">               count++;</div><div class="line">               return;</div><div class="line">           &#125;</div><div class="line">       &#125;</div><div class="line">       //不够分的话，则调用System.gc()进行一次full gc. 一般不要在线程启动时添加-XX:+DisableExplicitGC（禁止代码显示调用gc）</div><div class="line">       System.gc(); //只是告知机器，这里应该GC一次， 但是实际并不一定进行垃圾回收</div><div class="line">       try &#123;</div><div class="line">            //再等待100ms使gc有时间完成，然后再看是否够分配</div><div class="line">           Thread.sleep(100);</div><div class="line">       &#125; catch (InterruptedException x) &#123;</div><div class="line">           // Restore interrupt status</div><div class="line">           Thread.currentThread().interrupt();</div><div class="line">       &#125;</div><div class="line">       synchronized (Bits.class) &#123;</div><div class="line">           //此时不够分的话，再调用向外抛出oom</div><div class="line">           if (totalCapacity + cap &gt; maxMemory)</div><div class="line">               throw new OutOfMemoryError(&quot;Direct buffer memory&quot;);</div><div class="line">           reservedMemory += size;</div><div class="line">           totalCapacity += cap;</div><div class="line">           count++;</div><div class="line">       &#125;</div><div class="line">   &#125;</div></pre></td></tr></table></figure></p>
-<p>可以看到:</p>
-<ul>
-<li>首先检查堆外内存是否够分</li>
-<li>若不够分的话, 再进行一次full gc显示推动对堆外内存的回收, 再次尝试分配堆外内存, 不够分的话, 则抛出OOM异常。</li>
-</ul>
-<h1 id="堆外内存的回收"><a href="#堆外内存的回收" class="headerlink" title="堆外内存的回收"></a>堆外内存的回收</h1><p>在DirectByteBuffer的构造函数中, 我们可以看到这样的一行代码<code>cleaner = Cleaner.create(this, new Deallocator(base, size, cap));</code>, 没错, 直接内存释放主要由cleaner来完成。 我们知道JVM GC并不能直接释放直接内存, 但是GC可以释放管理直接内存的DirectByteBuffer对象。 我们需要注意下cleaner的类型:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">public class Cleaner  extends PhantomReference&lt;Object&gt;</div></pre></td></tr></table></figure></p>
-<p>PhantomReference并不会对对象的垃圾回收产生任何影响, 当进行gc完成后, 当发现某个对象只剩下虚引用后, 会将该引用迁移至Reference类的pending队列进行回收. 这里可以看到DirectByteBuffer被Cleaner引用着。Reference操作回收代码如下:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div><div class="line">61</div><div class="line">62</div><div class="line">63</div><div class="line">64</div><div class="line">65</div><div class="line">66</div><div class="line">67</div><div class="line">68</div><div class="line">69</div><div class="line">70</div><div class="line">71</div><div class="line">72</div><div class="line">73</div><div class="line">74</div><div class="line">75</div><div class="line">76</div><div class="line">77</div><div class="line">78</div></pre></td><td class="code"><pre><div class="line">static private class Lock &#123; &#125;;</div><div class="line">private static Lock lock = new Lock();</div><div class="line"></div><div class="line"></div><div class="line">/* List of References waiting to be enqueued.  The collector adds</div><div class="line"> * References to this list, while the Reference-handler thread removes</div><div class="line"> * them.  This list is protected by the above lock object. The</div><div class="line"> * list uses the discovered field to link its elements.</div><div class="line"> */</div><div class="line">//当gc时，发现DirectByteBuffer除了PhantomReference对象引用,没有其他对象引用， 会把DirectByteBuffer放入其中，等待被回收</div><div class="line">private static Reference&lt;Object&gt; pending = null;</div><div class="line"></div><div class="line">/* High-priority thread to enqueue pending References</div><div class="line"> */</div><div class="line">private static class ReferenceHandler extends Thread &#123;</div><div class="line"></div><div class="line">    ReferenceHandler(ThreadGroup g, String name) &#123;</div><div class="line">        super(g, name);</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    public void run() &#123;</div><div class="line">        for (;;) &#123;</div><div class="line">            Reference&lt;Object&gt; r;</div><div class="line">            synchronized (lock) &#123;</div><div class="line">                if (pending != null) &#123;</div><div class="line">                    r = pending;</div><div class="line">                    pending = r.discovered;</div><div class="line">                    r.discovered = null;</div><div class="line">                &#125; else &#123;</div><div class="line">                    // The waiting on the lock may cause an OOME because it may try to allocate</div><div class="line">                    // exception objects, so also catch OOME here to avoid silent exit of the</div><div class="line">                    // reference handler thread.</div><div class="line">                    //</div><div class="line">                    // Explicitly define the order of the two exceptions we catch here</div><div class="line">                    // when waiting for the lock.</div><div class="line">                    //</div><div class="line">                    // We do not want to try to potentially load the InterruptedException class</div><div class="line">                    // (which would be done if this was its first use, and InterruptedException</div><div class="line">                    // were checked first) in this situation.</div><div class="line">                    //</div><div class="line">                    // This may lead to the VM not ever trying to load the InterruptedException</div><div class="line">                    // class again.</div><div class="line">                    try &#123;</div><div class="line">                        try &#123;</div><div class="line">                            //如果没有的话，会一直等待唤醒</div><div class="line">                            lock.wait();</div><div class="line">                        &#125; catch (OutOfMemoryError x) &#123; &#125;</div><div class="line">                    &#125; catch (InterruptedException x) &#123; &#125;</div><div class="line">                    continue;</div><div class="line">                &#125;</div><div class="line">            &#125;</div><div class="line"></div><div class="line">            // Fast path for cleaners</div><div class="line">            if (r instanceof Cleaner) &#123;</div><div class="line">                 //从头开始进行clena()调用</div><div class="line">                ((Cleaner)r).clean();</div><div class="line">                continue;</div><div class="line">            &#125;</div><div class="line"></div><div class="line">            ReferenceQueue&lt;Object&gt; q = r.queue;</div><div class="line">            if (q != ReferenceQueue.NULL) q.enqueue(r);</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line">&#125;</div><div class="line"></div><div class="line">static &#123;</div><div class="line">    ThreadGroup tg = Thread.currentThread().getThreadGroup();</div><div class="line">    for (ThreadGroup tgn = tg;</div><div class="line">         tgn != null;</div><div class="line">         tg = tgn, tgn = tg.getParent());</div><div class="line">    Thread handler = new ReferenceHandler(tg, &quot;Reference Handler&quot;);</div><div class="line">    /* If there were a special system-only priority greater than</div><div class="line">     * MAX_PRIORITY, it would be used here</div><div class="line">     */</div><div class="line">    handler.setPriority(Thread.MAX_PRIORITY);</div><div class="line">    handler.setDaemon(true);</div><div class="line">    handler.start();</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
-<p>可以看出来, JV会新建名为<code>Reference Handler</code>的线程, 时刻回收被挂到pending上面的虚拟引用。 当DirectByteBuff对象仅被Cleaner引用时, Cleaner被放入pending队列, 之后调用Cleaner.clean()队列<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div></pre></td><td class="code"><pre><div class="line"> public void clean() &#123;  //这里的clean(）会在Reference回收时显示调用</div><div class="line">        if (!remove(this))</div><div class="line">            return;</div><div class="line">        try &#123;</div><div class="line">            thunk.run();</div><div class="line">        &#125; catch (final Throwable x) &#123;</div><div class="line">            AccessController.doPrivileged(new PrivilegedAction&lt;Void&gt;() &#123;</div><div class="line">                    public Void run() &#123;</div><div class="line">                        if (System.err != null)</div><div class="line">                            new Error(&quot;Cleaner terminated abnormally&quot;, x)</div><div class="line">                                .printStackTrace();</div><div class="line">                        System.exit(1);</div><div class="line">                        return null;</div><div class="line">                    &#125;&#125;);</div><div class="line">        &#125;</div><div class="line">&#125;</div><div class="line">//就是一个释放直接内存的线程</div><div class="line">private static class Deallocator  implements Runnable</div><div class="line">&#123;</div><div class="line"></div><div class="line">        private static Unsafe unsafe = Unsafe.getUnsafe();</div><div class="line"></div><div class="line">        private long address;</div><div class="line">        private long size;</div><div class="line">        private int capacity;</div><div class="line"></div><div class="line">        private Deallocator(long address, long size, int capacity) &#123;</div><div class="line">            assert (address != 0);</div><div class="line">            this.address = address;</div><div class="line">            this.size = size;</div><div class="line">            this.capacity = capacity;</div><div class="line">        &#125;</div><div class="line"></div><div class="line">        public void run() &#123;</div><div class="line">            if (address == 0) &#123;</div><div class="line">                // Paranoia</div><div class="line">                return;</div><div class="line">            &#125;</div><div class="line">            unsafe.freeMemory(address); //释放地址</div><div class="line">            address = 0;</div><div class="line">            Bits.unreserveMemory(size, capacity); //修改统计</div><div class="line">        &#125;</div><div class="line"></div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
-<p>可以看到, 此时完成了DirectByteBuff直接内存的释放。</p>
-<p>可能有些人会好奇: 为什么IO操作不直接使用堆内内存? 这是因为堆内内存会发生GC移动操作, 对象移动后, 其绝对内存地址也会发生改变, 而gc时对象移动操作很频繁, 不可能每次移动堆内数据, IO时缓存的buffer也跟着一起移动。这样也是不合理的。 而IO操作直接使用堆外内存则没有了这一限制。同时jvm中IO操作的Buffer必须是DirectBuffer(可查看IO.write/read函数)</p>
-<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>在JVM中, 一般只有通过DirectByteBuffer这一种方式操作堆外内存, 平时说的堆外内存泄漏, 也就是指的DirectByteBuffer里面的堆外内存发生泄漏。合理使用DirectByteBuffer对通信框架有着很重要的帮助, 比如netty大量的IO数据传输, 都是通过DirectByteBuffer完成的。 直接内存的申请与释放比较代价比较大, 一般都会辅助对象池来尽量高效的利用申请的对象。</p>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-      
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/elasticsearch_learning/2018/07/27/DirectByteBuffer堆外内存详解/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
   
     <nav id="page-nav">
       <span class="page-number current">1</span><a class="page-number" href="/elasticsearch_learning/page/2/">2</a><a class="page-number" href="/elasticsearch_learning/page/3/">3</a><a class="page-number" href="/elasticsearch_learning/page/4/">4</a><a class="extend next" rel="next" href="/elasticsearch_learning/page/2/">Next &raquo;</a>
@@ -1399,11 +1384,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">Cycler</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
+                <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1419,15 +1408,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
+                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
               </li>
             
             <div class="clearfix"></div>
