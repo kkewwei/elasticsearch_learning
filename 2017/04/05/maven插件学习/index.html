@@ -9,17 +9,17 @@
   <title>maven插件学习 | Hexo</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
   <meta name="google-site-verification" content="sCUXxLczmZVJ1Fkt5jSJGE9xPpdVD25hYciudlUUVNQ" />
-  <meta name="description" content="maven有三个生命周期:clean, default, site。 clean主要的目的是为了清理上次构建产生的文件, default主要是为了构建项目, site主要了为了搭建和发布项目web站点, 比如项目信心, 以便团队之间更好地交流。我们一般主要关注default声明周期, 这里会大致介绍下常用的phase:|属性|介绍|默认绑定插件||:-|:-|:-||validate|验证项目是正">
+  <meta name="description" content="maven有三个生命周期:clean, default, site。 clean主要的目的是为了清理上次构建产生的文件, default主要是为了构建项目, site主要了为了搭建和发布项目web站点, 比如项目信心, 以便团队之间更好地交流。我们一般主要关注default声明周期, 这里会大致介绍下常用的phase:    属性 介绍 默认绑定插件     validate 验证项目是正确的">
 <meta name="keywords" content="maven, 插件, 打包">
 <meta property="og:type" content="article">
 <meta property="og:title" content="maven插件学习">
 <meta property="og:url" content="https://kkewwei.github.io/elasticsearch_learning/2017/04/05/maven插件学习/index.html">
 <meta property="og:site_name" content="Hexo">
-<meta property="og:description" content="maven有三个生命周期:clean, default, site。 clean主要的目的是为了清理上次构建产生的文件, default主要是为了构建项目, site主要了为了搭建和发布项目web站点, 比如项目信心, 以便团队之间更好地交流。我们一般主要关注default声明周期, 这里会大致介绍下常用的phase:|属性|介绍|默认绑定插件||:-|:-|:-||validate|验证项目是正">
-<meta property="og:updated_time" content="2019-07-07T08:33:02.000Z">
+<meta property="og:description" content="maven有三个生命周期:clean, default, site。 clean主要的目的是为了清理上次构建产生的文件, default主要是为了构建项目, site主要了为了搭建和发布项目web站点, 比如项目信心, 以便团队之间更好地交流。我们一般主要关注default声明周期, 这里会大致介绍下常用的phase:    属性 介绍 默认绑定插件     validate 验证项目是正确的">
+<meta property="og:updated_time" content="2019-07-07T08:46:25.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="maven插件学习">
-<meta name="twitter:description" content="maven有三个生命周期:clean, default, site。 clean主要的目的是为了清理上次构建产生的文件, default主要是为了构建项目, site主要了为了搭建和发布项目web站点, 比如项目信心, 以便团队之间更好地交流。我们一般主要关注default声明周期, 这里会大致介绍下常用的phase:|属性|介绍|默认绑定插件||:-|:-|:-||validate|验证项目是正">
+<meta name="twitter:description" content="maven有三个生命周期:clean, default, site。 clean主要的目的是为了清理上次构建产生的文件, default主要是为了构建项目, site主要了为了搭建和发布项目web站点, 比如项目信心, 以便团队之间更好地交流。我们一般主要关注default声明周期, 这里会大致介绍下常用的phase:    属性 介绍 默认绑定插件     validate 验证项目是正确的">
   
     <link rel="alternative" href="/atom.xml" title="Hexo" type="application/atom+xml">
   
@@ -208,8 +208,102 @@
 
     <div class="article-entry" itemprop="articleBody">
       
-        <p>maven有三个生命周期:clean, default, site。 clean主要的目的是为了清理上次构建产生的文件, default主要是为了构建项目, site主要了为了搭建和发布项目web站点, 比如项目信心, 以便团队之间更好地交流。我们一般主要关注default声明周期, 这里会大致介绍下常用的phase:<br>|属性|介绍|默认绑定插件|<br>|:-|:-|:-|<br>|validate|验证项目是正确的||<br>|process-sources|将resources从主函数代码里面拷贝到输出文件夹中, 一般是target里面.|maven-resources-plugin|<br>|compile|对java进行编译产生class文件|maven-compiler-plugin|<br>|process-test-sources|将测试resources从测试函数代码里面拷贝到输出文件夹中.|maven-resources-plugin|<br>|test-compile|对测试环境java进行编译产生class文件|maven-compiler-plugin|<br>|test|对项目里面的单元测试进行测试, 测试代码不会被打包部署|maven-surefire-plugin|<br>|package|将编译的class打包成jar包|maven-jar-plugin|<br>|install|打包后将jar放入本地仓库.m2中|maven-install-plugin|<br>|deploy|打包后将jar放入远程仓库中|maven-install-plugin|<br>本文将主要主要对打包方式进行讲解。</p>
-<h1 id="打包方式"><a href="#打包方式" class="headerlink" title="打包方式"></a>打包方式</h1><p>而打包的方式主要分为四种:默认jar打包、shade打包、assembly打包、source打包<br>|属性|介绍|默认绑定插件|查看使用参数|<br>|:-|:-|:-|:-|<br>|jar|仅仅将class文件打进包中, 不包含依赖的jar包|maven-jar-plugin|mvn jar:help|<br>|shade|在jar的基础上, 将class的依赖也打包进来|maven-shade-plugin:|mvn shade:help|<br>|assembly|当前节点所拥有的线程|maven-assembly-plugin|mvn assembly:help|<br>|source|把当前源码打进包|maven-source-plugin|mvn source:help|<br>针对每种goal具体使用, 还可以使用类似命令查看: <code>mvn shade:help -Ddetail=true -Dgoal=&lt;goal-name&gt;</code></p>
+        <p>maven有三个生命周期:clean, default, site。 clean主要的目的是为了清理上次构建产生的文件, default主要是为了构建项目, site主要了为了搭建和发布项目web站点, 比如项目信心, 以便团队之间更好地交流。我们一般主要关注default声明周期, 这里会大致介绍下常用的phase:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">属性</th>
+<th style="text-align:left">介绍</th>
+<th style="text-align:left">默认绑定插件</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left">validate</td>
+<td style="text-align:left">验证项目是正确的</td>
+<td style="text-align:left"></td>
+</tr>
+<tr>
+<td style="text-align:left">process-sources</td>
+<td style="text-align:left">将resources从主函数代码里面拷贝到输出文件夹中, 一般是target里面.</td>
+<td style="text-align:left">maven-resources-plugin</td>
+</tr>
+<tr>
+<td style="text-align:left">compile</td>
+<td style="text-align:left">对java进行编译产生class文件</td>
+<td style="text-align:left">maven-compiler-plugin</td>
+</tr>
+<tr>
+<td style="text-align:left">process-test-sources</td>
+<td style="text-align:left">将测试resources从测试函数代码里面拷贝到输出文件夹中.</td>
+<td style="text-align:left">maven-resources-plugin</td>
+</tr>
+<tr>
+<td style="text-align:left">test-compile</td>
+<td style="text-align:left">对测试环境java进行编译产生class文件</td>
+<td style="text-align:left">maven-compiler-plugin</td>
+</tr>
+<tr>
+<td style="text-align:left">test</td>
+<td style="text-align:left">对项目里面的单元测试进行测试, 测试代码不会被打包部署</td>
+<td style="text-align:left">maven-surefire-plugin</td>
+</tr>
+<tr>
+<td style="text-align:left">package</td>
+<td style="text-align:left">将编译的class打包成jar包</td>
+<td style="text-align:left">maven-jar-plugin</td>
+</tr>
+<tr>
+<td style="text-align:left">install</td>
+<td style="text-align:left">打包后将jar放入本地仓库.m2中</td>
+<td style="text-align:left">maven-install-plugin</td>
+</tr>
+<tr>
+<td style="text-align:left">deploy</td>
+<td style="text-align:left">打包后将jar放入远程仓库中</td>
+<td style="text-align:left">maven-install-plugin</td>
+</tr>
+</tbody>
+</table>
+<p>本文将主要主要对打包方式进行讲解。</p>
+<h1 id="打包方式"><a href="#打包方式" class="headerlink" title="打包方式"></a>打包方式</h1><p>而打包的方式主要分为四种:默认jar打包、shade打包、assembly打包、source打包</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">属性</th>
+<th style="text-align:left">介绍</th>
+<th style="text-align:left">默认绑定插件</th>
+<th style="text-align:left">查看使用参数</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left">jar</td>
+<td style="text-align:left">仅仅将class文件打进包中, 不包含依赖的jar包</td>
+<td style="text-align:left">maven-jar-plugin</td>
+<td style="text-align:left">mvn jar:help</td>
+</tr>
+<tr>
+<td style="text-align:left">shade</td>
+<td style="text-align:left">在jar的基础上, 将class的依赖也打包进来</td>
+<td style="text-align:left">maven-shade-plugin:</td>
+<td style="text-align:left">mvn shade:help</td>
+</tr>
+<tr>
+<td style="text-align:left">assembly</td>
+<td style="text-align:left">当前节点所拥有的线程</td>
+<td style="text-align:left">maven-assembly-plugin</td>
+<td style="text-align:left">mvn assembly:help</td>
+</tr>
+<tr>
+<td style="text-align:left">source</td>
+<td style="text-align:left">把当前源码打进包</td>
+<td style="text-align:left">maven-source-plugin</td>
+<td style="text-align:left">mvn source:help</td>
+</tr>
+</tbody>
+</table>
+<p>针对每种goal具体使用, 还可以使用类似命令查看: <code>mvn shade:help -Ddetail=true -Dgoal=&lt;goal-name&gt;</code></p>
 <h2 id="shade打包"><a href="#shade打包" class="headerlink" title="shade打包"></a>shade打包</h2><p>shade打包主要是将依赖全部放入jar文件中, 以便可以直接成为可执行的jar包, 这里将以一个示例进行讲解:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div></pre></td><td class="code"><pre><div class="line">&lt;plugin&gt;</div><div class="line">    &lt;groupId&gt;org.apache.maven.plugins&lt;/groupId&gt;</div><div class="line">    &lt;artifactId&gt;maven-shade-plugin&lt;/artifactId&gt;</div><div class="line">    &lt;version&gt;2.4.3&lt;/version&gt;</div><div class="line">    &lt;configuration&gt;</div><div class="line">        &lt;!-- put your configurations here --&gt;</div><div class="line">    &lt;/configuration&gt;</div><div class="line">    &lt;executions&gt;</div><div class="line">        &lt;execution&gt;</div><div class="line">            &lt;phase&gt;package&lt;/phase&gt;</div><div class="line">            &lt;goals&gt;</div><div class="line">                &lt;goal&gt;shade&lt;/goal&gt;</div><div class="line">            &lt;/goals&gt;</div><div class="line">            &lt;configuration&gt;</div><div class="line">                &lt;finalName&gt;$&#123;project.artifactId&#125;-$&#123;project.version&#125;-with-dependencies&lt;/finalName&gt;</div><div class="line">                &lt;transformers&gt;</div><div class="line">                    &lt;transformer implementation=&quot;org.apache.maven.plugins.shade.resource.ManifestResourceTransformer&quot;&gt;</div><div class="line">                        &lt;mainClass&gt;MyQueryMojo&lt;/mainClass&gt;</div><div class="line">                        &lt;manifestEntries&gt;</div><div class="line">                            &lt;ha&gt;s&lt;/ha&gt;</div><div class="line">                        &lt;/manifestEntries&gt;</div><div class="line">                    &lt;/transformer&gt;</div><div class="line">                &lt;/transformers&gt;</div><div class="line">            &lt;/configuration&gt;</div><div class="line">        &lt;/execution&gt;</div><div class="line">    &lt;/executions&gt;</div><div class="line">&lt;/plugin&gt;</div></pre></td></tr></table></figure></p>
 <p>可以看到, 我们定义了引入的plugin shade的版本号。接下来我们将对每个标签进行详细说明:</p>
 <ul>
@@ -532,10 +626,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">maven, 插件, 打包</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">gdb</a>
               </li>
              
@@ -545,6 +635,10 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">maven, 插件, 打包</a>
               </li>
             
             <div class="clearfix"></div>
