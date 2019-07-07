@@ -19,7 +19,7 @@
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/mvn_shade1.png">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/mvn_shade2.png">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/mvn_shade3.png">
-<meta property="og:updated_time" content="2019-07-07T12:42:44.000Z">
+<meta property="og:updated_time" content="2019-07-07T12:46:42.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="maven插件学习">
 <meta name="twitter:description" content="maven有三个生命周期:clean, default, site。 clean主要的目的是为了清理上次构建产生的文件, default主要是为了构建项目, site主要了为了搭建和发布项目web站点, 比如项目信心, 以便团队之间更好地交流。我们一般主要关注default声明周期, 这里会大致介绍下常用的phase:    属性 介绍 默认绑定插件     validate 验证项目是正确的">
@@ -191,7 +191,7 @@
 	    <div id="toc-article" class="toc-article">
 	      <span id="toc-close" class="toc-close" title="隐藏导航" onclick="showBtn();">×</span>
 		      <strong class="toc-title">文章目录</strong>
-        <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#打包方式"><span class="toc-number">1.</span> <span class="toc-text">打包方式</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#shade打包"><span class="toc-number">1.1.</span> <span class="toc-text">shade打包</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#assembly打包"><span class="toc-number">1.2.</span> <span class="toc-text">assembly打包</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#自定义插件"><span class="toc-number">2.</span> <span class="toc-text">自定义插件</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#使用经验"><span class="toc-number">2.1.</span> <span class="toc-text">使用经验</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#在mvn中查看第三方依赖"><span class="toc-number">2.2.</span> <span class="toc-text">在mvn中查看第三方依赖</span></a></li></ol></li></ol>
+        <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#打包方式"><span class="toc-number">1.</span> <span class="toc-text">打包方式</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#shade打包"><span class="toc-number">2.</span> <span class="toc-text">shade打包</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#assembly打包"><span class="toc-number">3.</span> <span class="toc-text">assembly打包</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#自定义插件"><span class="toc-number"></span> <span class="toc-text">自定义插件</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#使用经验"><span class="toc-number">1.</span> <span class="toc-text">使用经验</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#在mvn中查看第三方依赖"><span class="toc-number">2.</span> <span class="toc-text">在mvn中查看第三方依赖</span></a></li></ol>
          </div>
    <script type="text/javascript">
 	function showToc(){
@@ -270,7 +270,7 @@
 </tbody>
 </table>
 <p>本文将主要主要对打包方式进行讲解。</p>
-<h1 id="打包方式"><a href="#打包方式" class="headerlink" title="打包方式"></a>打包方式</h1><p>而打包的方式主要分为四种:默认jar打包、shade打包、assembly打包、source打包</p>
+<h2 id="打包方式"><a href="#打包方式" class="headerlink" title="打包方式"></a>打包方式</h2><p>而打包的方式主要分为四种:默认jar打包、shade打包、assembly打包、source打包</p>
 <table>
 <thead>
 <tr>
@@ -491,7 +491,7 @@
                 </span>
                 <span class="tooltip-content">
                     <div class="toc-article">
-                    <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#打包方式"><span class="toc-number">1.</span> <span class="toc-text">打包方式</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#shade打包"><span class="toc-number">1.1.</span> <span class="toc-text">shade打包</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#assembly打包"><span class="toc-number">1.2.</span> <span class="toc-text">assembly打包</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#自定义插件"><span class="toc-number">2.</span> <span class="toc-text">自定义插件</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#使用经验"><span class="toc-number">2.1.</span> <span class="toc-text">使用经验</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#在mvn中查看第三方依赖"><span class="toc-number">2.2.</span> <span class="toc-text">在mvn中查看第三方依赖</span></a></li></ol></li></ol>
+                    <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#打包方式"><span class="toc-number">1.</span> <span class="toc-text">打包方式</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#shade打包"><span class="toc-number">2.</span> <span class="toc-text">shade打包</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#assembly打包"><span class="toc-number">3.</span> <span class="toc-text">assembly打包</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#自定义插件"><span class="toc-number"></span> <span class="toc-text">自定义插件</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#使用经验"><span class="toc-number">1.</span> <span class="toc-text">使用经验</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#在mvn中查看第三方依赖"><span class="toc-number">2.</span> <span class="toc-text">在mvn中查看第三方依赖</span></a></li></ol>
                     </div>
                 </span>
             </div>
@@ -654,15 +654,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">ReentrantLock</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">gdb</a>
+                <a href="javascript:void(0)" class="js-tag color4">ReentrantLock</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -670,7 +666,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
+                <a href="javascript:void(0)" class="js-tag color4">maven, 插件, 打包</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">gdb</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -678,7 +678,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">maven, 插件, 打包</a>
+                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
               </li>
             
             <div class="clearfix"></div>
