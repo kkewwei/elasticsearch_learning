@@ -9,19 +9,19 @@
   <title>Condition接口原理介绍及ArrayBlockingQueue、LinkedBlockingQueue实现 | Hexo</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
   <meta name="google-site-verification" content="sCUXxLczmZVJ1Fkt5jSJGE9xPpdVD25hYciudlUUVNQ" />
-  <meta name="description" content="任何一个java对象都拥有wait()/nitify方法, 它们通过与synchronized结合(参考Java 线程知识小结(-))来实现线程之间的通信机制。 在锁方面Lock与Condition接口配合也实现了相同的功能, 但是它们之间的原理是不相同的。使用上两者的区别如下(图片摘自java并发编程之Condition)): 基本使用我们将以最简单的消费者与生产者的示例讲解Condition与">
+  <meta name="description" content="任何一个java对象都拥有wait()/nitify方法, 它们通过与synchronized结合(参考Java 线程知识小结(-))来实现线程之间的通信机制。 在锁方面Lock与Condition接口配合也实现了相同的功能, 但是它们之间的原理是不相同的。使用上两者的区别如下(图片摘自java并发编程之Condition)):最直观的理解是: 在Condition中, 在生产者和消费者模型, 生">
 <meta property="og:type" content="article">
 <meta property="og:title" content="Condition接口原理介绍及ArrayBlockingQueue、LinkedBlockingQueue实现">
 <meta property="og:url" content="https://kkewwei.github.io/elasticsearch_learning/2017/10/02/Condition原理解读/index.html">
 <meta property="og:site_name" content="Hexo">
-<meta property="og:description" content="任何一个java对象都拥有wait()/nitify方法, 它们通过与synchronized结合(参考Java 线程知识小结(-))来实现线程之间的通信机制。 在锁方面Lock与Condition接口配合也实现了相同的功能, 但是它们之间的原理是不相同的。使用上两者的区别如下(图片摘自java并发编程之Condition)): 基本使用我们将以最简单的消费者与生产者的示例讲解Condition与">
+<meta property="og:description" content="任何一个java对象都拥有wait()/nitify方法, 它们通过与synchronized结合(参考Java 线程知识小结(-))来实现线程之间的通信机制。 在锁方面Lock与Condition接口配合也实现了相同的功能, 但是它们之间的原理是不相同的。使用上两者的区别如下(图片摘自java并发编程之Condition)):最直观的理解是: 在Condition中, 在生产者和消费者模型, 生">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/Condition1.png">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/Condition2.png">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/Condition3.png">
-<meta property="og:updated_time" content="2019-06-05T16:24:17.000Z">
+<meta property="og:updated_time" content="2019-07-06T13:27:57.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Condition接口原理介绍及ArrayBlockingQueue、LinkedBlockingQueue实现">
-<meta name="twitter:description" content="任何一个java对象都拥有wait()/nitify方法, 它们通过与synchronized结合(参考Java 线程知识小结(-))来实现线程之间的通信机制。 在锁方面Lock与Condition接口配合也实现了相同的功能, 但是它们之间的原理是不相同的。使用上两者的区别如下(图片摘自java并发编程之Condition)): 基本使用我们将以最简单的消费者与生产者的示例讲解Condition与">
+<meta name="twitter:description" content="任何一个java对象都拥有wait()/nitify方法, 它们通过与synchronized结合(参考Java 线程知识小结(-))来实现线程之间的通信机制。 在锁方面Lock与Condition接口配合也实现了相同的功能, 但是它们之间的原理是不相同的。使用上两者的区别如下(图片摘自java并发编程之Condition)):最直观的理解是: 在Condition中, 在生产者和消费者模型, 生">
 <meta name="twitter:image" content="https://kkewwei.github.io/elasticsearch_learning/img/Condition1.png">
   
     <link rel="alternative" href="/atom.xml" title="Hexo" type="application/atom+xml">
@@ -211,9 +211,9 @@
 
     <div class="article-entry" itemprop="articleBody">
       
-        <p>任何一个java对象都拥有wait()/nitify方法, 它们通过与synchronized结合(参考<a href="https://kkewwei.github.io/elasticsearch_learning/2016/10/27/Java%E7%BA%BF%E7%A8%8B%E7%9F%A5%E8%AF%86%E5%B0%8F%E7%BB%93/">Java 线程知识小结(-)</a>)来实现线程之间的通信机制。 在锁方面Lock与Condition接口配合也实现了相同的功能, 但是它们之间的原理是不相同的。使用上两者的区别如下(图片摘自<a href="https://www.jianshu.com/p/be2dc7c878dc" target="_blank" rel="external">java并发编程之Condition</a>)):<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/Condition1.png" height="400" width="500"></p>
+        <p>任何一个java对象都拥有wait()/nitify方法, 它们通过与synchronized结合(参考<a href="https://kkewwei.github.io/elasticsearch_learning/2016/10/27/Java%E7%BA%BF%E7%A8%8B%E7%9F%A5%E8%AF%86%E5%B0%8F%E7%BB%93/">Java 线程知识小结(-)</a>)来实现线程之间的通信机制。 在锁方面Lock与Condition接口配合也实现了相同的功能, 但是它们之间的原理是不相同的。使用上两者的区别如下(图片摘自<a href="https://www.jianshu.com/p/be2dc7c878dc" target="_blank" rel="external">java并发编程之Condition</a>)):<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/Condition1.png" height="400" width="500"><br>最直观的理解是: 在Condition中, 在生产者和消费者模型, 生产者消费者可以在不同的队列上阻塞。而通过object阻塞时, 消费者和生产者都在同一个object上被阻塞。</p>
 <h1 id="基本使用"><a href="#基本使用" class="headerlink" title="基本使用"></a>基本使用</h1><p>我们将以最简单的消费者与生产者的示例讲解Condition与Lock配合使用的例子:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div><div class="line">61</div><div class="line">62</div><div class="line">63</div><div class="line">64</div><div class="line">65</div><div class="line">66</div></pre></td><td class="code"><pre><div class="line">public class ConditonTest &#123;</div><div class="line">    //当前产品个数</div><div class="line">    public static int count = 0;</div><div class="line">    static ReentrantLock reentrantLock = new ReentrantLock();</div><div class="line">    //产品为空时, 那么消费者就得生产者来唤醒, 消费者就得等待生产者生产商品这个条件</div><div class="line">    static  Condition empty = reentrantLock.newCondition();</div><div class="line">    public static void main(String[] args) &#123;</div><div class="line">        ExecutorService pool = Executors.newFixedThreadPool(2);</div><div class="line">        Thread t3 = new Consumer(&quot;A&quot;, ConditonTest.reentrantLock, ConditonTest.empty);</div><div class="line">        Thread t1 = new Producder(&quot;B&quot;, ConditonTest.reentrantLock, ConditonTest.empty);</div><div class="line">        Thread t2 = new Producder(&quot;C&quot;, ConditonTest.reentrantLock, ConditonTest.empty);</div><div class="line">        Thread t4 = new Consumer(&quot;D&quot;, ConditonTest.reentrantLock, ConditonTest.empty);</div><div class="line">        Thread t5 = new Consumer(&quot;E&quot;, ConditonTest.reentrantLock, ConditonTest.empty);</div><div class="line">        // 执行各个线程</div><div class="line">        pool.execute(t1);</div><div class="line">        pool.execute(t2);</div><div class="line">        pool.execute(t3);</div><div class="line">        pool.execute(t4);</div><div class="line">        pool.execute(t5);</div><div class="line">        pool.shutdown();</div><div class="line">    &#125;</div><div class="line">&#125;</div><div class="line">class Producder extends Thread &#123;</div><div class="line">    private String name;</div><div class="line">    Lock lock;</div><div class="line">    Condition empty;</div><div class="line">    public Producder(String name, Lock lock, Condition empty) &#123;</div><div class="line">        this.name = name;</div><div class="line">        this.lock = lock;</div><div class="line">        this.empty = empty;</div><div class="line">    &#125;</div><div class="line">    public void run() &#123;</div><div class="line">        lock.lock(); // 获取锁</div><div class="line">        ConditonTest.count ++;</div><div class="line">        System.out.println(name + &quot;产生一个&quot;);</div><div class="line">        empty.signalAll(); // 唤醒所有等待线程。</div><div class="line">        lock.unlock(); // 释放锁</div><div class="line">    &#125;</div><div class="line">&#125;</div><div class="line">class Consumer extends Thread &#123;</div><div class="line">    private String name;</div><div class="line">    Lock lock;</div><div class="line">    Condition empty;</div><div class="line">    public Consumer(String name, Lock lock, Condition empty) &#123;</div><div class="line">        this.name = name;</div><div class="line">        this.lock = lock;</div><div class="line">        this.empty = empty;</div><div class="line">    &#125;</div><div class="line">    public void run() &#123;</div><div class="line">        lock.lock(); // 获取锁</div><div class="line">        try &#123;</div><div class="line">            while ( ConditonTest.count == 0) &#123;</div><div class="line">                System.out.println(name + &quot;阻塞中&quot;);</div><div class="line">                // 阻塞取款操作, await之后就隐示自动释放了lock，直到被唤醒自动获取</div><div class="line">                empty.await();</div><div class="line">                System.out.println(name + &quot;被唤醒&quot;);</div><div class="line">            &#125;</div><div class="line">            ConditonTest.count --;</div><div class="line">            System.out.println(name + &quot;消费一个&quot;);</div><div class="line">        &#125; catch (InterruptedException e) &#123;</div><div class="line">            e.printStackTrace();</div><div class="line">        &#125; finally &#123;</div><div class="line">            lock.unlock(); // 释放锁</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
-<p>以上只是使用一个Condition条件队列(具体真实应用可参考ArrayBlockingQueue、LinkedBlockingQueue), 在实际应用中, 可以使用多个条件ConditionObject, ConditionObject都是通过调用reentrantLock.newCondition()中产生的, 该类在AbstractQueuedSynchronizer中定义。 条件队列结构如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/Condition2.png" height="250" width="450"><br>每当线程调用Condition.wait()时, 该线程将会通过尾插发放入该条件队列; 当别的线程调用Condition.signal()时, 该线程将从等待队列转移到AQS阻塞队列(参考<a href="https://kkewwei.github.io/elasticsearch_learning/2017/07/23/ReentrantLock%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB/">ReentrantLock源码解读</a>), 使用比较简单。<br>注意阻塞队列和条件队列结构的区别:</p>
+<p>以上只是使用一个Condition条件队列(具体真实应用可参考ArrayBlockingQueue、LinkedBlockingQueue), 在实际应用中, 可以使用多个条件ConditionObject, ConditionObject都是通过调用reentrantLock.newCondition()中产生的, 该类在AbstractQueuedSynchronizer中定义。 条件队列结构如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/Condition2.png" height="250" width="450"><br>每当线程调用Condition.wait()时, 该线程将会通过尾插法放入该条件队列; 当别的线程调用Condition.signal()时, 该线程将从等待队列转移到AQS阻塞队列(参考<a href="https://kkewwei.github.io/elasticsearch_learning/2017/07/23/ReentrantLock%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB/">ReentrantLock源码解读</a>), 使用比较简单。<br>注意阻塞队列和条件队列结构的区别:</p>
 <ul>
 <li>阻塞队列拥有head, head不存放任何线程; 由tail指定结尾; 条件队列首尾由firstWaiter,lastWaiter指定, 第一个线程即为firstWaiter。</li>
 <li>阻塞队列由next, pre连接; 条件队列由nextWaiter连接</li>
@@ -393,22 +393,21 @@
   
 
   
-  <div id="gitment-ctn"></div>
+  <div id="gitment-ctn"></div> 
 <link rel="stylesheet" href="//imsun.github.io/gitment/style/default.css">
-<script src="//www.wenjunjiang.win/js/gitment.js "></script>
+<script src="//imsun.github.io/gitment/dist/gitment.browser.js"></script>
 <script>
 var gitment = new Gitment({
-  id: "Condition接口原理介绍及ArrayBlockingQueue、LinkedBlockingQueue实现",
-  owner: 'kkewwei',
-  repo: 'comments',
+  id: "<%=url%>",
+  owner: '<%=theme.gitment_owner%>',
+  repo: '<%=theme.gitment_repo%>',
   oauth: {
-    client_id: '9391e497d6b288887f33',
-    client_secret: 'db733731bff4ee2811d9530b1ac4cfc6767e8183',
+    client_id: '<%=theme.gitment_oauth.client_id%>',
+    client_secret: '<%=theme.gitment_oauth.client_secret%>',
   },
 })
 gitment.render('gitment-ctn')
 </script>
-
   
 
 
@@ -548,15 +547,19 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">maven, 插件, 打包</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">gdb</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
+                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
+                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
               </li>
             
             <div class="clearfix"></div>

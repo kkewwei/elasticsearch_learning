@@ -159,73 +159,6 @@
           <div id="js-content" class="content-ll">
             
   
-    <article id="post-ES索引创建流程" class="article article-type-post  article-index" itemscope itemprop="blogPost">
-  <div class="article-inner">
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/elasticsearch_learning/2017/12/17/ES索引创建流程/">ES索引创建流程</a>
-    </h1>
-  
-
-        
-        <a href="/elasticsearch_learning/2017/12/17/ES索引创建流程/" class="archive-article-date">
-  	<time datetime="2017-12-17T15:25:54.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-12-17</time>
-</a>
-        
-      </header>
-    
-
-    <!-- 目录内容 -->
-    
-    <!-- 目录内容结束 -->
-
-    <div class="article-entry" itemprop="articleBody">
-      
-        
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-      
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/elasticsearch_learning/2017/12/17/ES索引创建流程/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
     <article id="post-ConcurrentHashMap扩容过程介绍" class="article article-type-post  article-index" itemscope itemprop="blogPost">
   <div class="article-inner">
     
@@ -545,9 +478,9 @@
 
     <div class="article-entry" itemprop="articleBody">
       
-        <p>任何一个java对象都拥有wait()/nitify方法, 它们通过与synchronized结合(参考<a href="https://kkewwei.github.io/elasticsearch_learning/2016/10/27/Java%E7%BA%BF%E7%A8%8B%E7%9F%A5%E8%AF%86%E5%B0%8F%E7%BB%93/">Java 线程知识小结(-)</a>)来实现线程之间的通信机制。 在锁方面Lock与Condition接口配合也实现了相同的功能, 但是它们之间的原理是不相同的。使用上两者的区别如下(图片摘自<a href="https://www.jianshu.com/p/be2dc7c878dc" target="_blank" rel="external">java并发编程之Condition</a>)):<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/Condition1.png" height="400" width="500"></p>
+        <p>任何一个java对象都拥有wait()/nitify方法, 它们通过与synchronized结合(参考<a href="https://kkewwei.github.io/elasticsearch_learning/2016/10/27/Java%E7%BA%BF%E7%A8%8B%E7%9F%A5%E8%AF%86%E5%B0%8F%E7%BB%93/">Java 线程知识小结(-)</a>)来实现线程之间的通信机制。 在锁方面Lock与Condition接口配合也实现了相同的功能, 但是它们之间的原理是不相同的。使用上两者的区别如下(图片摘自<a href="https://www.jianshu.com/p/be2dc7c878dc" target="_blank" rel="external">java并发编程之Condition</a>)):<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/Condition1.png" height="400" width="500"><br>最直观的理解是: 在Condition中, 在生产者和消费者模型, 生产者消费者可以在不同的队列上阻塞。而通过object阻塞时, 消费者和生产者都在同一个object上被阻塞。</p>
 <h1 id="基本使用"><a href="#基本使用" class="headerlink" title="基本使用"></a>基本使用</h1><p>我们将以最简单的消费者与生产者的示例讲解Condition与Lock配合使用的例子:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div><div class="line">61</div><div class="line">62</div><div class="line">63</div><div class="line">64</div><div class="line">65</div><div class="line">66</div></pre></td><td class="code"><pre><div class="line">public class ConditonTest &#123;</div><div class="line">    //当前产品个数</div><div class="line">    public static int count = 0;</div><div class="line">    static ReentrantLock reentrantLock = new ReentrantLock();</div><div class="line">    //产品为空时, 那么消费者就得生产者来唤醒, 消费者就得等待生产者生产商品这个条件</div><div class="line">    static  Condition empty = reentrantLock.newCondition();</div><div class="line">    public static void main(String[] args) &#123;</div><div class="line">        ExecutorService pool = Executors.newFixedThreadPool(2);</div><div class="line">        Thread t3 = new Consumer(&quot;A&quot;, ConditonTest.reentrantLock, ConditonTest.empty);</div><div class="line">        Thread t1 = new Producder(&quot;B&quot;, ConditonTest.reentrantLock, ConditonTest.empty);</div><div class="line">        Thread t2 = new Producder(&quot;C&quot;, ConditonTest.reentrantLock, ConditonTest.empty);</div><div class="line">        Thread t4 = new Consumer(&quot;D&quot;, ConditonTest.reentrantLock, ConditonTest.empty);</div><div class="line">        Thread t5 = new Consumer(&quot;E&quot;, ConditonTest.reentrantLock, ConditonTest.empty);</div><div class="line">        // 执行各个线程</div><div class="line">        pool.execute(t1);</div><div class="line">        pool.execute(t2);</div><div class="line">        pool.execute(t3);</div><div class="line">        pool.execute(t4);</div><div class="line">        pool.execute(t5);</div><div class="line">        pool.shutdown();</div><div class="line">    &#125;</div><div class="line">&#125;</div><div class="line">class Producder extends Thread &#123;</div><div class="line">    private String name;</div><div class="line">    Lock lock;</div><div class="line">    Condition empty;</div><div class="line">    public Producder(String name, Lock lock, Condition empty) &#123;</div><div class="line">        this.name = name;</div><div class="line">        this.lock = lock;</div><div class="line">        this.empty = empty;</div><div class="line">    &#125;</div><div class="line">    public void run() &#123;</div><div class="line">        lock.lock(); // 获取锁</div><div class="line">        ConditonTest.count ++;</div><div class="line">        System.out.println(name + &quot;产生一个&quot;);</div><div class="line">        empty.signalAll(); // 唤醒所有等待线程。</div><div class="line">        lock.unlock(); // 释放锁</div><div class="line">    &#125;</div><div class="line">&#125;</div><div class="line">class Consumer extends Thread &#123;</div><div class="line">    private String name;</div><div class="line">    Lock lock;</div><div class="line">    Condition empty;</div><div class="line">    public Consumer(String name, Lock lock, Condition empty) &#123;</div><div class="line">        this.name = name;</div><div class="line">        this.lock = lock;</div><div class="line">        this.empty = empty;</div><div class="line">    &#125;</div><div class="line">    public void run() &#123;</div><div class="line">        lock.lock(); // 获取锁</div><div class="line">        try &#123;</div><div class="line">            while ( ConditonTest.count == 0) &#123;</div><div class="line">                System.out.println(name + &quot;阻塞中&quot;);</div><div class="line">                // 阻塞取款操作, await之后就隐示自动释放了lock，直到被唤醒自动获取</div><div class="line">                empty.await();</div><div class="line">                System.out.println(name + &quot;被唤醒&quot;);</div><div class="line">            &#125;</div><div class="line">            ConditonTest.count --;</div><div class="line">            System.out.println(name + &quot;消费一个&quot;);</div><div class="line">        &#125; catch (InterruptedException e) &#123;</div><div class="line">            e.printStackTrace();</div><div class="line">        &#125; finally &#123;</div><div class="line">            lock.unlock(); // 释放锁</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
-<p>以上只是使用一个Condition条件队列(具体真实应用可参考ArrayBlockingQueue、LinkedBlockingQueue), 在实际应用中, 可以使用多个条件ConditionObject, ConditionObject都是通过调用reentrantLock.newCondition()中产生的, 该类在AbstractQueuedSynchronizer中定义。 条件队列结构如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/Condition2.png" height="250" width="450"><br>每当线程调用Condition.wait()时, 该线程将会通过尾插发放入该条件队列; 当别的线程调用Condition.signal()时, 该线程将从等待队列转移到AQS阻塞队列(参考<a href="https://kkewwei.github.io/elasticsearch_learning/2017/07/23/ReentrantLock%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB/">ReentrantLock源码解读</a>), 使用比较简单。<br>注意阻塞队列和条件队列结构的区别:</p>
+<p>以上只是使用一个Condition条件队列(具体真实应用可参考ArrayBlockingQueue、LinkedBlockingQueue), 在实际应用中, 可以使用多个条件ConditionObject, ConditionObject都是通过调用reentrantLock.newCondition()中产生的, 该类在AbstractQueuedSynchronizer中定义。 条件队列结构如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/Condition2.png" height="250" width="450"><br>每当线程调用Condition.wait()时, 该线程将会通过尾插法放入该条件队列; 当别的线程调用Condition.signal()时, 该线程将从等待队列转移到AQS阻塞队列(参考<a href="https://kkewwei.github.io/elasticsearch_learning/2017/07/23/ReentrantLock%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB/">ReentrantLock源码解读</a>), 使用比较简单。<br>注意阻塞队列和条件队列结构的区别:</p>
 <ul>
 <li>阻塞队列拥有head, head不存放任何线程; 由tail指定结尾; 条件队列首尾由firstWaiter,lastWaiter指定, 第一个线程即为firstWaiter。</li>
 <li>阻塞队列由next, pre连接; 条件队列由nextWaiter连接</li>
@@ -1191,6 +1124,90 @@
 
 
   
+    <article id="post-JAVA-JNI实现hello-world" class="article article-type-post  article-index" itemscope itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/elasticsearch_learning/2017/06/15/JAVA-JNI实现hello-world/">JAVA JNI实现hello world</a>
+    </h1>
+  
+
+        
+        <a href="/elasticsearch_learning/2017/06/15/JAVA-JNI实现hello-world/" class="archive-article-date">
+  	<time datetime="2017-06-15T10:15:08.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-06-15</time>
+</a>
+        
+      </header>
+    
+
+    <!-- 目录内容 -->
+    
+    <!-- 目录内容结束 -->
+
+    <div class="article-entry" itemprop="articleBody">
+      
+        <p>jvm作为扩平台执行的环境, 屏蔽了代码与底层操作系统打交道, 这样代码就可以在不同平台下无缝迁移。但是也有一个坏处, java不能访问底层硬件资源并且执行速度相对c/c++很慢, 要是可以在java代码中调用c/c++语言, 那就可以弥补这方面的不足。 JNI(java native interface)就是来作为沟通桥梁的。 当函数被定义为native, 就说明本函数不是用java语言编写的。 本文展示java 如何使用native来调用c++代码的。</p>
+<h1 id="使用"><a href="#使用" class="headerlink" title="使用"></a>使用</h1><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div></pre></td><td class="code"><pre><div class="line">public class Native1&#123;</div><div class="line">    public native void  sayHello();</div><div class="line"></div><div class="line">    public static void main(String[] args) &#123;</div><div class="line">        System.loadLibrary(&quot;hellworld&quot;);</div><div class="line">        new Native1().sayHello();</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>我们定义了sayHello函数为native属性的。这里System.loadLibrary(“hellworld”)必不可少, 否则会报如下异常<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line">Exception in thread &quot;main&quot; java.lang.UnsatisfiedLinkError: Native1.sayHello()V</div><div class="line">        at Native1.sayHello(Native Method)</div><div class="line">        at Native1.main(Native1.java:6)</div></pre></td></tr></table></figure></p>
+<p>之后再讲解这行代码, 主要步骤如下:</p>
+<ol>
+<li>首先执行javac Native1.java, 这样获得了Native1.class文件</li>
+<li>执行javah Native1, 获得Native1.h。 javah用于输出对应c语言头文件, 生成代码如下<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div></pre></td><td class="code"><pre><div class="line">/* DO NOT EDIT THIS FILE - it is machine generated */</div><div class="line">#include &lt;jni.h&gt;</div><div class="line">/* Header for class Native1 */</div><div class="line"></div><div class="line">#ifndef _Included_Native1</div><div class="line">#define _Included_Native1</div><div class="line">#ifdef __cplusplus</div><div class="line">extern &quot;C&quot; &#123;</div><div class="line">#endif</div><div class="line">/*</div><div class="line"> * Class:     Native1</div><div class="line"> * Method:    sayHello</div><div class="line"> * Signature: ()V</div><div class="line"> */</div><div class="line">JNIEXPORT void JNICALL Java_Native1_sayHello</div><div class="line">  (JNIEnv *, jobject);</div><div class="line">#ifdef __cplusplus</div><div class="line">&#125;</div><div class="line">#endif</div><div class="line">#endif</div></pre></td></tr></table></figure>
+</li>
+</ol>
+<p>java的native方法转变为c++函数的规则如下：Java_{package_and<em>classname}</em>{function_name}(JNI arguments)。包名中的点换成单下划线。需要说明的是生成函数中的两个参数：<br>++ JNIEnv *：这是一个指向JNI运行环境的指针，后面我们会看到，我们通过这个指针访问JNI函数<br>++ jobject：这里指代java中的this对象。 如果定义为static函数,这里类型将是jclass<br>我们需要在myNative.c(.cpp文件也是支持的, 此文件名称不需要与java类名一致, 只需要动态链接库名与调用的库名有对应关系即可)里面实现Java_Native_sayHello函数:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div></pre></td><td class="code"><pre><div class="line">#include &quot;/Users/xiaoyu/Workspace_10.28/es2.3/es2.3/src/main/java/Native1.h&quot;</div><div class="line">#include &lt;stdio.h&gt;</div><div class="line">JNIEXPORT void JNICALL Java_Native1_sayHello(JNIEnv *env, jobject thisObj)</div><div class="line">&#123;</div><div class="line">    printf(&quot;Hello，JNI&quot;);</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>头文件指明了Native1.h。这里主要定义了Java_Native1_sayHello函数。</p>
+<ol>
+<li>生成动态链接库libhelloworld.jnilib<br><code>gcc -I/Library/Java/JavaVirtualMachines/jdk1.8.0_74.jdk/Contents/Home/include/darwin -I/Library/Java/JavaVirtualMachines/jdk1.8.0_74.jdk/Contents/Home/include -dynamiclib /Users/xiaoyu/TEST/c++/Native1.c -o libhelloworld.jnilib</code><br>这样的话, 会生成一个动态链接库文件:libhelloworld.jnilib 注意这里的名称不是随便起的。在mac系统上, 库名必须libXXX.jnilib这种结构, 我们在代码中加上这句:System.loadLibrary(“hellworld”); 系统才能正常识别。</li>
+<li>执行java -Djava.library.path=$path{libhelloworld.jnilib} Native1, 获得如下结果(这里需要声明动态文件库位置)。<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">Hello，JNI%</div></pre></td></tr></table></figure>
+</li>
+</ol>
+<h1 id="参考"><a href="#参考" class="headerlink" title="参考"></a>参考</h1><p><a href="https://www.chilkatsoft.com/java-loadLibrary-MacOSX.asp" target="_blank" rel="external">https://www.chilkatsoft.com/java-loadLibrary-MacOSX.asp</a><br><a href="https://blog.csdn.net/createchance/article/details/53783490" target="_blank" rel="external">https://blog.csdn.net/createchance/article/details/53783490</a><br><a href="https://blog.csdn.net/abc5382334/article/details/18052757" target="_blank" rel="external">https://blog.csdn.net/abc5382334/article/details/18052757</a></p>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+      
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/elasticsearch_learning/2017/06/15/JAVA-JNI实现hello-world/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
   
     <nav id="page-nav">
       <a class="extend prev" rel="prev" href="/elasticsearch_learning/page/2/">&laquo; Prev</a><a class="page-number" href="/elasticsearch_learning/">1</a><a class="page-number" href="/elasticsearch_learning/page/2/">2</a><span class="page-number current">3</span><a class="page-number" href="/elasticsearch_learning/page/4/">4</a><a class="extend next" rel="next" href="/elasticsearch_learning/page/4/">Next &raquo;</a>
@@ -1334,15 +1351,19 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">maven, 插件, 打包</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">gdb</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
+                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
+                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
               </li>
             
             <div class="clearfix"></div>
