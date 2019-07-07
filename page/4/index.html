@@ -41,55 +41,39 @@
   <div id="container" q-class="show:isCtnShow">
     <canvas id="anm-canvas" class="anm-canvas"></canvas>
     <div class="left-col" q-class="show:isShow">
-      
-<div class="overlay" style="background: #4d4d4d"></div>
+      <% var defaultBg = '#4d4d4d'; %>
+<div class="overlay" style="background: <%= theme.style && theme.style.header ? theme.style.header : defaultBg %>"></div>
 <div class="intrude-less">
 	<header id="header" class="inner">
-		<a href="/" class="profilepic">
-      <img src="https://kkewwei.github.io/elasticsearch_learning/img/myself.png" class="js-avatar">
+		<a href="<%=theme.root%>" class="profilepic">
+			<img src="<%=theme.avatar%>" class="js-avatar">
 		</a>
 		<hgroup>
-		  <h1 class="header-author"><a href="/">xiaoyu</a></h1>
+		  <h1 class="header-author"><a href="<%=theme.root%>"><%=theme.author%></a></h1>
 		</hgroup>
-		
-		<p class="header-subtitle">往事随风</p>
-		
+		<% if (theme.subtitle){ %>
+		<p class="header-subtitle"><%=theme.subtitle%></p>
+		<%}%>
 
 		<nav class="header-menu">
 			<ul>
-			
-				<li><a href="/elasticsearch_learning/">主页</a></li>
-	        
-				<li><a href="/elasticsearch_learning/tags/随笔/">随笔</a></li>
-	        
+			<% for (var i in theme.menu){ %>
+				<li><a href="<%- url_for(theme.menu[i]) %>"><%= i %></a></li>
+	        <%}%>
 			</ul>
 		</nav>
 		<nav class="header-smart-menu">
-    		
-    			
-    			<a q-on="click: openSlider(e, 'innerArchive')" href="javascript:void(0)">所有文章</a>
-    			
-            
-    			
-    			<a q-on="click: openSlider(e, 'friends')" href="javascript:void(0)">友链</a>
-    			
-            
-    			
-    			<a q-on="click: openSlider(e, 'aboutme')" href="javascript:void(0)">关于我</a>
-    			
-            
+    		<% for (var i in theme.smart_menu){ %>
+    			<% if(theme.smart_menu[i]){ %>
+    			<a q-on="click: openSlider(e, '<%-i%>')" href="javascript:void(0)"><%= theme.smart_menu[i] %></a>
+    			<% } %>
+            <%}%>
 		</nav>
 		<nav class="header-nav">
 			<div class="social">
-				
-					<a class="github" target="_blank" href="#" title="github"><i class="icon-github"></i></a>
-		        
-					<a class="weibo" target="_blank" href="#" title="weibo"><i class="icon-weibo"></i></a>
-		        
-					<a class="rss" target="_blank" href="#" title="rss"><i class="icon-rss"></i></a>
-		        
-					<a class="zhihu" target="_blank" href="#" title="zhihu"><i class="icon-zhihu"></i></a>
-		        
+				<% for (var i in theme.subnav){ %>
+					<a class="<%= i %>" target="_blank" href="<%- url_for(theme.subnav[i]) %>" title="<%= i %>"><i class="icon-<%= i %>"></i></a>
+		        <%}%>
 			</div>
 		</nav>
 	</header>
@@ -281,12 +265,32 @@
 </table>
 <p>针对每种goal具体使用, 还可以使用类似命令查看: <code>mvn shade:help -Ddetail=true -Dgoal=&lt;goal-name&gt;</code></p>
 <h2 id="shade打包"><a href="#shade打包" class="headerlink" title="shade打包"></a>shade打包</h2><p>shade打包主要是将依赖全部放入jar文件中, 以便可以直接成为可执行的jar包, 这里将以一个示例进行讲解:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div></pre></td><td class="code"><pre><div class="line">&lt;plugin&gt;</div><div class="line">    &lt;groupId&gt;org.apache.maven.plugins&lt;/groupId&gt;</div><div class="line">    &lt;artifactId&gt;maven-shade-plugin&lt;/artifactId&gt;</div><div class="line">    &lt;version&gt;2.4.3&lt;/version&gt;</div><div class="line">    &lt;configuration&gt;</div><div class="line">        &lt;!-- put your configurations here --&gt;</div><div class="line">    &lt;/configuration&gt;</div><div class="line">    &lt;executions&gt;</div><div class="line">        &lt;execution&gt;</div><div class="line">            &lt;phase&gt;package&lt;/phase&gt;</div><div class="line">            &lt;goals&gt;</div><div class="line">                &lt;goal&gt;shade&lt;/goal&gt;</div><div class="line">            &lt;/goals&gt;</div><div class="line">            &lt;configuration&gt;</div><div class="line">                &lt;finalName&gt;$&#123;project.artifactId&#125;-$&#123;project.version&#125;-with-dependencies&lt;/finalName&gt;</div><div class="line">                &lt;transformers&gt;</div><div class="line">                    &lt;transformer implementation=&quot;org.apache.maven.plugins.shade.resource.ManifestResourceTransformer&quot;&gt;</div><div class="line">                        &lt;mainClass&gt;MyQueryMojo&lt;/mainClass&gt;</div><div class="line">                        &lt;manifestEntries&gt;</div><div class="line">                            &lt;ha&gt;s&lt;/ha&gt;</div><div class="line">                        &lt;/manifestEntries&gt;</div><div class="line">                    &lt;/transformer&gt;</div><div class="line">                &lt;/transformers&gt;</div><div class="line">            &lt;/configuration&gt;</div><div class="line">        &lt;/execution&gt;</div><div class="line">    &lt;/executions&gt;</div><div class="line">&lt;/plugin&gt;</div></pre></td></tr></table></figure></p>
-<p>可以看到, 我们定义了引入的plugin shade的版本号。接下来我们将对每个标签进行详细说明:</p>
-<ul>
-<li>configuration:配置信息, 我们可以对所有executions定义一个默认的配置信息, 当然在具体的execution定义执行计划, 是可以覆盖这里的默认配置的。</li>
-<li>execution: 相当于一个执行计划, 都放在executions里面。<br>++ phase: 我们需要定义这个执行计划的生命阶段, 默认是在package阶段执行。<br>++ goals: 执行目标, 我们可以通过mvn shade:help可以该阶段的所有目标, 默认为shade。<br>++ configuration配置项:<br>+++ finalName打包的名称后的<br>+++ transformer: 将某些artifactId按照某种方式进行整合, 我们以常用的示例进行介绍ManifestResourceTransformer, ManifestResourceTransformer允许我们将打包文件里面的MANIFEST.MF添加配置属性, 属性元素都要放在manifestEntries里面, mainClass除外, 可以放在外层。mvn还提供许多针对资源进行整合的Transformer, 详情可参考<a href="http://maven.apache.org/plugins/maven-shade-plugin/examples/resource-transformers.html#" target="_blank" rel="external">官方文档</a><br>还有别的配置参数, 比如outputDirectory定义了jar存放位置。 所有参数可以参考<a href="http://maven.apache.org/plugins/maven-shade-plugin/shade-mojo.html" target="_blank" rel="external">参考</a><br>我们还可以自定义插件, 具体可参考文档:<br>自定义插件, 可以参考这篇文章: <a href="https://www.cnblogs.com/oscar1987121/p/10959083.html" target="_blank" rel="external">https://www.cnblogs.com/oscar1987121/p/10959083.html</a></li>
-</ul>
-<h2 id="assembly打包"><a href="#assembly打包" class="headerlink" title="assembly打包"></a>assembly打包</h2>
+<p>可以看到, 我们定义了引入的plugin shade的版本号。接下来我们将对每个标签进行详细说明:<br>1 configuration:配置信息, 我们可以对所有executions定义一个默认的配置信息, 当然在具体的execution定义执行计划, 是可以覆盖这里的默认配置的。<br>2 execution: 相当于一个执行计划, 都放在executions里面。</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">配置</th>
+<th style="text-align:left">介绍</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left">phase</td>
+<td style="text-align:left">我们需要定义这个执行计划在生命阶段执行, 默认是在package阶段执行。</td>
+</tr>
+<tr>
+<td style="text-align:left">goals</td>
+<td style="text-align:left">执行目标, 我们可以通过mvn shade:help可以该阶段的所有目标, 默认为shade。</td>
+</tr>
+<tr>
+<td style="text-align:left">configuration</td>
+<td style="text-align:left">对打包可以配置一些参数</td>
+</tr>
+</tbody>
+</table>
+<p>在configuration中, 我们可以通过finalName定义产生的jar名称, 通过transformer可以将某些artifactId按照某种方式进行整合到jar中, 我们以常用的示例进行介绍ManifestResourceTransformer, ManifestResourceTransformer允许我们将打包文件里面的MANIFEST.MF添加配置属性, 属性元素都要放在manifestEntries里面, mainClass除外, 可以放在外层。mvn还提供许多针对资源进行整合的Transformer, 详情可参考<a href="http://maven.apache.org/plugins/maven-shade-plugin/examples/resource-transformers.html#" target="_blank" rel="external">官方文档</a>。同时在configuration中还可以配置别的参数, 比如outputDirectory定义了jar存放位置。 所有参数可以参考<a href="http://maven.apache.org/plugins/maven-shade-plugin/shade-mojo.html" target="_blank" rel="external">参考</a></p>
+<h2 id="assembly打包"><a href="#assembly打包" class="headerlink" title="assembly打包"></a>assembly打包</h2><h2 id="自定义插件"><a href="#自定义插件" class="headerlink" title="自定义插件"></a>自定义插件</h2><p>我们还可以自定义插件, 具体可参考文档:<a href="https://www.cnblogs.com/oscar1987121/p/10959083.html和http://maven.apache.org/plugins/maven-shade-plugin/examples/use-shader-other-impl.html" target="_blank" rel="external">https://www.cnblogs.com/oscar1987121/p/10959083.html和http://maven.apache.org/plugins/maven-shade-plugin/examples/use-shader-other-impl.html</a></p>
+
       
 
       
