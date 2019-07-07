@@ -306,7 +306,7 @@
 </table>
 <p>在configuration中, 我们可以通过finalName定义产生的jar名称, 通过transformer可以将某些artifactId按照某种方式进行整合到jar中, 我们以常用的示例进行介绍ManifestResourceTransformer, ManifestResourceTransformer允许我们将打包文件里面的MANIFEST.MF添加配置属性, 属性元素都要放在manifestEntries里面, mainClass除外, 可以放在外层。mvn还提供许多针对资源进行整合的Transformer, 详情可参考<a href="http://maven.apache.org/plugins/maven-shade-plugin/examples/resource-transformers.html#" target="_blank" rel="external">官方文档</a>。<br>同时在configuration中还可以配置别的参数, 比如outputDirectory定义了jar存放位置。 include/exclude: 可以从某个jar包中排除某些类给排除掉。 所有参数可以参考<a href="http://maven.apache.org/plugins/maven-shade-plugin/shade-mojo.html" target="_blank" rel="external">参考</a>;.</p>
 <h2 id="assembly打包"><a href="#assembly打包" class="headerlink" title="assembly打包"></a>assembly打包</h2><p>Maven Assembly Plugin 和 Shade Plugin 都可以用来在构建单一 Jar 包时，将所有 Dependency 打入这个最终生成的 Jar 中去。但是两者在具体的行为上有所不同：Assembly 插件不仅会将 Dependency 中的 Class 文件打入最终的 Jar 包，还会将 Dependency 中的资源文件，诸如 properties 文件打入最终的 Jar 包。当项目和其 Dependency 中有同名的资源文件是，就会发生冲突，项目中的同名文件便不会加入到最终的 Jar 包中。如果这个文件是一个关键的配置文件，便会导致问题。而 Shade Plugin 不存在这样的问题。(<a href="https://ssailyang.iteye.com/blog/1745589" target="_blank" rel="external">参考</a>)</p>
-<h1 id="自定义插件"><a href="#自定义插件" class="headerlink" title="自定义插件"></a>自定义插件</h1><p>我们还可以自定义插件, 具体可参考文档:<a href="https://www.cnblogs.com/oscar1987121/p/10959083.html和http://maven.apache.org/plugins/maven-shade-plugin/examples/use-shader-other-impl.html" target="_blank" rel="external">https://www.cnblogs.com/oscar1987121/p/10959083.html和http://maven.apache.org/plugins/maven-shade-plugin/examples/use-shader-other-impl.html</a></p>
+<h2 id="自定义插件"><a href="#自定义插件" class="headerlink" title="自定义插件"></a>自定义插件</h2><p>我们还可以自定义插件, 具体可参考文档:<br><a href="https://www.cnblogs.com/oscar1987121/p/10959083.html" target="_blank" rel="external">https://www.cnblogs.com/oscar1987121/p/10959083.html</a><br><a href="http://maven.apache.org/plugins/maven-shade-plugin/examples/use-shader-other-impl.html" target="_blank" rel="external">http://maven.apache.org/plugins/maven-shade-plugin/examples/use-shader-other-impl.html</a></p>
 <h2 id="使用经验"><a href="#使用经验" class="headerlink" title="使用经验"></a>使用经验</h2><ol>
 <li>若在项目app0使用shade/assembly打包后产生jar1, 则第三方依赖将会全部转成class文件, 比如fastJson, fastJson的版本号将在这里全部被抹掉。若别的项目app1引用jar1包。 那么在app1中, 通过maven dependency将看不到fastJason版本号,也只能看到fastJson的class文件。<br>比如我们在app0配置的pom.xml如下:<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div></pre></td><td class="code"><pre><div class="line">&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;?&gt;</div><div class="line">&lt;project xmlns=&quot;http://maven.apache.org/POM/4.0.0&quot;</div><div class="line">         xmlns:xsi=&quot;http://www.w3.org/2001/XMLSchema-instance&quot;</div><div class="line">         xsi:schemaLocation=&quot;http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd&quot;&gt;</div><div class="line">    &lt;modelVersion&gt;4.0.0&lt;/modelVersion&gt;</div><div class="line">    &lt;groupId&gt;dep1&lt;/groupId&gt;</div><div class="line">    &lt;artifactId&gt;dep1&lt;/artifactId&gt;</div><div class="line">    &lt;version&gt;1.0.3-SNAPSHOT&lt;/version&gt;</div><div class="line">    &lt;dependencies&gt;</div><div class="line">        &lt;dependency&gt;</div><div class="line">            &lt;groupId&gt;com.alibaba&lt;/groupId&gt;</div><div class="line">            &lt;artifactId&gt;fastjson&lt;/artifactId&gt;</div><div class="line">            &lt;version&gt;1.1.43&lt;/version&gt;</div><div class="line">        &lt;/dependency&gt;</div><div class="line">    &lt;/dependencies&gt;</div><div class="line">    &lt;build&gt;</div><div class="line">        &lt;plugins&gt;</div><div class="line">            &lt;plugin&gt;</div><div class="line">                &lt;groupId&gt;org.apache.maven.plugins&lt;/groupId&gt;</div><div class="line">                &lt;artifactId&gt;maven-shade-plugin&lt;/artifactId&gt;</div><div class="line">                &lt;version&gt;2.4.1&lt;/version&gt;</div><div class="line">                &lt;executions&gt;</div><div class="line">                    &lt;execution&gt;</div><div class="line">                        &lt;id&gt;ds&lt;/id&gt;</div><div class="line">                        &lt;phase&gt;package&lt;/phase&gt;</div><div class="line">                        &lt;goals&gt;</div><div class="line">                            &lt;goal&gt;shade&lt;/goal&gt;</div><div class="line">                        &lt;/goals&gt;</div><div class="line">                    &lt;/execution&gt;</div><div class="line">                &lt;/executions&gt;</div><div class="line">            &lt;/plugin&gt;</div><div class="line">        &lt;/plugins&gt;</div><div class="line">    &lt;/build&gt;</div><div class="line">&lt;/project&gt;</div></pre></td></tr></table></figure>
 </li>
@@ -314,7 +314,7 @@
 <p>但是我们在app1中看到的app0的配置文件却是这样的<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div></pre></td><td class="code"><pre><div class="line">&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;?&gt;</div><div class="line">&lt;project xmlns=&quot;http://maven.apache.org/POM/4.0.0&quot; xmlns:xsi=&quot;http://www.w3.org/2001/XMLSchema-instance&quot; xsi:schemaLocation=&quot;http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd&quot;&gt;</div><div class="line">  &lt;modelVersion&gt;4.0.0&lt;/modelVersion&gt;</div><div class="line">  &lt;groupId&gt;dep1&lt;/groupId&gt;</div><div class="line">  &lt;artifactId&gt;dep1&lt;/artifactId&gt;</div><div class="line">  &lt;version&gt;1.0.3-SNAPSHOT&lt;/version&gt;</div><div class="line">  &lt;build&gt;</div><div class="line">    &lt;plugins&gt;</div><div class="line">      &lt;plugin&gt;</div><div class="line">        &lt;artifactId&gt;maven-shade-plugin&lt;/artifactId&gt;</div><div class="line">        &lt;version&gt;2.4.1&lt;/version&gt;</div><div class="line">        &lt;executions&gt;</div><div class="line">          &lt;execution&gt;</div><div class="line">            &lt;id&gt;ds&lt;/id&gt;</div><div class="line">            &lt;phase&gt;package&lt;/phase&gt;</div><div class="line">            &lt;goals&gt;</div><div class="line">              &lt;goal&gt;shade&lt;/goal&gt;</div><div class="line">            &lt;/goals&gt;</div><div class="line">          &lt;/execution&gt;</div><div class="line">        &lt;/executions&gt;</div><div class="line">      &lt;/plugin&gt;</div><div class="line">    &lt;/plugins&gt;</div><div class="line">  &lt;/build&gt;</div><div class="line">&lt;/project&gt;</div></pre></td></tr></table></figure></p>
 <p>我们通过mvn dependency:tree也完全看不到fastJson的版本号<br>可以看到, app1里面看到app0的配置文件里面全部没有了fastJson的信息了。<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/mvn_shade1.png" height="200" width="400"><br>这样的话, 尽管jar包有冲突, 比如下图的那个冲突, java选择的那个正确版本是dep1后面的那个fastJson, 尽管下面那个fastJson路径更短(shade打包方式, 使fastJson相关class全部打到dep1里面了, 索引路径更短, 而且dep1先声明的)。</p>
 <ol>
-<li>通过默认jar方式, 打包内容将不会被包含第三方依赖。那么还是可以看到app0里面引入的fastJons版本信息。<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/mvn_shade2.png" height="200" width="400"></li>
+<li>通过默认jar方式, 打包内容将不会被包含第三方依赖。那么还是可以看到app0里面引入的fastJons版本信息。<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/mvn_shade2.png" height="200" width="550"></li>
 <li>若出现jar包冲突的话, 那么选取最短路径上的jar, 同时会覆盖被冲突的包。<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/mvn_shade3.png" height="200" width="400"><br>比如这里将会选择下面那个fastJson版本。</li>
 </ol>
 <h2 id="在mvn中查看第三方依赖"><a href="#在mvn中查看第三方依赖" class="headerlink" title="在mvn中查看第三方依赖"></a>在mvn中查看第三方依赖</h2><ol>
@@ -1048,10 +1048,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">Cycler</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
               </li>
              
@@ -1060,11 +1056,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">netty4, ServerBootstrap, Initiale</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">maven, 插件, 打包</a>
+                <a href="javascript:void(0)" class="js-tag color2">Cycler</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1073,6 +1065,14 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">netty4, ServerBootstrap, Initiale</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">maven, 插件, 打包</a>
               </li>
              
               <li class="article-tag-list-item">
