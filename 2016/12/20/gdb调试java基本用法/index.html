@@ -16,7 +16,7 @@
 <meta property="og:url" content="https://kkewwei.github.io/elasticsearch_learning/2016/12/20/gdb调试java基本用法/index.html">
 <meta property="og:site_name" content="Hexo">
 <meta property="og:description" content="jvm进程崩溃时, 可以产生coredump文件, 该dump文件记录了崩溃时cpu、jvm当前线程、当前内存的使用情况, 学会分析该coredump对于我们排查问题十分重要, 本文将主要讲解如何通过gdb分析该coredump文件。 coredump产生第一步检查系统是否允许产生coredump文件操作系统默认禁止coredump文件的产生, 可以通过ulimit -c查看是否允许产生cored">
-<meta property="og:updated_time" content="2019-06-05T16:38:03.000Z">
+<meta property="og:updated_time" content="2019-08-13T03:39:14.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="gdb调试java基本用法">
 <meta name="twitter:description" content="jvm进程崩溃时, 可以产生coredump文件, 该dump文件记录了崩溃时cpu、jvm当前线程、当前内存的使用情况, 学会分析该coredump对于我们排查问题十分重要, 本文将主要讲解如何通过gdb分析该coredump文件。 coredump产生第一步检查系统是否允许产生coredump文件操作系统默认禁止coredump文件的产生, 可以通过ulimit -c查看是否允许产生cored">
@@ -313,7 +313,7 @@
 <li>gdb java core<br>调用如上命令加载core文件(这里的core指的是core文件名称)。</li>
 </ul>
 <ol>
-<li>执行<code>info threads</code><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div></pre></td><td class="code"><pre><div class="line">#0  0xb776b424 in __kernel_vsyscall ()</div><div class="line">(gdb) info threads</div><div class="line">  Id   Target Id         Frame</div><div class="line">  12   Thread 0xb6a84b40 (LWP 5553) 0xb776b424 in __kernel_vsyscall ()</div><div class="line">  11   Thread 0xad2ffb40 (LWP 5563) 0xb776b424 in __kernel_vsyscall ()</div><div class="line">  10   Thread 0xad350b40 (LWP 5562) 0xb776b424 in __kernel_vsyscall ()</div><div class="line">  9    Thread 0xad3d1b40 (LWP 5561) 0xb776b424 in __kernel_vsyscall ()</div><div class="line">  8    Thread 0xad422b40 (LWP 5560) 0xb776b424 in __kernel_vsyscall ()</div><div class="line">  7    Thread 0xad473b40 (LWP 5559) 0xb776b424 in __kernel_vsyscall ()</div><div class="line">  6    Thread 0xad6c4b40 (LWP 5558) 0xb776b424 in __kernel_vsyscall ()</div><div class="line">  5    Thread 0xad715b40 (LWP 5557) 0xb776b424 in __kernel_vsyscall ()</div><div class="line">  4    Thread 0xad796b40 (LWP 5556) 0xb776b424 in __kernel_vsyscall ()</div><div class="line">  3    Thread 0xadee6b40 (LWP 5555) 0xb776b424 in __kernel_vsyscall ()</div><div class="line">  2    Thread 0xb4817b40 (LWP 5554) 0xb776b424 in __kernel_vsyscall ()</div><div class="line">* 1    Thread 0xb756f700 (LWP 5552) 0xb776b424 in __kernel_vsyscall ()</div><div class="line">(gdb)</div></pre></td></tr></table></figure>
+<li>执行<code>info threads</code>, 其实可以通过<code>info</code>查看需要详细数据<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div></pre></td><td class="code"><pre><div class="line">#0  0xb776b424 in __kernel_vsyscall ()</div><div class="line">(gdb) info threads</div><div class="line">  Id   Target Id         Frame</div><div class="line">  12   Thread 0xb6a84b40 (LWP 5553) 0xb776b424 in __kernel_vsyscall ()</div><div class="line">  11   Thread 0xad2ffb40 (LWP 5563) 0xb776b424 in __kernel_vsyscall ()</div><div class="line">  10   Thread 0xad350b40 (LWP 5562) 0xb776b424 in __kernel_vsyscall ()</div><div class="line">  9    Thread 0xad3d1b40 (LWP 5561) 0xb776b424 in __kernel_vsyscall ()</div><div class="line">  8    Thread 0xad422b40 (LWP 5560) 0xb776b424 in __kernel_vsyscall ()</div><div class="line">  7    Thread 0xad473b40 (LWP 5559) 0xb776b424 in __kernel_vsyscall ()</div><div class="line">  6    Thread 0xad6c4b40 (LWP 5558) 0xb776b424 in __kernel_vsyscall ()</div><div class="line">  5    Thread 0xad715b40 (LWP 5557) 0xb776b424 in __kernel_vsyscall ()</div><div class="line">  4    Thread 0xad796b40 (LWP 5556) 0xb776b424 in __kernel_vsyscall ()</div><div class="line">  3    Thread 0xadee6b40 (LWP 5555) 0xb776b424 in __kernel_vsyscall ()</div><div class="line">  2    Thread 0xb4817b40 (LWP 5554) 0xb776b424 in __kernel_vsyscall ()</div><div class="line">* 1    Thread 0xb756f700 (LWP 5552) 0xb776b424 in __kernel_vsyscall ()</div><div class="line">(gdb)</div></pre></td></tr></table></figure>
 </li>
 </ol>
 <p>这里将展示目前已知的所有线程, *开头的代表当前处于调试的线程。这里可以通过输入info可以查看所有的命令。 切换当前调试线程可以通过<code>thread ID</code>方式, id取值上图第一列。其实我们查看每个线程在干什么, 也可以直接使用<code>pstack pid</code>即可</p>
@@ -321,7 +321,7 @@
 <li><p>假如想查看id为1的线程当前栈调用情况, 那么执行继续<code>bt</code></p>
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div></pre></td><td class="code"><pre><div class="line">#0  0xb776b424 in __kernel_vsyscall ()</div><div class="line">(gdb) bt</div><div class="line">#0  0xb776b424 in __kernel_vsyscall ()</div><div class="line">#1  0xb7742178 in pthread_join (threadid=3064482624, thread_return=0xbfb1b944) at pthread_join.c:92</div><div class="line">#2  0xb772eeda in ContinueInNewThread0 () from /home/kewei/Downloads/work_soft/jdk1.8.0_121/bin/../lib/i386/jli/libjli.so</div><div class="line">#3  0xb772a266 in ContinueInNewThread () from /home/kewei/Downloads/work_soft/jdk1.8.0_121/bin/../lib/i386/jli/libjli.so</div><div class="line">#4  0xb772edab in JVMInit () from /home/kewei/Downloads/work_soft/jdk1.8.0_121/bin/../lib/i386/jli/libjli.so</div><div class="line">#5  0xb772d149 in JLI_Launch () from /home/kewei/Downloads/work_soft/jdk1.8.0_121/bin/../lib/i386/jli/libjli.so</div><div class="line">#6  0x0804858d in main ()</div></pre></td></tr></table></figure>
 </li>
-<li><p>查看每个register值</p>
+<li><p>查看每个register值: <code>info registers</code>(简写<code>i r</code>)</p>
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div></pre></td><td class="code"><pre><div class="line">        0xfffffe00	-512</div><div class="line">ecx            0x0	0</div><div class="line">edx            0x25d5	9685</div><div class="line">ebx            0xb6a5dba8	-1230644312</div><div class="line">esp            0xbfd1a6e0	0xbfd1a6e0</div><div class="line">ebp            0xb6a5db40	0xb6a5db40</div><div class="line">esi            0x0	0</div><div class="line">edi            0xb772c000	-1217216512</div><div class="line">eip            0xb7744424	0xb7744424 &lt;__kernel_vsyscall+16&gt;</div><div class="line">eflags         0x246	[ PF ZF IF ]</div><div class="line">......</div></pre></td></tr></table></figure>
 </li>
 </ol>
@@ -641,11 +641,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
+                <a href="javascript:void(0)" class="js-tag color2">Cycler</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">Cycler</a>
+                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -657,11 +657,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">netty4, ServerBootstrap, Initiale</a>
+                <a href="javascript:void(0)" class="js-tag color4">gdb</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">gdb</a>
+                <a href="javascript:void(0)" class="js-tag color4">netty4, ServerBootstrap, Initiale</a>
               </li>
              
               <li class="article-tag-list-item">
