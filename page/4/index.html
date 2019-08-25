@@ -41,55 +41,39 @@
   <div id="container" q-class="show:isCtnShow">
     <canvas id="anm-canvas" class="anm-canvas"></canvas>
     <div class="left-col" q-class="show:isShow">
-      
-<div class="overlay" style="background: #4d4d4d"></div>
+      <% var defaultBg = '#4d4d4d'; %>
+<div class="overlay" style="background: <%= theme.style && theme.style.header ? theme.style.header : defaultBg %>"></div>
 <div class="intrude-less">
 	<header id="header" class="inner">
-		<a href="/" class="profilepic">
-      <img src="https://kkewwei.github.io/elasticsearch_learning/img/myself.png" class="js-avatar">
+		<a href="<%=theme.root%>" class="profilepic">
+			<img src="<%=theme.avatar%>" class="js-avatar">
 		</a>
 		<hgroup>
-		  <h1 class="header-author"><a href="/">xiaoyu</a></h1>
+		  <h1 class="header-author"><a href="<%=theme.root%>"><%=theme.author%></a></h1>
 		</hgroup>
-		
-		<p class="header-subtitle">往事随风</p>
-		
+		<% if (theme.subtitle){ %>
+		<p class="header-subtitle"><%=theme.subtitle%></p>
+		<%}%>
 
 		<nav class="header-menu">
 			<ul>
-			
-				<li><a href="/elasticsearch_learning/">主页</a></li>
-	        
-				<li><a href="/elasticsearch_learning/tags/随笔/">随笔</a></li>
-	        
+			<% for (var i in theme.menu){ %>
+				<li><a href="<%- url_for(theme.menu[i]) %>"><%= i %></a></li>
+	        <%}%>
 			</ul>
 		</nav>
 		<nav class="header-smart-menu">
-    		
-    			
-    			<a q-on="click: openSlider(e, 'innerArchive')" href="javascript:void(0)">所有文章</a>
-    			
-            
-    			
-    			<a q-on="click: openSlider(e, 'friends')" href="javascript:void(0)">友链</a>
-    			
-            
-    			
-    			<a q-on="click: openSlider(e, 'aboutme')" href="javascript:void(0)">关于我</a>
-    			
-            
+    		<% for (var i in theme.smart_menu){ %>
+    			<% if(theme.smart_menu[i]){ %>
+    			<a q-on="click: openSlider(e, '<%-i%>')" href="javascript:void(0)"><%= theme.smart_menu[i] %></a>
+    			<% } %>
+            <%}%>
 		</nav>
 		<nav class="header-nav">
 			<div class="social">
-				
-					<a class="github" target="_blank" href="#" title="github"><i class="icon-github"></i></a>
-		        
-					<a class="weibo" target="_blank" href="#" title="weibo"><i class="icon-weibo"></i></a>
-		        
-					<a class="rss" target="_blank" href="#" title="rss"><i class="icon-rss"></i></a>
-		        
-					<a class="zhihu" target="_blank" href="#" title="zhihu"><i class="icon-zhihu"></i></a>
-		        
+				<% for (var i in theme.subnav){ %>
+					<a class="<%= i %>" target="_blank" href="<%- url_for(theme.subnav[i]) %>" title="<%= i %>"><i class="icon-<%= i %>"></i></a>
+		        <%}%>
 			</div>
 		</nav>
 	</header>
@@ -198,6 +182,13 @@
 <li>查找是否通过参数制定了那个provider, 可以通过-Djava.nio.channels.spi.SelectorProvider制定</li>
 <li>继续在jar中的目录META-INF/services中查找<br>3.使用默认实现KQueueSelectorProvider, 之后会产生KQueueSelectorImpl类, 作为复路选择器的实现类, 之后会详细讲解。</li>
 </ol>
+<h1 id="设置非阻塞"><a href="#设置非阻塞" class="headerlink" title="设置非阻塞"></a>设置非阻塞</h1><p>套接字默认为阻塞的, 当发出一个不能完成的套接字调用时, 进程将阻塞, 可能阻塞的调用分为以下四个方面(参考《UNIX网络编程卷1: 套接字联网API》:</p>
+<ol>
+<li>输入操作, 比如read, readv, recv, recvfrom, recvmsg5个函数, 对一个TCP套接字调用这些函数时, 而且该套接字的接收缓存区没有数据可读取, 该线程将睡眠, 直到有一些数据到达, 既然TCP是字节流协议, 该进程的唤醒就是只要有一些数据到达, 这些数据既可能是单个字节, 也可能是一个完整地TCP分节中的数据, 如果想要等到某个固定树木的数据可读为止, 那么可以调用readn函数, 或者指定MSG_WAITALL标志。<br><br>&#160; &#160; &#160; &#160;既然UDP是数据报协议, 如果一个阻塞的UDP套接字为空, 对它调用的进程将被投入睡眠, 直到有UDP数据报到达。<br>&#160; &#160; &#160; &#160;对于非阻塞的套接字, 如果一个操作不能被满足(对于TCP套接字至少有一个字节可读, 对于UDP至少有一个完整地数据报可读))。</li>
+<li>输出操作, 包括write, writev, send, sendto和sendmsg共5个函数, 对于一个TCP套接字,内核将从应用程序的缓冲区到该套接字的发送缓冲区复制数据。对于阻塞的套接字, 如果其发送缓冲区没有空间, 该进程将被阻塞, 直到有空间为止。<br>&#160; &#160; &#160; &#160;对于非阻塞TCP套接字, 如果其发送缓冲区根本没有空间, 输出函数调用将立即返回一个EWOULDBLOCK错误, 如果其发送缓冲区有一些空间, 返回值将是内核能够㢟到该缓冲区中的字节数, 这个字节数也成为不足计数。<br>&#160; &#160; &#160; &#160;UDP套接字不存在真正的发送缓冲区, 内核只是复制应用程序进程数据,并把它沿协议栈向下传递, 渐次冠以UDP首部和IP首部, 因此对于一个阻塞的UDP套接字, 输出函数将不会因为与TCP套接字一样的原因而阻塞, 不顾有可能因为其他的原因阻塞。</li>
+<li>接受外来连接(服务器端), 即accept函数, 如果对一个阻塞的套接字调用accept函数, 并且尚无新的连接到达, 该线程将阻塞。<br>&#160; &#160; &#160; &#160;如果对一个非阻塞的套接字调用accpet函数, 并且尚无新的连接到大, accept将立即返回一个AWOULDBLOCK错误。</li>
+<li>发起外来连接(客户端), 即调用TCP的connect函数。(connect同样可用于UDP, 不过它不能使一个真正的连接建立起来, 它只是是内核保存对端的IP和端口号)。TCP连接的建立涉及一个三次握手过程, 而且connect函数一直要等到客户端收到对于自己的SYN的ACK为止才返回。 这意味着TCP的每一个connect总会阻塞其调用进程至少一个到服务器的RTT时间。<br>在代码里面, 我们可以通过<code>channel.configureBlocking(false)</code>设置管道的非阻塞。在JAVA NIO中, 若我们对ServerSocketChannelImp和SocketChannelImp不设置非阻塞, 那么程序将检查不通过。</li>
+</ol>
 <h1 id="open"><a href="#open" class="headerlink" title="open"></a>open</h1><p>有了复路选择器提供者之后, 就该产生ServerSocketChannelImpl了, 任何与client建立建立都是由它完成的, 我们看下初始化做了什么工作<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div></pre></td><td class="code"><pre><div class="line">ServerSocketChannelImpl(SelectorProvider sp) throws IOException &#123;</div><div class="line">    super(sp);</div><div class="line">    this.fd =  Net.serverSocket(true);</div><div class="line">    this.fdVal = IOUtil.fdVal(fd);</div><div class="line">    this.state = ST_INUSE;  // 只有三个状态，未使用，正使用，被kill</div><div class="line">&#125;</div><div class="line">static FileDescriptor serverSocket(boolean var0) &#123;</div><div class="line">    return IOUtil.newFD(socket0(isIPv6Available(), var0, true, fastLoopback));</div><div class="line">&#125;</div><div class="line">public static FileDescriptor newFD(int i) &#123;</div><div class="line">    FileDescriptor fd = new FileDescriptor();</div><div class="line">    setfdVal(fd, i);</div><div class="line">    return fd;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
 <p>可以看到初始化主要做了如下工作:</p>
 <ol>
@@ -221,7 +212,7 @@
 </ul>
 <p>在linux层面, 每个被监听/响应的事件都是由一个kevent构成, 构成结构如下:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div></pre></td><td class="code"><pre><div class="line">struct kevent &#123;</div><div class="line">	uintptr_t	ident;		/* identifier for this event  比如该事件关联的文件描述符*/*/</div><div class="line">	int16_t		filter;		/* filter for event   可以指定监听类型，如EVFILT_READ，EVFILT_WRITE，EVFILT_TIMER等 */</div><div class="line">	uint16_t	flags;		/* general flags 可以指定事件操作类型，比如EV_ADD，EV_ENABLE， EV_DELETE等 */</div><div class="line">	uint32_t	fflags;		/* filter-specific flags */</div><div class="line">	intptr_t	data;		/* filter-specific data */</div><div class="line">	void		*udata;		/* opaque user data identifier 可以携带的任意数据地址 */</div><div class="line">&#125;;</div></pre></td></tr></table></figure></p>
 <p>可以看出这里只支持NUM_KEVENTS(windows上200个, mac上128个)个事件, 响应直接存放在AllocatedNativeObject中, 内部通过<code>unsafe.allocateMemory(size + ps)</code>方式直接分配内存及管理, 然后通过initStructSizes对AllocatedNativeObject内存块尽心管理, 比如要获取监听的第i个事件的文件描述符:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div></pre></td><td class="code"><pre><div class="line">int getDescriptor(int index) &#123;</div><div class="line">    int offset = SIZEOF_KEVENT*index + FD_OFFSET;</div><div class="line">    /* The ident field is 8 bytes in 64-bit world, however the API wants us</div><div class="line">     * to return an int. Hence read the 8 bytes but return as an int.</div><div class="line">     */</div><div class="line">    if (is64bit) &#123;</div><div class="line">      long fd = keventArray.getLong(offset);  // 返回监听列表的第几个监听对象</div><div class="line">      assert fd &lt;= Integer.MAX_VALUE;</div><div class="line">      return (int) fd;</div><div class="line">    &#125; else &#123;</div><div class="line">      return keventArray.getInt(offset);</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
-<p>首先获取AllocatedNativeObject Array中第index个事件的相对位置, 然后再通过调用keventArray.getInt(offset)本地函数直接获取该内存地址的值。<br>我们也需要知道<code>kq = init();</code>, 它作为IO复用, java与linux关联起来的核心fd, 该函数会去调用底层<code>int kq = kqueue()</code>, 我们先对多路复用进行一个简单的描述吧:<br><code>kueue是在UNIX上比较高效的IO复用技术。所谓的IO复用，就是同时等待多个文件描述符就绪，以系统调用的形式提供。如果所有文件描述符都没有就绪的话，该系统调用阻塞，否则调用返回，允许用户进行后续的操作。常见的IO复用技术有select, poll, epoll以及kqueue等等。其中epoll为Linux独占，而kqueue则在许多UNIX系统上存在，包括OS X（好吧，现在叫macOS了。。）</code>(<a href="https://www.cppentry.com/bencandy.php?fid=104&id=138645" target="_blank" rel="external">参考</a>)<br>简单来说, 我们可以向kqueue注册多个感兴趣的事件, 比如读写。然后调用kevent()等待, 当有感兴趣的事件发生, 就会返回。</p>
+<p>首先获取AllocatedNativeObject Array中第index个事件的相对位置, 然后再通过调用keventArray.getInt(offset)本地函数直接获取该内存地址的值。<br>我们也需要知道<code>kq = init();</code>, 它作为IO复用, java与linux关联起来的核心fd, 该函数会去调用底层<code>int kq = kqueue()</code>, 我们先对多路复用进行一个简单的描述吧:<br><code>kueue是在UNIX上比较高效的IO复用技术。所谓的IO复用，就是同时等待多个文件描述符就绪，以系统调用的形式提供。如果所有文件描述符都没有就绪的话，该系统调用阻塞，否则调用返回，允许用户进行后续的操作。常见的IO复用技术有select, poll, epoll以及kqueue等等。其中epoll为Linux独占，而kqueue则在许多UNIX系统上存在，包括OS X（好吧，现在叫macOS了。。）</code>(<a href="https://www.cppentry.com/bencandy.php?fid=104&id=138645" target="_blank" rel="external">参考</a>)<br>简单来说, 我们可以向kqueue注册多个感兴趣的事件, 比如读写。然后调用kevent()等待, 当输入流/输出流就绪时, 就会返回。 这里我们还要理解的地点就是, 只要一次注册, kqueue()每次返回时, 都对检查之前注册的事件。 除非使用如下命令显示取消对事件的继续关注:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">EV_SET(&amp;changes[1], fd, EVFILT_WRITE, EV_DELETE, 0, 0, 0);</div></pre></td></tr></table></figure></p>
 <ul>
 <li>fd0和fd1<br>我们接下来看下属性fd0和fd1, 调用<code>IOUtil.makePipe(false);</code>产生, 实际调用了linux pipe()来完成的。<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div></pre></td><td class="code"><pre><div class="line">JNIEXPORT jlong JNICALL   // blocking传递过来为false</div><div class="line">Java_sun_nio_ch_IOUtil_makePipe(JNIEnv *env, jobject this, jboolean blocking)</div><div class="line">&#123;</div><div class="line">    int fd[2];</div><div class="line">    // 可参考：https://cloud.tencent.com/developer/article/1007497</div><div class="line">    if (pipe(fd) &lt; 0) &#123;</div><div class="line">        JNU_ThrowIOExceptionWithLastError(env, &quot;Pipe failed&quot;);</div><div class="line">        return 0;</div><div class="line">    &#125;</div><div class="line">    if (blocking == JNI_FALSE) &#123;</div><div class="line">        if ((configureBlocking(fd[0], JNI_FALSE) &lt; 0)</div><div class="line">            || (configureBlocking(fd[1], JNI_FALSE) &lt; 0)) &#123;</div><div class="line">            JNU_ThrowIOExceptionWithLastError(env, &quot;Configure blocking failed&quot;);</div><div class="line">            close(fd[0]);</div><div class="line">            close(fd[1]);</div><div class="line">            return 0;</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line">    return ((jlong) fd[0] &lt;&lt; 32) | (jlong) fd[1];</div><div class="line">&#125;</div></pre></td></tr></table></figure>
 </li>
@@ -230,7 +221,15 @@
 <p>知道了kqueue的原理, 我们就好理解唤醒原理了selector.wakeup()原理了, 只要有感兴趣的发生, 就会唤醒, 那我们不妨专门为唤醒产生一对fd, 将读端注册到kqueue中, 当需要唤醒时, 我们就仅仅向写端写一个字符就可以唤醒了。我们看下selector.wakeup是不是就这样实现的:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div></pre></td><td class="code"><pre><div class="line">public Selector wakeup() &#123;</div><div class="line">    synchronized (interruptLock) &#123;</div><div class="line">        if (!interruptTriggered) &#123;  // 只能被唤醒一次</div><div class="line">            kqueueWrapper.interrupt();</div><div class="line">            interruptTriggered = true;</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line">    return this;</div><div class="line">&#125;</div><div class="line">void interrupt() &#123;</div><div class="line">    interrupt(outgoingInterruptFD);</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
 <p>outgoingInterruptFD保存着写段的地址, 看下interrupt本地函数实现:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div></pre></td><td class="code"><pre><div class="line">JNIEXPORT void JNICALL</div><div class="line">Java_sun_nio_ch_KQueueArrayWrapper_interrupt(JNIEnv *env, jclass cls, jint fd)</div><div class="line">&#123;   //wakeup唤醒select的方法</div><div class="line">    char c = 1;</div><div class="line">    if (1 != write(fd, &amp;c, 1)) &#123;</div><div class="line">        JNU_ThrowIOExceptionWithLastError(env, &quot;KQueueArrayWrapper: interrupt failed&quot;);</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
 <p>可以看到, 果然是向写端的fd中写入了一个字符。</p>
-<h1 id="register"><a href="#register" class="headerlink" title="register"></a>register</h1><p>接着我们需要向selector注册感兴趣的事件SelectionKey.OP_ACCEPT了, 可以看下是怎么实现的:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div></pre></td><td class="code"><pre><div class="line">public final SelectionKey register(Selector sel, int ops,</div><div class="line">                                   Object att)</div><div class="line">    throws ClosedChannelException</div><div class="line">&#123;</div><div class="line">    synchronized (regLock) &#123;</div><div class="line">        if (!isOpen())</div><div class="line">            throw new ClosedChannelException();</div><div class="line">        if ((ops &amp; ~validOps()) != 0)</div><div class="line">            throw new IllegalArgumentException();</div><div class="line">        if (blocking)</div><div class="line">            throw new IllegalBlockingModeException();</div><div class="line">        SelectionKey k = findKey(sel);</div><div class="line">        if (k != null) &#123;</div><div class="line">            k.interestOps(ops);</div><div class="line">            k.attach(att);</div><div class="line">        &#125;</div><div class="line">        if (k == null) &#123;</div><div class="line">            // New registration</div><div class="line">            synchronized (keyLock) &#123;</div><div class="line">                if (!isOpen())</div><div class="line">                    throw new ClosedChannelException();</div><div class="line">                k = ((AbstractSelector)sel).register(this, ops, att);</div><div class="line">                addKey(k);</div><div class="line">            &#125;</div><div class="line">        &#125;</div><div class="line">        return k;</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<h1 id="register"><a href="#register" class="headerlink" title="register"></a>register</h1><p>接着我们需要向selector注册感兴趣的事件SelectionKey.OP_ACCEPT了, 可以看下是怎么实现的:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div></pre></td><td class="code"><pre><div class="line">public final SelectionKey register(Selector sel, int ops,</div><div class="line">                                   Object att)</div><div class="line">    throws ClosedChannelException</div><div class="line">&#123;</div><div class="line">    synchronized (regLock) &#123;</div><div class="line">        if (!isOpen())</div><div class="line">            throw new ClosedChannelException();</div><div class="line">        if ((ops &amp; ~validOps()) != 0)</div><div class="line">            throw new IllegalArgumentException();</div><div class="line">        if (blocking)</div><div class="line">            throw new IllegalBlockingModeException();</div><div class="line">        //</div><div class="line">        SelectionKey k = findKey(sel);</div><div class="line">        if (k != null) &#123;</div><div class="line">            k.interestOps(ops);</div><div class="line">            k.attach(att);</div><div class="line">        &#125;</div><div class="line">        if (k == null) &#123;</div><div class="line">            // New registration</div><div class="line">            synchronized (keyLock) &#123;</div><div class="line">                if (!isOpen())</div><div class="line">                    throw new ClosedChannelException();</div><div class="line">                k = ((AbstractSelector)sel).register(this, ops, att);</div><div class="line">                addKey(k);</div><div class="line">            &#125;</div><div class="line">        &#125;</div><div class="line">        return k;</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>register函数主要做了如下事情:</p>
+<ol>
+<li>首先检测ServerSocketChannelImpl并没有被关闭。</li>
+<li>检查ServerSocketChannelImpl是非阻塞的。</li>
+<li>检查目前是否该管道是否在selector上面已经注册了, 若注册了, 那么修改关注的事件。否则就调用register去KQueueSelectorImpl中注册这个事件。<br>这里可能有个疑问, 假如我们向kqueue()的套接字注册了OP_READ事件, 这里再次向其注册OP_WRITE事件, 那么此时对同一个管道向Selector注册了两个事件。而这里注册OP_WRITE时调用findKey找到了第一次注册的SelectionKey, 然后再覆盖感兴趣的事件, 不就把OP_READ注册信息给覆盖了吗? 答案是真的覆盖了, 并且在向kqueue注册第二个事件时会将第一个事件给取消了。先晒一段代码:<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line">// 可以看到var2.events与Net.POLLIN和Net.POLLOUT相与, write或者read只能有一个为1。</div><div class="line">this.register0(this.kq, var3.getFDVal(), var2.events &amp; Net.POLLIN, var2.events &amp; Net.POLLOUT);</div></pre></td></tr></table></figure>
+</li>
+</ol>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div></pre></td><td class="code"><pre><div class="line">JNIEXPORT void JNICALL</div><div class="line">Java_sun_nio_ch_KQueueArrayWrapper_register0(JNIEnv *env, jobject this,</div><div class="line">                                             jint kq, jint fd, jint r, jint w)</div><div class="line">&#123;</div><div class="line">    struct kevent changes[2];</div><div class="line">    struct kevent errors[2];</div><div class="line">    struct timespec dontBlock = &#123;0, 0&#125;;</div><div class="line">    // 注册监听事件， 这里可以看出，要么只能是读，要么只能是写，只能选择一样。选择一样，那么另外一样只能取消关注。</div><div class="line">    // if (r) then &#123; register for read &#125; else &#123; unregister for read &#125;</div><div class="line">    // if (w) then &#123; register for write &#125; else &#123; unregister for write &#125;</div><div class="line">    // Ignore errors - they&apos;re probably complaints about deleting non-</div><div class="line">    //   added filters - but provide an error array anyway because</div><div class="line">    //   kqueue behaves erratically if some of its registrations fail.</div><div class="line">    // read或者write事件只能选择一个, 注册了一个, 那么另外一个将被取消。</div><div class="line">    EV_SET(&amp;changes[0], fd, EVFILT_READ,  r ? EV_ADD : EV_DELETE, 0, 0, 0);</div><div class="line">    EV_SET(&amp;changes[1], fd, EVFILT_WRITE, w ? EV_ADD : EV_DELETE, 0, 0, 0);</div><div class="line">    kevent(kq, changes, 2, errors, 2, &amp;dontBlock);</div><div class="line">&#125;</div></pre></td></tr></table></figure>
 
       
 
@@ -1159,11 +1158,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
+                <a href="javascript:void(0)" class="js-tag color4">ReentrantLock</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">ReentrantLock</a>
+                <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1175,11 +1174,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
+                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
+                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
               </li>
              
               <li class="article-tag-list-item">
