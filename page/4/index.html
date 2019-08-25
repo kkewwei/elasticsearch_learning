@@ -41,39 +41,55 @@
   <div id="container" q-class="show:isCtnShow">
     <canvas id="anm-canvas" class="anm-canvas"></canvas>
     <div class="left-col" q-class="show:isShow">
-      <% var defaultBg = '#4d4d4d'; %>
-<div class="overlay" style="background: <%= theme.style && theme.style.header ? theme.style.header : defaultBg %>"></div>
+      
+<div class="overlay" style="background: #4d4d4d"></div>
 <div class="intrude-less">
 	<header id="header" class="inner">
-		<a href="<%=theme.root%>" class="profilepic">
-			<img src="<%=theme.avatar%>" class="js-avatar">
+		<a href="/" class="profilepic">
+      <img src="https://kkewwei.github.io/elasticsearch_learning/img/myself.png" class="js-avatar">
 		</a>
 		<hgroup>
-		  <h1 class="header-author"><a href="<%=theme.root%>"><%=theme.author%></a></h1>
+		  <h1 class="header-author"><a href="/">xiaoyu</a></h1>
 		</hgroup>
-		<% if (theme.subtitle){ %>
-		<p class="header-subtitle"><%=theme.subtitle%></p>
-		<%}%>
+		
+		<p class="header-subtitle">往事随风</p>
+		
 
 		<nav class="header-menu">
 			<ul>
-			<% for (var i in theme.menu){ %>
-				<li><a href="<%- url_for(theme.menu[i]) %>"><%= i %></a></li>
-	        <%}%>
+			
+				<li><a href="/elasticsearch_learning/">主页</a></li>
+	        
+				<li><a href="/elasticsearch_learning/tags/随笔/">随笔</a></li>
+	        
 			</ul>
 		</nav>
 		<nav class="header-smart-menu">
-    		<% for (var i in theme.smart_menu){ %>
-    			<% if(theme.smart_menu[i]){ %>
-    			<a q-on="click: openSlider(e, '<%-i%>')" href="javascript:void(0)"><%= theme.smart_menu[i] %></a>
-    			<% } %>
-            <%}%>
+    		
+    			
+    			<a q-on="click: openSlider(e, 'innerArchive')" href="javascript:void(0)">所有文章</a>
+    			
+            
+    			
+    			<a q-on="click: openSlider(e, 'friends')" href="javascript:void(0)">友链</a>
+    			
+            
+    			
+    			<a q-on="click: openSlider(e, 'aboutme')" href="javascript:void(0)">关于我</a>
+    			
+            
 		</nav>
 		<nav class="header-nav">
 			<div class="social">
-				<% for (var i in theme.subnav){ %>
-					<a class="<%= i %>" target="_blank" href="<%- url_for(theme.subnav[i]) %>" title="<%= i %>"><i class="icon-<%= i %>"></i></a>
-		        <%}%>
+				
+					<a class="github" target="_blank" href="#" title="github"><i class="icon-github"></i></a>
+		        
+					<a class="weibo" target="_blank" href="#" title="weibo"><i class="icon-weibo"></i></a>
+		        
+					<a class="rss" target="_blank" href="#" title="rss"><i class="icon-rss"></i></a>
+		        
+					<a class="zhihu" target="_blank" href="#" title="zhihu"><i class="icon-zhihu"></i></a>
+		        
 			</div>
 		</nav>
 	</header>
@@ -195,7 +211,7 @@
 <li>通过调用java nio Java_sun_nio_ch_Net_socket0 获取文件描述符fd(int类型)</li>
 <li>产生FileDescriptor对象fd, 然后调用nio函数setfdVal, 对这个赋值, 将数字类型的fd放入FileDescriptor的类中。</li>
 <li>通过nio IOUtil.fdVal获取FileDescriptor中的fd属性值, 保存在ServerSocketChannelImpl的fdVal中</li>
-<li>设置ServerSocketChannelImpl的状态为ST_INUSE 正使用状态。<br>FileDescriptor里面的fd作为java与底层c++沟通的桥梁。 从FileDescriptor中获取fd ,也是通过java nio饶了一圈, 而不是直接从java FileDescriptor, 原因是FileDescriptor fd属性被设置成了private(保证fd的安全性)<br>我们接下来看java nio Java_sun_nio_ch_Net_socket0是如何实现的:<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div></pre></td><td class="code"><pre><div class="line">// 网络协议相关参数https://linux.die.net/man/2/socket</div><div class="line">JNIEXPORT int JNICALL</div><div class="line">Java_sun_nio_ch_Net_socket0(JNIEnv *env, jclass cl, jboolean preferIPv6,</div><div class="line">                            jboolean stream, jboolean reuse)</div><div class="line">&#123;</div><div class="line">    int fd;</div><div class="line">     //通信协议, 默认都是SOCK_STREAM</div><div class="line">    int type = (stream ? SOCK_STREAM : SOCK_DGRAM);</div><div class="line">#ifdef AF_INET6</div><div class="line">    int domain = (ipv6_available() &amp;&amp; preferIPv6) ? AF_INET6 : AF_INET; //前面是ipv6, 后面代表ipv4</div><div class="line">#else</div><div class="line">    # AF_INET代表协议是ipv4, 默认都是ipv4</div><div class="line">    int domain = AF_INET;</div><div class="line">#endif</div><div class="line">    // 第三个参数protocol执行通信用的协议, 0意味着使用默认的, 获得网络通信的fd</div><div class="line">    fd = socket(domain, type, 0);</div><div class="line">    // 它返回的就是socket file descriptor</div><div class="line">    if (fd &lt; 0) &#123;</div><div class="line">        return handleSocketError(env, errno);</div><div class="line">    &#125;</div><div class="line">    ......</div><div class="line"></div><div class="line">    if (reuse) &#123; // 如果是地址复用地址, 那么就设置参数</div><div class="line">        int arg = 1;</div><div class="line">        if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, (char*)&amp;arg,</div><div class="line">                       sizeof(arg)) &lt; 0) &#123;</div><div class="line">            JNU_ThrowByNameWithLastError(env,</div><div class="line">                                         JNU_JAVANETPKG &quot;SocketException&quot;,</div><div class="line">                                         &quot;Unable to set SO_REUSEADDR&quot;);</div><div class="line">            close(fd);</div><div class="line">            return -1;</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line"></div><div class="line">......</div><div class="line">    // 默认返回的是fd, 若出错, 那么返回值 &lt; 0</div><div class="line">    return fd;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<li>设置ServerSocketChannelImpl的状态为ST_INUSE 正使用状态。<br>FileDescriptor里面的fd作为java与底层c++沟通的桥梁。 从FileDescriptor中获取fd ,也是通过java nio饶了一圈, 而不是直接从java FileDescriptor, 原因是FileDescriptor fd属性被设置成了private(保证fd的安全性)<br>我们接下来看java nio Java_sun_nio_ch_Net_socket0是如何实现的:<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div></pre></td><td class="code"><pre><div class="line">// 网络协议相关参数https://linux.die.net/man/2/socket</div><div class="line">JNIEXPORT int JNICALL</div><div class="line">Java_sun_nio_ch_Net_socket0(JNIEnv *env, jclass cl, jboolean preferIPv6,</div><div class="line">                            jboolean stream, jboolean reuse)</div><div class="line">&#123;</div><div class="line">    int fd;</div><div class="line">     //通信协议, 默认都是SOCK_STREAM, 代表是TCP协议, 而SOCK_DGRAM表示UDP协议</div><div class="line">    int type = (stream ? SOCK_STREAM : SOCK_DGRAM);</div><div class="line">#ifdef AF_INET6</div><div class="line">    int domain = (ipv6_available() &amp;&amp; preferIPv6) ? AF_INET6 : AF_INET; //前面是ipv6, 后面代表ipv4</div><div class="line">#else</div><div class="line">    # AF_INET代表协议是ipv4, 默认都是ipv4</div><div class="line">    int domain = AF_INET;</div><div class="line">#endif</div><div class="line">    // 第三个参数protocol执行通信用的协议, 0意味着使用默认的, 获得网络通信的fd</div><div class="line">    fd = socket(domain, type, 0);</div><div class="line">    // 它返回的就是socket file descriptor</div><div class="line">    if (fd &lt; 0) &#123;</div><div class="line">        return handleSocketError(env, errno);</div><div class="line">    &#125;</div><div class="line">    ......</div><div class="line"></div><div class="line">    if (reuse) &#123; // 如果是地址复用地址, 那么就设置参数</div><div class="line">        int arg = 1;</div><div class="line">        if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, (char*)&amp;arg,</div><div class="line">                       sizeof(arg)) &lt; 0) &#123;</div><div class="line">            JNU_ThrowByNameWithLastError(env,</div><div class="line">                                         JNU_JAVANETPKG &quot;SocketException&quot;,</div><div class="line">                                         &quot;Unable to set SO_REUSEADDR&quot;);</div><div class="line">            close(fd);</div><div class="line">            return -1;</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line"></div><div class="line">......</div><div class="line">    // 默认返回的是fd, 若出错, 那么返回值 &lt; 0</div><div class="line">    return fd;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
 </li>
 </ol>
 <p>可以看到本地函数实现也是比较简单的。此时我们获得了ServerSocketChannelImpl, 里面都linux socket通信的fd, 保存在了FileDescriptor中</p>
@@ -226,10 +242,17 @@
 <ol>
 <li>首先检测ServerSocketChannelImpl并没有被关闭。</li>
 <li>检查ServerSocketChannelImpl是非阻塞的。</li>
-<li>检查目前是否该管道是否在selector上面已经注册了, 若注册了, 那么修改关注的事件。否则就调用register去KQueueSelectorImpl中注册这个事件。<br>这里可能有个疑问, 假如我们向kqueue()的套接字注册了OP_READ事件, 这里再次向其注册OP_WRITE事件, 那么此时对同一个管道向Selector注册了两个事件。而这里注册OP_WRITE时调用findKey找到了第一次注册的SelectionKey, 然后再覆盖感兴趣的事件, 不就把OP_READ注册信息给覆盖了吗? 答案是真的覆盖了, 并且在向kqueue注册第二个事件时会将第一个事件给取消了。先晒一段代码:<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line">// 可以看到var2.events与Net.POLLIN和Net.POLLOUT相与, write或者read只能有一个为1。</div><div class="line">this.register0(this.kq, var3.getFDVal(), var2.events &amp; Net.POLLIN, var2.events &amp; Net.POLLOUT);</div></pre></td></tr></table></figure>
+<li>检查目前是否该管道是否在selector上面已经注册了, 若注册了, 那么修改关注的事件。否则就调用register去KQueueSelectorImpl中注册这个事件。<br>这里可能有个疑问, 假如我们向kqueue()的套接字注册了OP_READ事件, 这里再次向其注册OP_WRITE事件, 那么此时对同一个管道向Selector注册了两个事件。而这里注册OP_WRITE时调用findKey找到了第一次注册的SelectionKey, 然后再覆盖感兴趣的事件, 不就把OP_READ注册信息给覆盖了吗? 答案是真的覆盖了, 并且在向kqueue注册第二个事件时会将第一个事件给取消了。先晒一段selector.select()里面的代码:<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line">// 可以看到var2.events与Net.POLLIN和Net.POLLOUT相与, write或者read只能有一个为1。</div><div class="line">this.register0(this.kq, var3.getFDVal(), var2.events &amp; Net.POLLIN, var2.events &amp; Net.POLLOUT);</div></pre></td></tr></table></figure>
 </li>
 </ol>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div></pre></td><td class="code"><pre><div class="line">JNIEXPORT void JNICALL</div><div class="line">Java_sun_nio_ch_KQueueArrayWrapper_register0(JNIEnv *env, jobject this,</div><div class="line">                                             jint kq, jint fd, jint r, jint w)</div><div class="line">&#123;</div><div class="line">    struct kevent changes[2];</div><div class="line">    struct kevent errors[2];</div><div class="line">    struct timespec dontBlock = &#123;0, 0&#125;;</div><div class="line">    // 注册监听事件， 这里可以看出，要么只能是读，要么只能是写，只能选择一样。选择一样，那么另外一样只能取消关注。</div><div class="line">    // if (r) then &#123; register for read &#125; else &#123; unregister for read &#125;</div><div class="line">    // if (w) then &#123; register for write &#125; else &#123; unregister for write &#125;</div><div class="line">    // Ignore errors - they&apos;re probably complaints about deleting non-</div><div class="line">    //   added filters - but provide an error array anyway because</div><div class="line">    //   kqueue behaves erratically if some of its registrations fail.</div><div class="line">    // read或者write事件只能选择一个, 注册了一个, 那么另外一个将被取消。</div><div class="line">    EV_SET(&amp;changes[0], fd, EVFILT_READ,  r ? EV_ADD : EV_DELETE, 0, 0, 0);</div><div class="line">    EV_SET(&amp;changes[1], fd, EVFILT_WRITE, w ? EV_ADD : EV_DELETE, 0, 0, 0);</div><div class="line">    kevent(kq, changes, 2, errors, 2, &amp;dontBlock);</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div></pre></td><td class="code"><pre><div class="line">JNIEXPORT void JNICALL</div><div class="line">Java_sun_nio_ch_KQueueArrayWrapper_register0(JNIEnv *env, jobject this,</div><div class="line">                                             jint kq, jint fd, jint r, jint w)</div><div class="line">&#123;</div><div class="line">    struct kevent changes[2];</div><div class="line">    struct kevent errors[2];</div><div class="line">    struct timespec dontBlock = &#123;0, 0&#125;;</div><div class="line">    // 注册监听事件， 这里可以看出，要么只能是读，要么只能是写，只能选择一样。选择其中一样，那么另外一样只能取消关注。</div><div class="line">    // if (r) then &#123; register for read &#125; else &#123; unregister for read &#125;</div><div class="line">    // if (w) then &#123; register for write &#125; else &#123; unregister for write &#125;</div><div class="line">    // Ignore errors - they&apos;re probably complaints about deleting non-</div><div class="line">    //   added filters - but provide an error array anyway because</div><div class="line">    //   kqueue behaves erratically if some of its registrations fail.</div><div class="line">    EV_SET(&amp;changes[0], fd, EVFILT_READ,  r ? EV_ADD : EV_DELETE, 0, 0, 0);</div><div class="line">    EV_SET(&amp;changes[1], fd, EVFILT_WRITE, w ? EV_ADD : EV_DELETE, 0, 0, 0);</div><div class="line">    kevent(kq, changes, 2, errors, 2, &amp;dontBlock);</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>之后也会在selector.select()介绍。<br>&#160; &#160; &#160; &#160;我们还是看下向KQueueSelectorImpl.register()做了哪些事情吧<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div></pre></td><td class="code"><pre><div class="line">protected final SelectionKey SelectorImpl.register(AbstractSelectableChannel ch, int ops, Object attachment) &#123;</div><div class="line">    // 产生一个SelectionKeyImpl, 存放当前管道ServerSocketChannelImp和KQueueSelectorImpl</div><div class="line">    SelectionKeyImpl k = new SelectionKeyImpl((SelChImpl)ch, this);</div><div class="line">    k.attach(attachment);</div><div class="line">    synchronized (publicKeys) &#123;</div><div class="line">        implRegister(k);</div><div class="line">    &#125;</div><div class="line">    k.interestOps(ops);</div><div class="line">    return k;</div><div class="line">&#125;</div><div class="line">protected void implRegister(SelectionKeyImpl ski) &#123;</div><div class="line">    if (closed)</div><div class="line">        throw new ClosedSelectorException();</div><div class="line">    int fd = IOUtil.fdVal(ski.channel.getFD());</div><div class="line">    // 向fdMap中保存管道对应的fd及SelectionKeyImpl对应关系</div><div class="line">    fdMap.put(Integer.valueOf(fd), new MapEntry(ski));</div><div class="line">    totalChannels++;</div><div class="line">    keys.add(ski);</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>可以看到, 主要是向KQueueSelectorImpl注册了此次的SelectionKeyImpl。这里也是可以看到, 对于一个管道(ServerSocketChannelImp或者SocketChannelImp), 只能在KQueueSelectorImpl注册一个事件。</p>
+<h2 id="select"><a href="#select" class="headerlink" title="select"></a>select</h2><p>然后就开始真正向kqueue注册感兴趣的事件了:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div></pre></td><td class="code"><pre><div class="line">protected int doSelect(long timeout) throws IOException &#123;</div><div class="line">    int entries = 0;</div><div class="line">    if (closed)</div><div class="line">        throw new ClosedSelectorException();</div><div class="line">    //首先将那些取消的key从keys数组中去掉</div><div class="line">    processDeregisterQueue();</div><div class="line">    try &#123;</div><div class="line">        begin();</div><div class="line">        entries = kqueueWrapper.poll(timeout);</div><div class="line">    &#125; finally &#123;</div><div class="line">        end();</div><div class="line">    &#125;</div><div class="line">    processDeregisterQueue();</div><div class="line">    return updateSelectedKeys(entries);</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>这里主要做了两件事情:</p>
+<ol>
+<li>调用begin()向</li>
+</ol>
 
       
 
