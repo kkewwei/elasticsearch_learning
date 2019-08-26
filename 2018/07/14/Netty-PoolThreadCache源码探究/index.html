@@ -16,7 +16,7 @@
 <meta property="og:site_name" content="Hexo">
 <meta property="og:description" content="NioEventLoop在为数据分配存放的内存时, 会首先尝试从线程本地缓存中去申请, 只有当本地缓存中申请失败, 才会考虑从全局内存中申请, 本地缓存的管理者就是PoolThreadCache对象。 Netty自己实现了类似LocalThread的类来充当线程缓存: PoolThreadLocalCache, 本节将充分围绕这两个类的源代码进行描述。 PoolThreadCacheNetty自己">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/PoolThreadCache2.png">
-<meta property="og:updated_time" content="2019-06-05T16:38:03.000Z">
+<meta property="og:updated_time" content="2019-08-25T15:42:38.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Netty PoolThreadCache原理探究">
 <meta name="twitter:description" content="NioEventLoop在为数据分配存放的内存时, 会首先尝试从线程本地缓存中去申请, 只有当本地缓存中申请失败, 才会考虑从全局内存中申请, 本地缓存的管理者就是PoolThreadCache对象。 Netty自己实现了类似LocalThread的类来充当线程缓存: PoolThreadLocalCache, 本节将充分围绕这两个类的源代码进行描述。 PoolThreadCacheNetty自己">
@@ -44,55 +44,39 @@
   <div id="container" q-class="show:isCtnShow">
     <canvas id="anm-canvas" class="anm-canvas"></canvas>
     <div class="left-col" q-class="show:isShow">
-      
-<div class="overlay" style="background: #4d4d4d"></div>
+      <% var defaultBg = '#4d4d4d'; %>
+<div class="overlay" style="background: <%= theme.style && theme.style.header ? theme.style.header : defaultBg %>"></div>
 <div class="intrude-less">
 	<header id="header" class="inner">
-		<a href="/" class="profilepic">
-      <img src="https://kkewwei.github.io/elasticsearch_learning/img/myself.png" class="js-avatar">
+		<a href="<%=theme.root%>" class="profilepic">
+			<img src="<%=theme.avatar%>" class="js-avatar">
 		</a>
 		<hgroup>
-		  <h1 class="header-author"><a href="/">xiaoyu</a></h1>
+		  <h1 class="header-author"><a href="<%=theme.root%>"><%=theme.author%></a></h1>
 		</hgroup>
-		
-		<p class="header-subtitle">往事随风</p>
-		
+		<% if (theme.subtitle){ %>
+		<p class="header-subtitle"><%=theme.subtitle%></p>
+		<%}%>
 
 		<nav class="header-menu">
 			<ul>
-			
-				<li><a href="/elasticsearch_learning/">主页</a></li>
-	        
-				<li><a href="/elasticsearch_learning/tags/随笔/">随笔</a></li>
-	        
+			<% for (var i in theme.menu){ %>
+				<li><a href="<%- url_for(theme.menu[i]) %>"><%= i %></a></li>
+	        <%}%>
 			</ul>
 		</nav>
 		<nav class="header-smart-menu">
-    		
-    			
-    			<a q-on="click: openSlider(e, 'innerArchive')" href="javascript:void(0)">所有文章</a>
-    			
-            
-    			
-    			<a q-on="click: openSlider(e, 'friends')" href="javascript:void(0)">友链</a>
-    			
-            
-    			
-    			<a q-on="click: openSlider(e, 'aboutme')" href="javascript:void(0)">关于我</a>
-    			
-            
+    		<% for (var i in theme.smart_menu){ %>
+    			<% if(theme.smart_menu[i]){ %>
+    			<a q-on="click: openSlider(e, '<%-i%>')" href="javascript:void(0)"><%= theme.smart_menu[i] %></a>
+    			<% } %>
+            <%}%>
 		</nav>
 		<nav class="header-nav">
 			<div class="social">
-				
-					<a class="github" target="_blank" href="#" title="github"><i class="icon-github"></i></a>
-		        
-					<a class="weibo" target="_blank" href="#" title="weibo"><i class="icon-weibo"></i></a>
-		        
-					<a class="rss" target="_blank" href="#" title="rss"><i class="icon-rss"></i></a>
-		        
-					<a class="zhihu" target="_blank" href="#" title="zhihu"><i class="icon-zhihu"></i></a>
-		        
+				<% for (var i in theme.subnav){ %>
+					<a class="<%= i %>" target="_blank" href="<%- url_for(theme.subnav[i]) %>" title="<%= i %>"><i class="icon-<%= i %>"></i></a>
+		        <%}%>
 			</div>
 		</nav>
 	</header>
@@ -211,7 +195,7 @@
       
         <p>NioEventLoop在为数据分配存放的内存时, 会首先尝试从线程本地缓存中去申请, 只有当本地缓存中申请失败, 才会考虑从全局内存中申请, 本地缓存的管理者就是PoolThreadCache对象。 Netty自己实现了类似LocalThread的类来充当线程缓存: PoolThreadLocalCache, 本节将充分围绕这两个类的源代码进行描述。</p>
 <h1 id="PoolThreadCache"><a href="#PoolThreadCache" class="headerlink" title="PoolThreadCache"></a>PoolThreadCache</h1><p>Netty自己进行内存管理, 将内存主要分为Tiny, small, normal等size不等的区间。 在PoolThreadCache中将缓存也按照size进行划分, 下图是PoolThreadCache的内部整体结构图:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/PoolThreadCache2.png" height="400" width="450"><br>图中只展示了small类型数组的大小(为4), 而tiny、normal数组的大小分别分32、 3。 每个数据元素代表着缓存不同类型大小的对象。 比如回收size为32B的对象, 将相应的内存块放在tiny类型数组、下标为1 (log(32&gt;&gt;4))的queue中。 本文章大量用到某一级别的缓存块, 举个例子:normal级别的缓存块有[8k, 16k, 32k]。<br>下面大致介绍下PoolThreadCache里面的属性作用:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div></pre></td><td class="code"><pre><div class="line">final PoolArena&lt;byte[]&gt; heapArena;</div><div class="line">final PoolArena&lt;ByteBuffer&gt; directArena;</div><div class="line"></div><div class="line">// Hold the caches for the different size classes, which are tiny, small and normal.</div><div class="line">//tiny内存缓存的个数。默认为512</div><div class="line">private final MemoryRegionCache&lt;byte[]&gt;[] tinySubPageHeapCaches;</div><div class="line">//small内存缓存的个数,默认为256个</div><div class="line">private final MemoryRegionCache&lt;byte[]&gt;[] smallSubPageHeapCaches;</div><div class="line">private final MemoryRegionCache&lt;ByteBuffer&gt;[] tinySubPageDirectCaches;</div><div class="line">private final MemoryRegionCache&lt;ByteBuffer&gt;[] smallSubPageDirectCaches;</div><div class="line">//normalCacheSize缓存的个数，默认为64</div><div class="line">private final MemoryRegionCache&lt;byte[]&gt;[] normalHeapCaches;</div><div class="line">private final MemoryRegionCache&lt;ByteBuffer&gt;[] normalDirectCaches;</div><div class="line"></div><div class="line">private final int freeSweepAllocationThreshold;</div><div class="line"></div><div class="line">private final Thread deathWatchThread;</div><div class="line">//线程消亡后，释放资源</div><div class="line">private final Runnable freeTask;</div><div class="line">//freeSweepAllocationThreshold  在本地线程每分配freeSweepAllocationThreshold 次内存后，检测一下是否需要释放内存。</div><div class="line">private int allocations;</div></pre></td></tr></table></figure></p>
-<p><code>heapArena</code>与<code>directArena</code>作用一样, 根据用户使用direct内存还是heap内存来确定使用哪个块。由构造函数可以看出directArena与PoolThreadCache绑定了, 同时PoolThreadCache也与某个NioEventLoop对应的线程绑定的, 所以该NioEventLoop线程都与唯一的directArena(&amp;heapArena)绑定着, 这样相对减轻了线程间申请内存导致互斥的发生。<code>smallSubPageHeapCaches</code>数组长度为4(如上图所示), 依次缓存[512K, 1024k, 2048k, 4096k]大小的缓存, 每个的元素对应的缓存queue个数不能超过256个; 而tinySubPageHeapCaches数组缓存的是[16B, 32B, … , 496B]大小的内存块, 每个元素对应的缓存queue个数不能超过512个。<code>normalHeapCaches</code>数组结构相同, 但是只缓存[8k, 16k, 32k]大小的内存块, 每个元素对应的缓存queue个数不超过64个。 normal最大内存块为16m, 而缓存仅仅缓存最大32k内存的原因是这是一种巨大的开销: 试想仅仅16m对应的级别存储, 就可缓存16M*64大小的内存块放在内存, 而这些内存块等着被新分配出去而没有主动释放, 存在巨大的浪费。 至于tiny、small、normal缓存每一等级划分规则, 可参考<a href="https://kkewwei.github.io/elasticsearch_learning/2018/07/14/Netty-PoolThreadCache%E6%BA%90%E7%A0%81%E6%8E%A2%E7%A9%B6/"> Netty PoolArea内存原理探究</a><br> 由于normalHeapCaches的特殊性, 如下展示该部分的代码实现:<br> <figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div></pre></td><td class="code"><pre><div class="line">private static &lt;T&gt; MemoryRegionCache&lt;T&gt;[] createNormalCaches(</div><div class="line">           int cacheSize, int maxCachedBufferCapacity, PoolArena&lt;T&gt; area) &#123;</div><div class="line">       if (cacheSize &gt; 0) &#123;</div><div class="line">           int max = Math.min(area.chunkSize, maxCachedBufferCapacity); //默认32k</div><div class="line">           //normalHeapCaches 数组中的元素的大小，是以2的幂倍pageSize递增的</div><div class="line">           int arraySize = Math.max(1, log2(max / area.pageSize) + 1);</div><div class="line">           //只缓存8k，16k，32k的缓存，太大的话，内存扛不住，若最大缓存32m的话，缓存64*32M个，太大了，扛不住</div><div class="line">           @SuppressWarnings(&quot;unchecked&quot;)</div><div class="line">           MemoryRegionCache&lt;T&gt;[] cache = new MemoryRegionCache[arraySize];</div><div class="line">           for (int i = 0; i &lt; cache.length; i++) &#123;</div><div class="line">               cache[i] = new NormalMemoryRegionCache&lt;T&gt;(cacheSize);</div><div class="line">           &#125;</div><div class="line">           return cache;</div><div class="line">       &#125; else &#123;</div><div class="line">           return null;</div><div class="line">       &#125;</div><div class="line">   &#125;</div></pre></td></tr></table></figure></p>
+<p><code>heapArena</code>与<code>directArena</code>作用一样, 根据用户使用direct内存还是heap内存来确定使用哪个块。由构造函数可以看出directArena与PoolThreadCache绑定了, 同时PoolThreadCache也与某个NioEventLoop对应的线程绑定的, 所以该NioEventLoop线程都与唯一的directArena(&amp;heapArena)绑定着, 这样相对减轻了线程间申请内存导致互斥的发生。<code>smallSubPageHeapCaches</code>数组长度为4(如上图所示), 依次缓存[512K, 1024k, 2048k, 4096k]大小的缓存, 每个的元素对应的缓存queue个数不能超过256个; 而tinySubPageHeapCaches数组缓存的是[16B, 32B, … , 496B]大小的内存块, 每个元素对应的缓存queue个数不能超过512个。<code>normalHeapCaches</code>数组结构相同, 但是只缓存[8k, 16k, 32k]大小的内存块, 每个元素对应的缓存queue个数不超过64个。 normal最大内存块为16m, 而缓存仅仅缓存最大32k内存的原因是这是一种巨大的开销: 试想仅仅16m对应的级别存储, 就可缓存16M*64大小的内存块放在内存, 而这些内存块等着被新分配出去而没有主动释放, 存在巨大的浪费。 至于tiny、small、normal缓存每一等级划分规则, 可参考<a href="https://kkewwei.github.io/elasticsearch_learning/2018/05/23/Netty%E5%86%85%E5%AD%98%E5%AD%A6%E4%B9%A0/"> Netty PoolArea内存原理探究</a><br> 由于normalHeapCaches的特殊性, 如下展示该部分的代码实现:<br> <figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div></pre></td><td class="code"><pre><div class="line">private static &lt;T&gt; MemoryRegionCache&lt;T&gt;[] createNormalCaches(</div><div class="line">           int cacheSize, int maxCachedBufferCapacity, PoolArena&lt;T&gt; area) &#123;</div><div class="line">       if (cacheSize &gt; 0) &#123;</div><div class="line">           int max = Math.min(area.chunkSize, maxCachedBufferCapacity); //默认32k</div><div class="line">           //normalHeapCaches 数组中的元素的大小，是以2的幂倍pageSize递增的</div><div class="line">           int arraySize = Math.max(1, log2(max / area.pageSize) + 1);</div><div class="line">           //只缓存8k，16k，32k的缓存，太大的话，内存扛不住，若最大缓存32m的话，缓存64*32M个，太大了，扛不住</div><div class="line">           @SuppressWarnings(&quot;unchecked&quot;)</div><div class="line">           MemoryRegionCache&lt;T&gt;[] cache = new MemoryRegionCache[arraySize];</div><div class="line">           for (int i = 0; i &lt; cache.length; i++) &#123;</div><div class="line">               cache[i] = new NormalMemoryRegionCache&lt;T&gt;(cacheSize);</div><div class="line">           &#125;</div><div class="line">           return cache;</div><div class="line">       &#125; else &#123;</div><div class="line">           return null;</div><div class="line">       &#125;</div><div class="line">   &#125;</div></pre></td></tr></table></figure></p>
 <p> 最大缓存的大小由io.netty.allocator.maxCachedBufferCapacity来指定, 默认缓存最大32k。</p>
 <p>以下展示缓存中分配内存的过程, 以从normal级别缓存分配内存为例:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line"> boolean allocateNormal(PoolArena&lt;?&gt; area, PooledByteBuf&lt;?&gt; buf, int reqCapacity, int normCapacity) &#123;</div><div class="line">    return allocate(cacheForNormal(area, normCapacity), buf, reqCapacity);</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
 <p>在cacheForNormal中根据normCapacity确定从normalSubPageDirectCaches对应级别获取缓存内存块, 接着开始分配内存:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div></pre></td><td class="code"><pre><div class="line">@SuppressWarnings(&#123; &quot;unchecked&quot;, &quot;rawtypes&quot; &#125;)</div><div class="line">private boolean allocate(MemoryRegionCache&lt;?&gt; cache, PooledByteBuf buf, int reqCapacity) &#123;</div><div class="line">    if (cache == null) &#123;</div><div class="line">        // no cache found so just return false here</div><div class="line">        return false;</div><div class="line">    &#125;</div><div class="line">    boolean allocated = cache.allocate(buf, reqCapacity);</div><div class="line">    if (++ allocations &gt;= freeSweepAllocationThreshold) &#123;</div><div class="line">        allocations = 0;</div><div class="line">        trim();</div><div class="line">    &#125;</div><div class="line">    return allocated;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
@@ -512,19 +496,23 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">Cycler</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">ReentrantLock</a>
+                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">ReentrantLock</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -533,10 +521,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">gdb</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
               </li>
              
               <li class="article-tag-list-item">
