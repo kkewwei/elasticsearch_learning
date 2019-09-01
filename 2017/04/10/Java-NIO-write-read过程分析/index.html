@@ -17,7 +17,7 @@
 <meta property="og:site_name" content="Hexo">
 <meta property="og:description" content="在JAVA NIO通信分析中, 说明了客户端与服务器端是如何建立连接的, 那么本文将在上文的基础上, 了解服务器端是如何根据建立的连接进行写和读的。由于读写流程基本一致, 这里只分析如何进行写入的。 write服务器端调用了SocketChannel.write(ByteBuffer.wrap( msg.getBytes()));, 此时开启了写的流程:1234567891011121314151">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/fd.png">
-<meta property="og:updated_time" content="2019-09-01T09:40:38.000Z">
+<meta property="og:updated_time" content="2019-09-01T10:13:08.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Java NIO Write过程分析">
 <meta name="twitter:description" content="在JAVA NIO通信分析中, 说明了客户端与服务器端是如何建立连接的, 那么本文将在上文的基础上, 了解服务器端是如何根据建立的连接进行写和读的。由于读写流程基本一致, 这里只分析如何进行写入的。 write服务器端调用了SocketChannel.write(ByteBuffer.wrap( msg.getBytes()));, 此时开启了写的流程:1234567891011121314151">
@@ -45,39 +45,55 @@
   <div id="container" q-class="show:isCtnShow">
     <canvas id="anm-canvas" class="anm-canvas"></canvas>
     <div class="left-col" q-class="show:isShow">
-      <% var defaultBg = '#4d4d4d'; %>
-<div class="overlay" style="background: <%= theme.style && theme.style.header ? theme.style.header : defaultBg %>"></div>
+      
+<div class="overlay" style="background: #4d4d4d"></div>
 <div class="intrude-less">
 	<header id="header" class="inner">
-		<a href="<%=theme.root%>" class="profilepic">
-			<img src="<%=theme.avatar%>" class="js-avatar">
+		<a href="/" class="profilepic">
+      <img src="https://kkewwei.github.io/elasticsearch_learning/img/myself.png" class="js-avatar">
 		</a>
 		<hgroup>
-		  <h1 class="header-author"><a href="<%=theme.root%>"><%=theme.author%></a></h1>
+		  <h1 class="header-author"><a href="/">xiaoyu</a></h1>
 		</hgroup>
-		<% if (theme.subtitle){ %>
-		<p class="header-subtitle"><%=theme.subtitle%></p>
-		<%}%>
+		
+		<p class="header-subtitle">往事随风</p>
+		
 
 		<nav class="header-menu">
 			<ul>
-			<% for (var i in theme.menu){ %>
-				<li><a href="<%- url_for(theme.menu[i]) %>"><%= i %></a></li>
-	        <%}%>
+			
+				<li><a href="/elasticsearch_learning/">主页</a></li>
+	        
+				<li><a href="/elasticsearch_learning/tags/随笔/">随笔</a></li>
+	        
 			</ul>
 		</nav>
 		<nav class="header-smart-menu">
-    		<% for (var i in theme.smart_menu){ %>
-    			<% if(theme.smart_menu[i]){ %>
-    			<a q-on="click: openSlider(e, '<%-i%>')" href="javascript:void(0)"><%= theme.smart_menu[i] %></a>
-    			<% } %>
-            <%}%>
+    		
+    			
+    			<a q-on="click: openSlider(e, 'innerArchive')" href="javascript:void(0)">所有文章</a>
+    			
+            
+    			
+    			<a q-on="click: openSlider(e, 'friends')" href="javascript:void(0)">友链</a>
+    			
+            
+    			
+    			<a q-on="click: openSlider(e, 'aboutme')" href="javascript:void(0)">关于我</a>
+    			
+            
 		</nav>
 		<nav class="header-nav">
 			<div class="social">
-				<% for (var i in theme.subnav){ %>
-					<a class="<%= i %>" target="_blank" href="<%- url_for(theme.subnav[i]) %>" title="<%= i %>"><i class="icon-<%= i %>"></i></a>
-		        <%}%>
+				
+					<a class="github" target="_blank" href="#" title="github"><i class="icon-github"></i></a>
+		        
+					<a class="weibo" target="_blank" href="#" title="weibo"><i class="icon-weibo"></i></a>
+		        
+					<a class="rss" target="_blank" href="#" title="rss"><i class="icon-rss"></i></a>
+		        
+					<a class="zhihu" target="_blank" href="#" title="zhihu"><i class="icon-zhihu"></i></a>
+		        
 			</div>
 		</nav>
 	</header>
@@ -199,7 +215,8 @@
 <p>这里主要做了如下工作:</p>
 <ol>
 <li>调用begin, 向当前线程的blocker属性赋值, 以便在写入时, 能影响中断信号。</li>
-<li>循环调用IOUtil.write向套接字写入数据, 返回的n表示当前写入的byte大小<br>3.当写入完成后, 调用writerCleanup清理现场。比如将writerThread置位, 代表没有线程写入了, 检查是否有必要进行将管道置为失败</li>
+<li>循环调用IOUtil.write向套接字写入数据, 返回的n表示当前写入的byte大小<br>3.当写入完成后, 调用writerCleanup清理现场。比如将writerThread置位, 代表没有线程写入了, 检查是否有必要进行将管道置为失败<a id="more"></a>
+</li>
 </ol>
 <h2 id="begin"><a href="#begin" class="headerlink" title="begin"></a>begin</h2><p>我们看下写入时候是如何响应中断信号的, 进入bgin后<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div></pre></td><td class="code"><pre><div class="line">protected final void begin() &#123;</div><div class="line">    if (interruptor == null) &#123;</div><div class="line">        interruptor = new Interruptible() &#123;</div><div class="line">                public void interrupt(Thread target) &#123;</div><div class="line">                    synchronized (closeLock) &#123;</div><div class="line">                        if (!open)</div><div class="line">                            return;</div><div class="line">                        open = false;</div><div class="line">                        interrupted = target;</div><div class="line">                        try &#123;</div><div class="line">                            AbstractInterruptibleChannel.this.implCloseChannel();</div><div class="line">                        &#125; catch (IOException x) &#123; &#125;</div><div class="line">                    &#125;</div><div class="line">                &#125;&#125;;</div><div class="line">    &#125;</div><div class="line">    blockedOn(interruptor);</div><div class="line">    Thread me = Thread.currentThread();</div><div class="line">    if (me.isInterrupted())</div><div class="line">        interruptor.interrupt(me);</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
 <p>看起来和建立连接时的响应中断原理一样, 通过设置blocker属性实现, 我们看下AbstractInterruptibleChannel.this.implCloseChannel()又做了哪些工作:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div></pre></td><td class="code"><pre><div class="line">protected final void implCloseChannel() throws IOException &#123;</div><div class="line">    implCloseSelectableChannel();</div><div class="line">    synchronized (keyLock) &#123;</div><div class="line">        int count = (keys == null) ? 0 : keys.length;  // 当前通道都关闭了，cancel只是将key放入cancelledKeys中，在下次正式选择开始的时候再一一清除；</div><div class="line">        for (int i = 0; i &lt; count; i++) &#123;</div><div class="line">            SelectionKey k = keys[i];</div><div class="line">            if (k != null)</div><div class="line">                k.cancel();</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
@@ -526,11 +543,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">NIO, write, read</a>
+                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
+                <a href="javascript:void(0)" class="js-tag color2">NIO, write, read</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -538,11 +555,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
+                <a href="javascript:void(0)" class="js-tag color2">Cycler</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">Cycler</a>
+                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -570,11 +587,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">maven, 插件, 打包</a>
+                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
+                <a href="javascript:void(0)" class="js-tag color4">maven, 插件, 打包</a>
               </li>
             
             <div class="clearfix"></div>
