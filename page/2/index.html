@@ -41,57 +41,39 @@
   <div id="container" q-class="show:isCtnShow">
     <canvas id="anm-canvas" class="anm-canvas"></canvas>
     <div class="left-col" q-class="show:isShow">
-      
-<div class="overlay" style="background: #4d4d4d"></div>
+      <% var defaultBg = '#4d4d4d'; %>
+<div class="overlay" style="background: <%= theme.style && theme.style.header ? theme.style.header : defaultBg %>"></div>
 <div class="intrude-less">
 	<header id="header" class="inner">
-		<a href="/" class="profilepic">
-      <img src="https://kkewwei.github.io/elasticsearch_learning/img/myself.png" class="js-avatar">
+		<a href="<%=theme.root%>" class="profilepic">
+			<img src="<%=theme.avatar%>" class="js-avatar">
 		</a>
 		<hgroup>
-		  <h1 class="header-author"><a href="/">xiaoyu</a></h1>
+		  <h1 class="header-author"><a href="<%=theme.root%>"><%=theme.author%></a></h1>
 		</hgroup>
-		
-		<p class="header-subtitle">往事随风</p>
-		
+		<% if (theme.subtitle){ %>
+		<p class="header-subtitle"><%=theme.subtitle%></p>
+		<%}%>
 
 		<nav class="header-menu">
 			<ul>
-			
-				<li><a href="/elasticsearch_learning/">主页</a></li>
-	        
-				<li><a href="/elasticsearch_learning/tags/随笔/">随笔</a></li>
-	        
-				<li><a href="/elasticsearch_learning/categories">分类</a></li>
-	        
+			<% for (var i in theme.menu){ %>
+				<li><a href="<%- url_for(theme.menu[i]) %>"><%= i %></a></li>
+	        <%}%>
 			</ul>
 		</nav>
 		<nav class="header-smart-menu">
-    		
-    			
-    			<a q-on="click: openSlider(e, 'innerArchive')" href="javascript:void(0)">所有文章</a>
-    			
-            
-    			
-    			<a q-on="click: openSlider(e, 'friends')" href="javascript:void(0)">友链</a>
-    			
-            
-    			
-    			<a q-on="click: openSlider(e, 'aboutme')" href="javascript:void(0)">关于我</a>
-    			
-            
+    		<% for (var i in theme.smart_menu){ %>
+    			<% if(theme.smart_menu[i]){ %>
+    			<a q-on="click: openSlider(e, '<%-i%>')" href="javascript:void(0)"><%= theme.smart_menu[i] %></a>
+    			<% } %>
+            <%}%>
 		</nav>
 		<nav class="header-nav">
 			<div class="social">
-				
-					<a class="github" target="_blank" href="#" title="github"><i class="icon-github"></i></a>
-		        
-					<a class="weibo" target="_blank" href="#" title="weibo"><i class="icon-weibo"></i></a>
-		        
-					<a class="rss" target="_blank" href="#" title="rss"><i class="icon-rss"></i></a>
-		        
-					<a class="zhihu" target="_blank" href="#" title="zhihu"><i class="icon-zhihu"></i></a>
-		        
+				<% for (var i in theme.subnav){ %>
+					<a class="<%= i %>" target="_blank" href="<%- url_for(theme.subnav[i]) %>" title="<%= i %>"><i class="icon-<%= i %>"></i></a>
+		        <%}%>
 			</div>
 		</nav>
 	</header>
@@ -164,6 +146,229 @@
           </div>
           <div id="js-content" class="content-ll">
             
+  
+    <article id="post-LockSupport源码解读" class="article article-type-post  article-index" itemscope itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/elasticsearch_learning/2018/11/10/LockSupport源码解读/">LockSupport原理分析</a>
+    </h1>
+  
+
+        
+        <a href="/elasticsearch_learning/2018/11/10/LockSupport源码解读/" class="archive-article-date">
+  	<time datetime="2018-11-10T09:16:56.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2018-11-10</time>
+</a>
+        
+      </header>
+    
+
+    <!-- 目录内容 -->
+    
+    <!-- 目录内容结束 -->
+
+    <div class="article-entry" itemprop="articleBody">
+      
+        <p>LockSupport作为并发的基础, 在CountDownLatch、ReentrantLock、Semaphore、ReentrantReadWriteLock中都是作为阻塞/唤醒线程的基本工具, 因此, 很有必要了解LockSupport的用法及原理, 本文将从LockSupport基本用法、 类主要函数及相关知识、底层基本原理三方面分别描述。</p>
+<h1 id="使用"><a href="#使用" class="headerlink" title="使用"></a>使用</h1><p>基本用法:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div></pre></td><td class="code"><pre><div class="line">class Thread1 extends Thread &#123;</div><div class="line">    public void run() &#123;</div><div class="line">        try &#123;</div><div class="line">            ......</div><div class="line">            LockSupport.park();</div><div class="line">            ......</div><div class="line">        &#125; catch (Exception e) &#123;</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line">&#125;</div><div class="line">Thread thread1 = new Thread1();</div><div class="line">class Thread2 extends Thread &#123;</div><div class="line">    public void run() &#123;</div><div class="line">        try &#123;</div><div class="line">            ......</div><div class="line">            LockSupport.unpark(thread1);</div><div class="line">            ......</div><div class="line">        &#125; catch (Exception e) &#123;</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>当某个线程调用LockSupport.park()时, 该线程将睡眠并同时交出cpu使用。当别的线程调用LockSupport.unpark(thread1)时, 该线程将被唤醒。可见使用及其简单且灵活。park()与unpark()调用没有先后顺序, 这也是与wait()/notify()(参考<a href="https://kkewwei.github.io/elasticsearch_learning/2016/10/27/Java%E7%BA%BF%E7%A8%8B%E7%9F%A5%E8%AF%86%E5%B0%8F%E7%BB%93/">Java 线程知识小结</a>)相比更灵活的一点。也就是说先调用了unpark(), 再调用park(), thread1也是可以继续执行而不被阻塞。后面将详细介绍该原理。</p>
+<h1 id="LockSupport源码解析"><a href="#LockSupport源码解析" class="headerlink" title="LockSupport源码解析"></a>LockSupport源码解析</h1><h2 id="Unsafe"><a href="#Unsafe" class="headerlink" title="Unsafe"></a>Unsafe</h2><p>认识LockSupport, 我们就必须要了解Unsafe。 java作为安全的高级程序语言, 屏蔽了直接与内存打交道的途径。同时java也给我们留了一些后门:Unsafe。Unsafe只听名字就知道是个不安全的类, 它可以直接操作内存, 只有受信任的类才可以使用它。我们不能通过这种方式获取到Unsafe:<code>Unsafe unsafe = sun.misc.Unsafe.getUnsafe();</code>因为内部会检查该类的加载器是否是启动类加载器，若不是的话，则直接抛出异常；一般都是通过反射实现该类的获取：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div></pre></td><td class="code"><pre><div class="line">// 应用类中获取Unsafe</div><div class="line">Field theUnsafe = Unsafe.class.getDeclaredField(&quot;theUnsafe&quot;);</div><div class="line">theUnsafe.setAccessible(true);</div><div class="line">Unsafe UNSAFE = (Unsafe) theUnsafe.get(null);</div><div class="line"></div><div class="line">//直接操纵内存修改成员变量值</div><div class="line">Test test = new Test();</div><div class="line">Field filed = test.getClass().getDeclaredField(&quot;a&quot;);</div><div class="line">long ageOffset = UNSAFE.objectFieldOffset(filed);</div><div class="line">//直接通过修改内存来修改成员变量值</div><div class="line">UNSAFE.putInt(test, ageOffset, 100);</div></pre></td></tr></table></figure></p>
+<h2 id="parkBlockerOffset和parkBlocker"><a href="#parkBlockerOffset和parkBlocker" class="headerlink" title="parkBlockerOffset和parkBlocker"></a>parkBlockerOffset和parkBlocker</h2><p>在LockSupport中有这么一段static代码块:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div></pre></td><td class="code"><pre><div class="line">private static final sun.misc.Unsafe UNSAFE;</div><div class="line">//获取parkBlocker在内存中的偏移量, 就是说谁把该线程block住了</div><div class="line">private static final long parkBlockerOffset;</div><div class="line">try &#123;</div><div class="line">    // 因为LockSupport是受信任的类, 所以才可以通过这种方式产生Unsafe</div><div class="line">    UNSAFE = sun.misc.Unsafe.getUnsafe();</div><div class="line">    // 线程类类型</div><div class="line">    Class&lt;?&gt; tk = Thread.class;</div><div class="line">    //先是通过反射机制获取Thread类的parkBlocker字段对象</div><div class="line">     parkBlockerOffset = UNSAFE.objectFieldOffset(tk.getDeclaredField(&quot;parkBlocker&quot;));</div><div class="line">&#125; catch (Exception ex) &#123; throw new Error(ex); &#125;</div></pre></td></tr></table></figure></p>
+<p>该函数可以获取到该线程类成员变量parkBlocker在内存中的偏移量parkBlockerOffset, 然后就可以通过<code>public static void park(Object blocker)</code>显示指示该类被什么阻塞的了。然后在jstack时, 将可以看到如下信息:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/LockSupport1.png" height="150" width="600"><br>提示你设置的阻塞对象是啥, park()代码如下:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div></pre></td><td class="code"><pre><div class="line"> public static void park(Object blocker) &#123;</div><div class="line">        Thread t = Thread.currentThread();</div><div class="line">        setBlocker(t, blocker);</div><div class="line">        UNSAFE.park(false, 0L);</div><div class="line">        setBlocker(t, null);</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>这里也可以看出LockSupport实际调用了Unsafe.park/unpark函数。</p>
+<h1 id="Unsafe底层park-unpark原理"><a href="#Unsafe底层park-unpark原理" class="headerlink" title="Unsafe底层park/unpark原理"></a>Unsafe底层park/unpark原理</h1><p>Unsafe类中函数基本都是Native属性, 在虚拟机源代码/hotspot/src/share/vm/prims/unsafe.cpp(L1561)中, 定义了Unsafe类Native与c++语言函数之间对应关系, 如下所示:<br> <figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div></pre></td><td class="code"><pre><div class="line"> // These are the methods for 1.8.0</div><div class="line">static JNINativeMethod methods_18[] = &#123;</div><div class="line">    &#123;CC&quot;getObject&quot;,        CC&quot;(&quot;OBJ&quot;J)&quot;OBJ&quot;&quot;,   FN_PTR(Unsafe_GetObject)&#125;,</div><div class="line">    &#123;CC&quot;putObject&quot;,        CC&quot;(&quot;OBJ&quot;J&quot;OBJ&quot;)V&quot;,  FN_PTR(Unsafe_SetObject)&#125;,</div><div class="line">    &#123;CC&quot;getObjectVolatile&quot;,CC&quot;(&quot;OBJ&quot;J)&quot;OBJ&quot;&quot;,   FN_PTR(Unsafe_GetObjectVolatile)&#125;,</div><div class="line">    &#123;CC&quot;putObjectVolatile&quot;,CC&quot;(&quot;OBJ&quot;J&quot;OBJ&quot;)V&quot;,  FN_PTR(Unsafe_SetObjectVolatile)&#125;,</div><div class="line">    &#123;CC&quot;getAddress&quot;,         CC&quot;(&quot;ADR&quot;)&quot;ADR,             FN_PTR(Unsafe_GetNativeAddress)&#125;,</div><div class="line">    &#123;CC&quot;putAddress&quot;,         CC&quot;(&quot;ADR&quot;&quot;ADR&quot;)V&quot;,          FN_PTR(Unsafe_SetNativeAddress)&#125;,</div><div class="line">    &#123;CC&quot;allocateMemory&quot;,     CC&quot;(J)&quot;ADR,                 FN_PTR(Unsafe_AllocateMemory)&#125;,</div><div class="line">    &#123;CC&quot;reallocateMemory&quot;,   CC&quot;(&quot;ADR&quot;J)&quot;ADR,            FN_PTR(Unsafe_ReallocateMemory)&#125;,</div><div class="line">    &#123;CC&quot;freeMemory&quot;,         CC&quot;(&quot;ADR&quot;)V&quot;,               FN_PTR(Unsafe_FreeMemory)&#125;,</div><div class="line">    &#123;CC&quot;objectFieldOffset&quot;,  CC&quot;(&quot;FLD&quot;)J&quot;,               FN_PTR(Unsafe_ObjectFieldOffset)&#125;,</div><div class="line">    &#123;CC&quot;staticFieldOffset&quot;,  CC&quot;(&quot;FLD&quot;)J&quot;,               FN_PTR(Unsafe_StaticFieldOffset)&#125;,</div><div class="line">    &#123;CC&quot;staticFieldBase&quot;,    CC&quot;(&quot;FLD&quot;)&quot;OBJ,             FN_PTR(Unsafe_StaticFieldBaseFromField)&#125;,</div><div class="line">    &#123;CC&quot;ensureClassInitialized&quot;,CC&quot;(&quot;CLS&quot;)V&quot;,            FN_PTR(Unsafe_EnsureClassInitialized)&#125;,</div><div class="line">    &#123;CC&quot;arrayBaseOffset&quot;,    CC&quot;(&quot;CLS&quot;)I&quot;,               FN_PTR(Unsafe_ArrayBaseOffset)&#125;,</div><div class="line">    &#123;CC&quot;arrayIndexScale&quot;,    CC&quot;(&quot;CLS&quot;)I&quot;,               FN_PTR(Unsafe_ArrayIndexScale)&#125;,</div><div class="line">    &#123;CC&quot;addressSize&quot;,        CC&quot;()I&quot;,                    FN_PTR(Unsafe_AddressSize)&#125;,</div><div class="line">    &#123;CC&quot;pageSize&quot;,           CC&quot;()I&quot;,                    FN_PTR(Unsafe_PageSize)&#125;,</div><div class="line">    &#123;CC&quot;defineClass&quot;,        CC&quot;(&quot;DC_Args&quot;)&quot;CLS,         FN_PTR(Unsafe_DefineClass)&#125;,</div><div class="line">    &#123;CC&quot;allocateInstance&quot;,   CC&quot;(&quot;CLS&quot;)&quot;OBJ,             FN_PTR(Unsafe_AllocateInstance)&#125;,</div><div class="line">    &#123;CC&quot;monitorEnter&quot;,       CC&quot;(&quot;OBJ&quot;)V&quot;,               FN_PTR(Unsafe_MonitorEnter)&#125;,</div><div class="line">    &#123;CC&quot;monitorExit&quot;,        CC&quot;(&quot;OBJ&quot;)V&quot;,               FN_PTR(Unsafe_MonitorExit)&#125;,</div><div class="line">    &#123;CC&quot;tryMonitorEnter&quot;,    CC&quot;(&quot;OBJ&quot;)Z&quot;,               FN_PTR(Unsafe_TryMonitorEnter)&#125;,</div><div class="line">    &#123;CC&quot;throwException&quot;,     CC&quot;(&quot;THR&quot;)V&quot;,               FN_PTR(Unsafe_ThrowException)&#125;,</div><div class="line">    &#123;CC&quot;compareAndSwapObject&quot;, CC&quot;(&quot;OBJ&quot;J&quot;OBJ&quot;&quot;OBJ&quot;)Z&quot;,  FN_PTR(Unsafe_CompareAndSwapObject)&#125;,</div><div class="line">    &#123;CC&quot;compareAndSwapInt&quot;,  CC&quot;(&quot;OBJ&quot;J&quot;&quot;I&quot;&quot;I&quot;&quot;)Z&quot;,      FN_PTR(Unsafe_CompareAndSwapInt)&#125;,</div><div class="line">    &#123;CC&quot;compareAndSwapLong&quot;, CC&quot;(&quot;OBJ&quot;J&quot;&quot;J&quot;&quot;J&quot;&quot;)Z&quot;,      FN_PTR(Unsafe_CompareAndSwapLong)&#125;,</div><div class="line">    &#123;CC&quot;putOrderedObject&quot;,   CC&quot;(&quot;OBJ&quot;J&quot;OBJ&quot;)V&quot;,         FN_PTR(Unsafe_SetOrderedObject)&#125;,</div><div class="line">    &#123;CC&quot;putOrderedInt&quot;,      CC&quot;(&quot;OBJ&quot;JI)V&quot;,             FN_PTR(Unsafe_SetOrderedInt)&#125;,</div><div class="line">    &#123;CC&quot;putOrderedLong&quot;,     CC&quot;(&quot;OBJ&quot;JJ)V&quot;,             FN_PTR(Unsafe_SetOrderedLong)&#125;,</div><div class="line">    &#123;CC&quot;park&quot;,               CC&quot;(ZJ)V&quot;,                  FN_PTR(Unsafe_Park)&#125;,</div><div class="line">    &#123;CC&quot;unpark&quot;,             CC&quot;(&quot;OBJ&quot;)V&quot;,               FN_PTR(Unsafe_Unpark)&#125;</div><div class="line">&#125;;</div></pre></td></tr></table></figure></p>
+<p>可以看出, 我们关注的park和unpark分别对应了Unsafe_Park与Unsafe_Unpark。 下面展示了Unsafe_Park的实现方式:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div></pre></td><td class="code"><pre><div class="line">UNSAFE_ENTRY(void, Unsafe_Park(JNIEnv *env, jobject unsafe, jboolean isAbsolute, jlong time))</div><div class="line">  UnsafeWrapper(&quot;Unsafe_Park&quot;);</div><div class="line">  EventThreadPark event;</div><div class="line">#ifndef USDT2</div><div class="line">  HS_DTRACE_PROBE3(hotspot, thread__park__begin, thread-&gt;parker(), (int) isAbsolute, time);</div><div class="line">#else /* USDT2 */</div><div class="line">   HOTSPOT_THREAD_PARK_BEGIN(</div><div class="line">                             (uintptr_t) thread-&gt;parker(), (int) isAbsolute, time);</div><div class="line">#endif /* USDT2 */</div><div class="line">  JavaThreadParkedState jtps(thread, time != 0);</div><div class="line">  thread-&gt;parker()-&gt;park(isAbsolute != 0, time);   //进的是这个函数</div><div class="line">#ifndef USDT2</div><div class="line">  HS_DTRACE_PROBE1(hotspot, thread__park__end, thread-&gt;parker());</div><div class="line">#else /* USDT2 */</div><div class="line">  HOTSPOT_THREAD_PARK_END(</div><div class="line">                          (uintptr_t) thread-&gt;parker());</div><div class="line">#endif /* USDT2 */</div><div class="line">  if (event.should_commit()) &#123;</div><div class="line">    oop obj = thread-&gt;current_park_blocker();</div><div class="line">    event.set_klass((obj != NULL) ? obj-&gt;klass() : NULL);</div><div class="line">    event.set_timeout(time);</div><div class="line">    event.set_address((obj != NULL) ? (TYPE_ADDRESS) cast_from_oop&lt;uintptr_t&gt;(obj) : 0);</div><div class="line">    event.commit();</div><div class="line">  &#125;</div><div class="line">UNSAFE_END</div></pre></td></tr></table></figure></p>
+<p>我们可以清晰得看到, 真正调用的是thread-&gt;parker()-&gt;park(isAbsolute != 0, time)方法。</p>
+<h2 id="thread和Parker"><a href="#thread和Parker" class="headerlink" title="thread和Parker"></a>thread和Parker</h2><p>我们需要了解下vm中thread是如何组成的, JavaThread定义在/hotspot/src/share/vm/prims/runtime/thread.hpp(L1740), 关于Parker成员变量声明如下:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line">private:</div><div class="line">  Parker*    _parker;</div><div class="line">public:</div><div class="line">  Parker*     parker() &#123; return _parker; &#125;</div></pre></td></tr></table></figure></p>
+<p>可以看出, 每个thread类中都包含一个Parker。<br>Parker定义在/hotspot/src/share/vm/runtime/park.hpp(L56), 定义如下:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div></pre></td><td class="code"><pre><div class="line">class Parker : public os::PlatformParker &#123;</div><div class="line">private:</div><div class="line">  //当_counter只能在0和1之间取值, 当为1时, 代表该类被unpark调用过, 更多的调用, 也不会增加_counter的值, 当该线程调用park()时, 不会阻塞, 同时_counter立刻清零。当为0时, 调用park()会被阻塞。使用volatile来修饰</div><div class="line">  volatile int _counter ;</div><div class="line">  Parker * FreeNext ;</div><div class="line">  JavaThread * AssociatedWith ; // Current association</div><div class="line">public:</div><div class="line">  Parker() : PlatformParker() &#123;</div><div class="line">    _counter       = 0 ;</div><div class="line">    FreeNext       = NULL ;</div><div class="line">    AssociatedWith = NULL ;</div><div class="line">  &#125;</div></pre></td></tr></table></figure></p>
+<p>PlatformParker继承自Parker, 定义在/hotspot/src/os/linux/vm/os_linux.cpp(L234)<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div></pre></td><td class="code"><pre><div class="line">class PlatformParker : public CHeapObj&lt;mtInternal&gt; &#123;</div><div class="line">  protected:</div><div class="line">    enum &#123;</div><div class="line">        REL_INDEX = 0,</div><div class="line">        ABS_INDEX = 1</div><div class="line">    &#125;;</div><div class="line">    int _cur_index;  // which cond is in use: -1, 0, 1</div><div class="line">    pthread_mutex_t _mutex [1] ;</div><div class="line">    pthread_cond_t  _cond  [2] ; // one for relative times and one for abs.</div><div class="line"></div><div class="line">  public:       // TODO-FIXME: make dtor private</div><div class="line">    ~PlatformParker() &#123; guarantee (0, &quot;invariant&quot;) ; &#125;</div><div class="line"></div><div class="line">  public:</div><div class="line">    PlatformParker() &#123;</div><div class="line">      int status;</div><div class="line">      status = pthread_cond_init (&amp;_cond[REL_INDEX], os::Linux::condAttr());</div><div class="line">      assert_status(status == 0, status, &quot;cond_init rel&quot;);</div><div class="line">      status = pthread_cond_init (&amp;_cond[ABS_INDEX], NULL);</div><div class="line">      assert_status(status == 0, status, &quot;cond_init abs&quot;);</div><div class="line">      status = pthread_mutex_init (_mutex, NULL);</div><div class="line">      assert_status(status == 0, status, &quot;mutex_init&quot;);</div><div class="line">      _cur_index = -1; // mark as unused</div><div class="line">    &#125;</div><div class="line">&#125;;</div></pre></td></tr></table></figure></p>
+<p>说这么多, 我们主要是为了让你知道_counter, pthread_mutex_t _mutex[1], pthread_cond_t _cond[2]的存在。_mutex[1]和_cond[2]都是为了配合完成c++层面线程的阻塞与互斥等操作。</p>
+<h2 id="Parker-park"><a href="#Parker-park" class="headerlink" title="Parker.park()"></a>Parker.park()</h2><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div><div class="line">61</div><div class="line">62</div><div class="line">63</div><div class="line">64</div><div class="line">65</div><div class="line">66</div><div class="line">67</div><div class="line">68</div><div class="line">69</div><div class="line">70</div><div class="line">71</div><div class="line">72</div><div class="line">73</div><div class="line">74</div><div class="line">75</div><div class="line">76</div><div class="line">77</div><div class="line">78</div><div class="line">79</div><div class="line">80</div><div class="line">81</div><div class="line">82</div><div class="line">83</div><div class="line">84</div><div class="line">85</div><div class="line">86</div><div class="line">87</div><div class="line">88</div><div class="line">89</div><div class="line">90</div><div class="line">91</div><div class="line">92</div><div class="line">93</div><div class="line">94</div><div class="line">95</div><div class="line">96</div><div class="line">97</div><div class="line">98</div><div class="line">99</div><div class="line">100</div><div class="line">101</div><div class="line">102</div></pre></td><td class="code"><pre><div class="line">void Parker::park(bool isAbsolute, jlong time) &#123;</div><div class="line">  // Ideally we&apos;d do something useful while spinning, such</div><div class="line">  // as calling unpackTime().</div><div class="line">  // Optional fast-path check:</div><div class="line">  // Return immediately if a permit is available.</div><div class="line">  // We depend on Atomic::xchg() having full barrier semantics</div><div class="line">  // since we are doing a lock-free update to _counter.</div><div class="line">   //这里通过原子操作来完成_counter清零操作。 若_counter之前&gt;0, 那么说明之前该线程被unpark()过, 就可以直接返回而不被阻塞。</div><div class="line">  if (Atomic::xchg(0, &amp;_counter) &gt; 0) return;</div><div class="line">  Thread* thread = Thread::current();</div><div class="line">  assert(thread-&gt;is_Java_thread(), &quot;Must be JavaThread&quot;);  //判断一定的是java线程</div><div class="line">  JavaThread *jt = (JavaThread *)thread; //类强制转化</div><div class="line">  // Optional optimization -- avoid state transitions if there&apos;s an interrupt pending.</div><div class="line">  // Check interrupt before trying to wait</div><div class="line">  //进入睡眠等待前先检查是否有中断信号, 若有中断信号也直接返回。</div><div class="line">  if (Thread::is_interrupted(thread, false)) &#123;</div><div class="line">    return;</div><div class="line">  &#125;</div><div class="line">  // Next, demultiplex/decode time arguments</div><div class="line">  timespec absTime;</div><div class="line">  //如果是按参数小于0，或者绝对时间，那么可以直接返回</div><div class="line">  if (time &lt; 0 || (isAbsolute &amp;&amp; time == 0) ) &#123; // don&apos;t wait at all</div><div class="line">    return;</div><div class="line">  &#125;</div><div class="line">   //如果时间大于0，判断阻塞超时时间或阻塞截止日期，同时将时间赋值给absTime</div><div class="line">  if (time &gt; 0) &#123;</div><div class="line">    unpackTime(&amp;absTime, isAbsolute, time);</div><div class="line">  &#125;</div><div class="line">  // Enter safepoint region</div><div class="line">  // Beware of deadlocks such as 6317397.</div><div class="line">  // The per-thread Parker:: mutex is a classic leaf-lock.</div><div class="line">  // In particular a thread must never block on the Threads_lock while</div><div class="line">  // holding the Parker:: mutex.  If safepoints are pending both the</div><div class="line">  // the ThreadBlockInVM() CTOR and DTOR may grab Threads_lock.</div><div class="line">  ThreadBlockInVM tbivm(jt);</div><div class="line">  // Don&apos;t wait if cannot get lock since interference arises from</div><div class="line">  // unblocking.  Also. check interrupt before trying wait</div><div class="line">  //再次检查, 如果有中断信号。直接返回; 或者申请互斥锁失败，则直接返回pthread_mutex_trylock返回0。任何其他返回值都表示错误。</div><div class="line">  //函数pthread_mutex_trylock是POSIX 线程pthread_mutex_lock的非阻塞版本。</div><div class="line">  if (Thread::is_interrupted(thread, false) || pthread_mutex_trylock(_mutex) != 0) &#123;</div><div class="line">    return;</div><div class="line">  &#125;</div><div class="line">  //此时已经通过_mutex将该代码进行了互斥操作, 那么直接对_counter都是安全的</div><div class="line">  int status ;</div><div class="line">  如果count&gt;0, 说明之前原子操作赋值为0没有成功。 而_counter&gt; 0, 线程可以直接不阻塞而返回</div><div class="line">  if (_counter &gt; 0)  &#123; // no wait needed</div><div class="line">     //将_counter直接清零</div><div class="line">    _counter = 0;</div><div class="line">    //释放锁并返回， 返回0代表释放锁成功</div><div class="line">    status = pthread_mutex_unlock(_mutex);</div><div class="line">    assert (status == 0, &quot;invariant&quot;) ; //这里会去检查一下是否成功了</div><div class="line">    // Paranoia to ensure our locked and lock-free paths interact</div><div class="line">    // correctly with each other and Java-level accesses.</div><div class="line">    OrderAccess::fence(); //这个函数是HotSpot VM对JMM的内存屏障一个具体的实现函数;</div><div class="line">    return;</div><div class="line">  &#125;</div><div class="line">#ifdef ASSERT</div><div class="line">  // Don&apos;t catch signals while blocked; let the running threads have the signals.</div><div class="line">  // (This allows a debugger to break into the running thread.)</div><div class="line">  sigset_t oldsigs;</div><div class="line">  sigset_t* allowdebug_blocked = os::Linux::allowdebug_blocked_signals();</div><div class="line">  pthread_sigmask(SIG_BLOCK, allowdebug_blocked, &amp;oldsigs);</div><div class="line">#endif</div><div class="line">  OSThreadWaitState osts(thread-&gt;osthread(), false /* not Object.wait() */);</div><div class="line">  jt-&gt;set_suspend_equivalent();</div><div class="line">  // cleared by handle_special_suspend_equivalent_condition() or java_suspend_self()</div><div class="line"></div><div class="line">  assert(_cur_index == -1, &quot;invariant&quot;);</div><div class="line">     //若没有超时时间，那么本线程将进入睡眠状态并释放cpu、释放对_mutex的锁定，等待其他线程调用pthread_cond_signal唤醒该线程；唤醒后会获取对_mutex的锁定的锁定</div><div class="line">  if (time == 0) &#123;</div><div class="line">    _cur_index = REL_INDEX; // arbitrary choice when not timed</div><div class="line">    status = pthread_cond_wait (&amp;_cond[_cur_index], _mutex) ;</div><div class="line">  &#125; else &#123;</div><div class="line">    _cur_index = isAbsolute ? ABS_INDEX : REL_INDEX;</div><div class="line">     //开始真正的阻塞，超时等待，或者其他线程pthread_cond_signal唤醒该线程</div><div class="line">    status = os::Linux::safe_cond_timedwait (&amp;_cond[_cur_index], _mutex, &amp;absTime) ;</div><div class="line">    if (status != 0 &amp;&amp; WorkAroundNPTLTimedWaitHang) &#123;</div><div class="line">      pthread_cond_destroy (&amp;_cond[_cur_index]) ;</div><div class="line">      pthread_cond_init    (&amp;_cond[_cur_index], isAbsolute ? NULL : os::Linux::condAttr());</div><div class="line">    &#125;</div><div class="line">  &#125;</div><div class="line">  _cur_index = -1;</div><div class="line">  assert_status(status == 0 || status == EINTR ||</div><div class="line">                status == ETIME || status == ETIMEDOUT,</div><div class="line">                status, &quot;cond_timedwait&quot;);</div><div class="line"></div><div class="line">#ifdef ASSERT</div><div class="line">  pthread_sigmask(SIG_SETMASK, &amp;oldsigs, NULL);</div><div class="line">#endif</div><div class="line">    //该线程被唤醒了, 同时也对_mutex加锁了, 置位_counter是线程安全的</div><div class="line">  _counter = 0 ;</div><div class="line">  //解锁_mutex</div><div class="line">  status = pthread_mutex_unlock(_mutex) ;</div><div class="line">  assert_status(status == 0, status, &quot;invariant&quot;) ;</div><div class="line">  // Paranoia to ensure our locked and lock-free paths interact</div><div class="line">  // correctly with each other and Java-level accesses.</div><div class="line">  OrderAccess::fence(); //内存屏障</div><div class="line">  // If externally suspended while waiting, re-suspend</div><div class="line">  if (jt-&gt;handle_special_suspend_equivalent_condition()) &#123;</div><div class="line">    jt-&gt;java_suspend_self();</div><div class="line">  &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>Parker::park主要做了如下事情:</p>
+<ul>
+<li>检查_counter&gt;0(别的线程调用过unpark), 则原子操作清零。线程不用睡眠并返回。</li>
+<li>检查该线程是否有中断信号, 有的话,清掉并返回。</li>
+<li>尝试通过pthread_mutex_trylock对_mutex加锁来达到线程互斥。</li>
+<li>检查_counter是否&gt;0, 若成立,说明第一步原子清零操作失败。检查park是否设置超时时间, 若设置了通过safe_cond_timedwait进行超时等待; 若没有设置,调用pthread_cond_wait进行阻塞等待。 这两个函数都在阻塞等待时都会放弃cpu的使用。 直到别的线程调用pthread_cond_signal唤醒</li>
+<li>直接_counter=0清零。</li>
+<li>通过pthread_mutex_unlock释放mutex的加锁。<br>需要了解下: safe_cond_timedwait/pthread_cond_wait在执行之前肯定已经获取了锁_mutex, 在睡眠前释放了锁, 在被唤醒之前, 首先再取唤醒锁。<h2 id="Parker-unpark"><a href="#Parker-unpark" class="headerlink" title="Parker.unpark()"></a>Parker.unpark()</h2>唤醒操作相对简单:<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div></pre></td><td class="code"><pre><div class="line">void Parker::unpark() &#123;</div><div class="line">  int s, status ;</div><div class="line">  //首先是互斥获取锁</div><div class="line">  status = pthread_mutex_lock(_mutex);</div><div class="line">  assert (status == 0, &quot;invariant&quot;) ;</div><div class="line">  s = _counter;</div><div class="line">  //只要把这个状态置为1就行了，就是说多次调用unpack()没啥意义</div><div class="line">  _counter = 1;</div><div class="line">   //s只能为0，说明没有人调用unpark</div><div class="line">  if (s &lt; 1) &#123;</div><div class="line">    // thread might be parked</div><div class="line">    if (_cur_index != -1) &#123;</div><div class="line">      // thread is definitely parked</div><div class="line">      //线程已经处于parker状态了</div><div class="line">      if (WorkAroundNPTLTimedWaitHang) &#123;</div><div class="line">       //pthread_cond_signal可以唤醒pthread_cond_wait()被&amp;_cond[_cur_index]阻塞的线程</div><div class="line">        status = pthread_cond_signal (&amp;_cond[_cur_index]);</div><div class="line">        assert (status == 0, &quot;invariant&quot;);</div><div class="line">        //解锁</div><div class="line">        status = pthread_mutex_unlock(_mutex);</div><div class="line">        assert (status == 0, &quot;invariant&quot;);</div><div class="line">      &#125; else &#123;</div><div class="line">        status = pthread_mutex_unlock(_mutex);</div><div class="line">        assert (status == 0, &quot;invariant&quot;);</div><div class="line">        status = pthread_cond_signal (&amp;_cond[_cur_index]);</div><div class="line">        assert (status == 0, &quot;invariant&quot;);</div><div class="line">      &#125;</div><div class="line">    &#125; else &#123;</div><div class="line">    //仅仅解锁</div><div class="line">      pthread_mutex_unlock(_mutex);</div><div class="line">      assert (status == 0, &quot;invariant&quot;) ;</div><div class="line">    &#125;</div><div class="line">  &#125; else &#123;</div><div class="line">    pthread_mutex_unlock(_mutex);</div><div class="line">    assert (status == 0, &quot;invariant&quot;) ;</div><div class="line">  &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+</li>
+</ul>
+<p>unpark()主要做了如下事情:</p>
+<ul>
+<li>首先获取锁_mutex。</li>
+<li>对_counter置为1, 而不管之前什么值, 这里说明无论多少函数调用unpark(), 都是无效的, 只会记录一次。</li>
+<li>检查线程是否已经被阻塞了, 若已经阻塞了,调用pthread_cond_signal唤醒唤醒。</li>
+<li>释放对_mutex的锁定。</li>
+</ul>
+<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>LockSupport在阻塞线程时, 更多的是依靠操作系统实现来进行的, 在底层实现时, 也是不忘考虑线程中断。 整体来说LockSupport灵活简单而且功能强大。<br>参考:<br><a href="https://www.ibm.com/developerworks/cn/linux/thread/posix_thread1/index.html" target="_blank" rel="external">https://www.ibm.com/developerworks/cn/linux/thread/posix_thread1/index.html</a><br><a href="https://www.ibm.com/developerworks/cn/linux/thread/posix_thread2/index.html" target="_blank" rel="external">https://www.ibm.com/developerworks/cn/linux/thread/posix_thread2/index.html</a><br><a href="https://www.ibm.com/developerworks/cn/linux/thread/posix_thread3/index.html" target="_blank" rel="external">https://www.ibm.com/developerworks/cn/linux/thread/posix_thread3/index.html</a><br><a href="http://www.fanyilun.me/2016/11/19/Thread.interrupt()%E7%9B%B8%E5%85%B3%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90/" target="_blank" rel="external">http://www.fanyilun.me/2016/11/19/Thread.interrupt()%E7%9B%B8%E5%85%B3%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90/</a></p>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color2">LockSupport</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/elasticsearch_learning/categories/Java学习//" class="article-tag-list-link color2">Java学习</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/elasticsearch_learning/2018/11/10/LockSupport源码解读/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
+    <article id="post-DirectByteBuffer堆外内存详解" class="article article-type-post  article-index" itemscope itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/elasticsearch_learning/2018/07/27/DirectByteBuffer堆外内存详解/">DirectByteBuffer堆外内存详解</a>
+    </h1>
+  
+
+        
+        <a href="/elasticsearch_learning/2018/07/27/DirectByteBuffer堆外内存详解/" class="archive-article-date">
+  	<time datetime="2018-07-27T08:33:58.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2018-07-27</time>
+</a>
+        
+      </header>
+    
+
+    <!-- 目录内容 -->
+    
+    <!-- 目录内容结束 -->
+
+    <div class="article-entry" itemprop="articleBody">
+      
+        <p>我们知道, 在使用IO传输数据时, 首先会将数据传输到堆外直接内存中, 然后才通过网络发送出去。这样的话, 数据多了次中间copy, 能否不经过copy而直接将数据发送出去呢, 其实是可以的, 存放的位置就是本文要讲的主角:DirectByteBuffer 。JVM内存主要分为heap内存和堆外内存(一般我们也会称呼为直接内存), heap内存我们不用care, jvm能自动帮我们管理, 而堆外内存回收不受JVM GC控制, 因此, 堆外内存使用必须小心。本文就主要讲jvm中堆外内存的实现及原理。</p>
+<h2 id="DirectByteBuffer使用"><a href="#DirectByteBuffer使用" class="headerlink" title="DirectByteBuffer使用"></a>DirectByteBuffer使用</h2><p>在程序中, 我们可以通过如下方式获取到DirectByteBuffer, 并且直接作为IO的缓存:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div></pre></td><td class="code"><pre><div class="line">public void sendAndRecv(String words) throws IOException</div><div class="line">   &#123;</div><div class="line">       byte[] msg = new String(words).getBytes();</div><div class="line">       ByteBuffer buffer = ByteBuffer.allocateDirect(msg.length);</div><div class="line">       buffer.put(msg);</div><div class="line">       //读写模式相互转化写</div><div class="line">       buffer.flip();</div><div class="line">       System.out.println(&quot;Client sending: &quot; + words);</div><div class="line">       channel.write(buffer);</div><div class="line">       channel.close();</div><div class="line">   &#125;</div></pre></td></tr></table></figure></p>
+<p>DirectByteBuffer是不能直接被外界引用的, 类成员变量如下:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div></pre></td><td class="code"><pre><div class="line">DirectByteBuffer(int cap) &#123;</div><div class="line">    super(-1, 0, cap, cap);</div><div class="line">    //是否页对齐</div><div class="line">    boolean pa = VM.isDirectMemoryPageAligned();</div><div class="line">    //页的大小4K</div><div class="line">    int ps = Bits.pageSize();</div><div class="line">    //最小申请1K，若需要页对齐，那么多申请1页，以应对初始地址的页对齐问题</div><div class="line">    long size = Math.max(1L, (long)cap + (pa ? ps : 0));</div><div class="line">    //检查堆外内存是否够用, 并对分配的直接内存做一个记录</div><div class="line">    Bits.reserveMemory(size, cap);</div><div class="line">    long base = 0;</div><div class="line">    try &#123;</div><div class="line">        //直接内存的初始地址, 返回初始地址</div><div class="line">        base = unsafe.allocateMemory(size);</div><div class="line">    &#125; catch (OutOfMemoryError x) &#123;</div><div class="line">        Bits.unreserveMemory(size, cap);</div><div class="line">        throw x;</div><div class="line">    &#125;</div><div class="line">    //对直接内存初始化</div><div class="line">    unsafe.setMemory(base, size, (byte) 0);</div><div class="line">    //若需要页对其，并且不是页的整数倍，在需要将页对齐（默认是不需要进行页对齐的）</div><div class="line">    if (pa &amp;&amp; (base % ps != 0)) &#123;</div><div class="line">        // Round up to page boundary //初始地址取整页，注意申请的地址为取整数页</div><div class="line">        address = base + ps - (base &amp; (ps - 1));</div><div class="line">    &#125; else &#123;</div><div class="line">        address = base;</div><div class="line">    &#125;</div><div class="line">    //声明一个Cleaner对象用于清理该DirectBuffer内存</div><div class="line">    cleaner = Cleaner.create(this, new Deallocator(base, size, cap));</div><div class="line">    att = null;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>可以看到, DirectByteBuffer通过直接调用base=unsafe.allocateMemory(size)操作堆外内存, 返回的是该堆外内存的直接地址, 存放在address中, 以便通过address进行堆外数据的读取与写入。 unsafe的使用可以参考:<a href="https://kkewwei.github.io/elasticsearch_learning/2018/11/10/LockSupport%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB/">LockSupport原理分析</a><br>我们需要了解下, Bits.reserveMemory()如何判断堆外内存是否可用的:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div></pre></td><td class="code"><pre><div class="line">static void reserveMemory(long size, int cap) &#123;  ////对分配的直接内存做一个记录</div><div class="line">       synchronized (Bits.class) &#123;</div><div class="line">           if (!memoryLimitSet &amp;&amp; VM.isBooted())</div><div class="line">           &#123;</div><div class="line">               //堆外直接内存默认等于堆内内存大小, 可以通过</div><div class="line">               maxMemory = VM.maxDirectMemory();</div><div class="line">               memoryLimitSet = true;</div><div class="line">           &#125;</div><div class="line">           // -XX:MaxDirectMemorySize limits the total capacity rather than the</div><div class="line">           // actual memory usage, which will differ when buffers are page</div><div class="line">           // aligned.</div><div class="line">           //如果够分的话，则直接退出</div><div class="line">           if (cap &lt;= maxMemory - totalCapacity) &#123;</div><div class="line">               reservedMemory += size;</div><div class="line">               totalCapacity += cap; //</div><div class="line">               count++;</div><div class="line">               return;</div><div class="line">           &#125;</div><div class="line">       &#125;</div><div class="line">       //不够分的话，则调用System.gc()进行一次full gc. 一般不要在线程启动时添加-XX:+DisableExplicitGC（禁止代码显示调用gc）</div><div class="line">       System.gc(); //只是告知机器，这里应该GC一次， 但是实际并不一定进行垃圾回收</div><div class="line">       try &#123;</div><div class="line">            //再等待100ms使gc有时间完成，然后再看是否够分配</div><div class="line">           Thread.sleep(100);</div><div class="line">       &#125; catch (InterruptedException x) &#123;</div><div class="line">           // Restore interrupt status</div><div class="line">           Thread.currentThread().interrupt();</div><div class="line">       &#125;</div><div class="line">       synchronized (Bits.class) &#123;</div><div class="line">           //此时不够分的话，再调用向外抛出oom</div><div class="line">           if (totalCapacity + cap &gt; maxMemory)</div><div class="line">               throw new OutOfMemoryError(&quot;Direct buffer memory&quot;);</div><div class="line">           reservedMemory += size;</div><div class="line">           totalCapacity += cap;</div><div class="line">           count++;</div><div class="line">       &#125;</div><div class="line">   &#125;</div></pre></td></tr></table></figure></p>
+<p>可以看到:</p>
+<ul>
+<li>首先检查堆外内存是否够分</li>
+<li>若不够分的话, 再进行一次full gc显示推动对堆外内存的回收, 再次尝试分配堆外内存, 不够分的话, 则抛出OOM异常。</li>
+</ul>
+<h1 id="堆外内存的回收"><a href="#堆外内存的回收" class="headerlink" title="堆外内存的回收"></a>堆外内存的回收</h1><p>在DirectByteBuffer的构造函数中, 我们可以看到这样的一行代码<code>cleaner = Cleaner.create(this, new Deallocator(base, size, cap));</code>, 没错, 直接内存释放主要由cleaner来完成。 我们知道JVM GC并不能直接释放直接内存, 但是GC可以释放管理直接内存的DirectByteBuffer对象。 我们需要注意下cleaner的类型:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">public class Cleaner  extends PhantomReference&lt;Object&gt;</div></pre></td></tr></table></figure></p>
+<p>PhantomReference并不会对对象的垃圾回收产生任何影响, 当进行gc完成后, 当发现某个对象只剩下虚引用后, 会将该引用迁移至Reference类的pending队列进行回收. 这里可以看到DirectByteBuffer被Cleaner引用着。Reference操作回收代码如下:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div><div class="line">61</div><div class="line">62</div><div class="line">63</div><div class="line">64</div><div class="line">65</div><div class="line">66</div><div class="line">67</div><div class="line">68</div><div class="line">69</div><div class="line">70</div><div class="line">71</div><div class="line">72</div><div class="line">73</div><div class="line">74</div><div class="line">75</div><div class="line">76</div><div class="line">77</div><div class="line">78</div></pre></td><td class="code"><pre><div class="line">static private class Lock &#123; &#125;;</div><div class="line">private static Lock lock = new Lock();</div><div class="line"></div><div class="line"></div><div class="line">/* List of References waiting to be enqueued.  The collector adds</div><div class="line"> * References to this list, while the Reference-handler thread removes</div><div class="line"> * them.  This list is protected by the above lock object. The</div><div class="line"> * list uses the discovered field to link its elements.</div><div class="line"> */</div><div class="line">//当gc时，发现DirectByteBuffer除了PhantomReference对象引用,没有其他对象引用， 会把DirectByteBuffer放入其中，等待被回收</div><div class="line">private static Reference&lt;Object&gt; pending = null;</div><div class="line"></div><div class="line">/* High-priority thread to enqueue pending References</div><div class="line"> */</div><div class="line">private static class ReferenceHandler extends Thread &#123;</div><div class="line"></div><div class="line">    ReferenceHandler(ThreadGroup g, String name) &#123;</div><div class="line">        super(g, name);</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    public void run() &#123;</div><div class="line">        for (;;) &#123;</div><div class="line">            Reference&lt;Object&gt; r;</div><div class="line">            synchronized (lock) &#123;</div><div class="line">                if (pending != null) &#123;</div><div class="line">                    r = pending;</div><div class="line">                    pending = r.discovered;</div><div class="line">                    r.discovered = null;</div><div class="line">                &#125; else &#123;</div><div class="line">                    // The waiting on the lock may cause an OOME because it may try to allocate</div><div class="line">                    // exception objects, so also catch OOME here to avoid silent exit of the</div><div class="line">                    // reference handler thread.</div><div class="line">                    //</div><div class="line">                    // Explicitly define the order of the two exceptions we catch here</div><div class="line">                    // when waiting for the lock.</div><div class="line">                    //</div><div class="line">                    // We do not want to try to potentially load the InterruptedException class</div><div class="line">                    // (which would be done if this was its first use, and InterruptedException</div><div class="line">                    // were checked first) in this situation.</div><div class="line">                    //</div><div class="line">                    // This may lead to the VM not ever trying to load the InterruptedException</div><div class="line">                    // class again.</div><div class="line">                    try &#123;</div><div class="line">                        try &#123;</div><div class="line">                            //如果没有的话，会一直等待唤醒</div><div class="line">                            lock.wait();</div><div class="line">                        &#125; catch (OutOfMemoryError x) &#123; &#125;</div><div class="line">                    &#125; catch (InterruptedException x) &#123; &#125;</div><div class="line">                    continue;</div><div class="line">                &#125;</div><div class="line">            &#125;</div><div class="line"></div><div class="line">            // Fast path for cleaners</div><div class="line">            if (r instanceof Cleaner) &#123;</div><div class="line">                 //从头开始进行clena()调用</div><div class="line">                ((Cleaner)r).clean();</div><div class="line">                continue;</div><div class="line">            &#125;</div><div class="line"></div><div class="line">            ReferenceQueue&lt;Object&gt; q = r.queue;</div><div class="line">            if (q != ReferenceQueue.NULL) q.enqueue(r);</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line">&#125;</div><div class="line"></div><div class="line">static &#123;</div><div class="line">    ThreadGroup tg = Thread.currentThread().getThreadGroup();</div><div class="line">    for (ThreadGroup tgn = tg;</div><div class="line">         tgn != null;</div><div class="line">         tg = tgn, tgn = tg.getParent());</div><div class="line">    Thread handler = new ReferenceHandler(tg, &quot;Reference Handler&quot;);</div><div class="line">    /* If there were a special system-only priority greater than</div><div class="line">     * MAX_PRIORITY, it would be used here</div><div class="line">     */</div><div class="line">    handler.setPriority(Thread.MAX_PRIORITY);</div><div class="line">    handler.setDaemon(true);</div><div class="line">    handler.start();</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>可以看出来, JV会新建名为<code>Reference Handler</code>的线程, 时刻回收被挂到pending上面的虚拟引用。 当DirectByteBuff对象仅被Cleaner引用时, Cleaner被放入pending队列, 之后调用Cleaner.clean()队列<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div></pre></td><td class="code"><pre><div class="line"> public void clean() &#123;  //这里的clean(）会在Reference回收时显示调用</div><div class="line">        if (!remove(this))</div><div class="line">            return;</div><div class="line">        try &#123;</div><div class="line">            thunk.run();</div><div class="line">        &#125; catch (final Throwable x) &#123;</div><div class="line">            AccessController.doPrivileged(new PrivilegedAction&lt;Void&gt;() &#123;</div><div class="line">                    public Void run() &#123;</div><div class="line">                        if (System.err != null)</div><div class="line">                            new Error(&quot;Cleaner terminated abnormally&quot;, x)</div><div class="line">                                .printStackTrace();</div><div class="line">                        System.exit(1);</div><div class="line">                        return null;</div><div class="line">                    &#125;&#125;);</div><div class="line">        &#125;</div><div class="line">&#125;</div><div class="line">//就是一个释放直接内存的线程</div><div class="line">private static class Deallocator  implements Runnable</div><div class="line">&#123;</div><div class="line"></div><div class="line">        private static Unsafe unsafe = Unsafe.getUnsafe();</div><div class="line"></div><div class="line">        private long address;</div><div class="line">        private long size;</div><div class="line">        private int capacity;</div><div class="line"></div><div class="line">        private Deallocator(long address, long size, int capacity) &#123;</div><div class="line">            assert (address != 0);</div><div class="line">            this.address = address;</div><div class="line">            this.size = size;</div><div class="line">            this.capacity = capacity;</div><div class="line">        &#125;</div><div class="line"></div><div class="line">        public void run() &#123;</div><div class="line">            if (address == 0) &#123;</div><div class="line">                // Paranoia</div><div class="line">                return;</div><div class="line">            &#125;</div><div class="line">            unsafe.freeMemory(address); //释放地址</div><div class="line">            address = 0;</div><div class="line">            Bits.unreserveMemory(size, capacity); //修改统计</div><div class="line">        &#125;</div><div class="line"></div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>可以看到, 此时完成了DirectByteBuff直接内存的释放。<br>可能有些人会好奇: 为什么IO操作不直接使用堆内内存? 这是因为堆内内存会发生GC移动操作, 对象移动后, 其绝对内存地址也会发生改变, 而gc时对象移动操作很频繁, 不可能每次移动堆内数据, IO时缓存的buffer也跟着一起移动。这样也是不合理的。 而IO操作直接使用堆外内存则没有了这一限制。同时jvm中IO操作的Buffer必须是DirectBuffer(可查看IO.write/read函数)。</p>
+<h1 id="堆外内存的检测"><a href="#堆外内存的检测" class="headerlink" title="堆外内存的检测"></a>堆外内存的检测</h1><ol>
+<li>通过DirectByteBuffer申请的堆外内存, 我们可以通过如下的方式获取到:<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line">List&lt;BufferPoolMXBean&gt; bufferPools = ManagementFactory.getPlatformMXBeans(BufferPoolMXBean.class);</div><div class="line">    for (BufferPoolMXBean bufferPool : bufferPools) &#123;</div><div class="line">        System.out.println(&quot;name: &quot; + bufferPool.getName() + &quot;, getCount:  &quot; + bufferPool.getCount() +  &quot;, getTotalCapacity:  &quot; + bufferPool.getTotalCapacity() + &quot;, getMemoryUsed:  &quot; + bufferPool.getMemoryUsed());</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+</li>
+</ol>
+<p>将会打印如下结果:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line">name: direct, getCount:  1, getTotalCapacity:  1073741824, getMemoryUsed:  1073741824</div><div class="line">name: mapped, getCount:  0, getTotalCapacity:  0, getMemoryUsed:  0</div></pre></td></tr></table></figure></p>
+<p>direct部分内存就是了。</p>
+<ol>
+<li>若我们直接通过base = unsafe.allocateMemory(size)申请内存, 此块内存已不是JVM控制的了, 我们不能再通过上面那种方式检测出来了。对于这种内存申请, 需要别的方式来获取直接内存使用状态。</li>
+</ol>
+<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>在JVM中, 一般只有通过DirectByteBuffer这一种方式操作堆外内存, 平时说的堆外内存泄漏, 也就是指的DirectByteBuffer里面的堆外内存发生泄漏。合理使用DirectByteBuffer对通信框架有着很重要的帮助, 比如netty大量的IO数据传输, 都是通过DirectByteBuffer完成的。 直接内存的申请与释放比较代价比较大, 一般都会辅助对象池来尽量高效的利用申请的对象。</p>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/elasticsearch_learning/categories/Java学习//" class="article-tag-list-link color2">Java学习</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/elasticsearch_learning/2018/07/27/DirectByteBuffer堆外内存详解/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
   
     <article id="post-Netty-PoolSubpage原理探究" class="article article-type-post  article-index" itemscope itemprop="blogPost">
   <div class="article-inner">
@@ -1247,239 +1452,6 @@
 
 
   
-    <article id="post-ServerBootstrap初始篇" class="article article-type-post  article-index" itemscope itemprop="blogPost">
-  <div class="article-inner">
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/elasticsearch_learning/2018/01/14/ServerBootstrap初始篇/">ServerBootstrap初始篇</a>
-    </h1>
-  
-
-        
-        <a href="/elasticsearch_learning/2018/01/14/ServerBootstrap初始篇/" class="archive-article-date">
-  	<time datetime="2018-01-14T10:32:43.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2018-01-14</time>
-</a>
-        
-      </header>
-    
-
-    <!-- 目录内容 -->
-    
-    <!-- 目录内容结束 -->
-
-    <div class="article-entry" itemprop="articleBody">
-      
-        <p>&emsp;本文将以一个最简单的netty服务器端代码进行讲解。</p>
-<h1 id="服务器示例"><a href="#服务器示例" class="headerlink" title="服务器示例"></a>服务器示例</h1> <figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div></pre></td><td class="code"><pre><div class="line"> public class HelloServer &#123;</div><div class="line">    /**</div><div class="line">     * 服务端监听的端口地址</div><div class="line">     */</div><div class="line">    private static final int portNumber = 7878;</div><div class="line">    public static void main(String[] args) throws InterruptedException &#123;</div><div class="line">        EventLoopGroup bossGroup = new NioEventLoopGroup(1);</div><div class="line">        EventLoopGroup WorkGroup = new NioEventLoopGroup(4);</div><div class="line">        try &#123;</div><div class="line">            ServerBootstrap b = new ServerBootstrap();</div><div class="line">            b.group(bossGroup,WorkGroup);</div><div class="line">            b.channel(NioServerSocketChannel.class);</div><div class="line">            b.childHandler(new HelloServerInitializer());</div><div class="line">            ChannelFuture f = b.bind(portNumber).sync();</div><div class="line">            f.channel().closeFuture().sync();</div><div class="line">        &#125; finally &#123;</div><div class="line">            bossGroup.shutdownGracefully();</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line">&#125;</div><div class="line"></div><div class="line">class HelloServerInitializer extends ChannelInitializer&lt;SocketChannel&gt; &#123;</div><div class="line">    @Override       //  ch = NioSocketChannel</div><div class="line">    protected void initChannel(SocketChannel ch) throws Exception &#123;</div><div class="line">        ChannelPipeline pipeline = ch.pipeline();</div><div class="line">        pipeline.addLast(&quot;frameDecoder&quot;, new LengthFieldBasedFrameDecoder(Integer.MAX_VALUE, 0, 4, 0, 4));</div><div class="line">        pipeline.addLast(&quot;frameEncoder&quot;, new LengthFieldPrepender(4));</div><div class="line">        pipeline.addLast(&quot;decoder&quot;, new StringDecoder(CharsetUtil.UTF_8));</div><div class="line">        pipeline.addLast(&quot;encoder&quot;, new StringEncoder(CharsetUtil.UTF_8));</div><div class="line">        // 自己的逻辑Handler</div><div class="line">        pipeline.addLast(&quot;handler&quot;, new HelloServerHandler());</div><div class="line">    &#125;</div><div class="line">&#125;</div><div class="line"></div><div class="line">class HelloServerHandler extends SimpleChannelInboundHandler&lt;String&gt; &#123;</div><div class="line">    @Override</div><div class="line">    protected void channelRead0(ChannelHandlerContext ctx, String msg) throws Exception &#123;</div><div class="line">        // 收到消息直接打印输出</div><div class="line">        System.out.println(ctx.channel().remoteAddress() + &quot; Say : &quot; + msg);</div><div class="line">        // 返回客户端消息 - 我已经接收到了你的消息</div><div class="line">        ctx.writeAndFlush(&quot;Received your message !\n&quot;);</div><div class="line">    &#125;</div><div class="line">    /*</div><div class="line">     *</div><div class="line">     * 覆盖 channelActive 方法 在channel被启用的时候触发 (在建立连接的时候)</div><div class="line">     *</div><div class="line">     * channelActive 和 channelInActive 在后面的内容中讲述，这里先不做详细的描述</div><div class="line">     * */</div><div class="line">    @Override</div><div class="line">    public void channelActive(ChannelHandlerContext ctx) throws Exception &#123;</div><div class="line">        ctx.writeAndFlush(&quot;Welcome to &quot; + InetAddress.getLocalHost().getHostName() + &quot; service!\n&quot;);</div><div class="line">        super.channelActive(ctx);</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
-<h1 id="NioEventLoop和NioEventLoopGroup分析"><a href="#NioEventLoop和NioEventLoopGroup分析" class="headerlink" title="NioEventLoop和NioEventLoopGroup分析"></a>NioEventLoop和NioEventLoopGroup分析</h1><ul>
-<li>NioEventLoop:是一个单线程执行器(所有),所有task的具体执行者,每个task都是一个Runnable实例。NioEventLoop内的线程池线程,默认取值为<code>NettyRuntime.availableProcessors() * 2)</code></li>
-<li>NioEventLoopGroup:每个NioEventLoop都有一个分组,NioEventLoopGroup一般分为两组parentGroup、childGroup,parentGroup管理一类NioEventLoop,这类执行器主要生成boss类的线程,实际使用时,childGroup管理的一类NioEventLoop主要生成work类的线程。</li>
-</ul>
-<h1 id="一些概念对应关系"><a href="#一些概念对应关系" class="headerlink" title="一些概念对应关系"></a>一些概念对应关系</h1><ul>
-<li>一个NioEventLoop可以处理分配给多个Channel(包含NioServerSocketChannel), 是一对多的关系。</li>
-<li>NioEventLoop里面处理task的线程唯一。</li>
-<li>Channel与NioEventLoop绑定称之为register。在它的生命周期产生的所有task内只能由固定的某一个NioEventLoop处理。<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/Netty%E6%A6%82%E5%BF%B5.png"></li>
-</ul>
-<h1 id="具体过程分析"><a href="#具体过程分析" class="headerlink" title="具体过程分析"></a>具体过程分析</h1><h2 id="首先分析AbstractBootstrap-doBind"><a href="#首先分析AbstractBootstrap-doBind" class="headerlink" title="首先分析AbstractBootstrap.doBind()"></a>首先分析AbstractBootstrap.doBind()</h2> <figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div></pre></td><td class="code"><pre><div class="line">private ChannelFuture doBind(final SocketAddress localAddress) &#123;</div><div class="line">   final ChannelFuture regFuture = initAndRegister();</div><div class="line">    final Channel channel = regFuture.channel(); //NioServerSocketChannel</div><div class="line">    if (regFuture.cause() != null) &#123;</div><div class="line">        return regFuture;</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    if (regFuture.isDone()) &#123;</div><div class="line">        // At this point we know that the registration was complete and successful.</div><div class="line">        ChannelPromise promise = channel.newPromise();</div><div class="line">        doBind0(regFuture, channel, localAddress, promise);</div><div class="line">        return promise;</div><div class="line">    &#125; else &#123;</div><div class="line">        // Registration future is almost always fulfilled already, but just in case it&apos;s not.</div><div class="line">        final PendingRegistrationPromise promise = new PendingRegistrationPromise(channel);</div><div class="line">        regFuture.addListener(new ChannelFutureListener() &#123;</div><div class="line">            @Override</div><div class="line">            public void operationComplete(ChannelFuture future) throws Exception &#123;</div><div class="line">                Throwable cause = future.cause();</div><div class="line">                if (cause != null) &#123;</div><div class="line">                    // Registration on the EventLoop failed so fail the ChannelPromise directly to not cause an</div><div class="line">                    // IllegalStateException once we try to access the EventLoop of the Channel.</div><div class="line">                    promise.setFailure(cause);</div><div class="line">                &#125; else &#123;</div><div class="line">                    // Registration was successful, so set the correct executor to use.</div><div class="line">                    // See https://github.com/netty/netty/issues/2586</div><div class="line">                    promise.registered();</div><div class="line"></div><div class="line">                    doBind0(regFuture, channel, localAddress, promise);</div><div class="line">                &#125;</div><div class="line">            &#125;</div><div class="line">        &#125;);</div><div class="line">        return promise;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
-<p>主要干的事:</p>
-<ol>
-<li>生成并初始化NioServerSocketChannel,见initAndRegister():</li>
-<li>检查该channel是否应注册到selector上。若注册上去后, 才会进行真正的channel与address、事件(OP_ACCEPT)绑定(见<code>doBind0</code>)。</li>
-</ol>
-<p>initAndRegister()主要作用:<br>(1) 生成一个NioServerSocketChannel, 实际使用的<code>SelectorProvider.provider().openServerSocketChannel()</code>;<br>NioServerSocketChannel构造函数如下:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div></pre></td><td class="code"><pre><div class="line">this.parent = parent;</div><div class="line">id = newId();// 分配一个全局唯一的id，默认为MAC+进程id+自增的序列号+时间戳相关的数值+随机值</div><div class="line">// 初始化Unsafe, NioSocketChannel对应的是NioSocketChannelUnsafe; 而NioServerSocketChannel对应着NioMessageUnsafe</div><div class="line">unsafe = newUnsafe();</div><div class="line">pipeline = newChannelPipeline();//// 初始化pipeline，</div><div class="line">this.ch = ch;</div><div class="line">this.readInterestOp = readInterestOp;</div><div class="line">try &#123;</div><div class="line">    ch.configureBlocking(false); //</div><div class="line">&#125; catch (IOException e) &#123;</div><div class="line">    try &#123;</div><div class="line">        ch.close();</div><div class="line">    &#125; catch (IOException e2) &#123;</div><div class="line">        if (logger.isWarnEnabled()) &#123;</div><div class="line">            logger.warn(</div><div class="line">                    &quot;Failed to close a partially initialized socket.&quot;, e2);</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line">    throw new ChannelException(&quot;Failed to enter non-blocking mode.&quot;, e);</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
-<ul>
-<li>每一个channel都将独自拥有一个DefaultChannelPipeline, DefaultChannelPipeline主要的属性如下:<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div></pre></td><td class="code"><pre><div class="line">this.channel = ObjectUtil.checkNotNull(channel, &quot;channel&quot;);</div><div class="line">tail = new TailContext(this);   //只是in</div><div class="line">head = new HeadContext(this);  //只是out</div><div class="line"></div><div class="line">head.next = tail;</div><div class="line">tail.prev = head;</div></pre></td></tr></table></figure>
-</li>
-</ul>
-<p>基本含义就是每个DefaultChannelPipeline与一个channel绑定, 该channle对应的处理链由head和tail串联起来。</p>
-<ul>
-<li>TailContext和HeadContext是所有Pipeline默认拥有的,他们本身同时继承了AbstractChannelHandlerContext, 另外HeadContext继承了ChannelOutboundHandler, ChannelInboundHandler两种属性, TailContext继承了ChannelOutboundHandler一种, 返回handler都是本身</li>
-<li>ch传递过来的参数是SelectionKey.OP_ACCEPT, 之后会再次初始化成0(0并不是SelectionKey其中的一种), (见doRegister())</li>
-<li>将该channel设置为非block类型,这里是不是与NIO很像。<br>(2) 调用channel()对channel初始化(见<code>分析init(channel)</code>)<br>(3) 将产生的NioServerSocketChannel注册到对应EventLoop上,见register()部分。</li>
-</ul>
-<p>&emsp;regFuture.isDone()当且仅当执行NioServerSocketChannel.register(selector, SelectionKey)之后, 也就是将NioServerSocketChannel注册到parentGroup管理的NioEventLoop的selector上(代码见AbstractChannel.register0()), ChannelPromise状态才置为success。 后面会详细讲解doBind0函数。</p>
-<p><font size="6">分析init(channel)</font></p>
-<p></p><p>代码实际会跑到ServerBootstrap.init():</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div></pre></td><td class="code"><pre><div class="line">    ChannelPipeline p = channel.pipeline(); //DefaultChannalPipeLine</div><div class="line">    p.addLast(new ChannelInitializer&lt;Channel&gt;() &#123;</div><div class="line">    @Override</div><div class="line">    public void initChannel(final Channel ch) throws Exception &#123;//NioServerSocketChannel</div><div class="line">        final ChannelPipeline pipeline = ch.pipeline();</div><div class="line">        ChannelHandler handler = config.handler();</div><div class="line">        if (handler != null) &#123;</div><div class="line">            pipeline.addLast(handler);</div><div class="line">        &#125;</div><div class="line">        ch.eventLoop().execute(new Runnable() &#123;//ChannelInitializer和ServerBootstrapAcceptor都是Inbound,区别就是</div><div class="line">            @Override</div><div class="line">            public void run() &#123;</div><div class="line">                pipeline.addLast(new ServerBootstrapAcceptor(</div><div class="line">                        ch, currentChildGroup, currentChildHandler, currentChildOptions, currentChildAttrs));</div><div class="line">            &#125;</div><div class="line">        &#125;);</div><div class="line">    &#125;</div><div class="line">&#125;);</div></pre></td></tr></table></figure>
-<p>主要干的事是向NioServerSocketChannel的DefaultChannalPipeLine对应的处理链添加ChannelInitializer(实际也是一个InBoundHandler), ChannelInitializer对于后面还有作用, 先留个印象。<br>此时, NioServerSocketChannel对应的pipeline中handler结构如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/PipeLine.png" height="200" width="450"></p>
-<p><font size="6">p.addLast</font></p>
-<p></p><p>具体添加代码操作如下:</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div></pre></td><td class="code"><pre><div class="line">synchronized (this) &#123;</div><div class="line">    newCtx = newContext(group, filterName(name, handler), handler);</div><div class="line">    addLast0(newCtx);</div><div class="line">    if (!registered) &#123;//只有这个channel被register到某个具体的EventLoop后，才会考虑执行一些任务，这里考虑的任务是将对应的handler加入到对应的pipe中,DefaultChannelPipeline是与NioServerSocketChannel一一对应的</div><div class="line">        newCtx.setAddPending();</div><div class="line">        callHandlerCallbackLater(newCtx, true);</div><div class="line">        return this;</div><div class="line">    &#125;</div><div class="line">    EventExecutor executor = newCtx.executor();</div><div class="line">    if (!executor.inEventLoop()) &#123;</div><div class="line">        newCtx.setAddPending();</div><div class="line">        executor.execute(new Runnable() &#123;</div><div class="line">            @Override</div><div class="line">            public void run() &#123;</div><div class="line">                callHandlerAdded0(newCtx);</div><div class="line">            &#125;</div><div class="line">        &#125;);</div><div class="line">        return this;</div><div class="line">    &#125;</div><div class="line">&#125;</div><div class="line">callHandlerAdded0(newCtx);</div><div class="line">return this;</div></pre></td></tr></table></figure>
-<p>主要操作就是:</p>
-<ul>
-<li>新产生一个DefaultChannelHandlerContext, 主要作用就是存放对应的handler,也就是ChannelInitializer。</li>
-<li>将DefaultChannelHandlerContext添加进DefaultChannalPipeLine的倒数第二个, 也就是tail之前。</li>
-<li><p>如果NioServerSocketChannel并没有注册到对应的selector上(代码见AbstractChannel.register0()), 那么将生成PendingHandlerAddedTask, 并将该task线程放入pendingHandlerCallbackHead(属于Pipeline), 等待NioServerSocketChannel被注册到对应的selector时执行(见NioMessageUnsafe.register());<br>若注册了, 那么调用callHandlerAdded0()-&gt;ChannelInitializer.initChannel(ChannelHandlerContext ctx)函数中,如下:</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div></pre></td><td class="code"><pre><div class="line">@SuppressWarnings(&quot;unchecked&quot;)</div><div class="line">  private boolean initChannel(ChannelHandlerContext ctx) throws Exception &#123;</div><div class="line">      if (initMap.putIfAbsent(ctx, Boolean.TRUE) == null) &#123; // Guard against re-entrance.</div><div class="line">          try &#123;</div><div class="line">              initChannel((C) ctx.channel());</div><div class="line">          &#125; catch (Throwable cause) &#123;</div><div class="line">              // Explicitly call exceptionCaught(...) as we removed the handler before calling initChannel(...).</div><div class="line">              // We do so to prevent multiple calls to initChannel(...).</div><div class="line">              exceptionCaught(ctx, cause);</div><div class="line">          &#125; finally &#123;</div><div class="line">              remove(ctx); //初始化完善后，删除自身。又要把最开始注册的HelloServerInitializer删掉，也是ChannelInboundHandler类型</div><div class="line">          &#125;</div><div class="line">          return true;</div><div class="line">      &#125;</div><div class="line">      return false;</div><div class="line">  &#125;</div></pre></td></tr></table></figure>
-<ul>
-<li>这里会进入ChannelInitializer.initChannel(final Channel ch)(详见ServerBootstrap.init()), 把会向pipeLine添加ServerBootstrapAcceptor的操作当成一个task, 传递给NilEventLoop, 等待执行形成一个最终的handler链。 传递的参数也可以注意下, 有childGroup、以及自定义的HelloServerInitializer。之后新建立的连接请求SocketChannel, 将根据这两个参数创建, 之后会详解(见NioEventLoop篇)。</li>
-<li>这里还需要注意ChannelInitializer.remove(ctx)会将该匿名ChannelInitializer(见ServerBootstrap.init())从NioServerSocketChannel的pipeline中删掉。这样NioServerSocketChannel对应的pipeline结构如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/PipeLine2.png" height="200" width="650"></li>
-</ul>
-</li>
-</ul>
-<p><font size="6">register</font></p><p><br>根据<code>config().group().register(channel)</code>进行注册, 首先这里的group()使用的是ParentGroup里面的EventLoop, 具体从EventLoop选取哪个EventLoop来与该channel绑定呢,使用的轮训策略。每次选取都会+1。 这里分两种决策策略:PowerOfTwoEventExecutorChooser和GenericEventExecutorChooser,都实现了+1的效果, 两者的唯一区别就是求余的效果不同:<br>当该Group定义的EventLoop为2^n时, PowerOfTwoEventExecutorChooser使用的是位运算的方式求余, 位运算能减少计算的时间复杂度。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line">public EventExecutor next() &#123;</div><div class="line">    return executors[idx.getAndIncrement() &amp; executors.length - 1];</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
-<p>如何判断一个数是否为2^n呢, 方法如下:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line">private static boolean isPowerOfTwo(int val) &#123;</div><div class="line">    return (val &amp; -val) == val;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
-<p>选出一个NioEventLoop后, 最终会进入NioMessageUnsafe.register()中(是AbstractUnsafe的函数), 该对象在NioServerSocketChannel构造函数中生成。接着会进入AbstractUnsafe.register0(), 代码如下:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div></pre></td><td class="code"><pre><div class="line">try &#123;</div><div class="line">    // check if the channel is still open as it could be closed in the mean time when the register</div><div class="line">    // call was outside of the eventLoop</div><div class="line">    if (!promise.setUncancellable() || !ensureOpen(promise)) &#123;</div><div class="line">        return;</div><div class="line">    &#125;</div><div class="line">    boolean firstRegistration = neverRegistered;</div><div class="line">    doRegister();</div><div class="line">    neverRegistered = false;</div><div class="line">    registered = true;</div><div class="line">    pipeline.invokeHandlerAddedIfNeeded();</div><div class="line"></div><div class="line">    safeSetSuccess(promise);</div><div class="line">    pipeline.fireChannelRegistered();</div><div class="line">    // Only fire a channelActive if the channel has never been registered. This prevents firing</div><div class="line">    // multiple channel actives if the channel is deregistered and re-registered.</div><div class="line">    if (isActive()) &#123;</div><div class="line">        if (firstRegistration) &#123;</div><div class="line">            pipeline.fireChannelActive();</div><div class="line">        &#125; else if (config().isAutoRead()) &#123;</div><div class="line">            // This channel was registered before and autoRead() is set. This means we need to begin read</div><div class="line">            // again so that we process inbound data.</div><div class="line">            //</div><div class="line">            // See https://github.com/netty/netty/issues/4805</div><div class="line">            beginRead();</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line">&#125; catch (Throwable t) &#123;</div><div class="line">    // Close the channel directly to avoid FD leak.</div><div class="line">    closeForcibly();</div><div class="line">    closeFuture.setClosed();</div><div class="line">    safeSetFailure(promise, t);</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
-<p>doRegister()函数将会跑到AbstractNioChannel.doRegister()里面, 如下:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div></pre></td><td class="code"><pre><div class="line">for (;;) &#123;</div><div class="line">    try &#123;</div><div class="line">        selectionKey = javaChannel().register(eventLoop().unwrappedSelector(), 0, this);</div><div class="line">        return;</div><div class="line">    &#125; catch (CancelledKeyException e) &#123;</div><div class="line">        if (!selected) &#123;</div><div class="line">            // Force the Selector to select now as the &quot;canceled&quot; SelectionKey may still be</div><div class="line">            // cached and not removed because no Select.select(..) operation was called yet.</div><div class="line">            eventLoop().selectNow();</div><div class="line">            selected = true;</div><div class="line">        &#125; else &#123;</div><div class="line">            // We forced a select operation on the selector before but the SelectionKey is still cached</div><div class="line">            // for whatever reason. JDK bug ?</div><div class="line">            throw e;</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
-<p>这里是不是很熟悉? 不断地轮训注册, 将该channel注册到NioEventLoop上面的Selector上面, 并且select_ops置为0, 表示什么都不感兴趣。<br>我们先了解NioServerSocketChannel与NioSocketChannel的继承关系:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/ServerBootstrap1.png" height="200" width="450"><br>可以看到:</p>
-<ul>
-<li>NioServerSocketChannel在初始化时候就声明readInterestOp为OP_ACCEPT, 而NioSocketChannel在初始化时声明readInterestOp为OP_READ。</li>
-<li>NioServerSocketChannel对应NioMessage, 当bossdui对应的NioEventLoop为新的连接建立NioSocketChannel时, 都会进入NioMessage.read()进行初始化。当NioSocketChannel对应着NioByteUnsafe, 当work对应的NioSocketchannel接收到数据时, 会进入NioByteUnsafe.read()只来接收数据。</li>
-</ul>
-<p>继续回到register()上,  channel与selector完成register之后:</p>
-<ol>
-<li>执行一些挂起的任务(invokeHandlerAddedIfNeeded()), 比如p.addLast所介绍的, 此时pileline对应的的handler链如下:HEAD-&gt;ServerBootstrapAcceptor-&gt;TAIL</li>
-<li>执行safeSetSuccess(promise), 最终会去调用AbstractBootstrap.doBind()里面介绍的ChannelFutureListener.operationComplete()函数, 注意doBind0()函数, 这里将完成channel与port的绑定和channel感兴趣事件为OP_ACCEPT,具体代码见AbstractChannel.bin(), 代码如下:<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div></pre></td><td class="code"><pre><div class="line">boolean wasActive = isActive();</div><div class="line">           try &#123;</div><div class="line">                //doBind0最终调用channel.bind方法对执行端口进行绑定</div><div class="line">               doBind(localAddress);</div><div class="line">           &#125; catch (Throwable t) &#123;</div><div class="line">               safeSetFailure(promise, t);</div><div class="line">               closeIfClosed();</div><div class="line">               return;</div><div class="line">           &#125;</div><div class="line">           //之前没有绑定，现在绑定了，绑定的意思是NioServerSocketChannel里面的SocketChannel的Address有值了</div><div class="line">           if (!wasActive &amp;&amp; isActive()) &#123;</div><div class="line">               invokeLater(new Runnable() &#123;</div><div class="line">                   @Override</div><div class="line">                   public void run() &#123;</div><div class="line">                       //最终修改的是NioServerSocketChannel的可Accept属性</div><div class="line">                       pipeline.fireChannelActive();</div><div class="line">                   &#125;</div><div class="line">               &#125;);</div><div class="line">           &#125;</div></pre></td></tr></table></figure>
-</li>
-</ol>
-<p>NioServerSocketChannel在初始化时只是将readInterestOp赋值为OP_ACCEPT, 而被注册感兴趣OP_ACCEPT是在这里, 真正调用了AbstractNioCHannel.doBeginRead来实现注册<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div></pre></td><td class="code"><pre><div class="line">@Override</div><div class="line">protected void doBeginRead() throws Exception &#123;</div><div class="line">    // Channel.read() or ChannelHandlerContext.read() was called</div><div class="line">    final SelectionKey selectionKey = this.selectionKey;</div><div class="line">    if (!selectionKey.isValid()) &#123;</div><div class="line">        return;</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    readPending = true;</div><div class="line"></div><div class="line">    final int interestOps = selectionKey.interestOps();</div><div class="line">    if ((interestOps &amp; readInterestOp) == 0) &#123; //将设置可接受</div><div class="line">        selectionKey.interestOps(interestOps | readInterestOp);</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
-<p>自此NioServerSocketChannel已经初始化完成, NioServerSocketChannel拥有的pipeLine的里面的上下文:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/PipeLine1.png" height="300" width="550"><br>其中第二个Context的handler为ServerBootstrapAcceptor, 它的构造时的代码如下:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">new ServerBootstrapAcceptor(ch, currentChildGroup, currentChildHandler, currentChildOptions, currentChildAttrs)</div></pre></td></tr></table></figure></p>
-<p>currentChildHandler就是我们自定的HelloServerInitializer, 该handler包含了我们所需要的所有逻辑,这些handler将在NioEventLoop篇构造NioSocketChannel时使用。</p>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color4">netty4, ServerBootstrap, Initiale</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/elasticsearch_learning/categories/Netty//" class="article-tag-list-link color1">Netty</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/elasticsearch_learning/2018/01/14/ServerBootstrap初始篇/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
-    <article id="post-ES索引创建流程" class="article article-type-post  article-index" itemscope itemprop="blogPost">
-  <div class="article-inner">
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/elasticsearch_learning/2017/12/17/ES索引创建流程/">ES索引创建流程</a>
-    </h1>
-  
-
-        
-        <a href="/elasticsearch_learning/2017/12/17/ES索引创建流程/" class="archive-article-date">
-  	<time datetime="2017-12-17T15:25:54.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-12-17</time>
-</a>
-        
-      </header>
-    
-
-    <!-- 目录内容 -->
-    
-    <!-- 目录内容结束 -->
-
-    <div class="article-entry" itemprop="articleBody">
-      
-        
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/elasticsearch_learning/categories/Elasticsearch//" class="article-tag-list-link color4">Elasticsearch</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/elasticsearch_learning/2017/12/17/ES索引创建流程/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
   
     <nav id="page-nav">
       <a class="extend prev" rel="prev" href="/elasticsearch_learning/">&laquo; Prev</a><a class="page-number" href="/elasticsearch_learning/">1</a><span class="page-number current">2</span><a class="page-number" href="/elasticsearch_learning/page/3/">3</a><a class="page-number" href="/elasticsearch_learning/page/4/">4</a><a class="extend next" rel="next" href="/elasticsearch_learning/page/3/">Next &raquo;</a>
@@ -1607,6 +1579,10 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">Linux, close</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">LockSupport</a>
               </li>
              
@@ -1616,6 +1592,18 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">ReentrantLock</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">netty4, ServerBootstrap, Initiale</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1631,23 +1619,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">ReentrantLock</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">maven, 插件, 打包</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">netty4, ServerBootstrap, Initiale</a>
               </li>
             
             <div class="clearfix"></div>
