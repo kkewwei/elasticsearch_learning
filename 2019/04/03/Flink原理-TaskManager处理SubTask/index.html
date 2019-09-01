@@ -15,7 +15,7 @@
 <meta property="og:url" content="https://kkewwei.github.io/elasticsearch_learning/2019/04/03/Flink原理-TaskManager处理SubTask/index.html">
 <meta property="og:site_name" content="Hexo">
 <meta property="og:description" content="在了解TaskManager处理task之前, 我们先看下该JVM启动过程。 TaskManager端yarn启动的类为YarnTaskExecutorRunner, TM端存放当前可利用的slot信息存放在TaskManagerServices.taskSlotTable里面, slot默认资源为new ResourceProfile(cpu=1.0, men=42)。在Flink原理-Slot">
-<meta property="og:updated_time" content="2019-06-07T14:46:03.000Z">
+<meta property="og:updated_time" content="2019-09-01T11:13:17.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Flink原理-TaskManager处理SubTask">
 <meta name="twitter:description" content="在了解TaskManager处理task之前, 我们先看下该JVM启动过程。 TaskManager端yarn启动的类为YarnTaskExecutorRunner, TM端存放当前可利用的slot信息存放在TaskManagerServices.taskSlotTable里面, slot默认资源为new ResourceProfile(cpu=1.0, men=42)。在Flink原理-Slot">
@@ -255,6 +255,17 @@
       
       
       
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/elasticsearch_learning/categories/Flink//" class="article-tag-list-link color1">Flink</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
 
       
 
@@ -519,23 +530,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">Cycler</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">ReentrantLock</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">netty4, ServerBootstrap, Initiale</a>
+                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -551,11 +550,23 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">maven, 插件, 打包</a>
+                <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">ReentrantLock</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">maven, 插件, 打包</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">netty4, ServerBootstrap, Initiale</a>
               </li>
             
             <div class="clearfix"></div>

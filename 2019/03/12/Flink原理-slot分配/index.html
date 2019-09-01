@@ -19,7 +19,7 @@
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/Flink_Graph.png">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/Flink_slot_allocate.png">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/Flink_slot_allocate1.png">
-<meta property="og:updated_time" content="2019-06-06T18:03:36.000Z">
+<meta property="og:updated_time" content="2019-09-01T11:10:17.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Flink原理-JobManager端的SubTask申请slot及部署">
 <meta name="twitter:description" content="本文将从ExecutionGraph开始向后讲起, ExecutionGraph定义了Job的并发逻辑结构, 作为任务执行的以后一层逻辑结构, 也是最核心数据结构。为了让大家有全局的了解, 先盗一张广为引用的Graph转换图:具体来说, 本文讲述在JobManager端subTask申请slot以及部署到TaskManager上的过程。 Task分配slot及部署代码将从ExecutionGrap">
@@ -354,6 +354,17 @@
 	</div>
 
       
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/elasticsearch_learning/categories/Flink//" class="article-tag-list-link color1">Flink</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
 
       
 
@@ -618,23 +629,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">Cycler</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">ReentrantLock</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">netty4, ServerBootstrap, Initiale</a>
+                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -650,11 +649,23 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">maven, 插件, 打包</a>
+                <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">ReentrantLock</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">maven, 插件, 打包</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">netty4, ServerBootstrap, Initiale</a>
               </li>
             
             <div class="clearfix"></div>

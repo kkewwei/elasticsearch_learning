@@ -16,7 +16,7 @@
 <meta property="og:site_name" content="Hexo">
 <meta property="og:description" content="NioEventLoop在为数据分配存放的内存时, 会首先尝试从线程本地缓存中去申请, 只有当本地缓存中申请失败, 才会考虑从全局内存中申请, 本地缓存的管理者就是PoolThreadCache对象。 Netty自己实现了类似LocalThread的类来充当线程缓存: PoolThreadLocalCache, 本节将充分围绕这两个类的源代码进行描述。 PoolThreadCacheNetty自己">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/PoolThreadCache2.png">
-<meta property="og:updated_time" content="2019-08-25T15:42:38.000Z">
+<meta property="og:updated_time" content="2019-09-01T11:13:17.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Netty PoolThreadCache原理探究">
 <meta name="twitter:description" content="NioEventLoop在为数据分配存放的内存时, 会首先尝试从线程本地缓存中去申请, 只有当本地缓存中申请失败, 才会考虑从全局内存中申请, 本地缓存的管理者就是PoolThreadCache对象。 Netty自己实现了类似LocalThread的类来充当线程缓存: PoolThreadLocalCache, 本节将充分围绕这两个类的源代码进行描述。 PoolThreadCacheNetty自己">
@@ -262,6 +262,17 @@
       
       
       
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/elasticsearch_learning/categories/Netty//" class="article-tag-list-link color1">Netty</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
 
       
 
@@ -526,23 +537,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">Cycler</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">ReentrantLock</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">netty4, ServerBootstrap, Initiale</a>
+                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -558,11 +557,23 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">maven, 插件, 打包</a>
+                <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">ReentrantLock</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">maven, 插件, 打包</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">netty4, ServerBootstrap, Initiale</a>
               </li>
             
             <div class="clearfix"></div>

@@ -18,7 +18,7 @@
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/PoolChunk1.png">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/PoolChunk2.png">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/PoolChunke_allocation_select.png">
-<meta property="og:updated_time" content="2019-06-05T16:38:03.000Z">
+<meta property="og:updated_time" content="2019-09-01T11:13:17.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Netty PoolChunk原理探究">
 <meta name="twitter:description" content="Netty分配内存(0~16M)与回收主要是在PoolChunk上完成的, 在内存分配时希望是有序的。当没有内存可分配时, 一次申请到16M PoolChunk内存, 用户实际使用时可能一次性不能使用16M, 所以逻辑上将PoolChunk划分成不同的块, 使用平衡二叉树进行管理内存的分配, 构建的二叉树结构如下:该二叉树将PoolChunk分11层, 第一层为1个16M, 第二层为2个8MB,第">
@@ -302,6 +302,17 @@
       
       
       
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/elasticsearch_learning/categories/Netty//" class="article-tag-list-link color1">Netty</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
 
       
 
@@ -566,23 +577,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">Cycler</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">ReentrantLock</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">netty4, ServerBootstrap, Initiale</a>
+                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -598,11 +597,23 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">maven, 插件, 打包</a>
+                <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">ReentrantLock</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">maven, 插件, 打包</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">netty4, ServerBootstrap, Initiale</a>
               </li>
             
             <div class="clearfix"></div>

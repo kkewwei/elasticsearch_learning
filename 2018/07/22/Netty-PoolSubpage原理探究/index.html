@@ -16,7 +16,7 @@
 <meta property="og:site_name" content="Hexo">
 <meta property="og:description" content="Netty中大于8K的内存是通过PoolChunk来分配的, 小于8k的内存是通过PoolSubpage分配的, 本章将详细描述如何通过PoolSubpage分配小于8K的内存。当申请小于8K的内存时, 会从分配一个8k的叶子节点, 若用不完的话, 存在很大的浪费, 所以通过PoolSubpage来管理8K的内存, 如下图每一个PoolSubpage都会与PoolChunk里面的一个叶子节点映射起">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/PoolSubpage.png">
-<meta property="og:updated_time" content="2019-06-05T16:38:03.000Z">
+<meta property="og:updated_time" content="2019-09-01T11:13:17.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Netty-PoolSubpage原理探究">
 <meta name="twitter:description" content="Netty中大于8K的内存是通过PoolChunk来分配的, 小于8k的内存是通过PoolSubpage分配的, 本章将详细描述如何通过PoolSubpage分配小于8K的内存。当申请小于8K的内存时, 会从分配一个8k的叶子节点, 若用不完的话, 存在很大的浪费, 所以通过PoolSubpage来管理8K的内存, 如下图每一个PoolSubpage都会与PoolChunk里面的一个叶子节点映射起">
@@ -268,6 +268,17 @@
       
       
       
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/elasticsearch_learning/categories/Netty//" class="article-tag-list-link color1">Netty</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
 
       
 
@@ -532,23 +543,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">Cycler</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">ReentrantLock</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">netty4, ServerBootstrap, Initiale</a>
+                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -564,11 +563,23 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">maven, 插件, 打包</a>
+                <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">ReentrantLock</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">maven, 插件, 打包</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">netty4, ServerBootstrap, Initiale</a>
               </li>
             
             <div class="clearfix"></div>

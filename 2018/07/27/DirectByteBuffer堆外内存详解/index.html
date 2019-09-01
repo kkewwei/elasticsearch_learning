@@ -15,7 +15,7 @@
 <meta property="og:url" content="https://kkewwei.github.io/elasticsearch_learning/2018/07/27/DirectByteBuffer堆外内存详解/index.html">
 <meta property="og:site_name" content="Hexo">
 <meta property="og:description" content="我们知道, 在使用IO传输数据时, 首先会将数据传输到堆外直接内存中, 然后才通过网络发送出去。这样的话, 数据多了次中间copy, 能否不经过copy而直接将数据发送出去呢, 其实是可以的, 存放的位置就是本文要讲的主角:DirectByteBuffer 。JVM内存主要分为heap内存和堆外内存(一般我们也会称呼为直接内存), heap内存我们不用care, jvm能自动帮我们管理, 而堆外内">
-<meta property="og:updated_time" content="2019-08-19T16:34:45.000Z">
+<meta property="og:updated_time" content="2019-09-01T11:18:18.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="DirectByteBuffer堆外内存详解">
 <meta name="twitter:description" content="我们知道, 在使用IO传输数据时, 首先会将数据传输到堆外直接内存中, 然后才通过网络发送出去。这样的话, 数据多了次中间copy, 能否不经过copy而直接将数据发送出去呢, 其实是可以的, 存放的位置就是本文要讲的主角:DirectByteBuffer 。JVM内存主要分为heap内存和堆外内存(一般我们也会称呼为直接内存), heap内存我们不用care, jvm能自动帮我们管理, 而堆外内">
@@ -266,6 +266,17 @@
       
       
       
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/elasticsearch_learning/categories/Java学习//" class="article-tag-list-link color2">Java学习</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
 
       
 
@@ -530,23 +541,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">Cycler</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">ReentrantLock</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">netty4, ServerBootstrap, Initiale</a>
+                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -562,11 +561,23 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">maven, 插件, 打包</a>
+                <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">ReentrantLock</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">maven, 插件, 打包</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">netty4, ServerBootstrap, Initiale</a>
               </li>
             
             <div class="clearfix"></div>

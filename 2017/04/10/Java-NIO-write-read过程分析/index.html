@@ -17,7 +17,7 @@
 <meta property="og:site_name" content="Hexo">
 <meta property="og:description" content="在JAVA NIO通信分析中, 说明了客户端与服务器端是如何建立连接的, 那么本文将在上文的基础上, 了解服务器端是如何根据建立的连接进行写和读的。由于读写流程基本一致, 这里只分析如何进行写入的。 write服务器端调用了SocketChannel.write(ByteBuffer.wrap( msg.getBytes()));, 此时开启了写的流程:1234567891011121314151">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/fd.png">
-<meta property="og:updated_time" content="2019-09-01T10:13:08.000Z">
+<meta property="og:updated_time" content="2019-09-01T11:18:18.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Java NIO Write过程分析">
 <meta name="twitter:description" content="在JAVA NIO通信分析中, 说明了客户端与服务器端是如何建立连接的, 那么本文将在上文的基础上, 了解服务器端是如何根据建立的连接进行写和读的。由于读写流程基本一致, 这里只分析如何进行写入的。 write服务器端调用了SocketChannel.write(ByteBuffer.wrap( msg.getBytes()));, 此时开启了写的流程:1234567891011121314151">
@@ -297,6 +297,17 @@
 	</div>
 
       
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/elasticsearch_learning/categories/Java-NIO及网络通信//" class="article-tag-list-link color4">Java NIO及网络通信</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
 
       
 
@@ -561,23 +572,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">Cycler</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">ReentrantLock</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">netty4, ServerBootstrap, Initiale</a>
+                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -593,11 +592,23 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">maven, 插件, 打包</a>
+                <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">ReentrantLock</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">maven, 插件, 打包</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">netty4, ServerBootstrap, Initiale</a>
               </li>
             
             <div class="clearfix"></div>

@@ -15,7 +15,7 @@
 <meta property="og:url" content="https://kkewwei.github.io/elasticsearch_learning/2019/04/20/Flink原理-Akka通信模块/index.html">
 <meta property="og:site_name" content="Hexo">
 <meta property="og:description" content="Flink对于JobManager和TaskManager之间通信采用Akka remote实现, 本文将以tm和jm之间的一次远程通信为示例进行讲解。为了读者更好地理解, 本文首先介绍AKKa相关基本知识。 Akka基础学习本文首先以hello world为例进行讲解:1234567891011121314151617181920212223242526272829303132333435363">
-<meta property="og:updated_time" content="2019-06-06T01:22:24.000Z">
+<meta property="og:updated_time" content="2019-09-01T11:13:17.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Flink原理-Akka通信&amp;TaskManager注册">
 <meta name="twitter:description" content="Flink对于JobManager和TaskManager之间通信采用Akka remote实现, 本文将以tm和jm之间的一次远程通信为示例进行讲解。为了读者更好地理解, 本文首先介绍AKKa相关基本知识。 Akka基础学习本文首先以hello world为例进行讲解:1234567891011121314151617181920212223242526272829303132333435363">
@@ -302,6 +302,17 @@
       
       
       
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/elasticsearch_learning/categories/Flink//" class="article-tag-list-link color1">Flink</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
 
       
 
@@ -566,23 +577,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">Cycler</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">ReentrantLock</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">netty4, ServerBootstrap, Initiale</a>
+                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -598,11 +597,23 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">maven, 插件, 打包</a>
+                <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">ReentrantLock</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">maven, 插件, 打包</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">netty4, ServerBootstrap, Initiale</a>
               </li>
             
             <div class="clearfix"></div>
