@@ -18,7 +18,7 @@
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/tcp.png">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/tcp_connect_close.png">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/tcp_connect_close1.png">
-<meta property="og:updated_time" content="2019-09-09T06:20:19.000Z">
+<meta property="og:updated_time" content="2019-09-09T06:23:44.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="TCP三次握手及四次分手抓包分析">
 <meta name="twitter:description" content="对于TCP建立连接时的三次握手及断开连接时的四次分手, 相信我们大致原理都是很熟悉的, 具体介绍可以百度搜索, 今天我们将仅从抓包的角度实际验证时, 以更好地掌握这2个过程。我们以如下代码来实验: Linux版本通信server:1234567891011121314151617181920212223242526272829303132333435363738394041424344454647">
@@ -46,57 +46,39 @@
   <div id="container" q-class="show:isCtnShow">
     <canvas id="anm-canvas" class="anm-canvas"></canvas>
     <div class="left-col" q-class="show:isShow">
-      
-<div class="overlay" style="background: #4d4d4d"></div>
+      <% var defaultBg = '#4d4d4d'; %>
+<div class="overlay" style="background: <%= theme.style && theme.style.header ? theme.style.header : defaultBg %>"></div>
 <div class="intrude-less">
 	<header id="header" class="inner">
-		<a href="/" class="profilepic">
-      <img src="https://kkewwei.github.io/elasticsearch_learning/img/myself.png" class="js-avatar">
+		<a href="<%=theme.root%>" class="profilepic">
+			<img src="<%=theme.avatar%>" class="js-avatar">
 		</a>
 		<hgroup>
-		  <h1 class="header-author"><a href="/">xiaoyu</a></h1>
+		  <h1 class="header-author"><a href="<%=theme.root%>"><%=theme.author%></a></h1>
 		</hgroup>
-		
-		<p class="header-subtitle">往事随风</p>
-		
+		<% if (theme.subtitle){ %>
+		<p class="header-subtitle"><%=theme.subtitle%></p>
+		<%}%>
 
 		<nav class="header-menu">
 			<ul>
-			
-				<li><a href="/elasticsearch_learning/">主页</a></li>
-	        
-				<li><a href="/elasticsearch_learning/tags/随笔/">随笔</a></li>
-	        
-				<li><a href="/elasticsearch_learning/categories">分类</a></li>
-	        
+			<% for (var i in theme.menu){ %>
+				<li><a href="<%- url_for(theme.menu[i]) %>"><%= i %></a></li>
+	        <%}%>
 			</ul>
 		</nav>
 		<nav class="header-smart-menu">
-    		
-    			
-    			<a q-on="click: openSlider(e, 'innerArchive')" href="javascript:void(0)">所有文章</a>
-    			
-            
-    			
-    			<a q-on="click: openSlider(e, 'friends')" href="javascript:void(0)">友链</a>
-    			
-            
-    			
-    			<a q-on="click: openSlider(e, 'aboutme')" href="javascript:void(0)">关于我</a>
-    			
-            
+    		<% for (var i in theme.smart_menu){ %>
+    			<% if(theme.smart_menu[i]){ %>
+    			<a q-on="click: openSlider(e, '<%-i%>')" href="javascript:void(0)"><%= theme.smart_menu[i] %></a>
+    			<% } %>
+            <%}%>
 		</nav>
 		<nav class="header-nav">
 			<div class="social">
-				
-					<a class="github" target="_blank" href="#" title="github"><i class="icon-github"></i></a>
-		        
-					<a class="weibo" target="_blank" href="#" title="weibo"><i class="icon-weibo"></i></a>
-		        
-					<a class="rss" target="_blank" href="#" title="rss"><i class="icon-rss"></i></a>
-		        
-					<a class="zhihu" target="_blank" href="#" title="zhihu"><i class="icon-zhihu"></i></a>
-		        
+				<% for (var i in theme.subnav){ %>
+					<a class="<%= i %>" target="_blank" href="<%- url_for(theme.subnav[i]) %>" title="<%= i %>"><i class="icon-<%= i %>"></i></a>
+		        <%}%>
 			</div>
 		</nav>
 	</header>
@@ -209,7 +191,7 @@
 <li>若这个管道上没有被注册关注的事件, 那么就可以安全的关闭。<br>这里并没有直接通过close(sock)方式关闭, 我们将这段话转变为c++版本的过程如下:<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div></pre></td><td class="code"><pre><div class="line">int main()&#123;</div><div class="line">    ......</div><div class="line">    char buffer[40];</div><div class="line">    read(sock, buffer, sizeof(buffer)-1);</div><div class="line">    sleep(3);</div><div class="line">    socklen_t  sa_len = sizeof(serv_addr);</div><div class="line">    printf(&quot;Message form server: %s\n&quot;, buffer);</div><div class="line"></div><div class="line">    //下面是关闭过程</div><div class="line">    int socket_pair[2];</div><div class="line">    // 首先获得双工套接字</div><div class="line">    socketpair(AF_UNIX, SOCK_STREAM, 0, socket_pair);</div><div class="line">    // 关闭其中一边的套接字</div><div class="line">    close(socket_pair[0]);</div><div class="line">    sleep(3);</div><div class="line">    // 将原写入sock套接字关闭, 并指向新的socket_pair[1]指向的文件表</div><div class="line">    dup2(socket_pair[1], sock);</div><div class="line">    // 关闭这个文件表</div><div class="line">    close(sock);</div><div class="line">    sleep(3);</div><div class="line">    return 0;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
 </li>
 </ol>
-<p>可以看到, 其实在<code>dup2(socket_pair[1], sock);</code>中就将原始套接字关闭了, 达到了<code>close(sock)</code>的效果, 通过抓包也实际验证了<code>dup2</code>函数会向服务器端发送发送分手过程的第一阶段。<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/tcp_connect_close1.png" height="600" width="400"><br>可以由抓包看到, 在第6s开始向server发送分手过程的第一阶段, 也就对应着<code>dup2</code>过程。</p>
+<p>可以看到, 其实在<code>dup2(socket_pair[1], sock);</code>中就将原始套接字关闭了, 达到了<code>close(sock)</code>的效果, 通过抓包也实际验证了<code>dup2</code>函数会向服务器端发送发送分手过程的第一阶段。<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/tcp_connect_close1.png" height="200" width="900"><br>可以由抓包看到, 在第6s开始向server发送分手过程的第一阶段, 也就对应着<code>dup2</code>过程。</p>
 
       
 
@@ -359,21 +341,22 @@
   
 
   
-  <div id="gitment-ctn"></div> 
+  <div id="gitment-ctn"></div>
 <link rel="stylesheet" href="//imsun.github.io/gitment/style/default.css">
-<script src="//imsun.github.io/gitment/dist/gitment.browser.js"></script>
+<script src="//www.wenjunjiang.win/js/gitment.js "></script>
 <script>
 var gitment = new Gitment({
-  id: "<%=url%>",
-  owner: '<%=theme.gitment_owner%>',
-  repo: '<%=theme.gitment_repo%>',
+  id: "TCP三次握手及四次分手抓包分析",
+  owner: 'kkewwei',
+  repo: 'comments',
   oauth: {
-    client_id: '<%=theme.gitment_oauth.client_id%>',
-    client_secret: '<%=theme.gitment_oauth.client_secret%>',
+    client_id: '9391e497d6b288887f33',
+    client_secret: 'db733731bff4ee2811d9530b1ac4cfc6767e8183',
   },
 })
 gitment.render('gitment-ctn')
 </script>
+
   
 
 
@@ -521,10 +504,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">netty4, ServerBootstrap, Initiale</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">随笔</a>
               </li>
              
@@ -533,15 +512,19 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">netty4, ServerBootstrap, Initiale</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">maven, 插件, 打包</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">maven, 插件, 打包</a>
               </li>
             
             <div class="clearfix"></div>
