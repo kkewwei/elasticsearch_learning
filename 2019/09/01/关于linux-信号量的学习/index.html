@@ -17,7 +17,7 @@
 <meta property="og:description" content="我们可能经常会使用kill -9 pid 来kill某个进程, 其实-9就是某一种信号量, 今天我们将简单讲解下信号量的使用。 linux中信号就是软件中断, 它提供了一种处理异步时间的方法: 终端用户键入中断键, 则会通过信号机构停止一个程序。产生信号的事件对于进程而言则是随机出现的。 进程表態只测试一个变量来判别是否发生了一个信号, 而是必须告诉内核”在此信号发生时, 请执行以下操作”, 可以">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/signal_1.png">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/signal_2.png">
-<meta property="og:updated_time" content="2019-09-01T13:30:30.000Z">
+<meta property="og:updated_time" content="2019-09-01T13:34:35.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="关于linux 信号量的学习">
 <meta name="twitter:description" content="我们可能经常会使用kill -9 pid 来kill某个进程, 其实-9就是某一种信号量, 今天我们将简单讲解下信号量的使用。 linux中信号就是软件中断, 它提供了一种处理异步时间的方法: 终端用户键入中断键, 则会通过信号机构停止一个程序。产生信号的事件对于进程而言则是随机出现的。 进程表態只测试一个变量来判别是否发生了一个信号, 而是必须告诉内核”在此信号发生时, 请执行以下操作”, 可以">
@@ -45,57 +45,39 @@
   <div id="container" q-class="show:isCtnShow">
     <canvas id="anm-canvas" class="anm-canvas"></canvas>
     <div class="left-col" q-class="show:isShow">
-      
-<div class="overlay" style="background: #4d4d4d"></div>
+      <% var defaultBg = '#4d4d4d'; %>
+<div class="overlay" style="background: <%= theme.style && theme.style.header ? theme.style.header : defaultBg %>"></div>
 <div class="intrude-less">
 	<header id="header" class="inner">
-		<a href="/" class="profilepic">
-      <img src="https://kkewwei.github.io/elasticsearch_learning/img/myself.png" class="js-avatar">
+		<a href="<%=theme.root%>" class="profilepic">
+			<img src="<%=theme.avatar%>" class="js-avatar">
 		</a>
 		<hgroup>
-		  <h1 class="header-author"><a href="/">xiaoyu</a></h1>
+		  <h1 class="header-author"><a href="<%=theme.root%>"><%=theme.author%></a></h1>
 		</hgroup>
-		
-		<p class="header-subtitle">往事随风</p>
-		
+		<% if (theme.subtitle){ %>
+		<p class="header-subtitle"><%=theme.subtitle%></p>
+		<%}%>
 
 		<nav class="header-menu">
 			<ul>
-			
-				<li><a href="/elasticsearch_learning/">主页</a></li>
-	        
-				<li><a href="/elasticsearch_learning/tags/随笔/">随笔</a></li>
-	        
-				<li><a href="/elasticsearch_learning/categories">分类</a></li>
-	        
+			<% for (var i in theme.menu){ %>
+				<li><a href="<%- url_for(theme.menu[i]) %>"><%= i %></a></li>
+	        <%}%>
 			</ul>
 		</nav>
 		<nav class="header-smart-menu">
-    		
-    			
-    			<a q-on="click: openSlider(e, 'innerArchive')" href="javascript:void(0)">所有文章</a>
-    			
-            
-    			
-    			<a q-on="click: openSlider(e, 'friends')" href="javascript:void(0)">友链</a>
-    			
-            
-    			
-    			<a q-on="click: openSlider(e, 'aboutme')" href="javascript:void(0)">关于我</a>
-    			
-            
+    		<% for (var i in theme.smart_menu){ %>
+    			<% if(theme.smart_menu[i]){ %>
+    			<a q-on="click: openSlider(e, '<%-i%>')" href="javascript:void(0)"><%= theme.smart_menu[i] %></a>
+    			<% } %>
+            <%}%>
 		</nav>
 		<nav class="header-nav">
 			<div class="social">
-				
-					<a class="github" target="_blank" href="#" title="github"><i class="icon-github"></i></a>
-		        
-					<a class="weibo" target="_blank" href="#" title="weibo"><i class="icon-weibo"></i></a>
-		        
-					<a class="rss" target="_blank" href="#" title="rss"><i class="icon-rss"></i></a>
-		        
-					<a class="zhihu" target="_blank" href="#" title="zhihu"><i class="icon-zhihu"></i></a>
-		        
+				<% for (var i in theme.subnav){ %>
+					<a class="<%= i %>" target="_blank" href="<%- url_for(theme.subnav[i]) %>" title="<%= i %>"><i class="icon-<%= i %>"></i></a>
+		        <%}%>
 			</div>
 		</nav>
 	</header>
@@ -192,7 +174,7 @@
 
     <div class="article-entry" itemprop="articleBody">
       
-        <p>我们可能经常会使用kill -9 pid 来kill某个进程, 其实-9就是某一种信号量, 今天我们将简单讲解下信号量的使用。 linux中信号就是软件中断, 它提供了一种处理异步时间的方法: 终端用户键入中断键, 则会通过信号机构停止一个程序。产生信号的事件对于进程而言则是随机出现的。 进程表態只测试一个变量来判别是否发生了一个信号, 而是必须告诉内核”在此信号发生时, 请执行以下操作”, 可以要求系统在某个信号按照以下三种的其中一种方式操作:<br>(1) 忽略信号, 大多数信号都可使用这种方式处理, 但是有两只中信号决不能被忽略, 它们是SIGKILL和SIGSTOP。这两种信号不能被忽略的原因是: 它们向超级用户提供一种使进程终止或者停止的可靠方法。另外, 如果忽略某种由硬件异常产生的信号(例如非法存储访问或者除以0), 则金恒的行为是未定义的。<br>(2) 捕获信号, 为了做到这一点要通知内核在某种信号发生时, 调用一个用户函数。在用户函数中, 可执行用户希望对这种事件进行的处理, 例如, 若编写一个命令解释器, 当用户用键盘产生中断信号后, 很可能希望用户返回到程序的主循环, 终止系统正在为用户执行的命令。 若果捕获到SIGCHILD信号, 则表示子进程已经终止, 所以此信号的捕获可以调用waitpid以取得该子进程的进程ID已经它的最终状态。 又例如, 如果进程创建了临时文件, 那么可能要为SIGTERM信号编写一个信号捕获函数以清理临时文件(kill命令传送的信号默认信号时终止信号)。<br>(3) 执行系统默认动作。对于大部分信号的系统默认动作是终止该进程。<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/signal_1.png" height="450" width="500"><br><img src="https://kkewwei.github.io/elasticsearch_learning/img/signal_2.png" height="250" width="500"><br>想了解每个信号的含义, 可以参考《Unix环境高级编程》一书, 每种信号可以由一个数字表示, 这里罗列一些常见的:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div></pre></td><td class="code"><pre><div class="line">Some of the more commonly used signals:</div><div class="line">1       HUP (hang up)</div><div class="line">2       INT (interrupt)</div><div class="line">3       QUIT (quit)</div><div class="line">6       ABRT (abort, 调用abort时触发)</div><div class="line">9       KILL (non-catchable, non-ignorable kill)</div><div class="line">14      ALRM (alarm clock)</div><div class="line">15      TERM (software termination signal)</div><div class="line">30      SIGUSR1 (user defined signal 1)</div><div class="line">31      SIGUSR2 (user defined signal 2)</div></pre></td></tr></table></figure></p>
+        <p>我们可能经常会使用kill -9 pid 来kill某个进程, 其实-9就是某一种信号量, 今天我们将简单讲解下信号量的使用。 linux中信号就是软件中断, 它提供了一种处理异步时间的方法: 终端用户键入中断键, 则会通过信号机构停止一个程序。产生信号的事件对于进程而言则是随机出现的。 进程表態只测试一个变量来判别是否发生了一个信号, 而是必须告诉内核”在此信号发生时, 请执行以下操作”, 可以要求系统在某个信号按照以下三种的其中一种方式操作:<br>(1) 忽略信号, 大多数信号都可使用这种方式处理, 但是有两只中信号决不能被忽略, 它们是SIGKILL和SIGSTOP。这两种信号不能被忽略的原因是: 它们向超级用户提供一种使进程终止或者停止的可靠方法。另外, 如果忽略某种由硬件异常产生的信号(例如非法存储访问或者除以0), 则金恒的行为是未定义的。<br>(2) 捕获信号, 为了做到这一点要通知内核在某种信号发生时, 调用一个用户函数。在用户函数中, 可执行用户希望对这种事件进行的处理, 例如, 若编写一个命令解释器, 当用户用键盘产生中断信号后, 很可能希望用户返回到程序的主循环, 终止系统正在为用户执行的命令。 若果捕获到SIGCHILD信号, 则表示子进程已经终止, 所以此信号的捕获可以调用waitpid以取得该子进程的进程ID已经它的最终状态。 又例如, 如果进程创建了临时文件, 那么可能要为SIGTERM信号编写一个信号捕获函数以清理临时文件(kill命令传送的信号默认信号时终止信号)。<br>(3) 执行系统默认动作。对于大部分信号的系统默认动作是终止该进程。<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/signal_1.png" height="450" width="500"><br><img src="https://kkewwei.github.io/elasticsearch_learning/img/signal_2.png" height="250" width="480"><br>想了解每个信号的含义, 可以参考《Unix环境高级编程》一书, 每种信号可以由一个数字表示, 这里罗列一些常见的:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div></pre></td><td class="code"><pre><div class="line">Some of the more commonly used signals:</div><div class="line">1       HUP (hang up)</div><div class="line">2       INT (interrupt)</div><div class="line">3       QUIT (quit)</div><div class="line">6       ABRT (abort, 调用abort时触发)</div><div class="line">9       KILL (non-catchable, non-ignorable kill)</div><div class="line">14      ALRM (alarm clock)</div><div class="line">15      TERM (software termination signal)</div><div class="line">30      SIGUSR1 (user defined signal 1)</div><div class="line">31      SIGUSR2 (user defined signal 2)</div></pre></td></tr></table></figure></p>
 <p>在系统默认动作列中, “终止w/core”表示在进程当前工作目录的core文件中复制了该进程的存储图像(该文件名为core)。 在以下条件下不产生core文件:<br>(a) 程是设置-用户-ID, 而且当前用户并非程序文件的所有者<br>(b) 进程是设置-组-ID ,而且当前用户并非该程序文件的组所有者<br>(c)用户没有写当前工作目录的许可权<br>(d) 文件太大。我们经常使用<code>ulimit -c unlimited</code>设置core文件大小。</p>
 <h1 id="sinal函数和sigaction函数"><a href="#sinal函数和sigaction函数" class="headerlink" title="sinal函数和sigaction函数"></a>sinal函数和sigaction函数</h1><p>我们想自定义某些信号的处理函数, 那就需要用到sinal函数和sigaction函数, 还有别的常见的修改指定信号相关联操作的函数, 再次不罗列了。<br>我们直接使用示例进行说明吧:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div><div class="line">61</div><div class="line">62</div><div class="line">63</div><div class="line">64</div><div class="line">65</div><div class="line">66</div><div class="line">67</div><div class="line">68</div><div class="line">69</div></pre></td><td class="code"><pre><div class="line">#include &lt;stdio.h&gt;</div><div class="line">#include &lt;unistd.h&gt;</div><div class="line">#include &lt;signal.h&gt;</div><div class="line">#include &lt;errno.h&gt;</div><div class="line">#include &lt;pthread.h&gt;</div><div class="line">void *thread_function(void *arg) &#123;</div><div class="line">    printf(&quot;My PID is %ld\n&quot;, (long)pthread_self());</div><div class="line">    signal(SIGUSR1, sig_usr);</div><div class="line">    // 读数被卡</div><div class="line">    char buf[511];</div><div class="line">    read(STDIN_FILENO, buf, 511);</div><div class="line">    return NULL;</div><div class="line">&#125;</div><div class="line">int main(void) &#123;</div><div class="line">    pthread_t mythread;</div><div class="line">      if (pthread_create( &amp;mythread, NULL, thread_function, NULL) ) &#123;</div><div class="line">        printf(&quot;error creating thread.&quot;);</div><div class="line">    &#125;</div><div class="line">    sleep(1);</div><div class="line">    // kill子线程, 向子线程发送SIGUSR1信号</div><div class="line">    pthread_kill(mythread, SIGUSR1);</div><div class="line">    printf(&quot;My PID is %d\n&quot;, getpid());</div><div class="line">    for(;;) &#123;</div><div class="line">        pause();</div><div class="line">    &#125;</div><div class="line">    return 0;</div><div class="line">&#125;</div><div class="line"></div><div class="line">// 信号处理函数</div><div class="line">static void sig_usr(int signum) &#123;</div><div class="line">    if(signum == SIGUSR1) &#123;</div><div class="line">        printf(&quot;SIGUSR1 received\n&quot;);</div><div class="line">    &#125;</div><div class="line">    else if(signum == SIGUSR2) &#123;</div><div class="line">        printf(&quot;SIGUSR2 received\n&quot;);</div><div class="line">    &#125;</div><div class="line">    else</div><div class="line">        printf(&quot;signal %d received\n&quot;, signum);</div><div class="line">    &#125;</div><div class="line">&#125;</div><div class="line">int main1(void) &#123;</div><div class="line">    char buf[512];</div><div class="line">    int  n;</div><div class="line"></div><div class="line">    struct sigaction sa_usr;</div><div class="line">    sa_usr.sa_flags = 0;</div><div class="line">    sa_usr.sa_handler = sig_usr;</div><div class="line">    //自定义信号处理函数, sa_usr里面存放了信号处理函数</div><div class="line">    sigaction(SIGUSR1, &amp;sa_usr, NULL);</div><div class="line">    sigaction(SIGHUP, &amp;sa_usr, NULL);</div><div class="line">    sigaction(SIGQUIT, &amp;sa_usr, NULL);</div><div class="line">    //自定义信号处理函数, 信号处理函数可以直接放在外面</div><div class="line">    signal(SIGUSR2, sig_usr);</div><div class="line">    printf(&quot;My PID is %d\n&quot;, getpid());</div><div class="line">    while(1) &#123;</div><div class="line">        // 读数据被阻塞</div><div class="line">        if((n = read(STDIN_FILENO, buf, 511)) == -1) &#123;</div><div class="line">            // 返回值代表read被中断</div><div class="line">            if(errno == EINTR) &#123;</div><div class="line">                printf(&quot;read is interrupted by signal\n&quot;);</div><div class="line">            &#125;</div><div class="line">        &#125;</div><div class="line">        else &#123;</div><div class="line">            buf[n] = &apos;\0&apos;;</div><div class="line">            printf(&quot;%d bytes read: %s\n&quot;, n, buf);</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line">    return 0;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
 <ol>
@@ -340,22 +322,21 @@
   
 
   
-  <div id="gitment-ctn"></div>
+  <div id="gitment-ctn"></div> 
 <link rel="stylesheet" href="//imsun.github.io/gitment/style/default.css">
-<script src="//www.wenjunjiang.win/js/gitment.js "></script>
+<script src="//imsun.github.io/gitment/dist/gitment.browser.js"></script>
 <script>
 var gitment = new Gitment({
-  id: "关于linux 信号量的学习",
-  owner: 'kkewwei',
-  repo: 'comments',
+  id: "<%=url%>",
+  owner: '<%=theme.gitment_owner%>',
+  repo: '<%=theme.gitment_repo%>',
   oauth: {
-    client_id: '9391e497d6b288887f33',
-    client_secret: 'db733731bff4ee2811d9530b1ac4cfc6767e8183',
+    client_id: '<%=theme.gitment_oauth.client_id%>',
+    client_secret: '<%=theme.gitment_oauth.client_secret%>',
   },
 })
 gitment.render('gitment-ctn')
 </script>
-
   
 
 
@@ -491,6 +472,10 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
               </li>
              
@@ -499,7 +484,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
+                <a href="javascript:void(0)" class="js-tag color4">netty4, ServerBootstrap, Initiale</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -511,19 +496,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">netty4, ServerBootstrap, Initiale</a>
+                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
+                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">maven, 插件, 打包</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
               </li>
             
             <div class="clearfix"></div>
