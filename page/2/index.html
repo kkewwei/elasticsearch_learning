@@ -1207,7 +1207,7 @@
 <h2 id="close-之后的链路情况"><a href="#close-之后的链路情况" class="headerlink" title="close()之后的链路情况"></a>close()之后的链路情况</h2><p>假如client主动调用了close之后, 链路情况是如何的呢? 我们分两种情况:</p>
 <ol>
 <li>client此时还能做啥?  此时系统将对该套接字设置为不可读, 任何client对该套接字的读取操作将抛出异常而崩溃退出, 并产生信号量SIGPIPE。 在写出的方向, 系统内核尝试将缓存区的数据发送给对方, 并向对端发送FIN信号, client进入FINA_WAIT_1阶段。之后client对该套接字的写操作将抛出异常而崩溃退出, 并产生信号量SIGPIPE。</li>
-<li>服务端若在client端关闭之后, 继续进行读写操作会发生什么事呢? 第一次读取时, client会返回RST响应, 告诉服务器端, 我已经关闭了, read/write返回值为0。 若服务器端续向这个套接字进行read/write, 那么读写返回值将抛出异常而崩溃退出, 并产生信号量SIGPIPE。<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/tcp_connect_close4.png" height="450" width="300"><br>以上体现了整个包传输过程, 当client调用close后,若此后server再向client发送数据时, 客户端还可以接收到数据, 并返回一个RST包给服务器端。 若此后服务器再次发送数据, 服务器端将直接抛出异常, 并产生SIGPIPE信号量。下图抓包过程也可以体现这个过程。<ul>
+<li>服务端若在client端关闭之后, 继续进行读写操作会发生什么事呢? 第一次读取时, client会返回RST响应, 告诉服务器端, 我已经关闭了, read/write返回值为0。 若服务器端续向这个套接字进行read/write, 那么读写返回值将抛出异常而崩溃退出, 并产生信号量SIGPIPE。<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/tcp_connect_close4.png" height="350" width="250"><br>以上体现了整个包传输过程, 当client调用close后,若此后server再向client发送数据时, 客户端还可以接收到数据, 并返回一个RST包给服务器端。 若此后服务器再次发送数据, 服务器端将直接抛出异常, 并产生SIGPIPE信号量。下图抓包过程也可以体现这个过程。<ul>
 <li>1-3是连接建立过程</li>
 <li>4-5是client发送数据及server ack过程。</li>
 <li>6-7是client调用close及server ack过程。</li>
