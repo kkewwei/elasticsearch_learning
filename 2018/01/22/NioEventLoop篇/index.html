@@ -17,7 +17,7 @@
 <meta property="og:site_name" content="Hexo">
 <meta property="og:description" content="介绍在ServerBootstrap初始篇初始篇中说过, 每个NioEventLoop里面, 都拥有属性thread, 用来执行对应channel产生的所有task, 该thread最早在register的时候被生成, 首先调用如下代码:1234ch.eventLoop().execute(new Runnable() &amp;#123;        @Override        public v">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/NioEventLoop1.png">
-<meta property="og:updated_time" content="2019-09-01T11:13:17.000Z">
+<meta property="og:updated_time" content="2019-09-29T03:58:38.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="NioEventLoop篇">
 <meta name="twitter:description" content="介绍在ServerBootstrap初始篇初始篇中说过, 每个NioEventLoop里面, 都拥有属性thread, 用来执行对应channel产生的所有task, 该thread最早在register的时候被生成, 首先调用如下代码:1234ch.eventLoop().execute(new Runnable() &amp;#123;        @Override        public v">
@@ -45,57 +45,39 @@
   <div id="container" q-class="show:isCtnShow">
     <canvas id="anm-canvas" class="anm-canvas"></canvas>
     <div class="left-col" q-class="show:isShow">
-      
-<div class="overlay" style="background: #4d4d4d"></div>
+      <% var defaultBg = '#4d4d4d'; %>
+<div class="overlay" style="background: <%= theme.style && theme.style.header ? theme.style.header : defaultBg %>"></div>
 <div class="intrude-less">
 	<header id="header" class="inner">
-		<a href="/" class="profilepic">
-      <img src="https://kkewwei.github.io/elasticsearch_learning/img/myself.png" class="js-avatar">
+		<a href="<%=theme.root%>" class="profilepic">
+			<img src="<%=theme.avatar%>" class="js-avatar">
 		</a>
 		<hgroup>
-		  <h1 class="header-author"><a href="/">xiaoyu</a></h1>
+		  <h1 class="header-author"><a href="<%=theme.root%>"><%=theme.author%></a></h1>
 		</hgroup>
-		
-		<p class="header-subtitle">往事随风</p>
-		
+		<% if (theme.subtitle){ %>
+		<p class="header-subtitle"><%=theme.subtitle%></p>
+		<%}%>
 
 		<nav class="header-menu">
 			<ul>
-			
-				<li><a href="/elasticsearch_learning/">主页</a></li>
-	        
-				<li><a href="/elasticsearch_learning/tags/随笔/">随笔</a></li>
-	        
-				<li><a href="/elasticsearch_learning/categories">分类</a></li>
-	        
+			<% for (var i in theme.menu){ %>
+				<li><a href="<%- url_for(theme.menu[i]) %>"><%= i %></a></li>
+	        <%}%>
 			</ul>
 		</nav>
 		<nav class="header-smart-menu">
-    		
-    			
-    			<a q-on="click: openSlider(e, 'innerArchive')" href="javascript:void(0)">所有文章</a>
-    			
-            
-    			
-    			<a q-on="click: openSlider(e, 'friends')" href="javascript:void(0)">友链</a>
-    			
-            
-    			
-    			<a q-on="click: openSlider(e, 'aboutme')" href="javascript:void(0)">关于我</a>
-    			
-            
+    		<% for (var i in theme.smart_menu){ %>
+    			<% if(theme.smart_menu[i]){ %>
+    			<a q-on="click: openSlider(e, '<%-i%>')" href="javascript:void(0)"><%= theme.smart_menu[i] %></a>
+    			<% } %>
+            <%}%>
 		</nav>
 		<nav class="header-nav">
 			<div class="social">
-				
-					<a class="github" target="_blank" href="#" title="github"><i class="icon-github"></i></a>
-		        
-					<a class="weibo" target="_blank" href="#" title="weibo"><i class="icon-weibo"></i></a>
-		        
-					<a class="rss" target="_blank" href="#" title="rss"><i class="icon-rss"></i></a>
-		        
-					<a class="zhihu" target="_blank" href="#" title="zhihu"><i class="icon-zhihu"></i></a>
-		        
+				<% for (var i in theme.subnav){ %>
+					<a class="<%= i %>" target="_blank" href="<%- url_for(theme.subnav[i]) %>" title="<%= i %>"><i class="icon-<%= i %>"></i></a>
+		        <%}%>
 			</div>
 		</nav>
 	</header>
@@ -258,7 +240,7 @@
 <li>有IO task了</li>
 <li>上一轮的oldWakenUp仍然置为着, 说明因为上一轮走完, selector仍然处于唤醒状态, 需要这个唤醒作用清空。</li>
 <li>此轮有task处于penging.</li>
-<li>有schedule task截止时间已经到了。<br>select(boolean oldWakenUp)主要判断逻辑基本已经完成了, 为啥后面还有那么多代码? 主要是为了解决可能触发epool cpu100%的bug。这个bug的意思是selector.select(timeoutMillis)并不会超时阻塞timeoutMillis, 它会立刻返回。<br>这样的话, 这个函数也就失去了意义, 如果不加控制的话, 这里的for循环会无限制下去而没有意义。 解决的方法就是selector, 具体处理函数rebuildSelector0如下:<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div></pre></td><td class="code"><pre><div class="line">ivate void rebuildSelector0() &#123;</div><div class="line">        newSelectorTuple = openSelector();//打开一个新的Selector</div><div class="line">        // Register all channels to the new Selector.</div><div class="line">        int nChannels = 0;</div><div class="line">        for (SelectionKey key: oldSelector.keys()) &#123;////SelectionKey无效或者已经注册上了则跳过</div><div class="line">            Object a = key.attachment();</div><div class="line">            try &#123;</div><div class="line">                if (!key.isValid() || key.channel().keyFor(newSelectorTuple.unwrappedSelector) != null) &#123;</div><div class="line">                    continue;</div><div class="line">                &#125;</div><div class="line">                int interestOps = key.interestOps();</div><div class="line">                key.cancel();//取消SelectionKey</div><div class="line">                SelectionKey newKey = key.channel().register(newSelectorTuple.unwrappedSelector, interestOps, a);</div><div class="line">            &#125;</div><div class="line">        &#125;</div><div class="line">        selector = newSelectorTuple.selector;//用新的Selector替换老的Selector</div><div class="line">        unwrappedSelector = newSelectorTuple.unwrappedSelector;</div></pre></td></tr></table></figure>
+<li>有schedule task截止时间已经到了。<br>select(boolean oldWakenUp)主要判断逻辑基本已经完成了, 为啥后面还有那么多代码? 主要是为了解决可能触发epool cpu100%的bug。这个bug的意思是selector.select(timeoutMillis)并不会超时阻塞timeoutMillis, 就算此时没有任何关注的事件发生, 它会立刻返回。<br>这样的话, 这个函数也就失去了意义, 如果不加控制的话, 这里的for循环会无限制下去而没有意义。 解决的方法就是selector, 具体处理函数rebuildSelector0如下:<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div></pre></td><td class="code"><pre><div class="line">ivate void rebuildSelector0() &#123;</div><div class="line">        newSelectorTuple = openSelector();//打开一个新的Selector</div><div class="line">        // Register all channels to the new Selector.</div><div class="line">        int nChannels = 0;</div><div class="line">        for (SelectionKey key: oldSelector.keys()) &#123;////SelectionKey无效或者已经注册上了则跳过</div><div class="line">            Object a = key.attachment();</div><div class="line">            try &#123;</div><div class="line">                if (!key.isValid() || key.channel().keyFor(newSelectorTuple.unwrappedSelector) != null) &#123;</div><div class="line">                    continue;</div><div class="line">                &#125;</div><div class="line">                int interestOps = key.interestOps();</div><div class="line">                key.cancel();//取消SelectionKey</div><div class="line">                SelectionKey newKey = key.channel().register(newSelectorTuple.unwrappedSelector, interestOps, a);</div><div class="line">            &#125;</div><div class="line">        &#125;</div><div class="line">        selector = newSelectorTuple.selector;//用新的Selector替换老的Selector</div><div class="line">        unwrappedSelector = newSelectorTuple.unwrappedSelector;</div></pre></td></tr></table></figure>
 </li>
 </ul>
 <p>主要过程就是新建一个selector, 并且将原来selector等待时间都迁移过来。<br>如何判断是否触发了epool cpu100%的bug? 则是通过执行selector.select()函数的次数selectCnt来判断, 若当前循环次数超过<code>SELECTOR_AUTO_REBUILD_THRESHOLD</code>则说明触发了, 默认为512次。</p>
@@ -509,7 +491,7 @@ gitment.render('gitment-ctn')
   <div class="outer">
     <div id="footer-info">
     	<div class="footer-left">
-    		&copy; 2019 xiaoyu
+    		&copy; 2020 xiaoyu
     	</div>
       	<div class="footer-right">
       		<a href="http://hexo.io/" target="_blank">Hexo</a>  Theme <a href="https://github.com/litten/hexo-theme-yilia" target="_blank">Yilia</a> by Litten
@@ -610,15 +592,19 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
           <ul class="article-tag-list" q-show="showTags">
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">ES, Semgent Merge</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">Flink、Slot分配、SubTask申请slot, SubTask部署</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
+                <a href="javascript:void(0)" class="js-tag color2">NIO, write, read</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">NIO, write, read</a>
+                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -638,11 +624,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
+                <a href="javascript:void(0)" class="js-tag color4">ReentrantLock</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">ReentrantLock</a>
+                <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
               </li>
              
               <li class="article-tag-list-item">

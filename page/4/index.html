@@ -41,57 +41,39 @@
   <div id="container" q-class="show:isCtnShow">
     <canvas id="anm-canvas" class="anm-canvas"></canvas>
     <div class="left-col" q-class="show:isShow">
-      
-<div class="overlay" style="background: #4d4d4d"></div>
+      <% var defaultBg = '#4d4d4d'; %>
+<div class="overlay" style="background: <%= theme.style && theme.style.header ? theme.style.header : defaultBg %>"></div>
 <div class="intrude-less">
 	<header id="header" class="inner">
-		<a href="/" class="profilepic">
-      <img src="https://kkewwei.github.io/elasticsearch_learning/img/myself.png" class="js-avatar">
+		<a href="<%=theme.root%>" class="profilepic">
+			<img src="<%=theme.avatar%>" class="js-avatar">
 		</a>
 		<hgroup>
-		  <h1 class="header-author"><a href="/">xiaoyu</a></h1>
+		  <h1 class="header-author"><a href="<%=theme.root%>"><%=theme.author%></a></h1>
 		</hgroup>
-		
-		<p class="header-subtitle">往事随风</p>
-		
+		<% if (theme.subtitle){ %>
+		<p class="header-subtitle"><%=theme.subtitle%></p>
+		<%}%>
 
 		<nav class="header-menu">
 			<ul>
-			
-				<li><a href="/elasticsearch_learning/">主页</a></li>
-	        
-				<li><a href="/elasticsearch_learning/tags/随笔/">随笔</a></li>
-	        
-				<li><a href="/elasticsearch_learning/categories">分类</a></li>
-	        
+			<% for (var i in theme.menu){ %>
+				<li><a href="<%- url_for(theme.menu[i]) %>"><%= i %></a></li>
+	        <%}%>
 			</ul>
 		</nav>
 		<nav class="header-smart-menu">
-    		
-    			
-    			<a q-on="click: openSlider(e, 'innerArchive')" href="javascript:void(0)">所有文章</a>
-    			
-            
-    			
-    			<a q-on="click: openSlider(e, 'friends')" href="javascript:void(0)">友链</a>
-    			
-            
-    			
-    			<a q-on="click: openSlider(e, 'aboutme')" href="javascript:void(0)">关于我</a>
-    			
-            
+    		<% for (var i in theme.smart_menu){ %>
+    			<% if(theme.smart_menu[i]){ %>
+    			<a q-on="click: openSlider(e, '<%-i%>')" href="javascript:void(0)"><%= theme.smart_menu[i] %></a>
+    			<% } %>
+            <%}%>
 		</nav>
 		<nav class="header-nav">
 			<div class="social">
-				
-					<a class="github" target="_blank" href="#" title="github"><i class="icon-github"></i></a>
-		        
-					<a class="weibo" target="_blank" href="#" title="weibo"><i class="icon-weibo"></i></a>
-		        
-					<a class="rss" target="_blank" href="#" title="rss"><i class="icon-rss"></i></a>
-		        
-					<a class="zhihu" target="_blank" href="#" title="zhihu"><i class="icon-zhihu"></i></a>
-		        
+				<% for (var i in theme.subnav){ %>
+					<a class="<%= i %>" target="_blank" href="<%- url_for(theme.subnav[i]) %>" title="<%= i %>"><i class="icon-<%= i %>"></i></a>
+		        <%}%>
 			</div>
 		</nav>
 	</header>
@@ -164,6 +146,101 @@
           </div>
           <div id="js-content" class="content-ll">
             
+  
+    <article id="post-Semaphore源码解读" class="article article-type-post  article-index" itemscope itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/elasticsearch_learning/2017/08/15/Semaphore源码解读/">Semaphore源码分析</a>
+    </h1>
+  
+
+        
+        <a href="/elasticsearch_learning/2017/08/15/Semaphore源码解读/" class="archive-article-date">
+  	<time datetime="2017-08-15T09:56:32.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-08-15</time>
+</a>
+        
+      </header>
+    
+
+    <!-- 目录内容 -->
+    
+    <!-- 目录内容结束 -->
+
+    <div class="article-entry" itemprop="articleBody">
+      
+        <p>Semaphore信号量底层也是使用AQS(参考<a href="https://kkewwei.github.io/elasticsearch_learning/2017/07/23/ReentrantLock%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB/">ReentrantLock源码解读</a>)来进行锁的互斥。<br>基本使用如下:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div></pre></td><td class="code"><pre><div class="line">Semaphore semp = new Semaphore(2, fasle);</div><div class="line">//若被别的线程通过中断唤醒了, 那么就直接抛出异常</div><div class="line">public void acquire();</div><div class="line">//若被别的线程通过中断唤醒了, 那么将中断再放到本线程里退出</div><div class="line">public void acquireUninterruptibly()</div><div class="line">//尝试获取锁, 若获取不到就直接退出</div><div class="line">public boolean tryAcquire()</div><div class="line">//再unit内等待获取锁, 获取不到就直接抛出异常</div><div class="line">public boolean tryAcquire(long timeout, TimeUnit unit) throws InterruptedException</div><div class="line"></div><div class="line">//释放一个锁。</div><div class="line">public void release()</div></pre></td></tr></table></figure></p>
+<p>Semaphore构造函数中, 2代表获取锁的并发, false代表非公平锁。信号量Semaphore的用户是限制访问的并发, 最大只能两个线程获取锁, 别的线程线程获取时都只能等着。statue最大为2, 代表可剩余的锁个数<br>|锁类型|介绍|<br>|:-|:-|<br>|ReentrantLock|互斥可重入锁, 获取锁并发为1, 谁获取锁谁可以执行, 否则阻塞|<br>|CountDownLatch|共享锁, 类似n个钥匙一起才能打开一个锁, 打开之后会唤醒所有阻塞的线程再一起执行|<br>|ReentrantReadWriteLock|有读锁和写锁同时构成, 读锁之间共享锁, 写锁——读锁会互斥|<br>|Semaphore|并发控制所, 允许同时只有n个线程可以访问, 别的线程只能阻塞, 仅当一个线程释放锁才能唤醒另外一个阻塞的线程|</p>
+<h1 id="acquire获取过程"><a href="#acquire获取过程" class="headerlink" title="acquire获取过程"></a>acquire获取过程</h1><p>锁获取与其他几个AQS获取过程一样:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div></pre></td><td class="code"><pre><div class="line"> public final void acquireSharedInterruptibly(int arg) throws InterruptedException &#123;</div><div class="line">    if (Thread.interrupted())</div><div class="line">        throw new InterruptedException();</div><div class="line">        //如果为0， 就说明获取到了，不为0， 则说明没有获取到</div><div class="line">    if (tryAcquireShared(arg) &lt; 0)</div><div class="line">        doAcquireSharedInterruptibly(arg);</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<ul>
+<li>首先该线程是否有中断信号, 若有的话,直接退出</li>
+<li>尝试获取锁, 若获取到了, 那么就回退</li>
+<li>否则通过调用<a href="https://kkewwei.github.io/elasticsearch_learning/2017/08/24/CountDownLatch%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB/">CountDownLatch源码解读</a>doAcquireSharedInterruptibly()将自己加入等待队列。<br>唯一的区别就是Semaphore调用自己实现的tryAcquireShared来尝试获取锁。<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div></pre></td><td class="code"><pre><div class="line">protected int tryAcquireShared(int acquires) &#123;</div><div class="line">    for (;;) &#123;</div><div class="line">        if (hasQueuedPredecessors()) //首先检查是否有别的线程比当前登的时间更长</div><div class="line">            return -1;</div><div class="line">        int available = getState();</div><div class="line">        int remaining = available - acquires;</div><div class="line">        if (remaining &lt; 0 ||</div><div class="line">            compareAndSetState(available, remaining))</div><div class="line">            return remaining;</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+</li>
+</ul>
+<p>示例展示的是公平锁锁, 做了如下检查:</p>
+<ul>
+<li>检查是否已经有线程在排队, 若有的话, 那么获取锁失败(体现先来后到的原则)</li>
+<li>若没有线程在排队, 那么尝试获取acquires, 若state大于remaining个, 那么获取成果获取锁, 否则获取锁失败。<br>我们需要知道, Semaphore调用的doAcquireSharedInterruptibly来进入阻塞队列排队, 本身设置为SHRAD模式, 若别的线程将本线程唤醒后, 本线程也会把唤醒信号分享给后续阻塞线程, 然后大家一起去竞争锁。</li>
+</ul>
+<h1 id="释放锁release"><a href="#释放锁release" class="headerlink" title="释放锁release"></a>释放锁release</h1><p>释放锁会调用releaseShared:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div></pre></td><td class="code"><pre><div class="line">public final boolean releaseShared(int arg) &#123;</div><div class="line">     //如果status彻底为0， 那么就说明可以唤醒await()了</div><div class="line">    if (tryReleaseShared(arg)) &#123;</div><div class="line">        doReleaseShared();</div><div class="line">        return true;</div><div class="line">    &#125;</div><div class="line">    return false;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>在tryReleaseShared将锁还给state(默认+1), 使用了for(;;)为了一定的释放成功才可以退出, 释放成功了, 尝试去调用doReleaseShared(具体参考<a href="https://kkewwei.github.io/elasticsearch_learning/2017/08/24/CountDownLatch%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB/">CountDownLatch源码解读</a>)来继续唤醒新的head节点。</p>
+<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>Semaphore信号量可以限制并发访问的次数, 使用起来也比较简单; 也分公平锁和费公平锁, 与ReentrantLock讲解的概念一样。</p>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/elasticsearch_learning/categories/Java学习//" class="article-tag-list-link color2">Java学习</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/elasticsearch_learning/2017/08/15/Semaphore源码解读/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
   
     <article id="post-ReentrantReadWriteLock源码解读" class="article article-type-post  article-index" itemscope itemprop="blogPost">
   <div class="article-inner">
@@ -1587,98 +1664,9 @@
 
 
   
-    <article id="post-Java线程知识小结" class="article article-type-post  article-index" itemscope itemprop="blogPost">
-  <div class="article-inner">
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/elasticsearch_learning/2016/10/27/Java线程知识小结/">Java 线程知识小结(-)</a>
-    </h1>
-  
-
-        
-        <a href="/elasticsearch_learning/2016/10/27/Java线程知识小结/" class="archive-article-date">
-  	<time datetime="2016-10-27T06:18:30.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2016-10-27</time>
-</a>
-        
-      </header>
-    
-
-    <!-- 目录内容 -->
-    
-    <!-- 目录内容结束 -->
-
-    <div class="article-entry" itemprop="articleBody">
-      
-        <h1 id="wait-notify-notifyAll"><a href="#wait-notify-notifyAll" class="headerlink" title="wait/notify/notifyAll:"></a>wait/notify/notifyAll:</h1><p>wait/notify用于线程通信的等待/通知模型, 这两个函数被定义在java.lang.Object类中, 被声明为final函数, 不可复写。使用时, 线程A调用object.wait(), 释放cpu进入等待; 线程B调用object.notify()来唤醒A线程。以下是基本的用法:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div></pre></td><td class="code"><pre><div class="line">public static Object lock = new Object();</div><div class="line"></div><div class="line">public void run()&#123;//线程A</div><div class="line">        try &#123;</div><div class="line">            synchronized (lock) &#123;</div><div class="line">                lock.wait(); //进入睡眠进行等待</div><div class="line">                ...</div><div class="line">            &#125;</div><div class="line"></div><div class="line">        &#125; catch (Exception e) &#123;</div><div class="line">            ...</div><div class="line">        &#125;</div><div class="line">&#125;</div><div class="line"></div><div class="line">public void run()&#123;//线程B</div><div class="line">        try &#123;</div><div class="line">            synchronized (lock) &#123;</div><div class="line">                lock.notify(); //唤醒A线程</div><div class="line">                ...</div><div class="line">            &#125;</div><div class="line"></div><div class="line">        &#125; catch (Exception e) &#123;</div><div class="line">            ...</div><div class="line">        &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
-<p>线程执行状态如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/wait_notify.png" height="300" width="800"><br>需要注意一下几点:</p>
-<ul>
-<li>wait/notify两个操作都必须要和synchronized(lock)配合使用, 这里可以这么理解: 每个object都拥有一个WatiQueue等待队列, 存放着调用lock.lock()被阻塞的线程, 每次向这个等待队列添加或者删除线程时, 为了保证对该队列操作的互斥性, 使用synchronized来达到目的;</li>
-<li>线程B调用lock.notify()后, 线程A并不能立刻从lock.wait()中醒来, 此时只是<code>线程B把线程A从lock对象的WatiQueue中移动到了SynchrozizedQueue中</code>, 线程A的状态由wait变化为blocked</li>
-<li>线程B完全执行完 synchronized(lock){}块后, 线程A才能继续执行。也就是说A从wait()返回的前提是获取到了锁。</li>
-<li>若线程A与B之间调用顺序不能反了, 若B先执行的话, 那么A将永远不能被唤醒。与LockSupport(park/unpark)相比很大的区别<br>notify的作用只是唤醒一个object.wait()状态的线程, 唤醒哪个线程, 与线程优先级等有关 notifyAll的作用是唤醒全部object.wait()的线程。</li>
-</ul>
-<h1 id="Join"><a href="#Join" class="headerlink" title="Join"></a>Join</h1><p>join函数的作用是等别的线程退出后再继续执行, 基本使用如下:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line">Thread thread = new Thread(new a2());</div><div class="line">thread.start();</div><div class="line">thread.join();</div></pre></td></tr></table></figure></p>
-<p>当前线程调用thread.join()之后, 便会等待thread执行完再继续执行, join函数代码如下:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div></pre></td><td class="code"><pre><div class="line"> public final synchronized void join(long millis) throws InterruptedException &#123;</div><div class="line">    long base = System.currentTimeMillis();</div><div class="line">    long now = 0;</div><div class="line">    if (millis &lt; 0) &#123;</div><div class="line">        throw new IllegalArgumentException(&quot;timeout value is negative&quot;);</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    if (millis == 0) &#123;//没有设置超时时间</div><div class="line">        while (isAlive()) &#123;</div><div class="line">            wait(0);</div><div class="line">        &#125;</div><div class="line">    &#125; else &#123;//超时等待的话</div><div class="line">        while (isAlive()) &#123; //循环检查</div><div class="line">            long delay = millis - now;</div><div class="line">            if (delay &lt;= 0) &#123; //超时时间到了之后退出</div><div class="line">                break;</div><div class="line">            &#125;</div><div class="line">            wait(delay);</div><div class="line">            now = System.currentTimeMillis() - base;</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
-<p>实际底层依靠的是wait(delay)函数 + 循环来达到等待的效果, 当wait等待时, cpu释放了资源, 则join()等待过程也是释放了cpu。</p>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/elasticsearch_learning/categories/Java学习//" class="article-tag-list-link color2">Java学习</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/elasticsearch_learning/2016/10/27/Java线程知识小结/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
   
     <nav id="page-nav">
-      <a class="extend prev" rel="prev" href="/elasticsearch_learning/page/3/">&laquo; Prev</a><a class="page-number" href="/elasticsearch_learning/">1</a><a class="page-number" href="/elasticsearch_learning/page/2/">2</a><a class="page-number" href="/elasticsearch_learning/page/3/">3</a><span class="page-number current">4</span>
+      <a class="extend prev" rel="prev" href="/elasticsearch_learning/page/3/">&laquo; Prev</a><a class="page-number" href="/elasticsearch_learning/">1</a><a class="page-number" href="/elasticsearch_learning/page/2/">2</a><a class="page-number" href="/elasticsearch_learning/page/3/">3</a><span class="page-number current">4</span><a class="page-number" href="/elasticsearch_learning/page/5/">5</a><a class="extend next" rel="next" href="/elasticsearch_learning/page/5/">Next &raquo;</a>
     </nav>
   
 
@@ -1690,7 +1678,7 @@
   <div class="outer">
     <div id="footer-info">
     	<div class="footer-left">
-    		&copy; 2019 xiaoyu
+    		&copy; 2020 xiaoyu
     	</div>
       	<div class="footer-right">
       		<a href="http://hexo.io/" target="_blank">Hexo</a>  Theme <a href="https://github.com/litten/hexo-theme-yilia" target="_blank">Yilia</a> by Litten
@@ -1791,15 +1779,19 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
           <ul class="article-tag-list" q-show="showTags">
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">ES, Semgent Merge</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">Flink、Slot分配、SubTask申请slot, SubTask部署</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
+                <a href="javascript:void(0)" class="js-tag color2">NIO, write, read</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">NIO, write, read</a>
+                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1819,11 +1811,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
+                <a href="javascript:void(0)" class="js-tag color4">ReentrantLock</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">ReentrantLock</a>
+                <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
               </li>
              
               <li class="article-tag-list-item">
