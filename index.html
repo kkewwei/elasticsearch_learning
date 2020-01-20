@@ -283,6 +283,7 @@
 <li>确定当前正在进行的merge是否超过该阈值, 超过后, 就认为当前已存在的merge合并速度慢了(若没超过,且正在合并的merge没有相同level的mege, 就会降10%合并速度)</li>
 <li>在更新全局合并速度时, 若大于50MB的合并线程大于该阈值, 超过的merge都会被直接暂停合并。 该参数是从限制merge合并速度的方向限制的。</li>
 </ol>
+<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>本文着重从merge调度层面讲解的, 比如如何选择merge, merge是如何动态调整merge速度的。至于lucene层面的合并, 将在之后的文档中详细介绍。</p>
 
       
 
@@ -1517,11 +1518,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
+                <a href="javascript:void(0)" class="js-tag color2">NIO, write, read</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">NIO, write, read</a>
+                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1561,7 +1562,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
+                <a href="javascript:void(0)" class="js-tag color4">maven, 插件, 打包</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1569,7 +1570,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">maven, 插件, 打包</a>
+                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
               </li>
             
             <div class="clearfix"></div>

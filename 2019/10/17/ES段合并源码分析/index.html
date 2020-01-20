@@ -17,7 +17,7 @@
 <meta property="og:site_name" content="Hexo">
 <meta property="og:description" content="ES中在refresh、flush过程中, 都有可能触发段合并, 段合并是将小的段合并成大的段, merge过程有两个好处:  加快查询速度 减少内存空间的占用本文主要从ES7.3层面讲解是如何进行小的段文件合并成大的段文件的, 至于lucene层面的段合并, 之后也会整理一篇文档出来。  merge触发条件Merge首先会进入到IndexWriter的如下代码:12345final void m">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/es_merge1.png">
-<meta property="og:updated_time" content="2020-01-20T16:00:07.000Z">
+<meta property="og:updated_time" content="2020-01-20T16:02:13.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="ES段合并逻辑分析">
 <meta name="twitter:description" content="ES中在refresh、flush过程中, 都有可能触发段合并, 段合并是将小的段合并成大的段, merge过程有两个好处:  加快查询速度 减少内存空间的占用本文主要从ES7.3层面讲解是如何进行小的段文件合并成大的段文件的, 至于lucene层面的段合并, 之后也会整理一篇文档出来。  merge触发条件Merge首先会进入到IndexWriter的如下代码:12345final void m">
@@ -195,7 +195,7 @@
 	    <div id="toc-article" class="toc-article">
 	      <span id="toc-close" class="toc-close" title="隐藏导航" onclick="showBtn();">×</span>
 		      <strong class="toc-title">文章目录</strong>
-        <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#merge触发条件"><span class="toc-number">1.</span> <span class="toc-text">merge触发条件</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#确定segments组成一个merge"><span class="toc-number">2.</span> <span class="toc-text">确定segments组成一个merge</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#merge过程"><span class="toc-number">3.</span> <span class="toc-text">merge过程</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#更新全局合并速度"><span class="toc-number">3.1.</span> <span class="toc-text">更新全局合并速度</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#启动合并线程"><span class="toc-number">3.2.</span> <span class="toc-text">启动合并线程</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#段合并"><span class="toc-number">3.2.1.</span> <span class="toc-text">段合并</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#调整所有当前正在merge的速度"><span class="toc-number">3.3.</span> <span class="toc-text">调整所有当前正在merge的速度</span></a></li></ol></li></ol>
+        <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#merge触发条件"><span class="toc-number">1.</span> <span class="toc-text">merge触发条件</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#确定segments组成一个merge"><span class="toc-number">2.</span> <span class="toc-text">确定segments组成一个merge</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#merge过程"><span class="toc-number">3.</span> <span class="toc-text">merge过程</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#更新全局合并速度"><span class="toc-number">3.1.</span> <span class="toc-text">更新全局合并速度</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#启动合并线程"><span class="toc-number">3.2.</span> <span class="toc-text">启动合并线程</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#段合并"><span class="toc-number">3.2.1.</span> <span class="toc-text">段合并</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#调整所有当前正在merge的速度"><span class="toc-number">3.3.</span> <span class="toc-text">调整所有当前正在merge的速度</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#总结"><span class="toc-number">4.</span> <span class="toc-text">总结</span></a></li></ol>
          </div>
    <script type="text/javascript">
 	function showToc(){
@@ -309,6 +309,7 @@
 <li>确定当前正在进行的merge是否超过该阈值, 超过后, 就认为当前已存在的merge合并速度慢了(若没超过,且正在合并的merge没有相同level的mege, 就会降10%合并速度)</li>
 <li>在更新全局合并速度时, 若大于50MB的合并线程大于该阈值, 超过的merge都会被直接暂停合并。 该参数是从限制merge合并速度的方向限制的。</li>
 </ol>
+<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>本文着重从merge调度层面讲解的, 比如如何选择merge, merge是如何动态调整merge速度的。至于lucene层面的合并, 将在之后的文档中详细介绍。</p>
 
       
 
@@ -453,7 +454,7 @@
                 </span>
                 <span class="tooltip-content">
                     <div class="toc-article">
-                    <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#merge触发条件"><span class="toc-number">1.</span> <span class="toc-text">merge触发条件</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#确定segments组成一个merge"><span class="toc-number">2.</span> <span class="toc-text">确定segments组成一个merge</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#merge过程"><span class="toc-number">3.</span> <span class="toc-text">merge过程</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#更新全局合并速度"><span class="toc-number">3.1.</span> <span class="toc-text">更新全局合并速度</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#启动合并线程"><span class="toc-number">3.2.</span> <span class="toc-text">启动合并线程</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#段合并"><span class="toc-number">3.2.1.</span> <span class="toc-text">段合并</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#调整所有当前正在merge的速度"><span class="toc-number">3.3.</span> <span class="toc-text">调整所有当前正在merge的速度</span></a></li></ol></li></ol>
+                    <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#merge触发条件"><span class="toc-number">1.</span> <span class="toc-text">merge触发条件</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#确定segments组成一个merge"><span class="toc-number">2.</span> <span class="toc-text">确定segments组成一个merge</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#merge过程"><span class="toc-number">3.</span> <span class="toc-text">merge过程</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#更新全局合并速度"><span class="toc-number">3.1.</span> <span class="toc-text">更新全局合并速度</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#启动合并线程"><span class="toc-number">3.2.</span> <span class="toc-text">启动合并线程</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#段合并"><span class="toc-number">3.2.1.</span> <span class="toc-text">段合并</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#调整所有当前正在merge的速度"><span class="toc-number">3.3.</span> <span class="toc-text">调整所有当前正在merge的速度</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#总结"><span class="toc-number">4.</span> <span class="toc-text">总结</span></a></li></ol>
                     </div>
                 </span>
             </div>
@@ -608,11 +609,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
+                <a href="javascript:void(0)" class="js-tag color2">NIO, write, read</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">NIO, write, read</a>
+                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -652,7 +653,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
+                <a href="javascript:void(0)" class="js-tag color4">maven, 插件, 打包</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -660,7 +661,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">maven, 插件, 打包</a>
+                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
               </li>
             
             <div class="clearfix"></div>
