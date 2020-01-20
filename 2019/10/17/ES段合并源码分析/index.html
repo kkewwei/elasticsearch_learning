@@ -17,7 +17,7 @@
 <meta property="og:site_name" content="Hexo">
 <meta property="og:description" content="ES中在refresh、flush过程中, 都有可能触发段合并, 段合并是将小的段合并成大的段, merge过程有两个好处:  加快查询速度 减少内存空间的占用本文主要从ES7.3层面讲解是如何进行小的段文件合并成大的段文件的, 至于lucene层面的段合并, 之后也会整理一篇文档出来。  merge初始化merge触发条件Merge首先会进入到IndexWriter的如下代码:12345fina">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/es_merge1.png">
-<meta property="og:updated_time" content="2020-01-20T12:07:42.000Z">
+<meta property="og:updated_time" content="2020-01-20T12:08:37.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="ES段合并逻辑分析">
 <meta name="twitter:description" content="ES中在refresh、flush过程中, 都有可能触发段合并, 段合并是将小的段合并成大的段, merge过程有两个好处:  加快查询速度 减少内存空间的占用本文主要从ES7.3层面讲解是如何进行小的段文件合并成大的段文件的, 至于lucene层面的段合并, 之后也会整理一篇文档出来。  merge初始化merge触发条件Merge首先会进入到IndexWriter的如下代码:12345fina">
@@ -188,6 +188,30 @@
 
     <!-- 目录内容 -->
     
+      <p class="show-toc-btn" id="show-toc-btn" onclick="showToc();" style="display:none">
+        <span class="btn-bg"></span>
+        <span class="btn-text">文章导航</span>
+      </p>
+	    <div id="toc-article" class="toc-article">
+	      <span id="toc-close" class="toc-close" title="隐藏导航" onclick="showBtn();">×</span>
+		      <strong class="toc-title">文章目录</strong>
+        <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#merge初始化"><span class="toc-number">1.</span> <span class="toc-text">merge初始化</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#merge触发条件"><span class="toc-number">1.1.</span> <span class="toc-text">merge触发条件</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#确定segments组成一个merge"><span class="toc-number">2.</span> <span class="toc-text">确定segments组成一个merge</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#merge过程"><span class="toc-number">3.</span> <span class="toc-text">merge过程</span></a></li></ol>
+         </div>
+   <script type="text/javascript">
+	function showToc(){
+		var toc_article = document.getElementById("toc-article");
+		var show_toc_btn = document.getElementById("show-toc-btn");
+		toc_article.setAttribute("style","display:block");
+		show_toc_btn.setAttribute("style","display:none");
+		};
+	function showBtn(){
+		var toc_article = document.getElementById("toc-article");
+		var show_toc_btn = document.getElementById("show-toc-btn");
+		toc_article.setAttribute("style","display:none");
+		show_toc_btn.setAttribute("style","display:block");
+		};
+   </script>
+      
     <!-- 目录内容结束 -->
 
     <div class="article-entry" itemprop="articleBody">
@@ -370,6 +394,19 @@
         </div>
         
         
+        <div class="toc-container tooltip-left">
+            <i class="icon-font icon-category"></i>
+            <div class="tooltip tooltip-east">
+                <span class="tooltip-item">
+                </span>
+                <span class="tooltip-content">
+                    <div class="toc-article">
+                    <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#merge初始化"><span class="toc-number">1.</span> <span class="toc-text">merge初始化</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#merge触发条件"><span class="toc-number">1.1.</span> <span class="toc-text">merge触发条件</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#确定segments组成一个merge"><span class="toc-number">2.</span> <span class="toc-text">确定segments组成一个merge</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#merge过程"><span class="toc-number">3.</span> <span class="toc-text">merge过程</span></a></li></ol>
+                    </div>
+                </span>
+            </div>
+        </div>
+        
     </div>
 </aside>
 
@@ -535,11 +572,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">Cycler</a>
+                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
+                <a href="javascript:void(0)" class="js-tag color2">Cycler</a>
               </li>
              
               <li class="article-tag-list-item">
