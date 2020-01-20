@@ -230,7 +230,8 @@
 <li>skew = skew*（抛出删除后总段的大小^0.05）:我们稍微倾向于合并小的端，原因：若源源不断的产生小段，我们则会忽略大段的合并。稍微的含义:在5G的大小内，后面系数&lt;3。</li>
 <li>mergescore = skew *[不需要删除的文档/(需要删除的文档+不需要删除的文档)]^2：说明merge的段中包含越多的被删除的段，score越小。</li>
 </ol>
-<h1 id="进行一个merge"><a href="#进行一个merge" class="headerlink" title="进行一个merge"></a>进行一个merge</h1>
+<h1 id="merge过程"><a href="#merge过程" class="headerlink" title="merge过程"></a>merge过程</h1><p>merge过程将进入ConcurrentMergeScheduler.merge()中:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div><div class="line">61</div><div class="line">62</div><div class="line">63</div><div class="line">64</div><div class="line">65</div><div class="line">66</div><div class="line">67</div><div class="line">68</div><div class="line">69</div></pre></td><td class="code"><pre><div class="line">@Override</div><div class="line">public synchronized void merge(IndexWriter writer, MergeTrigger trigger, boolean newMergesFound) throws IOException &#123;</div><div class="line"></div><div class="line">  assert !Thread.holdsLock(writer);</div><div class="line"></div><div class="line">  initDynamicDefaults(writer); //</div><div class="line"></div><div class="line">  if (trigger == MergeTrigger.CLOSING) &#123;</div><div class="line">    // Disable throttling on close:</div><div class="line">    targetMBPerSec = MAX_MERGE_MB_PER_SEC;</div><div class="line">    updateMergeThreads();</div><div class="line">  &#125;</div><div class="line"></div><div class="line">  // First, quickly run through the newly proposed merges</div><div class="line">  // and add any orthogonal merges (ie a merge not</div><div class="line">  // involving segments already pending to be merged) to</div><div class="line">  // the queue.  If we are way behind on merging, many of</div><div class="line">  // these newly proposed merges will likely already be</div><div class="line">  // registered.</div><div class="line"></div><div class="line">  if (verbose()) &#123;</div><div class="line">    message(&quot;now merge&quot;);</div><div class="line">    message(&quot;  index: &quot; + writer.segString());</div><div class="line">  &#125;</div><div class="line"></div><div class="line">  // Iterate, pulling from the IndexWriter&apos;s queue of</div><div class="line">  // pending merges, until it&apos;s empty:</div><div class="line">  while (true) &#123;</div><div class="line"></div><div class="line">    if (maybeStall(writer) == false) &#123; // es里面返回true</div><div class="line">      break;</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    OneMerge merge = writer.getNextMerge();</div><div class="line">    if (merge == null) &#123;</div><div class="line">      if (verbose()) &#123;</div><div class="line">        message(&quot;  no more merges pending; now return&quot;);</div><div class="line">      &#125;</div><div class="line">      return;</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    boolean success = false;</div><div class="line">    try &#123;</div><div class="line">      if (verbose()) &#123;</div><div class="line">        message(&quot;  consider merge &quot; + writer.segString(merge.segments));</div><div class="line">      &#125;</div><div class="line"></div><div class="line">      // OK to spawn a new merge thread to handle this</div><div class="line">      // merge:</div><div class="line">      final MergeThread newMergeThread = getMergeThread(writer, merge);</div><div class="line">      mergeThreads.add(newMergeThread);</div><div class="line">      // 更新全局维护的段合并速度（看是否有合并慢的段）。同时初始化新创建的这个的merge速度</div><div class="line">      updateIOThrottle(newMergeThread.merge, newMergeThread.rateLimiter);</div><div class="line"></div><div class="line">      if (verbose()) &#123;</div><div class="line">        message(&quot;    launch new thread [&quot; + newMergeThread.getName() + &quot;]&quot;);</div><div class="line">      &#125;</div><div class="line">      // 开始产生merge线程进行merge</div><div class="line">      newMergeThread.start();</div><div class="line">      updateMergeThreads(); // 更新全局维持的段合并速度，来更新存在的每个的段合并速度</div><div class="line"></div><div class="line">      success = true;</div><div class="line">    &#125; finally &#123;</div><div class="line">      if (!success) &#123;</div><div class="line">        writer.mergeFinish(merge);</div><div class="line">      &#125;</div><div class="line">    &#125;</div><div class="line">  &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+
       
 
       
@@ -1468,10 +1469,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">Linux, close</a>
               </li>
              
@@ -1480,11 +1477,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
+                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">Cycler</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
               </li>
              
               <li class="article-tag-list-item">
