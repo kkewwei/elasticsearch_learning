@@ -190,8 +190,10 @@
 
     <div class="article-entry" itemprop="articleBody">
       
-        <p>FieldData文件主要存放文档-&gt;域-&gt;值的关系, 行式存储, 当我们把该文件结构加载到内存时, 我们可以快速定位任何文档。 本文就以该文件结构的建立过程来进行详细讲解。 本文分为三小节,</p>
-<h1 id="索引文件的建立"><a href="#索引文件的建立" class="headerlink" title="索引文件的建立"></a>索引文件的建立</h1><h1 id="flush"><a href="#flush" class="headerlink" title="flush()"></a>flush()</h1><p>一次flush, 产生一个chunk, blockSize次flush后, 产生一个block。当达到一个block后, 才开始向fdt文件和fdx文件写入索引结构</p>
+        <p>FieldData文件主要存放文档-&gt;域-&gt;值的关系, 行式存储, 不对字段分词, 便于读取任何字段的value。 本文就以该文件结构的建立-&gt;文件写入磁盘的过程来进行详细介绍。</p>
+<h1 id="索引结构的建立"><a href="#索引结构的建立" class="headerlink" title="索引结构的建立"></a>索引结构的建立</h1><p>索引结果建立是指将文档按照规范存储到内存中, 当针对字段如下设置时, 才会建立该文档结构:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line">FieldType fieldType = new FieldType();</div><div class="line">fieldType.setStored(true);</div></pre></td></tr></table></figure></p>
+<p>实际是在<code>DefaultIndexingChain.processField</code>里面开始检查是否设置了该字段:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div></pre></td><td class="code"><pre><div class="line">// Add stored fields:</div><div class="line">  if (fieldType.stored()) &#123;</div><div class="line">    if (fp == null) &#123;</div><div class="line">      fp = getOrAddField(fieldName, fieldType, false);</div><div class="line">    &#125;</div><div class="line">    if (fieldType.stored()) &#123;</div><div class="line">      String value = field.stringValue(); // 域的值</div><div class="line">      try &#123;</div><div class="line">        // 面向行的存储，docvalue是面向列的存储, field值存放在CompressingStoredFieldsWriter的bufferedDocs中</div><div class="line">        storedFieldsConsumer.writeField(fp.fieldInfo, field);</div><div class="line">      &#125; catch (Throwable th) &#123;</div><div class="line">      &#125;</div><div class="line">    &#125;</div><div class="line">  &#125;</div></pre></td></tr></table></figure></p>
+<h1 id="flush"><a href="#flush" class="headerlink" title="flush()"></a>flush()</h1><p>一次flush, 产生一个chunk, blockSize次flush后, 产生一个block。当达到一个block后, 才开始向fdt文件和fdx文件写入索引结构</p>
 <h1 id="writeBlock"><a href="#writeBlock" class="headerlink" title="writeBlock()"></a>writeBlock()</h1><p>下图展示了fdt文件和fdx文件的结构<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/lucene_fdt.png" height="360" width="900"></p>
 
       
@@ -1493,15 +1495,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">Flink、Slot分配、SubTask申请slot, SubTask部署</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">NIO, write, read</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">Linux, close</a>
+                <a href="javascript:void(0)" class="js-tag color3">Flink、Slot分配、SubTask申请slot, SubTask部署</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1509,11 +1507,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">LockSupport</a>
+                <a href="javascript:void(0)" class="js-tag color3">Linux, close</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">Lucene、FieldData</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">LockSupport</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1525,15 +1527,23 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">ReentrantLock</a>
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">netty4, ServerBootstrap, Initiale</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">maven, 插件, 打包</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1545,15 +1555,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">maven, 插件, 打包</a>
               </li>
             
             <div class="clearfix"></div>
