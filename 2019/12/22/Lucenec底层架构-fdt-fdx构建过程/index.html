@@ -17,7 +17,7 @@
 <meta property="og:site_name" content="Hexo">
 <meta property="og:description" content="FieldData文件主要存放文档-&amp;gt;域-&amp;gt;值的关系, 行式存储, 当我们把该文件结构加载到内存时, 我们可以快速定位任何文档。 本文就以该文件结构的建立过程来进行详细讲解。 本文分为三小节, 索引文件的建立flush()一次flush, 产生一个chunk, blockSize次flush后, 产生一个block。当达到一个block后, 才开始向fdt文件和fdx文件写入索引结构">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/lucene_fdt.png">
-<meta property="og:updated_time" content="2020-02-04T03:24:44.000Z">
+<meta property="og:updated_time" content="2020-02-04T08:46:31.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Lucenec底层架构-fdt&#x2F;fdx构建过程">
 <meta name="twitter:description" content="FieldData文件主要存放文档-&amp;gt;域-&amp;gt;值的关系, 行式存储, 当我们把该文件结构加载到内存时, 我们可以快速定位任何文档。 本文就以该文件结构的建立过程来进行详细讲解。 本文分为三小节, 索引文件的建立flush()一次flush, 产生一个chunk, blockSize次flush后, 产生一个block。当达到一个block后, 才开始向fdt文件和fdx文件写入索引结构">
@@ -218,7 +218,7 @@
       
         <p>FieldData文件主要存放文档-&gt;域-&gt;值的关系, 行式存储, 当我们把该文件结构加载到内存时, 我们可以快速定位任何文档。 本文就以该文件结构的建立过程来进行详细讲解。 本文分为三小节,</p>
 <h1 id="索引文件的建立"><a href="#索引文件的建立" class="headerlink" title="索引文件的建立"></a>索引文件的建立</h1><h1 id="flush"><a href="#flush" class="headerlink" title="flush()"></a>flush()</h1><p>一次flush, 产生一个chunk, blockSize次flush后, 产生一个block。当达到一个block后, 才开始向fdt文件和fdx文件写入索引结构</p>
-<h1 id="writeBlock"><a href="#writeBlock" class="headerlink" title="writeBlock()"></a>writeBlock()</h1><p><img src="https://kkewwei.github.io/elasticsearch_learning/img/lucene_fdt.png" height="450" width="900"></p>
+<h1 id="writeBlock"><a href="#writeBlock" class="headerlink" title="writeBlock()"></a>writeBlock()</h1><p><img src="https://kkewwei.github.io/elasticsearch_learning/img/lucene_fdt.png" height="360" width="900"></p>
 
       
 
@@ -518,11 +518,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
+                <a href="javascript:void(0)" class="js-tag color2">NIO, write, read</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">NIO, write, read</a>
+                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -530,11 +530,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">LockSupport</a>
+                <a href="javascript:void(0)" class="js-tag color2">Lucene、FieldData</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">Lucene、FieldData</a>
+                <a href="javascript:void(0)" class="js-tag color2">LockSupport</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -546,15 +546,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">ReentrantLock</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">netty4, ServerBootstrap, Initiale</a>
+                <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -566,15 +562,19 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">netty4, ServerBootstrap, Initiale</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
+                <a href="javascript:void(0)" class="js-tag color4">maven, 插件, 打包</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">maven, 插件, 打包</a>
+                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
               </li>
             
             <div class="clearfix"></div>
