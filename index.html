@@ -206,8 +206,12 @@
 </ol>
 <p>使用2bit即可表示。</p>
 <ol>
-<li>向内存对象bufferedDocs存储value值, bufferedDocs使用<code>byte[] bytes</code>存储数据, 存储起来的结构如下所示:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/lucene_fdt1.png" height="200" width="650"><br>有几点需要我们明确下:<br>+</li>
+<li>向内存对象bufferedDocs存储value值, bufferedDocs使用<code>byte[] bytes</code>存储数据, 存储起来的结构如下所示:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/lucene_fdt1.png" height="180" width="850"><br>有2点需要明确下:</li>
 </ol>
+<ul>
+<li>所有字段中相同字段名称的fieldNuber是一样的。</li>
+<li>所有doc所有域依次按先后顺序存储起来, stored=true可以看出是按行存储的, 属于正排索引, 通过该索引结构很方便读取每个文档每个字段的值。</li>
+</ul>
 <h1 id="flush"><a href="#flush" class="headerlink" title="flush()"></a>flush()</h1><p>一次flush, 产生一个chunk, blockSize次flush后, 产生一个block。当达到一个block后, 才开始向fdt文件和fdx文件写入索引结构</p>
 <h1 id="writeBlock"><a href="#writeBlock" class="headerlink" title="writeBlock()"></a>writeBlock()</h1><p>下图展示了fdt文件和fdx文件的结构<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/lucene_fdt.png" height="350" width="900"></p>
 
@@ -1526,11 +1530,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">Lucene、FieldData</a>
+                <a href="javascript:void(0)" class="js-tag color2">LockSupport</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">LockSupport</a>
+                <a href="javascript:void(0)" class="js-tag color2">Lucene、FieldData</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1542,15 +1546,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">ReentrantLock</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">netty4, ServerBootstrap, Initiale</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1562,11 +1566,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
+                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
+                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
               </li>
              
               <li class="article-tag-list-item">
