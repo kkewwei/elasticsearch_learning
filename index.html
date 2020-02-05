@@ -196,11 +196,11 @@
 <p>该函数主要做了两件事:</p>
 <ol>
 <li>检查该域是否已经缓存到了内存中。详情可参考:</li>
-<li>若设置了stored=true, 那么最终进入到进入CompressingStoredFieldsWriter.writeField将该value给缓存起来。<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div></pre></td><td class="code"><pre><div class="line">public void writeField(FieldInfo info, IndexableField field) &#123;</div><div class="line">  ++numStoredFieldsInDoc;</div><div class="line">  int bits = 0;</div><div class="line">  final BytesRef bytes;</div><div class="line">  final String string;</div><div class="line">  Number number = field.numericValue(); // 字段类型</div><div class="line">  if (number != null) &#123;</div><div class="line">    if (number instanceof Byte || number instanceof Short || number instanceof Integer) &#123;</div><div class="line">      bits = NUMERIC_INT;</div><div class="line">    &#125; else if (number instanceof Long) &#123;</div><div class="line">      bits = NUMERIC_LONG;</div><div class="line">    &#125; else if (number instanceof Float) &#123;</div><div class="line">      bits = NUMERIC_FLOAT;</div><div class="line">    &#125; else if (number instanceof Double) &#123;</div><div class="line">      bits = NUMERIC_DOUBLE;</div><div class="line">    &#125;</div><div class="line">    string = null;</div><div class="line">    bytes = null;</div><div class="line">  &#125; else &#123;</div><div class="line">    bytes = field.binaryValue();</div><div class="line">    if (bytes != null) &#123; // 是二进制数的话</div><div class="line">      bits = BYTE_ARR;</div><div class="line">      string = null;</div><div class="line">    &#125; else &#123;</div><div class="line">      bits = STRING; // 是字符串的话</div><div class="line">      string = field.stringValue();</div><div class="line">      if (string == null) &#123;</div><div class="line">        throw new IllegalArgumentException(&quot;field &quot; + field.name() + &quot; is stored but does not have binaryValue, stringValue nor numericValue&quot;);</div><div class="line">      &#125;</div><div class="line">    &#125;</div><div class="line">  &#125;</div><div class="line"></div><div class="line">  final long infoAndBits = (((long) info.number) &lt;&lt; TYPE_BITS) | bits; // 低三位代表类型，高5位代表字段编号</div><div class="line">  bufferedDocs.writeVLong(infoAndBits); //写入字段编号，字段类型</div><div class="line"></div><div class="line">  if (bytes != null) &#123;</div><div class="line">    bufferedDocs.writeVInt(bytes.length);</div><div class="line">    bufferedDocs.writeBytes(bytes.bytes, bytes.offset, bytes.length);</div><div class="line">  &#125; else if (string != null) &#123;</div><div class="line">    bufferedDocs.writeString(string); // 存储字符串真正的值</div><div class="line">  &#125; else &#123;</div><div class="line">    if (number instanceof Byte || number instanceof Short || number instanceof Integer) &#123;</div><div class="line">      bufferedDocs.writeZInt(number.intValue());</div><div class="line">    &#125; else if (number instanceof Long) &#123;</div><div class="line">      writeTLong(bufferedDocs, number.longValue());</div><div class="line">    &#125; else if (number instanceof Float) &#123;</div><div class="line">      writeZFloat(bufferedDocs, number.floatValue());</div><div class="line">    &#125; else if (number instanceof Double) &#123;</div><div class="line">      writeZDouble(bufferedDocs, number.doubleValue());</div><div class="line">    &#125; else &#123;</div><div class="line">      throw new AssertionError(&quot;Cannot get here&quot;);</div><div class="line">    &#125;</div><div class="line">  &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<li>若设置了stored=true, 那么最终进入到进入CompressingStoredFieldsWriter.writeField将该value给缓存起来。<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div></pre></td><td class="code"><pre><div class="line">public void writeField(FieldInfo info, IndexableField field) &#123;</div><div class="line">  ++numStoredFieldsInDoc;</div><div class="line">  int bits = 0;</div><div class="line">  final BytesRef bytes;</div><div class="line">  final String string;</div><div class="line">  Number number = field.numericValue();</div><div class="line">  if (number != null) &#123;</div><div class="line">    if (number instanceof Byte || number instanceof Short || number instanceof Integer) &#123;</div><div class="line">      bits = NUMERIC_INT;</div><div class="line">    &#125; else if (number instanceof Long) &#123;</div><div class="line">      bits = NUMERIC_LONG;</div><div class="line">    &#125; else if (number instanceof Float) &#123;</div><div class="line">      bits = NUMERIC_FLOAT;</div><div class="line">    &#125; else if (number instanceof Double) &#123;</div><div class="line">      bits = NUMERIC_DOUBLE;</div><div class="line">    &#125;</div><div class="line">    string = null;</div><div class="line">    bytes = null;</div><div class="line">  &#125; else &#123;</div><div class="line">    bytes = field.binaryValue();</div><div class="line">    if (bytes != null) &#123; // 是二进制数的话</div><div class="line">      bits = BYTE_ARR;</div><div class="line">      string = null;</div><div class="line">    &#125; else &#123;</div><div class="line">      bits = STRING; // 是字符串的话</div><div class="line">      string = field.stringValue();</div><div class="line">    &#125;</div><div class="line">  &#125;</div><div class="line"></div><div class="line">  final long infoAndBits = (((long) info.number) &lt;&lt; TYPE_BITS) | bits; // 低三位代表类型，高5位代表字段编号</div><div class="line">  bufferedDocs.writeVLong(infoAndBits); //写入字段编号，字段类型</div><div class="line">  if (bytes != null) &#123;</div><div class="line">    bufferedDocs.writeVInt(bytes.length);</div><div class="line">    bufferedDocs.writeBytes(bytes.bytes, bytes.offset, bytes.length);</div><div class="line">  &#125; else if (string != null) &#123;</div><div class="line">    bufferedDocs.writeString(string); // 存储字符串真正的值</div><div class="line">  &#125; else &#123;</div><div class="line">    if (number instanceof Byte || number instanceof Short || number instanceof Integer) &#123;</div><div class="line">      bufferedDocs.writeZInt(number.intValue());</div><div class="line">    &#125; else if (number instanceof Long) &#123;</div><div class="line">      writeTLong(bufferedDocs, number.longValue());</div><div class="line">    &#125; else if (number instanceof Float) &#123;</div><div class="line">      writeZFloat(bufferedDocs, number.floatValue());</div><div class="line">    &#125; else if (number instanceof Double) &#123;</div><div class="line">      writeZDouble(bufferedDocs, number.doubleValue());</div><div class="line">    &#125;</div><div class="line">  &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
 </li>
 </ol>
 <h1 id="flush"><a href="#flush" class="headerlink" title="flush()"></a>flush()</h1><p>一次flush, 产生一个chunk, blockSize次flush后, 产生一个block。当达到一个block后, 才开始向fdt文件和fdx文件写入索引结构</p>
-<h1 id="writeBlock"><a href="#writeBlock" class="headerlink" title="writeBlock()"></a>writeBlock()</h1><p>下图展示了fdt文件和fdx文件的结构<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/lucene_fdt.png" height="320" width="900"></p>
+<h1 id="writeBlock"><a href="#writeBlock" class="headerlink" title="writeBlock()"></a>writeBlock()</h1><p>下图展示了fdt文件和fdx文件的结构<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/lucene_fdt.png" height="350" width="900"></p>
 
       
 
@@ -1501,10 +1501,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">Flink、Slot分配、SubTask申请slot, SubTask部署</a>
               </li>
              
@@ -1513,11 +1509,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">Lucene、FieldData</a>
+                <a href="javascript:void(0)" class="js-tag color3">Linux, close</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">Linux, close</a>
+                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">Lucene、FieldData</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1525,15 +1525,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">Cycler</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">ReentrantLock</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">Cycler</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1541,19 +1537,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">ReentrantLock</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">netty4, ServerBootstrap, Initiale</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">maven, 插件, 打包</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1562,6 +1550,18 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">gdb</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">maven, 插件, 打包</a>
               </li>
             
             <div class="clearfix"></div>
