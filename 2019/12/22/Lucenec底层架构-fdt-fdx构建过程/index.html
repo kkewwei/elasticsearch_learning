@@ -19,7 +19,7 @@
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/lucene_fdt1.png">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/lucene_fdt2.png">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/lucene_fdt.png">
-<meta property="og:updated_time" content="2020-02-07T16:15:03.000Z">
+<meta property="og:updated_time" content="2020-02-07T16:20:07.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Lucenec底层架构-fdt&#x2F;fdx构建过程">
 <meta name="twitter:description" content="StoredField文件主要存放文档-&amp;gt;域-&amp;gt;value的关系, 行式存储, 不对字段分词, 便于读取任何字段的value。 fdt存放文档的value及一级索引索引, fdx存放二级索引结构。 本文就以这两个文件结构的建立-&amp;gt;文件写入磁盘的过程来进行详细介绍, 代码主要可见CompressingStoredFieldsWriter。 内存索引结构的建立索引结构建立是指将文档按">
@@ -243,11 +243,11 @@
 <p>该刷新过程主要是将部分索引结构刷到fdt中, 具体事情如下:</p>
 <ol>
 <li>调用indexWriter.writeIndex(), 缓存该chunk的文档数、在fdt中记录的起始位置, 为fdx文件构建一级索引结构。</li>
-<li>获取每个文档在fdt中的长度</li>
+<li>获取每个文档在fdt中的长度。</li>
 <li>若内存中缓存的所有文档长度大于2*16kb, 则将bufferedDocs中的数据切分压缩存储到fdt中。</li>
-<li>清空bufferedDocs中的数据。<br>fdt文件结构如下所示:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/lucene_fdt2.png" height="180" width="400"></li>
+<li>清空bufferedDocs中的数据。<br>fdt文件结构如下所示:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/lucene_fdt2.png" height="170" width="500"></li>
 </ol>
-<p>我们需要了解下indexWriter.writeIndex()具体怎么缓存的数据:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div></pre></td><td class="code"><pre><div class="line">void writeIndex(int numDocs, long startPointer) throws IOException &#123;</div><div class="line">  // 在block满的时候才会一起写入fdx</div><div class="line">  if (blockChunks == blockSize) &#123;</div><div class="line">    writeBlock(); // 足够一个block了</div><div class="line">    reset();</div><div class="line">  &#125;</div><div class="line">  // 只有经过writeBlock后才会置-1</div><div class="line">  if (firstStartPointer == -1) &#123;</div><div class="line">    firstStartPointer = maxStartPointer = startPointer;</div><div class="line">  &#125;</div><div class="line">  // 这个chunk的文档数</div><div class="line">  docBaseDeltas[blockChunks] = numDocs;</div><div class="line">  // fdt文件的绝对位置</div><div class="line">  startPointerDeltas[blockChunks] = startPointer - maxStartPointer;</div><div class="line">  ++blockChunks;</div><div class="line">  blockDocs += numDocs;</div><div class="line">  totalDocs += numDocs;</div><div class="line">  maxStartPointer = startPointer; // 当前写入的最大值</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>我们需要了解下indexWriter.writeIndex()缓存了哪些索引数据:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div></pre></td><td class="code"><pre><div class="line">void writeIndex(int numDocs, long startPointer) throws IOException &#123;</div><div class="line">  // 在block满的时候才会一起写入fdx</div><div class="line">  if (blockChunks == blockSize) &#123;</div><div class="line">    writeBlock(); // 足够一个block了</div><div class="line">    reset();</div><div class="line">  &#125;</div><div class="line">  // 只有经过writeBlock后才会置-1</div><div class="line">  if (firstStartPointer == -1) &#123;</div><div class="line">    firstStartPointer = maxStartPointer = startPointer;</div><div class="line">  &#125;</div><div class="line">  // 这个chunk的文档数</div><div class="line">  docBaseDeltas[blockChunks] = numDocs;</div><div class="line">  // fdt文件的绝对位置</div><div class="line">  startPointerDeltas[blockChunks] = startPointer - maxStartPointer;</div><div class="line">  ++blockChunks;</div><div class="line">  blockDocs += numDocs;</div><div class="line">  totalDocs += numDocs;</div><div class="line">  maxStartPointer = startPointer; // 当前写入的最大值</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
 <ol>
 <li>检查当前缓存的chunk个数是否达到阈值1024, 每个chunk文档数最大个数128个。若达到了, 调用writeBlock()将chunk的索引结构写入fdx中, 我们在第三节会详细介绍该函数。</li>
 <li>记录该chunk的文档数、该chunk在fdt中的起始位置。</li>
@@ -446,21 +446,22 @@
   
 
   
-  <div id="gitment-ctn"></div> 
+  <div id="gitment-ctn"></div>
 <link rel="stylesheet" href="//imsun.github.io/gitment/style/default.css">
-<script src="//imsun.github.io/gitment/dist/gitment.browser.js"></script>
+<script src="//www.wenjunjiang.win/js/gitment.js "></script>
 <script>
 var gitment = new Gitment({
-  id: "<%=url%>",
-  owner: '<%=theme.gitment_owner%>',
-  repo: '<%=theme.gitment_repo%>',
+  id: "Lucenec底层架构-fdt/fdx构建过程",
+  owner: 'kkewwei',
+  repo: 'comments',
   oauth: {
-    client_id: '<%=theme.gitment_oauth.client_id%>',
-    client_secret: '<%=theme.gitment_oauth.client_secret%>',
+    client_id: '9391e497d6b288887f33',
+    client_secret: 'db733731bff4ee2811d9530b1ac4cfc6767e8183',
   },
 })
 gitment.render('gitment-ctn')
 </script>
+
   
 
 
@@ -584,11 +585,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
+                <a href="javascript:void(0)" class="js-tag color3">Linux, close</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">Linux, close</a>
+                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -608,11 +609,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">ReentrantLock</a>
+                <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
+                <a href="javascript:void(0)" class="js-tag color4">ReentrantLock</a>
               </li>
              
               <li class="article-tag-list-item">
