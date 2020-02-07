@@ -9,19 +9,19 @@
   <title>Lucenec底层架构-fdt/fdx构建过程 | Hexo</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
   <meta name="google-site-verification" content="sCUXxLczmZVJ1Fkt5jSJGE9xPpdVD25hYciudlUUVNQ" />
-  <meta name="description" content="FieldData文件主要存放文档-&amp;gt;域-&amp;gt;值的关系, 行式存储, 不对字段分词, 便于读取任何字段的value。 本文就以该文件结构的建立-&amp;gt;文件写入磁盘的过程来进行详细介绍, 索引逻辑主要可见CompressingStoredFieldsWriter。 索引结构的建立索引结果建立是指将文档按照规范存储到内存中, 当针对字段如下设置时, 才会建立该文档结构:12FieldTyp">
+  <meta name="description" content="StoredField文件主要存放文档-&amp;gt;域-&amp;gt;value的关系, 行式存储, 不对字段分词, 便于读取任何字段的value。 fdt存放文档的value及一级索引索引, fdx存放二级索引结构。 本文就以这两个文件结构的建立-&amp;gt;文件写入磁盘的过程来进行详细介绍, 代码主要可见CompressingStoredFieldsWriter。 内存索引结构的建立索引结构建立是指将文档按">
 <meta name="keywords" content="Lucene、StoredField">
 <meta property="og:type" content="article">
 <meta property="og:title" content="Lucenec底层架构-fdt&#x2F;fdx构建过程">
 <meta property="og:url" content="https://kkewwei.github.io/elasticsearch_learning/2019/12/22/Lucenec底层架构-fdt-fdx构建过程/index.html">
 <meta property="og:site_name" content="Hexo">
-<meta property="og:description" content="FieldData文件主要存放文档-&amp;gt;域-&amp;gt;值的关系, 行式存储, 不对字段分词, 便于读取任何字段的value。 本文就以该文件结构的建立-&amp;gt;文件写入磁盘的过程来进行详细介绍, 索引逻辑主要可见CompressingStoredFieldsWriter。 索引结构的建立索引结果建立是指将文档按照规范存储到内存中, 当针对字段如下设置时, 才会建立该文档结构:12FieldTyp">
+<meta property="og:description" content="StoredField文件主要存放文档-&amp;gt;域-&amp;gt;value的关系, 行式存储, 不对字段分词, 便于读取任何字段的value。 fdt存放文档的value及一级索引索引, fdx存放二级索引结构。 本文就以这两个文件结构的建立-&amp;gt;文件写入磁盘的过程来进行详细介绍, 代码主要可见CompressingStoredFieldsWriter。 内存索引结构的建立索引结构建立是指将文档按">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/lucene_fdt1.png">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/lucene_fdt.png">
-<meta property="og:updated_time" content="2020-02-07T11:03:51.000Z">
+<meta property="og:updated_time" content="2020-02-07T15:31:04.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Lucenec底层架构-fdt&#x2F;fdx构建过程">
-<meta name="twitter:description" content="FieldData文件主要存放文档-&amp;gt;域-&amp;gt;值的关系, 行式存储, 不对字段分词, 便于读取任何字段的value。 本文就以该文件结构的建立-&amp;gt;文件写入磁盘的过程来进行详细介绍, 索引逻辑主要可见CompressingStoredFieldsWriter。 索引结构的建立索引结果建立是指将文档按照规范存储到内存中, 当针对字段如下设置时, 才会建立该文档结构:12FieldTyp">
+<meta name="twitter:description" content="StoredField文件主要存放文档-&amp;gt;域-&amp;gt;value的关系, 行式存储, 不对字段分词, 便于读取任何字段的value。 fdt存放文档的value及一级索引索引, fdx存放二级索引结构。 本文就以这两个文件结构的建立-&amp;gt;文件写入磁盘的过程来进行详细介绍, 代码主要可见CompressingStoredFieldsWriter。 内存索引结构的建立索引结构建立是指将文档按">
 <meta name="twitter:image" content="https://kkewwei.github.io/elasticsearch_learning/img/lucene_fdt1.png">
   
     <link rel="alternative" href="/atom.xml" title="Hexo" type="application/atom+xml">
@@ -196,7 +196,7 @@
 	    <div id="toc-article" class="toc-article">
 	      <span id="toc-close" class="toc-close" title="隐藏导航" onclick="showBtn();">×</span>
 		      <strong class="toc-title">文章目录</strong>
-        <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#索引结构的建立"><span class="toc-number">1.</span> <span class="toc-text">索引结构的建立</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#flush-产生fdt文件"><span class="toc-number">2.</span> <span class="toc-text">flush()/产生fdt文件</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#刷到fdx文件"><span class="toc-number">3.</span> <span class="toc-text">刷到fdx文件</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#总结"><span class="toc-number">4.</span> <span class="toc-text">总结</span></a></li></ol>
+        <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#内存索引结构的建立"><span class="toc-number">1.</span> <span class="toc-text">内存索引结构的建立</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#flush-产生fdt文件"><span class="toc-number">2.</span> <span class="toc-text">flush()/产生fdt文件</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#刷到fdx文件"><span class="toc-number">3.</span> <span class="toc-text">刷到fdx文件</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#总结"><span class="toc-number">4.</span> <span class="toc-text">总结</span></a></li></ol>
          </div>
    <script type="text/javascript">
 	function showToc(){
@@ -217,26 +217,19 @@
 
     <div class="article-entry" itemprop="articleBody">
       
-        <p>FieldData文件主要存放文档-&gt;域-&gt;值的关系, 行式存储, 不对字段分词, 便于读取任何字段的value。 本文就以该文件结构的建立-&gt;文件写入磁盘的过程来进行详细介绍, 索引逻辑主要可见CompressingStoredFieldsWriter。</p>
-<h1 id="索引结构的建立"><a href="#索引结构的建立" class="headerlink" title="索引结构的建立"></a>索引结构的建立</h1><p>索引结果建立是指将文档按照规范存储到内存中, 当针对字段如下设置时, 才会建立该文档结构:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line">FieldType fieldType = new FieldType();</div><div class="line">fieldType.setStored(true);</div></pre></td></tr></table></figure></p>
-<p>实际是在<code>DefaultIndexingChain.processField</code>里面开始检查是否设置了该字段:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div></pre></td><td class="code"><pre><div class="line">// Add stored fields:</div><div class="line">  if (fieldType.stored()) &#123;</div><div class="line">    if (fp == null) &#123;</div><div class="line">      fp = getOrAddField(fieldName, fieldType, false);</div><div class="line">    &#125;</div><div class="line">    if (fieldType.stored()) &#123;</div><div class="line">      String value = field.stringValue(); // 域的值</div><div class="line">      try &#123;</div><div class="line">        // 面向行的存储，docvalue是面向列的存储, field值存放在CompressingStoredFieldsWriter的bufferedDocs中</div><div class="line">        storedFieldsConsumer.writeField(fp.fieldInfo, field);</div><div class="line">      &#125; catch (Throwable th) &#123;</div><div class="line">      &#125;</div><div class="line">    &#125;</div><div class="line">  &#125;</div></pre></td></tr></table></figure></p>
+        <p>StoredField文件主要存放文档-&gt;域-&gt;value的关系, 行式存储, 不对字段分词, 便于读取任何字段的value。 fdt存放文档的value及一级索引索引, fdx存放二级索引结构。 本文就以这两个文件结构的建立-&gt;文件写入磁盘的过程来进行详细介绍, 代码主要可见CompressingStoredFieldsWriter。</p>
+<h1 id="内存索引结构的建立"><a href="#内存索引结构的建立" class="headerlink" title="内存索引结构的建立"></a>内存索引结构的建立</h1><p>索引结构建立是指将文档按照规范存储到内存中, 当对字段进行如下设置时, 才会建立该索引文档:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line">FieldType fieldType = new FieldType();</div><div class="line">fieldType.setStored(true);</div></pre></td></tr></table></figure></p>
+<p>实际是在<code>DefaultIndexingChain.processField()</code>里面开始检查是否设置了该字段:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div></pre></td><td class="code"><pre><div class="line">// Add stored fields:</div><div class="line">if (fieldType.stored()) &#123;</div><div class="line">  if (fp == null) &#123;</div><div class="line">    fp = getOrAddField(fieldName, fieldType, false);</div><div class="line">  &#125;</div><div class="line">  if (fieldType.stored()) &#123;</div><div class="line">    // 域的值</div><div class="line">    String value = field.stringValue();</div><div class="line">    try &#123;</div><div class="line">      // 面向行的存储，docValue是面向列的存储, field值存放在CompressingStoredFieldsWriter的bufferedDocs中</div><div class="line">      storedFieldsConsumer.writeField(fp.fieldInfo, field);</div><div class="line">    &#125; catch (Throwable th) &#123;</div><div class="line">    &#125;</div><div class="line">  &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
 <p>该函数主要做了两件事:</p>
 <ol>
 <li>检查该域是否已经缓存到了内存中。详情可参考:</li>
-<li>若设置了stored=true, 那么最终进入到进入CompressingStoredFieldsWriter.writeField将该value给缓存起来。<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div></pre></td><td class="code"><pre><div class="line">public void writeField(FieldInfo info, IndexableField field) &#123;</div><div class="line">  ++numStoredFieldsInDoc;</div><div class="line">  int bits = 0;</div><div class="line">  Number number = field.numericValue();</div><div class="line">  if (number != null) &#123;</div><div class="line">    if (number instanceof Byte || number instanceof Short || number instanceof Integer) &#123;</div><div class="line">      bits = NUMERIC_INT;</div><div class="line">    &#125; else if (number instanceof Long) &#123;</div><div class="line">      bits = NUMERIC_LONG;</div><div class="line">    &#125;</div><div class="line">    ......</div><div class="line">    string = null;</div><div class="line">    bytes = null;</div><div class="line">  &#125; else &#123;</div><div class="line">    bytes = field.binaryValue();</div><div class="line">    if (bytes != null) &#123; // 是二进制数的话</div><div class="line">      bits = BYTE_ARR;</div><div class="line">      string = null;</div><div class="line">    &#125; else &#123;</div><div class="line">      bits = STRING; // 是字符串的话</div><div class="line">      string = field.stringValue();</div><div class="line">    &#125;</div><div class="line">  &#125;</div><div class="line">  final long infoAndBits = (((long) info.number) &lt;&lt; TYPE_BITS) | bits; // 低三位代表类型，高5位代表字段编号</div><div class="line">  bufferedDocs.writeVLong(infoAndBits); //写入字段编号，字段类型</div><div class="line">  if (bytes != null) &#123;</div><div class="line">    bufferedDocs.writeVInt(bytes.length);</div><div class="line">    bufferedDocs.writeBytes(bytes.bytes, bytes.offset, bytes.length);</div><div class="line">  &#125; else if (string != null) &#123;</div><div class="line">    bufferedDocs.writeString(string); // 存储字符串真正的值</div><div class="line">  &#125; else &#123;</div><div class="line">    if (number instanceof Byte || number instanceof Short || number instanceof Integer) &#123;</div><div class="line">      bufferedDocs.writeZInt(number.intValue());</div><div class="line">    &#125; else if (number instanceof Long) &#123;</div><div class="line">      writeTLong(bufferedDocs, number.longValue());</div><div class="line">    &#125;</div><div class="line">    ......</div><div class="line">    &#125;</div><div class="line">  &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<li>若设置了stored=true, 那么最终进入到进入CompressingStoredFieldsWriter.writeField, 将字段的value缓存起来。<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div></pre></td><td class="code"><pre><div class="line">public void writeField(FieldInfo info, IndexableField field) &#123;</div><div class="line">  ++numStoredFieldsInDoc;</div><div class="line">  int bits = 0;</div><div class="line">  Number number = field.numericValue();</div><div class="line">  if (number != null) &#123;</div><div class="line">    if (number instanceof Byte || number instanceof Short || number instanceof Integer) &#123;</div><div class="line">      bits = NUMERIC_INT;</div><div class="line">    &#125; else if (number instanceof Long) &#123;</div><div class="line">      bits = NUMERIC_LONG;</div><div class="line">    &#125;</div><div class="line">    ......</div><div class="line">    string = null;</div><div class="line">    bytes = null;</div><div class="line">  &#125; else &#123;</div><div class="line">    bytes = field.binaryValue();</div><div class="line">    // 是二进制数的话</div><div class="line">    if (bytes != null) &#123;</div><div class="line">      bits = BYTE_ARR;</div><div class="line">      string = null;</div><div class="line">    &#125; else &#123;</div><div class="line">      bits = STRING; // 是字符串的话</div><div class="line">      string = field.stringValue();</div><div class="line">    &#125;</div><div class="line">  &#125;</div><div class="line">  // 低三位代表类型，高5位代表字段编号</div><div class="line">  final long infoAndBits = (((long) info.number) &lt;&lt; TYPE_BITS) | bits;</div><div class="line">  //写入字段编号，字段类型</div><div class="line">  bufferedDocs.writeVLong(infoAndBits);</div><div class="line">  if (bytes != null) &#123;</div><div class="line">    bufferedDocs.writeVInt(bytes.length);</div><div class="line">    bufferedDocs.writeBytes(bytes.bytes, bytes.offset, bytes.length);</div><div class="line">  &#125; else if (string != null) &#123;</div><div class="line">    bufferedDocs.writeString(string);</div><div class="line">  &#125; else &#123;</div><div class="line">    if (number instanceof Byte || number instanceof Short || number instanceof Integer) &#123;</div><div class="line">      bufferedDocs.writeZInt(number.intValue());</div><div class="line">    &#125; else if (number instanceof Long) &#123;</div><div class="line">      writeTLong(bufferedDocs, number.longValue());</div><div class="line">    &#125;</div><div class="line">    ......</div><div class="line">    &#125;</div><div class="line">  &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
 </li>
 </ol>
-<p>该函数主要做了如下两件事情:</p>
-<ol>
-<li>读取字段value, 判断字段类型。字段value类型分为以下五种:<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div></pre></td><td class="code"><pre><div class="line">static final int         STRING = 0x00;</div><div class="line">static final int       BYTE_ARR = 0x01;</div><div class="line">static final int    NUMERIC_INT = 0x02;</div><div class="line">static final int  NUMERIC_FLOAT = 0x03;</div><div class="line">static final int   NUMERIC_LONG = 0x04;</div><div class="line">static final int NUMERIC_DOUBLE = 0x05;</div></pre></td></tr></table></figure>
-</li>
-</ol>
-<p>使用3bit即可表示。</p>
-<ol>
-<li>向内存对象bufferedDocs存储value值, bufferedDocs使用<code>byte[] bytes</code>存储数据, 存储起来的结构如下所示:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/lucene_fdt1.png" height="180" width="850"><br>有2点需要明确下:</li>
-</ol>
+<p>该函数主要做了如下两件事情:<br>1.读取字段value, 判断字段类型。字段value类型分为以下五种:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div></pre></td><td class="code"><pre><div class="line">static final int         STRING = 0x00;</div><div class="line">static final int       BYTE_ARR = 0x01;</div><div class="line">static final int    NUMERIC_INT = 0x02;</div><div class="line">static final int  NUMERIC_FLOAT = 0x03;</div><div class="line">static final int   NUMERIC_LONG = 0x04;</div><div class="line">static final int NUMERIC_DOUBLE = 0x05;</div></pre></td></tr></table></figure></p>
+<p>使用3bit即可表示。<br>2.向内存对象bufferedDocs存储value值, bufferedDocs使用<code>byte[] bytes</code>存储数据, 内存中的结构如下所示:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/lucene_fdt1.png" height="180" width="850"><br>有2点需要明确下:</p>
 <ul>
-<li>所有字段中相同字段名称的fieldNuber是一样的。</li>
+<li>所有文档相同字段名称的fieldNuber是一样的。</li>
 <li>所有doc所有域依次按先后顺序存储起来, stored=true可以看出是按行存储的, 属于正排索引, 通过该索引结构很方便读取每个文档每个字段的值。只要不将数据刷到</li>
 </ul>
 <h1 id="flush-产生fdt文件"><a href="#flush-产生fdt文件" class="headerlink" title="flush()/产生fdt文件"></a>flush()/产生fdt文件</h1><p>这里flush的主要作用是将缓存在内存中的所有文档生成一个chunk, 并且构建fdt文件结构。每当完成对一个文档建立了索引后, 便会检查缓存在内存中的文档数/bufferedDocs树是否超过阈值,超过了则会触发flush。一个chunk最大占用内存16KB, 128个文档, 参数在构建CompressingStoredFieldsFormat时给写死了, 详细代码可参考:DefaultIndexingChain.finishStoredFields(), 本节从CompressingStoredFieldsWriter.finishDocument开始介绍。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div></pre></td><td class="code"><pre><div class="line">public void finishDocument() throws IOException &#123;</div><div class="line">   // this.numStoredFields存放的当前缓存的每个文档中设置了stred=true的域个数</div><div class="line">  if (numBufferedDocs == this.numStoredFields.length) &#123;</div><div class="line">    final int newLength = ArrayUtil.oversize(numBufferedDocs + 1, 4);</div><div class="line">    this.numStoredFields = ArrayUtil.growExact(this.numStoredFields, newLength);</div><div class="line">    endOffsets = ArrayUtil.growExact(endOffsets, newLength);</div><div class="line">  &#125;</div><div class="line">  // 该doc有几个域需要存储</div><div class="line">  this.numStoredFields[numBufferedDocs] = numStoredFieldsInDoc;</div><div class="line">  numStoredFieldsInDoc = 0;</div><div class="line">  // endOffsets存储的是该文档的内容在bufferedDocs中的位置, 便于查找每个文档所有域内容</div><div class="line">  endOffsets[numBufferedDocs] = bufferedDocs.getPosition();</div><div class="line">  // 缓存文档数+1</div><div class="line">  ++numBufferedDocs;</div><div class="line">  // 该bufferedDocs使用大小超过chunk限制16k了，或者该bufferedDocs存储文档书超过chunk限制128了。那么就该创建一个chunk</div><div class="line">  if (triggerFlush()) &#123;</div><div class="line">    // 将缓存中的文档创建一个chunk, 建立一级索引</div><div class="line">    flush();</div><div class="line">  &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
@@ -430,7 +423,7 @@
                 </span>
                 <span class="tooltip-content">
                     <div class="toc-article">
-                    <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#索引结构的建立"><span class="toc-number">1.</span> <span class="toc-text">索引结构的建立</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#flush-产生fdt文件"><span class="toc-number">2.</span> <span class="toc-text">flush()/产生fdt文件</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#刷到fdx文件"><span class="toc-number">3.</span> <span class="toc-text">刷到fdx文件</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#总结"><span class="toc-number">4.</span> <span class="toc-text">总结</span></a></li></ol>
+                    <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#内存索引结构的建立"><span class="toc-number">1.</span> <span class="toc-text">内存索引结构的建立</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#flush-产生fdt文件"><span class="toc-number">2.</span> <span class="toc-text">flush()/产生fdt文件</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#刷到fdx文件"><span class="toc-number">3.</span> <span class="toc-text">刷到fdx文件</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#总结"><span class="toc-number">4.</span> <span class="toc-text">总结</span></a></li></ol>
                     </div>
                 </span>
             </div>
@@ -585,6 +578,10 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">NIO, write, read</a>
               </li>
              
@@ -593,15 +590,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">Lucene、StoredField</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">LockSupport</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">Lucene、StoredField</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -621,6 +614,10 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">netty4, ServerBootstrap, Initiale</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">随笔</a>
               </li>
              
@@ -629,11 +626,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">netty4, ServerBootstrap, Initiale</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">maven, 插件, 打包</a>
+                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -641,7 +634,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
+                <a href="javascript:void(0)" class="js-tag color4">maven, 插件, 打包</a>
               </li>
             
             <div class="clearfix"></div>
