@@ -192,7 +192,7 @@
       
         <p>StoredField文件主要存放文档-&gt;域-&gt;value的关系, 行式存储, 不对字段分词, 便于读取任何字段的value。 fdt存放文档的value及一级索引索引, fdx存放二级索引结构。 本文就以这两个文件结构的建立-&gt;文件写入磁盘的过程来进行详细介绍, 代码主要可见CompressingStoredFieldsWriter。</p>
 <h1 id="内存索引结构的建立"><a href="#内存索引结构的建立" class="headerlink" title="内存索引结构的建立"></a>内存索引结构的建立</h1><p>索引结构建立是指将文档按照规范存储到内存中, 当对字段进行如下设置时, 才会建立该索引文档:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line">FieldType fieldType = new FieldType();</div><div class="line">fieldType.setStored(true);</div></pre></td></tr></table></figure></p>
-<p>实际是在<code>DefaultIndexingChain.processField()</code>里面开始检查是否设置了该字段:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div></pre></td><td class="code"><pre><div class="line">// Add stored fields:</div><div class="line">if (fieldType.stored()) &#123;</div><div class="line">  if (fp == null) &#123;</div><div class="line">    fp = getOrAddField(fieldName, fieldType, false);</div><div class="line">  &#125;</div><div class="line">  if (fieldType.stored()) &#123;</div><div class="line">    // 域的值</div><div class="line">    String value = field.stringValue();</div><div class="line">    try &#123;</div><div class="line">      // 面向行的存储，docValue是面向列的存储, field值存放在CompressingStoredFieldsWriter的bufferedDocs中</div><div class="line">      storedFieldsConsumer.writeField(fp.fieldInfo, field);</div><div class="line">    &#125; catch (Throwable th) &#123;</div><div class="line">    &#125;</div><div class="line">  &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>实际是在<code>DefaultIndexingChain.processField()</code>里面开始检查是否设置了该字段:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div></pre></td><td class="code"><pre><div class="line">// Add stored fields:</div><div class="line">if (fieldType.stored()) &#123;</div><div class="line">  if (fp == null) &#123;</div><div class="line">    fp = getOrAddField(fieldName, fieldType, false);</div><div class="line">  &#125;</div><div class="line">  if (fieldType.stored()) &#123;</div><div class="line">    // 域的值</div><div class="line">    String value = field.stringValue();</div><div class="line">    try &#123;</div><div class="line">      // 面向行的存储，docValue是面向列的存储, field值存放在CompressingStoredFieldsWriter的bufferedDocs中</div><div class="line">      storedFieldsConsumer.writeField(fp.fieldInfo, field);</div><div class="line">    &#125;</div><div class="line">  &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
 <p>该函数主要做了两件事:</p>
 <ol>
 <li>检查该域是否已经缓存到了内存中。详情可参考:</li>
@@ -1560,11 +1560,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">ReentrantLock</a>
+                <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
+                <a href="javascript:void(0)" class="js-tag color4">ReentrantLock</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1584,11 +1584,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">maven, 插件, 打包</a>
+                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
+                <a href="javascript:void(0)" class="js-tag color4">maven, 插件, 打包</a>
               </li>
             
             <div class="clearfix"></div>
