@@ -18,7 +18,7 @@
 <meta property="og:description" content="DocValue主要作用是聚合, 不对字段分词, 属于正排索引结构, 面向列式存储。   分为两部分: DocValueData(dvd)、DocValueMeta(dvm)、 内存索引结构的建立DocValue不对域的value分词, 而termVector会对域进行分词, 也就是说, 若设置了docValue, 那么再设置termVector将抛异常。对于每次刷新到文档dvd/dvm之前的不同">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/lucene_docvalue1.png">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/lucene_docvalue2.png">
-<meta property="og:updated_time" content="2020-02-12T15:45:53.000Z">
+<meta property="og:updated_time" content="2020-02-14T02:02:51.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Lucene8.2.0底层架构-dvm&#x2F;dvm构建过程">
 <meta name="twitter:description" content="DocValue主要作用是聚合, 不对字段分词, 属于正排索引结构, 面向列式存储。   分为两部分: DocValueData(dvd)、DocValueMeta(dvm)、 内存索引结构的建立DocValue不对域的value分词, 而termVector会对域进行分词, 也就是说, 若设置了docValue, 那么再设置termVector将抛异常。对于每次刷新到文档dvd/dvm之前的不同">
@@ -46,57 +46,39 @@
   <div id="container" q-class="show:isCtnShow">
     <canvas id="anm-canvas" class="anm-canvas"></canvas>
     <div class="left-col" q-class="show:isShow">
-      
-<div class="overlay" style="background: #4d4d4d"></div>
+      <% var defaultBg = '#4d4d4d'; %>
+<div class="overlay" style="background: <%= theme.style && theme.style.header ? theme.style.header : defaultBg %>"></div>
 <div class="intrude-less">
 	<header id="header" class="inner">
-		<a href="/" class="profilepic">
-      <img src="https://kkewwei.github.io/elasticsearch_learning/img/myself.png" class="js-avatar">
+		<a href="<%=theme.root%>" class="profilepic">
+			<img src="<%=theme.avatar%>" class="js-avatar">
 		</a>
 		<hgroup>
-		  <h1 class="header-author"><a href="/">jianguo</a></h1>
+		  <h1 class="header-author"><a href="<%=theme.root%>"><%=theme.author%></a></h1>
 		</hgroup>
-		
-		<p class="header-subtitle">往事随风</p>
-		
+		<% if (theme.subtitle){ %>
+		<p class="header-subtitle"><%=theme.subtitle%></p>
+		<%}%>
 
 		<nav class="header-menu">
 			<ul>
-			
-				<li><a href="/elasticsearch_learning/">主页</a></li>
-	        
-				<li><a href="/elasticsearch_learning/tags/随笔/">随笔</a></li>
-	        
-				<li><a href="/elasticsearch_learning/categories">分类</a></li>
-	        
+			<% for (var i in theme.menu){ %>
+				<li><a href="<%- url_for(theme.menu[i]) %>"><%= i %></a></li>
+	        <%}%>
 			</ul>
 		</nav>
 		<nav class="header-smart-menu">
-    		
-    			
-    			<a q-on="click: openSlider(e, 'innerArchive')" href="javascript:void(0)">所有文章</a>
-    			
-            
-    			
-    			<a q-on="click: openSlider(e, 'friends')" href="javascript:void(0)">友链</a>
-    			
-            
-    			
-    			<a q-on="click: openSlider(e, 'aboutme')" href="javascript:void(0)">关于我</a>
-    			
-            
+    		<% for (var i in theme.smart_menu){ %>
+    			<% if(theme.smart_menu[i]){ %>
+    			<a q-on="click: openSlider(e, '<%-i%>')" href="javascript:void(0)"><%= theme.smart_menu[i] %></a>
+    			<% } %>
+            <%}%>
 		</nav>
 		<nav class="header-nav">
 			<div class="social">
-				
-					<a class="github" target="_blank" href="#" title="github"><i class="icon-github"></i></a>
-		        
-					<a class="weibo" target="_blank" href="#" title="weibo"><i class="icon-weibo"></i></a>
-		        
-					<a class="rss" target="_blank" href="#" title="rss"><i class="icon-rss"></i></a>
-		        
-					<a class="zhihu" target="_blank" href="#" title="zhihu"><i class="icon-zhihu"></i></a>
-		        
+				<% for (var i in theme.subnav){ %>
+					<a class="<%= i %>" target="_blank" href="<%- url_for(theme.subnav[i]) %>" title="<%= i %>"><i class="icon-<%= i %>"></i></a>
+		        <%}%>
 			</div>
 		</nav>
 	</header>
@@ -233,7 +215,18 @@
 <p>1.首先对currentValues按照字符大小进行排序(默认一个文档一个域只有一个value, 极少数一个域多个value)<br>2.轮训将该域每个value的termId放入pending中, 并将域的value个数放入pendingCounts。<br>3.将该文档ID放入docsWithField中。<br>存储结构如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/lucene_docvalue1.png" height="250" width="850"><br>其中docsWithField采取压缩方式存储所有的文档Id, 若所有文档都是连续的, 则cost=lastCost, 此时不占用任何内存。<br>若pending、pendingCounts中存放的termId个数超过1024个, 将按照bit位数进行压缩存储, 每次压缩就是values中的一个元素:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/lucene_docvalue2.png" height="250" width="850"></p>
 <h1 id="刷新到文件"><a href="#刷新到文件" class="headerlink" title="刷新到文件"></a>刷新到文件</h1><p>DocValue刷新到文件的情况与fdt/fdx(详情参考<a href="https://kkewwei.github.io/elasticsearch_learning/2019/12/22/Lucenec%E5%BA%95%E5%B1%82%E6%9E%B6%E6%9E%84-fdt-fdx%E6%9E%84%E5%BB%BA%E8%BF%87%E7%A8%8B/">Lucene底层架构-fdt/fdx构建过程</a>)一样:<br>1.lucene建立的索引结构占用内存超过阈值, 会在每次索引一个文档的时候检查。<br>2.用户主动通过indexWriter.flush()触发。<br>本文就从DefaultIndexingChain.writeDocValues()开始讲解:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div></pre></td><td class="code"><pre><div class="line">private void writeDocValues(SegmentWriteState state, Sorter.DocMap sortMap) throws IOException &#123;</div><div class="line">  DocValuesConsumer dvConsumer = null;</div><div class="line">  try &#123;</div><div class="line">    // 是个hash链表结构, segment内唯一的域</div><div class="line">    for (int i=0;i&lt;fieldHash.length;i++) &#123;</div><div class="line">      PerField perField = fieldHash[i];</div><div class="line">      while (perField != null) &#123;</div><div class="line">        if (perField.docValuesWriter != null) &#123;</div><div class="line">          if (dvConsumer == null) &#123;</div><div class="line">            // lazy init</div><div class="line">            DocValuesFormat fmt = state.segmentInfo.getCodec().docValuesFormat();</div><div class="line">            dvConsumer = fmt.fieldsConsumer(state); // PerFieldDocValuesFormat$FieldsWriter</div><div class="line">          &#125;</div><div class="line">          // 把内存缓存的数据给刷到pending中</div><div class="line">          if (finishedDocValues.contains(perField.fieldInfo.name) == false) &#123;</div><div class="line">            perField.docValuesWriter.finish(maxDoc); // 进来SortedSetDocValuesWriter.finish()</div><div class="line">          &#125;</div><div class="line">          perField.docValuesWriter.flush(state, sortMap, dvConsumer); // 要进来看下，docvalue真正向磁盘写入</div><div class="line">          perField.docValuesWriter = null; // 置空了</div><div class="line">        &#125;</div><div class="line">        perField = perField.next;</div><div class="line">      &#125;</div><div class="line">    &#125;</div><div class="line">    success = true;</div><div class="line">  &#125; finally &#123;</div><div class="line">    if (success) &#123;</div><div class="line">      // 向dvd/dvm写入footer并关闭文档</div><div class="line">      IOUtils.close(dvConsumer);</div><div class="line">    &#125;</div><div class="line">  &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
 <p>该函数将循环每个域,针对每个域分别处理:<br>1.调用docValuesWriter.finish()将该域内存中的数据刷新到pending中。<br>2.调用docValuesWriter.flush()将该域中的值刷新到dvd/dvm中。<br>3.将docValuesWriter清空, 下次将在该域的写入时重新创建该对象(在内存中创建索引结构的时候:<code>DefaultIndexingChain.processField()</code>)<br>4.调用IOUtils.close(dvConsumer)向文档dvd/dvm写入footer并关闭文档。</p>
-<p>我们看下docValuesWriter.flush()做了哪些事情:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div></pre></td><td class="code"><pre><div class="line">@Override</div><div class="line"> public void flush(SegmentWriteState state, Sorter.DocMap sortMap, DocValuesConsumer dvConsumer) throws IOException &#123;</div><div class="line">   final int valueCount = hash.size();</div><div class="line">   final PackedLongValues ords;</div><div class="line">   final PackedLongValues ordCounts;</div><div class="line">   final int[] sortedValues;</div><div class="line">   final int[] ordMap;</div><div class="line"></div><div class="line">   if (finalOrdCounts == null) &#123; // 进来</div><div class="line">     ords = pending.build(); // PackedLongValues，全部压缩到ords中了，  存放的是这个域所有的termId, 依次存放，相同算两个，每个文档每个域只有一个termid</div><div class="line">     ordCounts = pendingCounts.build(); // 全部压缩存储到了ordCounts中    存放的是这个域在这个文档有几个同名的域，都是1</div><div class="line">     sortedValues = hash.sort(); // 所有文档这个域的distinct(termId)的排序</div><div class="line">     ordMap = new int[valueCount]; // 每个termId-&gt;编号</div><div class="line">     for(int ord=0;ord&lt;valueCount;ord++) &#123; //</div><div class="line">       ordMap[sortedValues[ord]] = ord;</div><div class="line">     &#125;</div><div class="line">   &#125; else &#123;</div><div class="line">     ords = finalOrds;</div><div class="line">     ordCounts = finalOrdCounts;</div><div class="line">     sortedValues = finalSortedValues;</div><div class="line">     ordMap = finalOrdMap;</div><div class="line">   &#125;</div><div class="line"></div><div class="line">   final long[][] sorted;</div><div class="line">   if (sortMap != null) &#123;</div><div class="line">     sorted = sortDocValues(state.segmentInfo.maxDoc(), sortMap,</div><div class="line">         new BufferedSortedSetDocValues(sortedValues, ordMap, hash, ords, ordCounts, maxCount, docsWithField.iterator()));</div><div class="line">   &#125; else &#123; // 进来</div><div class="line">     sorted = null;</div><div class="line">   &#125;</div><div class="line">   dvConsumer.addSortedSetField(fieldInfo, //真正写入docValue相关信息</div><div class="line">                                new EmptyDocValuesProducer() &#123;</div><div class="line">                                  @Override</div><div class="line">                                  public SortedSetDocValues getSortedSet(FieldInfo fieldInfoIn) &#123;</div><div class="line">                                    if (fieldInfoIn != fieldInfo) &#123;</div><div class="line">                                      throw new IllegalArgumentException(&quot;wrong fieldInfo&quot;);</div><div class="line">                                    &#125;</div><div class="line">                                    final SortedSetDocValues buf =  // distinct(doc词)的个数,</div><div class="line">                                        new BufferedSortedSetDocValues(sortedValues, ordMap, hash, ords, ordCounts, maxCount, docsWithField.iterator());</div><div class="line">                                    if (sorted == null) &#123;</div><div class="line">                                      return buf;</div><div class="line">                                    &#125; else &#123;</div><div class="line">                                      return new SortingLeafReader.SortingSortedSetDocValues(buf, sorted);</div><div class="line">                                    &#125;</div><div class="line">                                  &#125;</div><div class="line">                                &#125;);</div><div class="line"> &#125;</div></pre></td></tr></table></figure></p>
+<p>我们看下docValuesWriter.flush()做了哪些事情:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div></pre></td><td class="code"><pre><div class="line">@Override</div><div class="line"> public void flush(SegmentWriteState state, Sorter.DocMap sortMap, DocValuesConsumer dvConsumer) throws IOException &#123;</div><div class="line">   final int valueCount = hash.size();</div><div class="line">   final PackedLongValues ords;</div><div class="line">   final PackedLongValues ordCounts;</div><div class="line">   final int[] sortedValues;</div><div class="line">   final int[] ordMap;</div><div class="line">   if (finalOrdCounts == null) &#123;</div><div class="line">     // 将pending中的剩余元素也压缩成一个values中的元素, 存放的是所有文档中该域的termdId</div><div class="line">     ords = pending.build();</div><div class="line">     // 存放每个文档该域value的个数, 默认都是1</div><div class="line">     ordCounts = pendingCounts.build();</div><div class="line">     // 按照每个termId对应的value进行排序, 返回的是对应termId数组</div><div class="line">     sortedValues = hash.sort();</div><div class="line">     // ordMap元素的对应的hash中的存储值就是termId的写入顺序, ordMap与sortedValues映射关系正好相反</div><div class="line">     ordMap = new int[valueCount];</div><div class="line">     for(int ord=0;ord&lt;valueCount;ord++) &#123;</div><div class="line">        // // dvd只存放按照字符排序的字符。比如想知道第三个写入的数据是哪个,就需要ordMap和排序好的字符数组结合获取</div><div class="line">       ordMap[sortedValues[ord]] = ord;</div><div class="line">     &#125;</div><div class="line">   &#125;</div><div class="line">   ......</div><div class="line">   dvConsumer.addSortedSetField(fieldInfo,</div><div class="line">        new EmptyDocValuesProducer() &#123;</div><div class="line">           @Override</div><div class="line">           public SortedSetDocValues getSortedSet(FieldInfo fieldInfoIn) &#123;</div><div class="line">                 final SortedSetDocValues buf =  // distinct(doc词)的个数,</div><div class="line">                  new BufferedSortedSetDocValues(sortedValues, ordMap, hash, ords, ordCounts, maxCount, docsWithField.iterator());</div><div class="line">                  if (sorted == null) &#123;</div><div class="line">                      return buf;</div><div class="line">                  &#125; else &#123;</div><div class="line">                      return new SortingLeafReader.SortingSortedSetDocValues(buf, sorted);</div><div class="line">                  &#125;</div><div class="line">            &#125;</div><div class="line">        &#125;);</div><div class="line"> &#125;</div></pre></td></tr></table></figure></p>
+<p>该函数主要是获取如下变量:</p>
+<ul>
+<li>ords: 按写入顺序存放每个文档的该域对应的termIds, 不过termIds已经被压缩了。</li>
+<li>ordCounts: 按写入顺序存放每个文档该域对应的值个数, 默认都是1。</li>
+<li>sortedValues: 按照每个termId对应的value进行排序, 存放对应termId顺序</li>
+<li>ordMap: 存放的是文档每个域的写入顺序, ordMap与sortedValues映射关系正好相反, 主要是为了获取term的写入顺序。<br>描述比较抽象, 我们举例说明:<br>写入顺序:        b   d    c    a<br>order:          0   1    2    3<br>sortedValues:   3   0    2    1<br>ordMap:         1   3    2    0<br>currentDoc:     1   3    2    0<br>实际存储的是排序好的数组:[a,b,c,d]。此时我们想知道第三个写入的term是哪个? ordMap[3]=0, 结合[a,b,c,d]可知, 第三个写入的是a。</li>
+</ul>
+<p>接着调用PerFieldDocValuesFormat$FieldsWriter.addSortedSetField()继续刷新:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line"> public void addSortedSetField(FieldInfo field, DocValuesProducer valuesProducer) throws IOException &#123;</div><div class="line">  getInstance(field).addSortedSetField(field, valuesProducer);</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>该函数做了两件事情:<br>1.调用getInstance(field), 对本次刷新创建_n_Lucene80_0.dvm、_n_Lucene80_0.dvd文件。其中n代表segment编号, 0代表不知Lucene80格式一种。这两个索引文件对该segment所有域共享的, 当写完第一个域索引结构, 会append第二个域的索引结构。<br>2.调用Lucene80DocValuesConsumer.addSortedSetField()把当前域dvd、dvm索引结构落盘。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div></pre></td><td class="code"><pre><div class="line">public void addSortedSetField(FieldInfo field, DocValuesProducer valuesProducer) throws IOException &#123;</div><div class="line">    // 域number</div><div class="line">    meta.writeInt(field.number);</div><div class="line">    // 该域docValue类型</div><div class="line">    meta.writeByte(Lucene80DocValuesFormat.SORTED_SET);</div><div class="line">    SortedSetDocValues values = valuesProducer.getSortedSet(field); // BufferedSortedSetDocValues</div><div class="line">    int numDocsWithField = 0;</div><div class="line">    long numOrds = 0;</div><div class="line">    for (int doc = values.nextDoc(); doc != DocIdSetIterator.NO_MORE_DOCS; doc = values.nextDoc()) &#123;</div><div class="line">      numDocsWithField++;  // 可能存在一个文档域名相同的域存在俩个</div><div class="line">      for (long ord = values.nextOrd(); ord != SortedSetDocValues.NO_MORE_ORDS; ord = values.nextOrd()) &#123;</div><div class="line">        numOrds++; // 该域有几个termId</div><div class="line">      &#125;</div><div class="line">    &#125;</div><div class="line">    // 每个文档域名相同的域只有一个</div><div class="line">    if (numDocsWithField == numOrds) &#123; //</div><div class="line">      meta.writeByte((byte) 0); // multiValued (0 = singleValued)</div><div class="line">      doAddSortedField(field, new EmptyDocValuesProducer() &#123; //单值类型</div><div class="line">        @Override</div><div class="line">        public SortedDocValues getSorted(FieldInfo field) throws IOException &#123;</div><div class="line">          // 返回MaxValue</div><div class="line">          return SortedSetSelector.wrap(valuesProducer.getSortedSet(field), SortedSetSelector.Type.MIN);</div><div class="line">        &#125;</div><div class="line">      &#125;);</div><div class="line">      return;</div><div class="line">    &#125;</div><div class="line">    // 此时是多值类型的</div><div class="line">    ......</div><div class="line">  &#125;</div></pre></td></tr></table></figure></p>
+<p>本函数主要是向dvm存储部分字段:<br>1.fieldNum: 字段名称<br>2.该字段的docValueTyoe<br>3.检查该域所有文档中相同域名的域有几个, 我们仅考虑最常见的情况: 每个文档相同域名的域只有一个。在进入Lucene80DocValuesConsumer.doAddSortedField做了哪些事情:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div></pre></td><td class="code"><pre><div class="line">private void doAddSortedField(FieldInfo field, DocValuesProducer valuesProducer) throws IOException &#123;</div><div class="line">   //SortedSetSelector$MinValue 域中多个value, 排序后只取最小的那个。</div><div class="line">  SortedDocValues values = valuesProducer.getSorted(field);</div><div class="line">  int numDocsWithField = 0;</div><div class="line">  for (int doc = values.nextDoc(); doc != DocIdSetIterator.NO_MORE_DOCS; doc = values.nextDoc()) &#123;</div><div class="line">    // 同一个文档相同域名的域可能有两个, 这里统计该域所有域的个数</div><div class="line">    numDocsWithField++;</div><div class="line">  &#125;</div><div class="line">  ......</div><div class="line">  meta.writeInt(numDocsWithField); // 文档个数</div><div class="line">  if (values.getValueCount() &lt;= 1) &#123;</div><div class="line">    ......</div><div class="line">  &#125; else &#123;</div><div class="line">    int numberOfBitsPerOrd = DirectWriter.unsignedBitsRequired(values.getValueCount() - 1); // 获取的是segment内唯一的域个数</div><div class="line">    meta.writeByte((byte) numberOfBitsPerOrd); // bitsPerValue</div><div class="line">    // 获取data文档目前写入的位置</div><div class="line">    long start = data.getFilePointer();</div><div class="line">    // ordsOffset   开始从文档这里写入</div><div class="line">    meta.writeLong(start);</div><div class="line">    DirectWriter writer = DirectWriter.getInstance(data, numDocsWithField, numberOfBitsPerOrd); // DirectWriter，就是简单地长度压缩</div><div class="line">     //SortedSetSelector$MinValue</div><div class="line">    values = valuesProducer.getSorted(field);</div><div class="line">    for (int doc = values.nextDoc(); doc != DocIdSetIterator.NO_MORE_DOCS; doc = values.nextDoc()) &#123; // 遍历这numDocsWithField</div><div class="line">       // dvd中存储经过排序后的每个termId, 仅仅存入缓存</div><div class="line">      writer.add(values.ordValue());</div><div class="line">    &#125;</div><div class="line">     // 将termId编码写入dvd中</div><div class="line">    writer.finish();</div><div class="line">    meta.writeLong(data.getFilePointer() - start); // ordsLength</div><div class="line">  &#125;</div><div class="line">  addTermsDict(DocValues.singleton(valuesProducer.getSorted(field)));</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>该函数主要是向dvd中按照写入顺序写入所有的termId, 并在dvm中建立对应的索引结构, 然后调用Lucene80DocValuesConsumer.addTermsDict针对这些termId建立二级索引结构:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div></pre></td><td class="code"><pre><div class="line">private void addTermsDict(SortedSetDocValues values) throws IOException &#123;</div><div class="line">  final long size = values.getValueCount(); // 词的个数</div><div class="line">  meta.writeVLong(size);</div><div class="line">  meta.writeInt(Lucene80DocValuesFormat.TERMS_DICT_BLOCK_SHIFT);</div><div class="line">  ByteBuffersDataOutput addressBuffer = new ByteBuffersDataOutput();</div><div class="line">  ByteBuffersIndexOutput addressOutput = new ByteBuffersIndexOutput(addressBuffer, &quot;temp&quot;, &quot;temp&quot;);</div><div class="line">  meta.writeInt(DIRECT_MONOTONIC_BLOCK_SHIFT);</div><div class="line">  long numBlocks = (size + Lucene80DocValuesFormat.TERMS_DICT_BLOCK_MASK) &gt;&gt;&gt; Lucene80DocValuesFormat.TERMS_DICT_BLOCK_SHIFT; // 一个block为16</div><div class="line">  DirectMonotonicWriter writer = DirectMonotonicWriter.getInstance(meta, addressOutput, numBlocks, DIRECT_MONOTONIC_BLOCK_SHIFT);</div><div class="line"></div><div class="line">  BytesRefBuilder previous = new BytesRefBuilder();</div><div class="line">  long ord = 0;</div><div class="line">  long start = data.getFilePointer();</div><div class="line">  int maxLength = 0;</div><div class="line">  TermsEnum iterator = values.termsEnum(); // SortedDocValuesTermsEnum</div><div class="line">  for (BytesRef term = iterator.next(); term != null; term = iterator.next()) &#123; // 就segment内唯一某个域的distinct(词)的存储，依次遍历</div><div class="line">    if ((ord &amp; Lucene80DocValuesFormat.TERMS_DICT_BLOCK_MASK) == 0) &#123; // 每15个词使用相同的前缀</div><div class="line">      writer.add(data.getFilePointer() - start); // 向writer中写入一次data使用位置</div><div class="line">      data.writeVInt(term.length); // 写入真实的term长度</div><div class="line">      data.writeBytes(term.bytes, term.offset, term.length);//写入真实的term的二进制数据，压缩从头开始</div><div class="line">    &#125; else &#123;</div><div class="line">      final int prefixLength = StringHelper.bytesDifference(previous.get(), term);</div><div class="line">      final int suffixLength = term.length - prefixLength;</div><div class="line">      assert suffixLength &gt; 0; // terms are unique</div><div class="line">      // 相同前缀用低4位，不同的后缀用高4位</div><div class="line">      data.writeByte((byte) (Math.min(prefixLength, 15) | (Math.min(15, suffixLength - 1) &lt;&lt; 4))); // 高4位和低4位</div><div class="line">      if (prefixLength &gt;= 15) &#123; // 若前缀大于15，再接着另存</div><div class="line">        data.writeVInt(prefixLength - 15);</div><div class="line">      &#125;</div><div class="line">      if (suffixLength &gt;= 16) &#123; // 后缀大于16，再接着另存</div><div class="line">        data.writeVInt(suffixLength - 16);</div><div class="line">      &#125; // dvd保存term内容，存储的是不同后缀的长度</div><div class="line">      data.writeBytes(term.bytes, term.offset + prefixLength, term.length - prefixLength);</div><div class="line">    &#125;</div><div class="line">    maxLength = Math.max(maxLength, term.length);</div><div class="line">    previous.copyBytes(term);</div><div class="line">    ++ord;</div><div class="line">  &#125;</div><div class="line">  writer.finish(); // 将每隔15个词在dvm中的位置给记录下来</div><div class="line">  meta.writeInt(maxLength);</div><div class="line">  meta.writeLong(start);</div><div class="line">  meta.writeLong(data.getFilePointer() - start);</div><div class="line">  start = data.getFilePointer();</div><div class="line">  addressBuffer.copyTo(data); // 将每隔15个词在dvm中的位置给记录下来给存储到dvd中</div><div class="line">  meta.writeLong(start); // dvm中起始位置</div><div class="line">  meta.writeLong(data.getFilePointer() - start);</div><div class="line">  // 第三层，记录 term 字典的索引，values 是按照值 hash 排过序的，这里每 1024 条抽取一个作为索引，加速查询</div><div class="line">  // Now write the reverse terms index</div><div class="line">  writeTermsIndex(values);</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
 
       
 
@@ -537,10 +530,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">Linux, close</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">NIO, write, read</a>
               </li>
              
@@ -549,15 +538,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">Lucene、StoredField</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">LockSupport</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">Cycler</a>
+                <a href="javascript:void(0)" class="js-tag color4">Lucene、StoredField</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">Linux, close</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -565,7 +554,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">ReentrantLock</a>
+                <a href="javascript:void(0)" class="js-tag color2">Cycler</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -573,11 +562,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">netty4, ServerBootstrap, Initiale</a>
+                <a href="javascript:void(0)" class="js-tag color4">ReentrantLock</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
+                <a href="javascript:void(0)" class="js-tag color4">netty4, ServerBootstrap, Initiale</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -586,6 +575,10 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">gdb</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
               </li>
              
               <li class="article-tag-list-item">
