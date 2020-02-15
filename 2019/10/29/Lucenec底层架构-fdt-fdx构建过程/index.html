@@ -19,7 +19,7 @@
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/lucene_fdt1.png">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/lucene_fdt2.png">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/lucene_fdt.png">
-<meta property="og:updated_time" content="2020-02-11T05:52:35.000Z">
+<meta property="og:updated_time" content="2020-02-15T17:09:35.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Lucene8.2.0底层架构-fdt&#x2F;fdx构建过程">
 <meta name="twitter:description" content="StoredField文件主要存放文档-&amp;gt;域-&amp;gt;value的关系, 行式存储, 正排索引结果, 不对字段分词, 便于读取任何字段的value。 fdt存放文档的value及一级索引索引, fdx存放二级索引结构。 本文就以这两个文件结构的建立-&amp;gt;文件写入磁盘的过程来进行详细介绍, 代码主要可见CompressingStoredFieldsWriter。 内存索引结构的建立索引结构">
@@ -228,7 +228,7 @@
 </li>
 </ol>
 <p>该函数主要做了如下两件事情:<br>1.读取字段value, 判断字段类型。字段value类型分为以下五种:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div></pre></td><td class="code"><pre><div class="line">static final int         STRING = 0x00;</div><div class="line">static final int       BYTE_ARR = 0x01;</div><div class="line">static final int    NUMERIC_INT = 0x02;</div><div class="line">static final int  NUMERIC_FLOAT = 0x03;</div><div class="line">static final int   NUMERIC_LONG = 0x04;</div><div class="line">static final int NUMERIC_DOUBLE = 0x05;</div></pre></td></tr></table></figure></p>
-<p>存储时使用3bit表示。<br>2.向内存对象bufferedDocs存储value值, bufferedDocs使用<code>byte[] bytes</code>存储数据, 内存中的建立的索引结构如下所示:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/lucene_fdt1.png" height="180" width="850"><br>需要明确以下两点:</p>
+<p>存储时使用3bit表示。<br>2.向内存对象bufferedDocs存储value值, bufferedDocs使用<code>byte[] bytes</code>存储数据, 内存中的建立的索引结构如下所示:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/lucene_fdt1.png" height="160" width="850"><br>需要明确以下两点:</p>
 <ul>
 <li>所有文档相同字段名称的fieldNuber是一样的。</li>
 <li>所有doc所有域依次按先后顺序存储起来, stored=true构建的存储结构是按行存储的, 属于正排索引, 通过该索引结构很方便读取每个文档每个字段的值。</li>
@@ -564,15 +564,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">NIO, write, read</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">Linux, close</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">NIO, write, read</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -580,11 +576,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">Lucene、DocValue</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">Lucene、StoredField</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">Lucene、DocValue</a>
+                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -620,11 +620,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">maven, 插件, 打包</a>
+                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
+                <a href="javascript:void(0)" class="js-tag color4">maven, 插件, 打包</a>
               </li>
             
             <div class="clearfix"></div>
