@@ -21,7 +21,7 @@
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/lucene_fst2.png">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/lucene_fst3.png">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/lucene_fst4.png">
-<meta property="og:updated_time" content="2020-02-26T16:09:02.000Z">
+<meta property="og:updated_time" content="2020-02-26T16:18:55.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Lucene8.2.0底层架构-词典fst原理解析">
 <meta name="twitter:description" content="lucene中使用fst(Finite State Transducer)来对字典压缩存储、快速查询词典, fst结构紧凑, 在时间复杂度和空间复杂度之间均衡, 和HashMap结构相比, 该结构体共享字符串前缀和后缀以达到精简内存使用, FST逻辑上构成了一个有向无环图, 本文将对fst结构体的构建过程进行分析。 使用示例在输入字符串时词典时, 必须经过排序, 这样产生的fst才最小。12345">
@@ -242,10 +242,10 @@
 <p>可以看下, 针对单个UnCompiledNode进行hash, 取值了如下变量:所有的边lebal, 该节点后续节点的node值、output值、nextFinalOutput值。这里可能会有疑问, 下图的n2节点和n节点, hash值一样, 那么可以确定n2和n节点对应的后缀字符串相同吗?<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/lucene_fst1.png" height="160" width="250"><br>我们先留着这个疑问, 看下CompiledNode.node值是如何计算得到的吧。<br>我们再接着了解<code>fst.addNode</code>是如何返回node的<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div><div class="line">61</div><div class="line">62</div><div class="line">63</div><div class="line">64</div><div class="line">65</div><div class="line">66</div><div class="line">67</div><div class="line">68</div><div class="line">69</div><div class="line">70</div><div class="line">71</div><div class="line">72</div><div class="line">73</div><div class="line">74</div><div class="line">75</div><div class="line">76</div></pre></td><td class="code"><pre><div class="line">long addNode(Builder&lt;T&gt; builder, Builder.UnCompiledNode&lt;T&gt; nodeIn) throws IOException &#123;</div><div class="line">  T NO_OUTPUT = outputs.getNoOutput();</div><div class="line">   // 处理没有Arc的空节点</div><div class="line">  if (nodeIn.numArcs == 0) &#123;</div><div class="line">    if (nodeIn.isFinal) &#123;</div><div class="line">      return FINAL_END_NODE;</div><div class="line">    &#125; else &#123;</div><div class="line">      return NON_FINAL_END_NODE;</div><div class="line">    &#125;</div><div class="line">  &#125;</div><div class="line">  // 记录当前Node的Address</div><div class="line">  final long startAddress = builder.bytes.getPosition();</div><div class="line">  // 判断是否用FIXED_ARRAY方式存Arc的信息</div><div class="line">  final boolean doFixedArray = shouldExpand(builder, nodeIn);</div><div class="line">  if (doFixedArray) &#123; // 此时为false</div><div class="line">    if (builder.reusedBytesPerArc.length &lt; nodeIn.numArcs) &#123;</div><div class="line">      builder.reusedBytesPerArc = new int[ArrayUtil.oversize(nodeIn.numArcs, 1)];</div><div class="line">    &#125;</div><div class="line">  &#125;</div><div class="line">  long lastArcStart = builder.bytes.getPosition();</div><div class="line">  int maxBytesPerArc = 0;</div><div class="line">  // 对该节点直连的下游遍历</div><div class="line">  for(int arcIdx=0; arcIdx &lt; nodeIn.numArcs; arcIdx++) &#123;</div><div class="line">    final Builder.Arc&lt;T&gt; arc = nodeIn.arcs[arcIdx];</div><div class="line">    final Builder.CompiledNode target = (Builder.CompiledNode) arc.target; // 目标节点</div><div class="line">    int flags = 0;</div><div class="line">    ......</div><div class="line">    builder.bytes.writeByte((byte) flags);</div><div class="line">    writeLabel(builder.bytes, arc.label);</div><div class="line">    ......</div><div class="line">     // 若使用相同长度, 那么记录下每条边占用的存储bytes的最大值</div><div class="line">    if (doFixedArray) &#123;</div><div class="line">      builder.reusedBytesPerArc[arcIdx] = (int) (builder.bytes.getPosition() - lastArcStart); // 记录下每个Arc的长度</div><div class="line">      lastArcStart = builder.bytes.getPosition();</div><div class="line">      maxBytesPerArc = Math.max(maxBytesPerArc, builder.reusedBytesPerArc[arcIdx]);// 记录最长的Arc的长度</div><div class="line">    &#125;</div><div class="line">  &#125;</div><div class="line">  // 该节点每条边占用fst存储相同的长度</div><div class="line">  if (doFixedArray) &#123;</div><div class="line">    // header(byte) + numArcs(vint) + numBytes(vint)</div><div class="line">    final int MAX_HEADER_SIZE = 11;</div><div class="line">    assert maxBytesPerArc &gt; 0;</div><div class="line">    int labelRange = nodeIn.arcs[nodeIn.numArcs - 1].label - nodeIn.arcs[0].label + 1;</div><div class="line">    // 直接赋值为false</div><div class="line">    boolean writeDirectly = labelRange &gt; 0 &amp;&amp; labelRange &lt; Builder.DIRECT_ARC_LOAD_FACTOR * nodeIn.numArcs;</div><div class="line">    writeDirectly = false;</div><div class="line">    byte header[] = new byte[MAX_HEADER_SIZE];</div><div class="line">    ByteArrayDataOutput bad = new ByteArrayDataOutput(header);</div><div class="line">    if (writeDirectly) &#123;</div><div class="line">      bad.writeByte(ARCS_AS_ARRAY_WITH_GAPS);</div><div class="line">      bad.writeVInt(labelRange);</div><div class="line">    &#125; else &#123;</div><div class="line">    // 写入标志位，代表ARC是FIXED_ARRAY，就是前面header长度内容</div><div class="line">      bad.writeByte(ARCS_AS_ARRAY_PACKED);</div><div class="line">      bad.writeVInt(nodeIn.numArcs);// 写入Arc的数量</div><div class="line">    &#125;</div><div class="line">    bad.writeVInt(maxBytesPerArc); // 写入最大的那个outtput</div><div class="line">    int headerLen = bad.getPosition();</div><div class="line">    final long fixedArrayStart = startAddress + headerLen;</div><div class="line">    // 默认为false，直接存储到fst中</div><div class="line">    if (writeDirectly) &#123;</div><div class="line">      writeArrayWithGaps(builder, nodeIn, fixedArrayStart, maxBytesPerArc, labelRange);</div><div class="line">    &#125; else &#123;</div><div class="line">      // 每条边按照相同的长度存储到fst</div><div class="line">      writeArrayPacked(builder, nodeIn, fixedArrayStart, maxBytesPerArc);</div><div class="line">    &#125;</div><div class="line">    // now write the header</div><div class="line">    builder.bytes.writeBytes(startAddress, header, 0, headerLen);</div><div class="line">  &#125;</div><div class="line">  当前节点在fst中存储的终点位置</div><div class="line">  final long thisNodeAddress = builder.bytes.getPosition()-1;</div><div class="line">  // 二进制数组值收尾颠倒</div><div class="line">  builder.bytes.reverse(startAddress, thisNodeAddress);</div><div class="line">  builder.nodeCount++;</div><div class="line">  return thisNodeAddress;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
 <p>该函数主要做了如下事情:<br>1.将该节点的flags、label存储到fst的bytes中。<br>2.首先判断存储存储该节点每条边是否需要等长存储, 若等长存储的话, 然后再调用<code>writeArrayPacked</code>重写bytes进行等长存储。<br>3.调用<code>bytes.reverse</code>将该节点的存储byte颠倒存储。</p>
 <p>当写入所有字符串后, 再调用<code>builder.finish()</code>完成了整个fst的构建。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div></pre></td><td class="code"><pre><div class="line">public FST&lt;T&gt; finish() throws IOException &#123;</div><div class="line">  final UnCompiledNode&lt;T&gt; root = frontier[0];</div><div class="line">   // 参数为0, 表示将所有frontier维护的所有节点都写入FST</div><div class="line">  freezeTail(0);</div><div class="line">  //结束FST的写入</div><div class="line">  fst.finish(compileNode(root, lastInput.length()).node); // 将头也写入</div><div class="line">  return fst;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
-<p>首先将</p>
+<p>该函数首先调用<code>freezeTail(0)</code>将本节点写入hash中并存储到fst中, 最终调用<code>FST.cacheRootArcs</code>缓存根节点触发的128个Arc, 我们将在查询章节进行介绍。</p>
 <p>最终存放在fst.bytes中的结构<a href="http://examples.mikemccandless.com/fst.py?terms=abcde%2F1%0D%0Aabdde%2F2%0D%0Aabede%2F3%0D%0Aaccde%2F4%0D%0Aadcde%2F5%0D%0A&cmd=Build+it%21" target="_blank" rel="external">如下</a>:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/lucene_fst5.png" height="150" width="600"></p>
 <h2 id="构建fst图示例"><a href="#构建fst图示例" class="headerlink" title="构建fst图示例"></a>构建fst图示例</h2><p>我们就以开始写入第二个字符串abdde的过程进行介绍fst的构建过程。<br>1.在第二个字符串写入之前存储如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/lucene_fst2.png" height="140" width="700"><br>2.在写入abdde时,对第一个字符串freezeTail后的存储如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/lucene_fst3.png" height="300" width="850"><br>3.完成abdde写入后的存储如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/lucene_fst4.png" height="300" width="850"></p>
-<h1 id="查询"><a href="#查询" class="headerlink" title="查询"></a>查询</h1><h1 id="参考"><a href="#参考" class="headerlink" title="参考"></a>参考</h1><p><a href="https://blog.51cto.com/sbp810050504/1361551" target="_blank" rel="external">https://blog.51cto.com/sbp810050504/1361551</a></p>
+<h1 id="查询"><a href="#查询" class="headerlink" title="查询"></a>查询</h1><h1 id="参考"><a href="#参考" class="headerlink" title="参考"></a>参考</h1><p><a href="https://blog.51cto.com/sbp810050504/1361551" target="_blank" rel="external">https://blog.51cto.com/sbp810050504/1361551</a><br><a href="http://examples.mikemccandless.com/fst.py" target="_blank" rel="external">http://examples.mikemccandless.com/fst.py</a></p>
 
       
 
@@ -410,22 +410,21 @@
   
 
   
-  <div id="gitment-ctn"></div>
+  <div id="gitment-ctn"></div> 
 <link rel="stylesheet" href="//imsun.github.io/gitment/style/default.css">
-<script src="//www.wenjunjiang.win/js/gitment.js "></script>
+<script src="//imsun.github.io/gitment/dist/gitment.browser.js"></script>
 <script>
 var gitment = new Gitment({
-  id: "Lucene8.2.0底层架构-词典fst原理解析",
-  owner: 'kkewwei',
-  repo: 'comments',
+  id: "<%=url%>",
+  owner: '<%=theme.gitment_owner%>',
+  repo: '<%=theme.gitment_repo%>',
   oauth: {
-    client_id: '9391e497d6b288887f33',
-    client_secret: 'db733731bff4ee2811d9530b1ac4cfc6767e8183',
+    client_id: '<%=theme.gitment_oauth.client_id%>',
+    client_secret: '<%=theme.gitment_oauth.client_secret%>',
   },
 })
 gitment.render('gitment-ctn')
 </script>
-
   
 
 
@@ -541,23 +540,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">NIO, write, read</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">Flink、Slot分配、SubTask申请slot, SubTask部署</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">Linux, close</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">Lucene、termVector</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -565,7 +548,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">Lucene、StoredField</a>
+                <a href="javascript:void(0)" class="js-tag color2">NIO, write, read</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -573,15 +556,27 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">Linux, close</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">Lucene、StoredField</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">Lucene、DocValue</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
+                <a href="javascript:void(0)" class="js-tag color3">Lucene、termVector</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">Cycler</a>
+                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -593,15 +588,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">netty4, ServerBootstrap, Initiale</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
+                <a href="javascript:void(0)" class="js-tag color2">Cycler</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -613,7 +600,19 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">netty4, ServerBootstrap, Initiale</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">maven, 插件, 打包</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
               </li>
             
             <div class="clearfix"></div>
