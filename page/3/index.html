@@ -41,57 +41,39 @@
   <div id="container" q-class="show:isCtnShow">
     <canvas id="anm-canvas" class="anm-canvas"></canvas>
     <div class="left-col" q-class="show:isShow">
-      
-<div class="overlay" style="background: #4d4d4d"></div>
+      <% var defaultBg = '#4d4d4d'; %>
+<div class="overlay" style="background: <%= theme.style && theme.style.header ? theme.style.header : defaultBg %>"></div>
 <div class="intrude-less">
 	<header id="header" class="inner">
-		<a href="/" class="profilepic">
-      <img src="https://kkewwei.github.io/elasticsearch_learning/img/myself.png" class="js-avatar">
+		<a href="<%=theme.root%>" class="profilepic">
+			<img src="<%=theme.avatar%>" class="js-avatar">
 		</a>
 		<hgroup>
-		  <h1 class="header-author"><a href="/">jianguo</a></h1>
+		  <h1 class="header-author"><a href="<%=theme.root%>"><%=theme.author%></a></h1>
 		</hgroup>
-		
-		<p class="header-subtitle">往事随风</p>
-		
+		<% if (theme.subtitle){ %>
+		<p class="header-subtitle"><%=theme.subtitle%></p>
+		<%}%>
 
 		<nav class="header-menu">
 			<ul>
-			
-				<li><a href="/elasticsearch_learning/">主页</a></li>
-	        
-				<li><a href="/elasticsearch_learning/tags/随笔/">随笔</a></li>
-	        
-				<li><a href="/elasticsearch_learning/categories">分类</a></li>
-	        
+			<% for (var i in theme.menu){ %>
+				<li><a href="<%- url_for(theme.menu[i]) %>"><%= i %></a></li>
+	        <%}%>
 			</ul>
 		</nav>
 		<nav class="header-smart-menu">
-    		
-    			
-    			<a q-on="click: openSlider(e, 'innerArchive')" href="javascript:void(0)">所有文章</a>
-    			
-            
-    			
-    			<a q-on="click: openSlider(e, 'friends')" href="javascript:void(0)">友链</a>
-    			
-            
-    			
-    			<a q-on="click: openSlider(e, 'aboutme')" href="javascript:void(0)">关于我</a>
-    			
-            
+    		<% for (var i in theme.smart_menu){ %>
+    			<% if(theme.smart_menu[i]){ %>
+    			<a q-on="click: openSlider(e, '<%-i%>')" href="javascript:void(0)"><%= theme.smart_menu[i] %></a>
+    			<% } %>
+            <%}%>
 		</nav>
 		<nav class="header-nav">
 			<div class="social">
-				
-					<a class="github" target="_blank" href="#" title="github"><i class="icon-github"></i></a>
-		        
-					<a class="weibo" target="_blank" href="#" title="weibo"><i class="icon-weibo"></i></a>
-		        
-					<a class="rss" target="_blank" href="#" title="rss"><i class="icon-rss"></i></a>
-		        
-					<a class="zhihu" target="_blank" href="#" title="zhihu"><i class="icon-zhihu"></i></a>
-		        
+				<% for (var i in theme.subnav){ %>
+					<a class="<%= i %>" target="_blank" href="<%- url_for(theme.subnav[i]) %>" title="<%= i %>"><i class="icon-<%= i %>"></i></a>
+		        <%}%>
 			</div>
 		</nav>
 	</header>
@@ -164,6 +146,326 @@
           </div>
           <div id="js-content" class="content-ll">
             
+  
+    <article id="post-Netty内存学习" class="article article-type-post  article-index" itemscope itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/elasticsearch_learning/2018/05/23/Netty内存学习/">Netty PoolArea原理探究</a>
+    </h1>
+  
+
+        
+        <a href="/elasticsearch_learning/2018/05/23/Netty内存学习/" class="archive-article-date">
+  	<time datetime="2018-05-23T14:31:13.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2018-05-23</time>
+</a>
+        
+      </header>
+    
+
+    <!-- 目录内容 -->
+    
+    <!-- 目录内容结束 -->
+
+    <div class="article-entry" itemprop="articleBody">
+      
+        <h1 id="简介"><a href="#简介" class="headerlink" title="简介"></a>简介</h1><p>Netty内存主要分为两种: DirectByteBuf和HeapByteBuf, 实际上就是堆外内存和堆内内存。堆外内存又称直接内存, 通过io.netty.noPreferDirect参数设置。 自从JDK1.4开始, 增加了NIO, 可以直接Native函数在堆外构建直接内存。Netty作为服务器架构技术, 拥有大量的网络数据传输, 当我们进行网络传输时, 必须将数据拷贝到直接内存, 合理利用好直接内存, 能够大量减少堆内数据和直接内存考虑, 显著地提高性能。 但是堆外内存也有一定的缺点, 它进程主动垃圾回收,垃圾回收效率也极低, 因此, netty主动创建了Pool和Unpool的概念。</p>
+<h2 id="Pool和Unpool区别"><a href="#Pool和Unpool区别" class="headerlink" title="Pool和Unpool区别"></a>Pool和Unpool区别</h2><p>字面意思, 分别是池化内存和非池化内存。<code>池化内存</code>的管理方式是首先申请一大块内存, 然后再慢慢使用, 当使用完成释放后, 再将该部分内存放入池子中, 等待下一次的使用, 这样的话, 可以减少垃圾回收次数, 提高处理性能。<code>非池化内存</code>就是普通的内存使用, 需要时直接申请, 释放时直接释放。 可以通过参数<code>Dio.netty.allocator.type</code>确定netty默认使用内存的方式, 目前netty针对pool做了大量的支持, 这样内存使用直接交给了netty管理, 减轻了直接内存回收的压力。 所以在netty4时候, 默认使用pool方式。<br>这样的话, 内存分为四种: PoolDireBuf、UnpoolDireBuf、PoolHeapBuf、UnpoolHeapBuf。netty底层默认使用的PoolDireBuf类型的内存, 这些内存主要由PoolArea管理, 这也是本文的重点。</p>
+<h1 id="内存分配"><a href="#内存分配" class="headerlink" title="内存分配"></a>内存分配</h1><p>线程调用如下接口来获取内存:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div></pre></td><td class="code"><pre><div class="line">protected ByteBuf newDirectBuffer(int initialCapacity, int maxCapacity) &#123;</div><div class="line">    PoolThreadCache cache = threadCache.get();</div><div class="line">    PoolArena&lt;ByteBuffer&gt; directArena = cache.directArena;</div><div class="line"></div><div class="line">    final ByteBuf buf;</div><div class="line">    if (directArena != null) &#123;</div><div class="line">        buf = directArena.allocate(cache, initialCapacity, maxCapacity);</div><div class="line">    &#125; else &#123;</div><div class="line">        buf = PlatformDependent.hasUnsafe() ?</div><div class="line">                UnsafeByteBufUtil.newUnsafeDirectByteBuf(this, initialCapacity, maxCapacity) :</div><div class="line">                new UnpooledDirectByteBuf(this, initialCapacity, maxCapacity);</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    return toLeakAwareBuffer(buf);</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>主要做的事:</p>
+<ul>
+<li>获取该线程绑定的PoolThreadCache(可参考<a href="https://kkewwei.github.io/elasticsearch_learning/2018/07/14/Netty-PoolThreadCache%E6%BA%90%E7%A0%81%E6%8E%A2%E7%A9%B6/">Netty PoolThreadCache原理探究</a>)</li>
+<li>从绑定的PoolThreadCache中获取PoolArena, 从PoolArena中开始真正分配内存。<br>注意这里的一个细节:</li>
+</ul>
+<ol>
+<li>若通过非池申请的直接内存, 使用的是ByteBuffer.allocateDirect(maxCapacity)分配内存, 那么我们可以通过ManagementFactory.getPlatformMXBeans()方式获取到该内存块的大小。这样申请的堆外内存大小受参数XX:MaxDirectMemorySize控制。</li>
+<li>若以内存池的方式申请内存, 使用的是unsafe.allocateMemory(size)方式申请内存, 此块内存已不再jvm管理范围之类, 我们不能再通过ManagementFactory.getPlatformMXBeans()方式获取该内存大小, 在netty中, 是通过PlatformDependent.DIRECT_MEMORY_COUNTER来统计的。</li>
+</ol>
+<h1 id="PoolArena"><a href="#PoolArena" class="headerlink" title="PoolArena"></a>PoolArena</h1><p>PoolArena作为Netty底层内存池核心管理类, 主要原理是首先申请一些内存块, 不同的成员变量来完成不同大小的内存块分配。下图描述了Netty最重要的成员变量:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/PoolArea.png" height="400" width="450"><br>netty将池化内存块划分为3个类型:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div></pre></td><td class="code"><pre><div class="line">enum SizeClass &#123;</div><div class="line">    Tiny,</div><div class="line">    Small,</div><div class="line">    Normal</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>Tiny主要解决16b-498b之间的内存块分配, small解决分配512b-4kb的内存分配, normal解决8k-16m的内存分配。<br>大致了解了这些, 为了更详细的了解分配细节, 首先对PoolArena成员变量进行简单分析。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div></pre></td><td class="code"><pre><div class="line">//tiny级别的个数, 每次递增2^4b, tiny总共管理32个等级的小内存片:[16, 32, 48, ..., 496], 注意实际只有31个级别内存块</div><div class="line">static final int numTinySubpagePools = 512 &gt;&gt;&gt; 4;</div><div class="line">//全局默认唯一的分配者, 见PooledByteBufAllocator.DEFAULT</div><div class="line">final PooledByteBufAllocator parent;</div><div class="line">// log(16M/8K) = 11,指的是normal类型的内存等级, 分别为[8k, 16k, 32k, ..., 16M]</div><div class="line">private final int maxOrder;</div><div class="line">//默认8k</div><div class="line">final int pageSize;</div><div class="line">//log(8k) =  13</div><div class="line">final int pageShifts;</div><div class="line">//默认16M</div><div class="line">final int chunkSize;</div><div class="line">//-8192</div><div class="line">final int subpageOverflowMask;</div><div class="line">//指的是small类型的内存等级: pageShifts - log(512) = 4,分别为[512, 1k, 2k, 4k]</div><div class="line">final int numSmallSubpagePools;</div><div class="line"> //small类型分31个等级[16, 32, ..., 512], 每个等级都可以存放一个链(元素为PoolSubpage), 可存放未分配的该范围的内存块</div><div class="line">private final PoolSubpage&lt;T&gt;[] tinySubpagePools;</div><div class="line"> //small类型分31个等级[512, 1k, 2k, 4k], 每个等级都可以存放一个链(元素为PoolSubpage), 可存放未分配的该范围的内存块</div><div class="line">private final PoolSubpage&lt;T&gt;[] smallSubpagePools;//存储1024-8096大小的内存</div><div class="line"> //存储chunk(16M)使用率的内存块, 不同使用率的chunk, 存放在不同的对象中</div><div class="line">private final PoolChunkList&lt;T&gt; q050;</div><div class="line">private final PoolChunkList&lt;T&gt; q025;   //存储内存利用率25-75%的chunk</div><div class="line">private final PoolChunkList&lt;T&gt; q000;   //存储内存利用率1-50%的chunk</div><div class="line">private final PoolChunkList&lt;T&gt; qInit;  //存储内存利用率0-25%的chunk</div><div class="line">private final PoolChunkList&lt;T&gt; q075;    //存储内存利用率75-100%的chunk</div><div class="line">private final PoolChunkList&lt;T&gt; q100;   //存储内存利用率100%的chunk</div><div class="line"></div><div class="line">// Number of thread caches backed by this arena. 该PoolArea被多少线程引用。</div><div class="line">final AtomicInteger numThreadCaches = new AtomicInteger();</div></pre></td></tr></table></figure></p>
+<p>PoolArea申请内存时根据申请的大小使用不同对象进行分配:</p>
+<ul>
+<li>tinySubpagePools分配[16b, 496b]之间的内存大小, 数组中每个元素以16b为一个单位增长, 比如申请分配16b的内存, 将在下标为0对应的链中分配; 申请32b的内存, 将在下标为1对应的链中分配。</li>
+<li>smallSubpagePools分配[512b, 4k]之间的内存大小, 分配结构同tinySubpagePools一样。</li>
+<li>q050、q025、q000、qInit、q075主要负责分配[8k, 16M]大小的内存, 其存放的元素都是大小为16M的PoolChunk, 这几个成员变量不同的是元素PoolChunk的使用率不同, 比如q025里面存放的chunk使用率为[25%, 75%]。 若需要申请[16b, 4k]的内存、而tinySubpagePools、smallSubpagePools没有合适的内存块时, 会从这些对象包含的PoolChunk中分配8k的叶子节点供重新划分结构进行分配。<br>他们存储的属性PoolChunk可以在不同的属性中移动, 其中:<p><br>&nbsp;&nbsp;若q025中某个PoolChunk使用率大于25%之后, 该PoolChunk将别移动到q050中。<br>&nbsp;&nbsp;若q050中某个PoolChunk使用率小于50%之后, 该PoolChunk将别移动到q025中。<br>&nbsp;&nbsp;若qInit使用率为0, 也不会释放该节点。<br>&nbsp;&nbsp;若q000使用率为0, 会被释放掉。</p></li>
+</ul>
+<p>numThreadCaches负责统计该PoolChunk被多少NioEventLoop线程绑定, 具体可见<a href="https://kkewwei.github.io/elasticsearch_learning/2018/07/14/Netty-PoolThreadCache%E6%BA%90%E7%A0%81%E6%8E%A2%E7%A9%B6/">Netty PoolThreadCache原理探究</a></p>
+<h2 id="PoolArena的内存分配"><a href="#PoolArena的内存分配" class="headerlink" title="PoolArena的内存分配"></a>PoolArena的内存分配</h2><p>线程分配内存主要从两个地方分配: PoolThreadCache和PoolArena<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/PoolArea1.png" height="300" width="350"><br>其中PoolThreadCache线程独享, PoolArena为几个线程共享。<br>netty真正申请内存时, 首先便是调用PoolArena.allocate()函数:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div><div class="line">61</div><div class="line">62</div><div class="line">63</div><div class="line">64</div><div class="line">65</div><div class="line">66</div><div class="line">67</div></pre></td><td class="code"><pre><div class="line">private void allocate(PoolThreadCache cache, PooledByteBuf&lt;T&gt; buf, final int reqCapacity) &#123;</div><div class="line">       final int normCapacity = normalizeCapacity(reqCapacity);</div><div class="line">        // capacity &lt; pageSize   小于8k</div><div class="line">       if (isTinyOrSmall(normCapacity)) &#123;</div><div class="line">           int tableIdx;</div><div class="line">           PoolSubpage&lt;T&gt;[] table;</div><div class="line">           boolean tiny = isTiny(normCapacity);</div><div class="line">           if (tiny) &#123; // &lt; 512</div><div class="line">                //若从缓冲中取得该值</div><div class="line">               if (cache.allocateTiny(this, buf, reqCapacity, normCapacity)) &#123;</div><div class="line">                   // was able to allocate out of the cache so move on</div><div class="line">                   return;</div><div class="line">               &#125;</div><div class="line">               tableIdx = tinyIdx(normCapacity);</div><div class="line">               table = tinySubpagePools;</div><div class="line">           &#125; else &#123;  //small</div><div class="line">               if (cache.allocateSmall(this, buf, reqCapacity, normCapacity)) &#123;</div><div class="line">                   // was able to allocate out of the cache so move on</div><div class="line">                   return;</div><div class="line">               &#125;</div><div class="line">               tableIdx = smallIdx(normCapacity);</div><div class="line">               table = smallSubpagePools;</div><div class="line">           &#125;</div><div class="line"></div><div class="line">           final PoolSubpage&lt;T&gt; head = table[tableIdx];</div><div class="line"></div><div class="line">           /**</div><div class="line">            * Synchronize on the head. This is needed as &#123;@link PoolChunk#allocateSubpage(int)&#125; and</div><div class="line">            * &#123;@link PoolChunk#free(long)&#125; may modify the doubly linked list as well.</div><div class="line">            */</div><div class="line">            //小于8k的</div><div class="line">           synchronized (head) &#123;</div><div class="line">                //如果分配完会从当前级别链上去掉</div><div class="line">               final PoolSubpage&lt;T&gt; s = head.next;</div><div class="line">                ///该型号的tiny的内存已经分配的有一个了</div><div class="line">               if (s != head) &#123;</div><div class="line">                   assert s.doNotDestroy &amp;&amp; s.elemSize == normCapacity;</div><div class="line">                   long handle = s.allocate();//高32放着一个PoolSubpage里面哪段的哪个，低32位放着哪个叶子节点</div><div class="line">                   assert handle &gt;= 0;</div><div class="line">                   s.chunk.initBufWithSubpage(buf, handle, reqCapacity);</div><div class="line">                   incTinySmallAllocation(tiny);</div><div class="line">                   return;//如果从链中找到就返回，</div><div class="line">               &#125;</div><div class="line">           &#125;</div><div class="line">           //没有找到的话，就从Poolpage中分一个</div><div class="line">           synchronized (this) &#123;</div><div class="line">               //说明head并没有分配值，是第一次分配。</div><div class="line">               allocateNormal(buf, reqCapacity, normCapacity);</div><div class="line">           &#125;</div><div class="line"></div><div class="line">           incTinySmallAllocation(tiny);</div><div class="line">           return;</div><div class="line">       &#125;</div><div class="line">       if (normCapacity &lt;= chunkSize) &#123; //小于16M</div><div class="line">           if (cache.allocateNormal(this, buf, reqCapacity, normCapacity)) &#123;  //cache=PoolThreadCache,本地是否已经有了</div><div class="line">               // was able to allocate out of the cache so move on</div><div class="line">               return;</div><div class="line">           &#125;</div><div class="line">           synchronized (this) &#123;</div><div class="line">               allocateNormal(buf, reqCapacity, normCapacity);</div><div class="line">               ++allocationsNormal;</div><div class="line">           &#125;</div><div class="line">       &#125; else &#123;</div><div class="line">           // Huge allocations are never served via the cache so just call allocateHuge</div><div class="line">           allocateHuge(buf, reqCapacity); //大于16M，则分配大内存</div><div class="line">       &#125;</div><div class="line">   &#125;</div></pre></td></tr></table></figure></p>
+<p>PoolArena.allocate()分配内存主要考虑先尝试从缓存中, 然后再尝试从PoolArena分配。tiny和small申请过程一样, 以下都以tiny申请为例。具体过程如下:<br>1). 对申请的内存进行规范化, 就是说只能申请某些固定大小的内存, 比如tiny范围的16b倍数的内存, small范围内512b, 1k, 2k, 4k范围内存, normal范围内8k, 16k,…, 16m范围内内存, 始终是2幂次方的数据。申请的内存不足16b的,按照16b去申请。<br>2). 判断是否是小于8K的内存申请, 若是申请Tiny/Small级别的内存:</p>
+<ul>
+<li>首先尝试从cache中申请, 具体申请过程参考<a href="https://kkewwei.github.io/elasticsearch_learning/2018/07/14/Netty-PoolThreadCache%E6%BA%90%E7%A0%81%E6%8E%A2%E7%A9%B6/">Netty PoolThreadCache原理探究</a></li>
+<li>若在cache中申请不到的话, 接着会尝试从tinySubpagePools中申请, 首先计算出该内存在tinySubpagePools中对应的下标, 下标计算公式如下:<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div></pre></td><td class="code"><pre><div class="line">static int tinyIdx(int normCapacity) &#123;  //申请内容小于512，下标</div><div class="line">    return normCapacity &gt;&gt;&gt; 4;  //在tiny维护的链中找到合适自己位置的下标, 除以16，就是下标了</div><div class="line">&#125;</div><div class="line">static int smallIdx(int normCapacity) &#123;</div><div class="line">    int tableIdx = 0;</div><div class="line">    int i = normCapacity &gt;&gt;&gt; 10; //首先是512 = 2^10</div><div class="line">    while (i != 0) &#123;</div><div class="line">        i &gt;&gt;&gt;= 1;</div><div class="line">        tableIdx ++;</div><div class="line">    &#125;</div><div class="line">    return tableIdx;</div></pre></td></tr></table></figure>
+</li>
+</ul>
+<p>可以看出, normCapacity/16就是tiny级别的下标, normCapacity/1024就是small级别的下标。 然后再获取tinySubpagePools对应级别的内存的头结点head。</p>
+<ul>
+<li>检查对应链串是否已经有PoolSubpage可用, 若有的话, 直接进入PoolSubpage.allocate进行内存分撇, 具体可见<a href="https://kkewwei.github.io/elasticsearch_learning/2018/07/22/Netty-PoolSubpage%E5%8E%9F%E7%90%86%E6%8E%A2%E7%A9%B6/">Netty-PoolSubpage原理探究</a>, 并且根据handle初始化这块内存块。</li>
+<li>若没有可分配的内存, 则会进入allocateNormal进行分配<br>3). 若分配normal类型的类型, 首先也会尝试从缓存中分配, 然后再考虑从allocateNormal进行内存分配。<br>4). 若分配大于16m的内存, 则直接通过allocateHuge()从内存池外分配内存。<h3 id="分配-16b-16m-内存"><a href="#分配-16b-16m-内存" class="headerlink" title="分配[16b, 16m]内存"></a>分配[16b, 16m]内存</h3>接着上述过程, 会进入allocateNormal进行内存分配<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div></pre></td><td class="code"><pre><div class="line">private void allocateNormal(PooledByteBuf&lt;T&gt; buf, int reqCapacity, int normCapacity) &#123;</div><div class="line">        if (q050.allocate(buf, reqCapacity, normCapacity) || q025.allocate(buf, reqCapacity, normCapacity) ||</div><div class="line">            q000.allocate(buf, reqCapacity, normCapacity) || qInit.allocate(buf, reqCapacity, normCapacity) ||</div><div class="line">            q075.allocate(buf, reqCapacity, normCapacity)) &#123;</div><div class="line">            return;//第一次进行内存分配时，chunkList没有chunk可以分配内存</div><div class="line">        &#125;</div><div class="line">        //跑到Direct里面newChunk了, 将 产生第一个chunk</div><div class="line">        // Add a new chunk.   https://www.jianshu.com/p/c4bd37a3555b  就是传说中的平衡树</div><div class="line">        PoolChunk&lt;T&gt; c = newChunk(pageSize, maxOrder, pageShifts, chunkSize);  //需通过方法newChunk新建一个chunk进行内存分配，并添加到qInit列表中</div><div class="line">        long handle = c.allocate(normCapacity); //取到平衡树里面哪个下标,比如256</div><div class="line">        assert handle &gt; 0;</div><div class="line">        c.initBuf(buf, handle, reqCapacity);</div><div class="line">        qInit.add(c); //第一次分配的话，都会放入qInit</div><div class="line">    &#125;</div></pre></td></tr></table></figure>
+</li>
+</ul>
+<ol>
+<li>首先会依次检查q050、q025、q000、qInit、q075链中的PoolArea, 是否能否分配该大小的内存, 检查分配过程如下:<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div></pre></td><td class="code"><pre><div class="line">boolean allocate(PooledByteBuf&lt;T&gt; buf, int reqCapacity, int normCapacity) &#123;</div><div class="line">    if (head == null || normCapacity &gt; maxCapacity) &#123; //head是可以直接寸数据的</div><div class="line">        // Either this PoolChunkList is empty or the requested capacity is larger then the capacity which can</div><div class="line">        // be handled by the PoolChunks that are contained in this PoolChunkList.</div><div class="line">        return false;</div><div class="line">    &#125;</div><div class="line">    for (PoolChunk&lt;T&gt; cur = head;;) &#123;</div><div class="line">        long handle = cur.allocate(normCapacity); //取得哪个坐标下的某个值</div><div class="line">        if (handle &lt; 0) &#123; //在poolchunk中没有找到能装得下的，那么继续找下一个</div><div class="line">            cur = cur.next;</div><div class="line">            if (cur == null) &#123;</div><div class="line">                return false;</div><div class="line">            &#125;</div><div class="line">        &#125; else &#123;</div><div class="line">            cur.initBuf(buf, handle, reqCapacity);</div><div class="line">            if (cur.usage() &gt;= maxUsage) &#123;//chunked量用超了则移动向下一个链</div><div class="line">                remove(cur);</div><div class="line">                nextList.add(cur);</div><div class="line">            &#125;</div><div class="line">            return true;</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+</li>
+</ol>
+<p>会轮训该链所有PoolChunk, 直到找到一个符合要求的内存块, 当分配完成后, 检查该PoolChunk是否因为使用率超过阈值需要放到别的队列中。</p>
+<ol>
+<li>若没有找到, 会去内存中申请一个PoolChunk的内存块, 在该PoolChunk中分配normCapacity大小的内存, 参考见<a href="https://kkewwei.github.io/elasticsearch_learning/2018/07/20/Netty-PoolChunk%E5%8E%9F%E7%90%86%E6%8E%A2%E7%A9%B6/">Netty PoolChunk原理探究</a></li>
+<li>对PoolChunk进行初始化, 并将该PoolChunk加入qInit的链中。<br>这里有一个细节需要了解下, q050、q025、q000、qInit、q075按照这个顺序排序, 也就是说当在这几个对象都有可分配的内存时, 优先从 q050中分配, 最后从q075中分配。这样安排的考虑是:</li>
+</ol>
+<ul>
+<li>将PoolChunk分配维持在较高的比例上。</li>
+<li>保存一些空闲度比较大的内存, 以便大内存的分配。</li>
+</ul>
+<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>非内存池化的内存分配没有什么好说的, 并没有组织成什么结构来分配, 内存的释放主要由PoolChunk和PoolSubpage来释放。 本文主要讲了从poolArena上层结构tinySubpagePools、mallSubpagePools、050、q025、q000、qInit、q075分配内存、 大致的步骤, 至于从每个对象具体如何分配内存, 请看相关文章<a href="https://kkewwei.github.io/elasticsearch_learning/2018/07/20/Netty-PoolChunk%E5%8E%9F%E7%90%86%E6%8E%A2%E7%A9%B6/">Netty PoolChunk原理探究</a>、<a href="https://kkewwei.github.io/elasticsearch_learning/2018/07/22/Netty-PoolSubpage%E5%8E%9F%E7%90%86%E6%8E%A2%E7%A9%B6/">Netty-PoolSubpage原理探究</a>.</p>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">PoolArena</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/elasticsearch_learning/categories/Netty//" class="article-tag-list-link color1">Netty</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/elasticsearch_learning/2018/05/23/Netty内存学习/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
+    <article id="post-Netty-Http通信编码源码阅读" class="article article-type-post  article-index" itemscope itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/elasticsearch_learning/2018/05/04/Netty-Http通信编码源码阅读/">Netty Http通信源码二(编码)分析</a>
+    </h1>
+  
+
+        
+        <a href="/elasticsearch_learning/2018/05/04/Netty-Http通信编码源码阅读/" class="archive-article-date">
+  	<time datetime="2018-05-03T16:02:39.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2018-05-04</time>
+</a>
+        
+      </header>
+    
+
+    <!-- 目录内容 -->
+    
+    <!-- 目录内容结束 -->
+
+    <div class="article-entry" itemprop="articleBody">
+      
+        <p>解码过程仍以<a href="https://kkewwei.github.io/elasticsearch_learning/2018/04/16/Netty-Http%E9%80%9A%E4%BF%A1%E8%A7%A3%E7%A0%81%E6%BA%90%E7%A0%81%E9%98%85%E8%AF%BB/">Netty Http通信源码一(解码)阅读</a>提供的示例为例, 编码发送的主体DefaultFullHttpResponse如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/DefaultFullHttpResponse.png" height="250" width="500"><br>涉及到的ChannelOutboundHandler类有:HttpContentCompressor、HttpObjectEncoder, 及其父类。 本wiki仍然以数据的流向作为引导线。<br>开始向外发送数据时, 如下:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div></pre></td><td class="code"><pre><div class="line">private void write(Object msg, boolean flush, ChannelPromise promise) &#123;</div><div class="line">        AbstractChannelHandlerContext next = findContextOutbound(); //向外发送，找到一个拥有out的context</div><div class="line">        final Object m = pipeline.touch(msg, next);</div><div class="line">        EventExecutor executor = next.executor();</div><div class="line">        if (executor.inEventLoop()) &#123;</div><div class="line">            if (flush) &#123;</div><div class="line">                next.invokeWriteAndFlush(m, promise);</div><div class="line">            &#125; else &#123;</div><div class="line">                next.invokeWrite(m, promise);</div><div class="line">            &#125;</div><div class="line">        &#125; else &#123;</div><div class="line">            AbstractWriteTask task;</div><div class="line">            if (flush) &#123;</div><div class="line">                task = WriteAndFlushTask.newInstance(next, m, promise); //这个task是一个Runnable, 只需要向里面放， 后期自然会执行</div><div class="line">            &#125;  else &#123;</div><div class="line">                task = WriteTask.newInstance(next, m, promise);</div><div class="line">            &#125;</div><div class="line">            safeExecute(executor, task, promise, m);</div><div class="line">        &#125;</div><div class="line">    &#125;</div></pre></td></tr></table></figure></p>
+<p>当自定义handler向外发送数据时, 走的是else部分; 若我们调用了flush()方法, 此时, 会产生WriteAndFlushTask对象,  其为Runnable类, 在run函数中, 会直接调用write(), write定义如下:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div></pre></td><td class="code"><pre><div class="line">@Override</div><div class="line">public void write(AbstractChannelHandlerContext ctx, Object msg, ChannelPromise promise) &#123;</div><div class="line">    super.write(ctx, msg, promise); //一般只是存放在缓存中</div><div class="line">    ctx.invokeFlush(); //真正的调用write,</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>可以看出, 写数据分为两个过程:write()和flush():</p>
+<ul>
+<li>write只是将数据放在了缓存ChannelOutboundBuffer中</li>
+<li>通过调用channal.write()向网络发送数据。</li>
+</ul>
+<h1 id="HttpContentCompressor及父类HttpContentEncoder、MessageToMessageCodec"><a href="#HttpContentCompressor及父类HttpContentEncoder、MessageToMessageCodec" class="headerlink" title="HttpContentCompressor及父类HttpContentEncoder、MessageToMessageCodec"></a>HttpContentCompressor及父类HttpContentEncoder、MessageToMessageCodec</h1><p>我们需要知道: MessageToMessageCodec该类是一个ChannelDuplexHandler类型的, 可以同时在IN, OUT场景下使用。<br>首先进入的是MessageToMessageCodec的write()函数, 通过该函数的encoder.write(ctx, msg, promise)跳转到MessageToMessageEncoder的write()函数中, 实现如下:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div></pre></td><td class="code"><pre><div class="line">@Override</div><div class="line">public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception &#123;</div><div class="line">    CodecOutputList out = null;</div><div class="line">    try &#123;</div><div class="line">        if (acceptOutboundMessage(msg)) &#123;</div><div class="line">            out = CodecOutputList.newInstance();</div><div class="line">            I cast = (I) msg;</div><div class="line">            try &#123;</div><div class="line">                encode(ctx, cast, out);</div><div class="line">            &#125; finally &#123;</div><div class="line">                ReferenceCountUtil.release(cast);</div><div class="line">            &#125;</div><div class="line">            if (out.isEmpty()) &#123;</div><div class="line">                out.recycle();</div><div class="line">                out = null;</div><div class="line">                throw new EncoderException(</div><div class="line">                        StringUtil.simpleClassName(this) + &quot; must produce at least one message.&quot;);</div><div class="line">            &#125;</div><div class="line">        &#125; else &#123;</div><div class="line">            ctx.write(msg, promise);</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line">    &#125; finally &#123;</div><div class="line">        if (out != null) &#123;</div><div class="line">            final int sizeMinusOne = out.size() - 1;</div><div class="line">            if (sizeMinusOne == 0) &#123;</div><div class="line">                ctx.write(out.get(0), promise);</div><div class="line">            &#125; else if (sizeMinusOne &gt; 0) &#123;</div><div class="line">                // Check if we can use a voidPromise for our extra writes to reduce GC-Pressure</div><div class="line">                // See https://github.com/netty/netty/issues/2525</div><div class="line">                ChannelPromise voidPromise = ctx.voidPromise();</div><div class="line">                boolean isVoidPromise = promise == voidPromise;</div><div class="line">                for (int i = 0; i &lt; sizeMinusOne; i ++) &#123;//分开向下发送</div><div class="line">                    ChannelPromise p;</div><div class="line">                    if (isVoidPromise) &#123;</div><div class="line">                        p = voidPromise;</div><div class="line">                    &#125; else &#123;</div><div class="line">                        p = ctx.newPromise();</div><div class="line">                    &#125;</div><div class="line">                    ctx.write(out.getUnsafe(i), p);</div><div class="line">                &#125;</div><div class="line">                ctx.write(out.getUnsafe(sizeMinusOne), promise);</div><div class="line">            &#125;</div><div class="line">            out.recycle();</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>实现也很简单,主要做了如下两件事:</p>
+<ol>
+<li>首先通过encode()进行编码, encode()是在HttpContentEncoder中实现的: 若out没有编码输出, 则直接抛出异常;最终通过msg.release()释放response.content占用的空间。</li>
+<li>针对编码输出out, 循环遍历out中每一个compoment, 通过DefalueChannalHadlerContext.write()向外写出数据。</li>
+</ol>
+<h2 id="HttpContentEncoder的encode-函数"><a href="#HttpContentEncoder的encode-函数" class="headerlink" title="HttpContentEncoder的encode()函数"></a>HttpContentEncoder的encode()函数</h2><p>首先需要了解HttpContentEncoder的decode(), 在写入的时候, 将header里面的accept-encoding属性取值赋给acceptEncodingQueue, 这样服务器端返回数据压缩的时候就知道需要使用什么编码器了, 本文章以客户端发送的编码器: “gzip,deflat,br”为例。</p>
+<p>endoce函数如下, 其中msg为DefaultFullHttpResponse, 包含了header和content部分<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div><div class="line">61</div><div class="line">62</div><div class="line">63</div><div class="line">64</div><div class="line">65</div><div class="line">66</div><div class="line">67</div><div class="line">68</div><div class="line">69</div><div class="line">70</div><div class="line">71</div><div class="line">72</div><div class="line">73</div><div class="line">74</div><div class="line">75</div><div class="line">76</div><div class="line">77</div><div class="line">78</div><div class="line">79</div><div class="line">80</div><div class="line">81</div><div class="line">82</div><div class="line">83</div><div class="line">84</div><div class="line">85</div><div class="line">86</div><div class="line">87</div><div class="line">88</div><div class="line">89</div><div class="line">90</div><div class="line">91</div><div class="line">92</div><div class="line">93</div><div class="line">94</div><div class="line">95</div><div class="line">96</div><div class="line">97</div><div class="line">98</div><div class="line">99</div><div class="line">100</div><div class="line">101</div><div class="line">102</div><div class="line">103</div><div class="line">104</div><div class="line">105</div><div class="line">106</div><div class="line">107</div><div class="line">108</div><div class="line">109</div><div class="line">110</div><div class="line">111</div><div class="line">112</div><div class="line">113</div><div class="line">114</div><div class="line">115</div><div class="line">116</div><div class="line">117</div><div class="line">118</div></pre></td><td class="code"><pre><div class="line">@Override    //msg: DefaultFullHttpResponse</div><div class="line">    protected void encode(ChannelHandlerContext ctx, HttpObject msg, List&lt;Object&gt; out) throws Exception &#123;</div><div class="line">        final boolean isFull = msg instanceof HttpResponse &amp;&amp; msg instanceof LastHttpContent;</div><div class="line">        switch (state) &#123;</div><div class="line">            case AWAIT_HEADERS: &#123;  //初始取值</div><div class="line">                ensureHeaders(msg);</div><div class="line">                assert encoder == null;</div><div class="line"></div><div class="line">                final HttpResponse res = (HttpResponse) msg;</div><div class="line">                 //根据返回结果确定是否需要编码</div><div class="line">                final int code = res.status().code();</div><div class="line">                final CharSequence acceptEncoding;</div><div class="line">                if (code == CONTINUE_CODE) &#123; //continue_code</div><div class="line">                    // We need to not poll the encoding when response with CONTINUE as another response will follow</div><div class="line">                    // for the issued request. See https://github.com/netty/netty/issues/4079</div><div class="line">                    acceptEncoding = null;</div><div class="line">                &#125; else &#123;</div><div class="line">                    // Get the list of encodings accepted by the peer.</div><div class="line">                    acceptEncoding = acceptEncodingQueue.poll(); //&quot;gzip.default.br&quot;</div><div class="line">                    if (acceptEncoding == null) &#123;</div><div class="line">                        throw new IllegalStateException(&quot;cannot send more responses than requests&quot;);</div><div class="line">                    &#125;</div><div class="line">                &#125;</div><div class="line">                /*</div><div class="line">                 * per rfc2616 4.3 Message Body</div><div class="line">                 * All 1xx (informational), 204 (no content), and 304 (not modified) responses MUST NOT include a</div><div class="line">                 * message-body. All other responses do include a message-body, although it MAY be of zero length.</div><div class="line">                 *</div><div class="line">                 * 9.4 HEAD</div><div class="line">                 * The HEAD method is identical to GET except that the server MUST NOT return a message-body</div><div class="line">                 * in the response.</div><div class="line">                 *</div><div class="line">                 * Also we should pass through HTTP/1.0 as transfer-encoding: chunked is not supported.</div><div class="line">                 *</div><div class="line">                 * See https://github.com/netty/netty/issues/5382</div><div class="line">                 */</div><div class="line">                if (isPassthru(res.protocolVersion(), code, acceptEncoding)) &#123; //是否接下来是没有body的</div><div class="line">                    if (isFull) &#123;</div><div class="line">                        out.add(ReferenceCountUtil.retain(res));</div><div class="line">                    &#125; else &#123;</div><div class="line">                        out.add(res);</div><div class="line">                        // Pass through all following contents.</div><div class="line">                        state = State.PASS_THROUGH;</div><div class="line">                    &#125;</div><div class="line">                    break;</div><div class="line">                &#125;</div><div class="line">                if (isFull) &#123;</div><div class="line">                    // Pass through the full response with empty content and continue waiting for the the next resp.</div><div class="line">                    if (!((ByteBufHolder) res).content().isReadable()) &#123;</div><div class="line">                        out.add(ReferenceCountUtil.retain(res));</div><div class="line">                        break;</div><div class="line">                    &#125;</div><div class="line">                &#125;</div><div class="line"></div><div class="line">                // Prepare to encode the content.   通过curl 发送的请求中是没有压缩的，为identity</div><div class="line">                final Result result = beginEncode(res, acceptEncoding.toString());</div><div class="line"></div><div class="line">                // If unable to encode, pass through.</div><div class="line">                if (result == null) &#123;</div><div class="line">                    if (isFull) &#123;</div><div class="line">                        out.add(ReferenceCountUtil.retain(res));</div><div class="line">                    &#125; else &#123;</div><div class="line">                        out.add(res);</div><div class="line">                        // Pass through all following contents.</div><div class="line">                        state = State.PASS_THROUGH;</div><div class="line">                    &#125;</div><div class="line">                    break;</div><div class="line">                &#125;</div><div class="line"></div><div class="line">                encoder = result.contentEncoder(); //encoder = EmbeddedChannel</div><div class="line"></div><div class="line">                // Encode the content and remove or replace the existing headers</div><div class="line">                // so that the message looks like a decoded message.</div><div class="line">                res.headers().set(HttpHeaderNames.CONTENT_ENCODING, result.targetContentEncoding()); //gzip</div><div class="line"></div><div class="line">                // Output the rewritten response.</div><div class="line">                if (isFull) &#123;</div><div class="line">                    // Convert full message into unfull one.</div><div class="line">                    HttpResponse newRes = new DefaultHttpResponse(res.protocolVersion(), res.status());</div><div class="line">                    newRes.headers().set(res.headers());</div><div class="line">                    out.add(newRes);  //newRes里面还没有放数据</div><div class="line"></div><div class="line">                    ensureContent(res);</div><div class="line">                    encodeFullResponse(newRes, (HttpContent) res, out);</div><div class="line">                    break;</div><div class="line">                &#125; else &#123;</div><div class="line">                    // Make the response chunked to simplify content transformation.</div><div class="line">                    res.headers().remove(HttpHeaderNames.CONTENT_LENGTH);</div><div class="line">                    res.headers().set(HttpHeaderNames.TRANSFER_ENCODING, HttpHeaderValues.CHUNKED);</div><div class="line"></div><div class="line">                    out.add(res);</div><div class="line">                    state = State.AWAIT_CONTENT;</div><div class="line">                    if (!(msg instanceof HttpContent)) &#123;</div><div class="line">                        // only break out the switch statement if we have not content to process</div><div class="line">                        // See https://github.com/netty/netty/issues/2006</div><div class="line">                        break;</div><div class="line">                    &#125;</div><div class="line">                    // Fall through to encode the content</div><div class="line">                &#125;</div><div class="line">            &#125;</div><div class="line">            case AWAIT_CONTENT: &#123;</div><div class="line">                ensureContent(msg);</div><div class="line">                if (encodeContent((HttpContent) msg, out)) &#123;</div><div class="line">                    state = State.AWAIT_HEADERS;</div><div class="line">                &#125;</div><div class="line">                break;</div><div class="line">            &#125;</div><div class="line">            case PASS_THROUGH: &#123;</div><div class="line">                ensureContent(msg);</div><div class="line">                out.add(ReferenceCountUtil.retain(msg));</div><div class="line">                // Passed through all following contents of the current response.</div><div class="line">                if (msg instanceof LastHttpContent) &#123;</div><div class="line">                    state = State.AWAIT_HEADERS;</div><div class="line">                &#125;</div><div class="line">                break;</div><div class="line">            &#125;</div><div class="line">        &#125;</div><div class="line">    &#125;</div></pre></td></tr></table></figure></p>
+<p>该编码器encode主要做的事情:<br>1.根据state初始值AWAIT_HEADERS(默认)首先AWAIT_HEADERS分支, 获取result_code:</p>
+<ul>
+<li>若为100, 说明之时一个continue信号, acceptEncoding赋值为空, 告诉后面不用压缩直接返回。</li>
+<li>否则, 根据获取decode()时设置的压缩格式:accept-encoding: gzip,deflat,br<br>2.根据规范<code>rfc2616 4.3 Message Body</code>, code返回值若为All 1xx (informational), 204 (no content), and 304 (not modified)时, response一定不能包含message-body部分。此时检查result_code, 若是该类code, 直接执行将out.add(res)而退出, 而不用考虑对content部分进行压缩。<br>3.检查response的contet是否有可读数据, content没值的话直接放入out.add(res)返回。<br>4.在beginEncode中建立相应压缩管道EmbeddedChannel:<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div></pre></td><td class="code"><pre><div class="line">protected Result beginEncode(HttpResponse headers, String acceptEncoding) throws Exception &#123;</div><div class="line">       ZlibWrapper wrapper = determineWrapper(acceptEncoding);//GZIP</div><div class="line">       if (wrapper == null) &#123;</div><div class="line">           return null;</div><div class="line">       &#125;</div><div class="line">       String targetContentEncoding;</div><div class="line">       switch (wrapper) &#123;</div><div class="line">       case GZIP:</div><div class="line">           targetContentEncoding = &quot;gzip&quot;;</div><div class="line">           break;</div><div class="line">       case ZLIB:</div><div class="line">           targetContentEncoding = &quot;deflate&quot;;</div><div class="line">           break;</div><div class="line">       default:</div><div class="line">           throw new Error();</div><div class="line">       &#125;</div><div class="line"></div><div class="line">       return new Result(</div><div class="line">               targetContentEncoding,</div><div class="line">               new EmbeddedChannel(ctx.channel().id(), ctx.channel().metadata().hasDisconnect(),</div><div class="line">                       ctx.channel().config(), ZlibCodecFactory.newZlibEncoder(</div><div class="line">                       wrapper, compressionLevel, windowBits, memLevel)));</div><div class="line">   &#125;</div></pre></td></tr></table></figure>
+</li>
+</ul>
+<p>主要做了如下事情:</p>
+<ul>
+<li>首先在determineWrapper判断使用哪种压缩编码, 使用优先级gzip&gt;deflate</li>
+<li>返回EmbeddedChannel, 我们需要注意该channel里面通过ZlibCodecFactory.newZlibEncoder()方式添加了一个handler, 该返回EmbeddedChannel的pipeline结构如下:&lt;img src=”<a href="https://kkewwei.github.io/elasticsearch_learning/img/GzipPipline.png">https://kkewwei.github.io/elasticsearch_learning/img/GzipPipline.png</a>“ height=”250” width=”350/&gt;<br>对gzip编码感兴趣的话, 可以看下JdkZlibEncoder.encode关于编码的细节。<br>5.向返回值headler中添加 content-encoding:gzip<br>6.封装header, result_code, http_version, 产生一个DefaultHttpResponse, 放入out.<br>7.在encodeFullResponse中调用编码函数encodeContent()<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div></pre></td><td class="code"><pre><div class="line">private boolean encodeContent(HttpContent c, List&lt;Object&gt; out) &#123;</div><div class="line">        ByteBuf content = c.content();</div><div class="line">        encode(content, out);</div><div class="line">        if (c instanceof LastHttpContent) &#123;</div><div class="line">            finishEncode(out);</div><div class="line">            LastHttpContent last = (LastHttpContent) c;</div><div class="line">            // Generate an additional chunk if the decoder produced</div><div class="line">            // the last product on closure,</div><div class="line">            HttpHeaders headers = last.trailingHeaders();</div><div class="line">            if (headers.isEmpty()) &#123;</div><div class="line">                out.add(LastHttpContent.EMPTY_LAST_CONTENT);</div><div class="line">            &#125; else &#123;</div><div class="line">                out.add(new ComposedLastHttpContent(headers));</div><div class="line">            &#125;</div><div class="line">            return true;</div><div class="line">        &#125;</div><div class="line">        return false;</div><div class="line">    &#125;</div></pre></td></tr></table></figure>
+</li>
+</ul>
+<p>7.1.注意这里的encode部分, 调用的是 encoder.writeOutbound(in.retain()), 而encoder就是前面描述的EmbeddedChannel, 进去后, 发现调用的是EmbeddedChannel.write(m),  依次处理的handler见上图EmbeddedChannel的pipeline。</p>
+<ul>
+<li>调用JdkZlibEncoder.encode()进行压缩。</li>
+<li>将数据写入ChannelOutboundBuffer对象并刷新, 写入的时候也会受限制于高水位,但是实际并不起什么作用, 后面在真正发送数据的时候会详细讲解这部分。</li>
+<li>在finishEncode()中会产生DefaultHttpContent, 里面存放的是gzip压缩的footer(可读才10 byte), 具体byte见JdkZlibEncoder.finishEncode里面描述。<br>7.2.向out中写入LastHttpContent.EMPTY_LAST_CONTENT, 代表这个帧内容结束。<br>这样整个输出帧的内容存放在out中, 拥有的对象如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/HttpOutPutResponse.png" height="250" width="500"><br>其中:</li>
+<li>DefaultHttpResponse: 存放的是Http/1.1 status, Header等</li>
+<li>第一个DefaultHttpContent存放的是压缩的内容。</li>
+<li>第二个DefaultHttpContent存放的是压缩器gzip的尾部标识部分。</li>
+<li>LastHttpContent代表整个帧的结束, content部分为空。<br>8.在encodeFullResponse中, 向header部分添加整个帧的长度content-length属性。<h2 id="JdkZlibEncoder压缩"><a href="#JdkZlibEncoder压缩" class="headerlink" title="JdkZlibEncoder压缩"></a>JdkZlibEncoder压缩</h2>我们可以了解下JdkZlibEncoder.encode()是怎么压缩的<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div></pre></td><td class="code"><pre><div class="line">@Override</div><div class="line">protected void encode(ChannelHandlerContext ctx, ByteBuf uncompressed, ByteBuf out) throws Exception &#123;</div><div class="line">    int len = uncompressed.readableBytes(); //总共刻度数据</div><div class="line">    int offset;</div><div class="line">    byte[] inAry;</div><div class="line">    if (uncompressed.hasArray()) &#123;  //若有数组,直接获得数组</div><div class="line">        // if it is backed by an array we not need to to do a copy at all</div><div class="line">        inAry = uncompressed.array();</div><div class="line">        offset = uncompressed.arrayOffset() + uncompressed.readerIndex();</div><div class="line">        // skip all bytes as we will consume all of them</div><div class="line">        uncompressed.skipBytes(len); //读取的数据， 直接跳过数组的长度</div><div class="line">    &#125; else &#123;</div><div class="line">        inAry = new byte[len];</div><div class="line">        uncompressed.readBytes(inAry);//将数据读取到这个byte数组中</div><div class="line">        offset = 0;</div><div class="line">    &#125;</div><div class="line">    if (writeHeader) &#123; //将数组写进去， 最开始编码，需要写</div><div class="line">        writeHeader = false;</div><div class="line">        if (wrapper == ZlibWrapper.GZIP) &#123;</div><div class="line">            out.writeBytes(gzipHeader);//首先写进去头</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line">    if (wrapper == ZlibWrapper.GZIP) &#123;</div><div class="line">        crc.update(inAry, offset, len);</div><div class="line">    &#125;</div><div class="line">    //向压缩器中传递带压缩的数组</div><div class="line">    deflater.setInput(inAry, offset, len);</div><div class="line">    while (!deflater.needsInput()) &#123;</div><div class="line">        deflate(out); //进行真正的压缩</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+</li>
+</ul>
+<p>可以看到:</p>
+<ul>
+<li>首先获得bytebuf的byte数组</li>
+<li>向最终存放压缩数据的out(PooledUnsafeDirectByteBuf)中写入gzip压缩标志的头部gzipHeader: [0x1f, (byte) 0x8b, Deflater.DEFLATED, 0, 0, 0, 0, 0, 0, 0];<br>其中out长度 =  (int) Math.ceil(msg.readableBytes() * 1.001) + 12 + gzipHeader.len(), 看来极端情况下压缩后可能和压缩前长度差不多;</li>
+<li>直接调用gzip的压缩算法, 将byte压缩后写入out中. 至于具体的压缩算法, 感兴趣的同学可以自行查看源代码。</li>
+</ul>
+<h1 id="DefalueChannalHadlerContext-write"><a href="#DefalueChannalHadlerContext-write" class="headerlink" title="DefalueChannalHadlerContext.write()"></a>DefalueChannalHadlerContext.write()</h1><p>DefalueChannalHadlerContext.write()函数之前的工作主要是编码部分、组成帧。 这里开始将压缩后最终的帧继续向外传递write。<br>接下来OutHanlder为HttpResponseEncoder, 实际调用的是其父类MessageToMessageEncoder.write(), 该函数已经在最开始介绍了; 其中调用了HttpObjectEncoder.encode(), 函数如下:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div><div class="line">61</div><div class="line">62</div><div class="line">63</div><div class="line">64</div><div class="line">65</div><div class="line">66</div><div class="line">67</div><div class="line">68</div><div class="line">69</div><div class="line">70</div><div class="line">71</div></pre></td><td class="code"><pre><div class="line"> ByteBuf buf = null;</div><div class="line">if (msg instanceof HttpMessage) &#123;  //如果是头部，则先编码头部</div><div class="line">    if (state != ST_INIT) &#123;</div><div class="line">        throw new IllegalStateException(&quot;unexpected message type: &quot; + StringUtil.simpleClassName(msg));</div><div class="line">    &#125;</div><div class="line">    H m = (H) msg;</div><div class="line">    buf = ctx.alloc().buffer();//直接内存分配的地址</div><div class="line">    // Encode the message.</div><div class="line">    encodeInitialLine(buf, m); //先是编码initial部分</div><div class="line">    encodeHeaders(m.headers(), buf);//再编码header部分</div><div class="line">    buf.writeBytes(CRLF);</div><div class="line">    state = isContentAlwaysEmpty(m) ? ST_CONTENT_ALWAYS_EMPTY ://一般都是ST_CONTENT_NON_CHUNK</div><div class="line">            HttpUtil.isTransferEncodingChunked(m) ? ST_CONTENT_CHUNK : ST_CONTENT_NON_CHUNK;</div><div class="line">&#125;</div><div class="line">if (msg instanceof ByteBuf &amp;&amp; !((ByteBuf) msg).isReadable()) &#123;</div><div class="line">    out.add(EMPTY_BUFFER);</div><div class="line">    return;</div><div class="line">&#125;</div><div class="line">//如果是数据部分，则编码数据部分， 若是DefaultFullHttpResponse</div><div class="line">if (msg instanceof HttpContent || msg instanceof ByteBuf || msg instanceof FileRegion) &#123;</div><div class="line">    switch (state) &#123;</div><div class="line">        case ST_INIT:</div><div class="line">            throw new IllegalStateException(&quot;unexpected message type: &quot; + StringUtil.simpleClassName(msg));</div><div class="line">        case ST_CONTENT_NON_CHUNK: //st_content_non_chunk</div><div class="line">            final long contentLength = contentLength(msg);</div><div class="line">            if (contentLength &gt; 0) &#123;//可写的空间够，直接放到直接内存buf中</div><div class="line">                if (buf != null &amp;&amp; buf.writableBytes() &gt;= contentLength &amp;&amp; msg instanceof HttpContent) &#123;//必须是content类型的</div><div class="line">                    // merge into other buffer for performance reasons</div><div class="line">                    buf.writeBytes(((HttpContent) msg).content());</div><div class="line">                    out.add(buf);</div><div class="line">                &#125; else &#123;</div><div class="line">                    if (buf != null) &#123;</div><div class="line">                        out.add(buf); //先把直接内存放进去</div><div class="line">                    &#125;</div><div class="line">                    out.add(encodeAndRetain(msg));//放进去的是CompositeByteBuf, 可以看出分了两部分放进去</div><div class="line">                &#125;</div><div class="line"></div><div class="line">                if (msg instanceof LastHttpContent) &#123;</div><div class="line">                    state = ST_INIT; //编码完成后，直接复位</div><div class="line">                &#125;</div><div class="line">                break;</div><div class="line">            &#125;</div><div class="line">            // fall-through!</div><div class="line">        case ST_CONTENT_ALWAYS_EMPTY: //内容为空, 最后一个帧将跳到这里</div><div class="line"></div><div class="line">            if (buf != null) &#123;</div><div class="line">                // We allocated a buffer so add it now.</div><div class="line">                out.add(buf);</div><div class="line">            &#125; else &#123;</div><div class="line">                // Need to produce some output otherwise an</div><div class="line">                // IllegalStateException will be thrown</div><div class="line">                out.add(EMPTY_BUFFER);</div><div class="line">            &#125;</div><div class="line"></div><div class="line">            break;</div><div class="line">        case ST_CONTENT_CHUNK:</div><div class="line">            if (buf != null) &#123;</div><div class="line">                // We allocated a buffer so add it now.</div><div class="line">                out.add(buf);</div><div class="line">            &#125;</div><div class="line">            encodeChunkedContent(ctx, msg, contentLength(msg), out);</div><div class="line">            break;</div><div class="line">        default:</div><div class="line">            throw new Error();</div><div class="line">    &#125;</div><div class="line">    if (msg instanceof LastHttpContent) &#123; //解码完成，再置位</div><div class="line">        state = ST_INIT;</div><div class="line">    &#125;</div><div class="line">&#125; else if (buf != null) &#123;</div><div class="line">    out.add(buf);</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>state初始值为ST_INIT, 该函数主要做了如下操作:</p>
+<ol>
+<li>首先检查是否是HttpMessage, Http Response 结构如上所示, 最开始是DefaultHttpResponse。</li>
+</ol>
+<ul>
+<li><p>通过encodeInitialLine编码initial部分(HHttpResponseEncoder中定义)</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line"> response.protocolVersion().encode(buf); //首先存放version编码</div><div class="line">buf.writeByte(SP); //存放byte:32水平空格</div><div class="line">response.status().encode(buf); //存放status, 比如[50 48 48 32 79 79]=&quot;200 ok&quot;</div><div class="line">buf.writeBytes(CRLF); //  &#123; CR, LF &#125;回车换行</div></pre></td></tr></table></figure>
+</li>
+<li><p>通过encodeHeaders编码header部分, 每个header属性编码如下:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div></pre></td><td class="code"><pre><div class="line"> final int nameLen = name.length();</div><div class="line">final int valueLen = value.length();</div><div class="line">final int entryLen = nameLen + valueLen + 4;</div><div class="line">buf.ensureWritable(entryLen);  //检查buf的最小长度</div><div class="line">int offset = buf.writerIndex();</div><div class="line">writeAscii(buf, offset, name); // 使用US_ASCII编码</div><div class="line">offset += nameLen;</div><div class="line">buf.setByte(offset ++, &apos;:&apos;);//:</div><div class="line">buf.setByte(offset ++, &apos; &apos;);//空格</div><div class="line">writeAscii(buf, offset, value);</div><div class="line">offset += valueLen;</div><div class="line">buf.setByte(offset ++, &apos;\r&apos;);//</div><div class="line">buf.setByte(offset ++, &apos;\n&apos;);</div><div class="line">buf.writerIndex(offset);</div></pre></td></tr></table></figure>
+</li>
+</ul>
+<p>1) 可以看出实际编码后存放的是 key: value\r\n; 注意冒号后面是空格<br>2) 通过CharsetUtil.US_ASCII编码key和value</p>
+<ul>
+<li>再接着写入[CRLF]。 其实可以看出, http response byte每部分内容都是以[CRLF]作为分隔符, 格式如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/HttpResponse_Byte.png" height="250" width="600"></li>
+</ul>
+<p>然后根据header部分来改变state状态, 一般state会被置为ST_CONTENT_NON_CHUNK。根据MessageToMessageEncoder.write()可知, 编码完DefaultHttpResponse, 就调用DefalueChannalHadlerContext.write继续向外写, 后面会详细讲些该部分。<br>2.第二、三次、四次传递过来的是DefaltHttpContent, 将进入ST_CONTENT_NON_CHUNK部分。</p>
+<ul>
+<li>会直接将整个DefaltHttpContent放入out向外写</li>
+<li>当发现传递过来的Content为末尾标识符LastHttpContent时, contentLength为0, 此时将直接跳到ST_CONTENT_ALWAYS_EMPTY部分执行, out会添加EMPTY_BUFFER, 最终state=ST_INIT置位, 表示该帧处理完成, 等待下一个帧传递过来。</li>
+</ul>
+<h1 id="Netty水位"><a href="#Netty水位" class="headerlink" title="Netty水位"></a>Netty水位</h1><p>向外写的最外层为HeadContext, 其write直接调用unsafe.write(msg, promise), 实际调用的是AbstractChannel$AbstractSafeUnSafe.write(), 如下:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div></pre></td><td class="code"><pre><div class="line">@Override</div><div class="line">     public final void write(Object msg, ChannelPromise promise) &#123;</div><div class="line">         ChannelOutboundBuffer outboundBuffer = this.outboundBuffer;//每个管道都有一个高水位和低水位</div><div class="line">         int size;</div><div class="line">         try &#123;</div><div class="line">             msg = filterOutboundMessage(msg); //自定义, 在真正写出的时候, msg必须转变为直接内存heap</div><div class="line">             size = pipeline.estimatorHandle().size(msg);</div><div class="line">             if (size &lt; 0) &#123;</div><div class="line">                 size = 0;</div><div class="line">             &#125;</div><div class="line">         &#125; catch (Throwable t) &#123;</div><div class="line">             safeSetFailure(promise, t);</div><div class="line">             ReferenceCountUtil.release(msg);</div><div class="line">             return;</div><div class="line">         &#125;</div><div class="line">         outboundBuffer.addMessage(msg, size, promise);//ChannelOutboundBuffer</div><div class="line">     &#125;</div></pre></td></tr></table></figure></p>
+<ul>
+<li>在这个函数中, 我们需要了解的是: 若直接是最外层发送, 那么filterOutboundMessage将会把msg转变为直接内存buf。</li>
+<li>通过ChannelOutboundBuffer.addMessage(msg, size, promise), 将输出结果暂时缓存起来, 形成一个链再批量发送。<br>我们需要了解下ChannelOutboundBuffer这个类, 它作为输出内容暂时缓存的地方, 维护着输出数据组成的链, 结构如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/ChannelOutboundBuffer.png" height="250" width="480"><br>flushEntry 表示即将刷新的位置<br>unflushEntry: 每次调用addFlush()将unflushEntry赋值给flushEntry, 才算真正开始flush数据了。<br>tailEntry: 当前缓存message时, 新增message都是尾部追加。 我们需要知道, 尾部追加并没有限制, 也就是说, netty本身并不会为我们做限制写入, 它只是负责通知我们达到内存使用水位上限了。 我们需要自己在函数中控制写入数据, 比如在发送数据时, 当且仅当channel.isWritable()为true才继续发送数据。<br>当把message通过尾部追加添加到输出list之后, 会同时调用incrementPendingOutboundBytes(), 记录当前已缓存的数据量:<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line">long newWriteBufferSize = TOTAL_PENDING_SIZE_UPDATER.addAndGet(this, size);////原子更新一下当前的水位，并获取最新的水位信息</div><div class="line">if (newWriteBufferSize &gt; channel.config().getWriteBufferHighWaterMark()) &#123;//如果当前的水位高于配置的高水位，那么就要调用setUnwriteable方法</div><div class="line">    setUnwritable(invokeLater);</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+</li>
+</ul>
+<p>所以向ChannelOutboundBuffer添加content不能太快了, 否则若来不及发送的话, 都是堆积在直接内存中, 容易造成内存OOM, 这里是如何限处理存数据大小的呢?<br>在netty启动时, 只需要添加如下参数即可:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line">ServerBootstrap bootstrap = new ServerBootstrap();</div><div class="line">bootstrap.childOption(ChannelOption.WRITE_BUFFER_HIGH_WATER_MARK, 64 * 1024);</div><div class="line">bootstrap.childOption(ChannelOption.WRITE_BUFFER_LOW_WATER_MARK, 32 * 1024);</div></pre></td></tr></table></figure></p>
+<p>代表:</p>
+<ul>
+<li>当每个channel使用写出缓存超过高水位64kb(默认值)时候, 就会调用fireChannelWritabilityChanged函数, 让上游感知, 同时Channel.isWritable()返回false。</li>
+<li>当每个channel使用写出缓存超过高水位之后, 又通过发送到网络后回落到低水位时, Channel.isWritable() 将会返回true.<h2 id="setUnwritable设置不可写"><a href="#setUnwritable设置不可写" class="headerlink" title="setUnwritable设置不可写"></a>setUnwritable设置不可写</h2></li>
+</ul>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div></pre></td><td class="code"><pre><div class="line">for (;;) &#123;</div><div class="line">    final int oldValue = unwritable;</div><div class="line">    final int newValue = oldValue | 1;</div><div class="line">    if (UNWRITABLE_UPDATER.compareAndSet(this, oldValue, newValue)) &#123;//高水位的时候就会可以通知到业务handler中的WritabilityChanged方法，并且修改buffer的状态</div><div class="line">        if (oldValue == 0 &amp;&amp; newValue != 0) &#123;</div><div class="line">            fireChannelWritabilityChanged(invokeLater);//</div><div class="line">        &#125;//事实上，达到高水位之后，Netty仅仅会发送一个Channle状态位变更事件通知，并不会阻止用户继续发送消息.发现的确如此。</div><div class="line">        break;</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>这里可以看出使用for循环, 直到将unwritable属性有0变为1(可写-&gt;不可写), 然后调用fireChannelWritabilityChanged向上层handler发送信号。<br>在自定义handler时, 可以覆盖该函数, 并通过channelWritable()判断是达到水位上限还是恢复可写了。</p>
+<h1 id="Flush"><a href="#Flush" class="headerlink" title="Flush"></a>Flush</h1><p>数据发送到缓存之后, 就开始调用ctx.invokeFlush(),  开始从HttpPipeliningHandler.flush开始调用,  一直到HeadContext.flush(), HeadContext.flush()调用如下:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line">public void flush(ChannelHandlerContext ctx) throws Exception &#123;</div><div class="line">    unsafe.flush();</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>这样的代码结构是不是很熟悉, 和write部分最终调用时一样的。 调用AbstractChannel$AbstractSafeUnSafe.flush():<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div></pre></td><td class="code"><pre><div class="line">@Override</div><div class="line">public final void flush() &#123;</div><div class="line">    assertEventLoop();</div><div class="line">    ChannelOutboundBuffer outboundBuffer = this.outboundBuffer;</div><div class="line">    if (outboundBuffer == null) &#123;</div><div class="line">        return;</div><div class="line">    &#125;</div><div class="line">    outboundBuffer.addFlush();</div><div class="line">    flush0();//写完了</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>主要做了如下事情:</p>
+<ul>
+<li>outboundBuffer.addFlush() 仅仅将flushEntry指向缓存连第一个节点, 并将unflushedEntry置为空;</li>
+<li>调用flush0开始真正的flush, 会跳到AbstractChannel$AbstractUnsafe.flush0():<h2 id="内部flush0"><a href="#内部flush0" class="headerlink" title="内部flush0"></a>内部flush0</h2><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div></pre></td><td class="code"><pre><div class="line">@SuppressWarnings(&quot;deprecation&quot;)</div><div class="line">protected void flush0() &#123;</div><div class="line">    if (inFlush0) &#123; //有正在写（真正的调用write写）</div><div class="line">        // Avoid re-entrance</div><div class="line">        return;</div><div class="line">    &#125;</div><div class="line">    final ChannelOutboundBuffer outboundBuffer = this.outboundBuffer;</div><div class="line">    if (outboundBuffer == null || outboundBuffer.isEmpty()) &#123;</div><div class="line">        return;</div><div class="line">    &#125;</div><div class="line">    inFlush0 = true; //标记正在写</div><div class="line">    // Mark all pending write requests as failure if the channel is inactive.</div><div class="line">    if (!isActive()) &#123;</div><div class="line">        try &#123;</div><div class="line">            if (isOpen()) &#123;</div><div class="line">                outboundBuffer.failFlushed(FLUSH0_NOT_YET_CONNECTED_EXCEPTION, true);</div><div class="line">            &#125; else &#123;</div><div class="line">                // Do not trigger channelWritabilityChanged because the channel is closed already.</div><div class="line">                outboundBuffer.failFlushed(FLUSH0_CLOSED_CHANNEL_EXCEPTION, false);</div><div class="line">            &#125;</div><div class="line">        &#125; finally &#123;</div><div class="line">            inFlush0 = false;</div><div class="line">        &#125;</div><div class="line">        return;</div><div class="line">    &#125;</div><div class="line">    try &#123;</div><div class="line">        doWrite(outboundBuffer);</div><div class="line">    &#125; catch (Throwable t) &#123;</div><div class="line">       ......</div><div class="line">    &#125; finally &#123;</div><div class="line">        inFlush0 = false;</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+</li>
+</ul>
+<p>该代码主要做了如下事情:</p>
+<ol>
+<li>检查是否有正在flush,  如是的话, 直接退出。</li>
+<li>标志正在flush<br>3.调用NioSocketChannel.doWrite()继续刷:<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div><div class="line">61</div><div class="line">62</div><div class="line">63</div><div class="line">64</div><div class="line">65</div></pre></td><td class="code"><pre><div class="line">protected void doWrite(ChannelOutboundBuffer in) throws Exception &#123;</div><div class="line">        for (;;) &#123;</div><div class="line">            int size = in.size(); //所有的都写完了</div><div class="line">            if (size == 0) &#123;</div><div class="line">                // All written so clear OP_WRITE</div><div class="line">                clearOpWrite();</div><div class="line">                break;</div><div class="line">            &#125;</div><div class="line">            long writtenBytes = 0;</div><div class="line">            boolean done = false;</div><div class="line">            boolean setOpWrite = false;</div><div class="line">            // Ensure the pending writes are made of ByteBufs only.</div><div class="line">            ByteBuffer[] nioBuffers = in.nioBuffers(); //获取的是DirectByteBuf[] 共三个</div><div class="line">            int nioBufferCnt = in.nioBufferCount();</div><div class="line">            long expectedWrittenBytes = in.nioBufferSize();</div><div class="line">            SocketChannel ch = javaChannel();</div><div class="line">            // Always us nioBuffers() to workaround data-corruption.</div><div class="line">            // See https://github.com/netty/netty/issues/2761</div><div class="line">            switch (nioBufferCnt) &#123;</div><div class="line">                case 0:</div><div class="line">                    // We have something else beside ByteBuffers to write so fallback to normal writes.</div><div class="line">                    super.doWrite(in);</div><div class="line">                    return;</div><div class="line">                case 1:</div><div class="line">                    // Only one ByteBuf so use non-gathering write</div><div class="line">                    ByteBuffer nioBuffer = nioBuffers[0];</div><div class="line">                    for (int i = config().getWriteSpinCount() - 1; i &gt;= 0; i --) &#123;</div><div class="line">                        final int localWrittenBytes = ch.write(nioBuffer);</div><div class="line">                        if (localWrittenBytes == 0) &#123;</div><div class="line">                            setOpWrite = true;</div><div class="line">                            break;</div><div class="line">                        &#125;</div><div class="line">                        expectedWrittenBytes -= localWrittenBytes;</div><div class="line">                        writtenBytes += localWrittenBytes;</div><div class="line">                        if (expectedWrittenBytes == 0) &#123;</div><div class="line">                            done = true;</div><div class="line">                            break;</div><div class="line">                        &#125;</div><div class="line">                    &#125;</div><div class="line">                    break;</div><div class="line">                default:</div><div class="line">                    for (int i = config().getWriteSpinCount() - 1; i &gt;= 0; i --) &#123;//循环16次, 可能一次写不完</div><div class="line">                        final long localWrittenBytes = ch.write(nioBuffers, 0, nioBufferCnt); //真正的写出</div><div class="line">                        if (localWrittenBytes == 0) &#123;</div><div class="line">                            setOpWrite = true;</div><div class="line">                            break;</div><div class="line">                        &#125;</div><div class="line">                        expectedWrittenBytes -= localWrittenBytes;</div><div class="line">                        writtenBytes += localWrittenBytes;</div><div class="line">                        if (expectedWrittenBytes == 0) &#123;</div><div class="line">                            done = true;</div><div class="line">                            break;</div><div class="line">                        &#125;</div><div class="line">                    &#125;</div><div class="line">                    break;</div><div class="line">            &#125;</div><div class="line">            // Release the fully written buffers, and update the indexes of the partially written buffer.</div><div class="line">            in.removeBytes(writtenBytes); //记录可丢弃的数据</div><div class="line">            if (!done) &#123;//若没有写完</div><div class="line">                // Did not write all buffers completely.</div><div class="line">                incompleteWrite(setOpWrite);</div><div class="line">                break;</div><div class="line">            &#125;</div><div class="line">        &#125;</div><div class="line">    &#125;</div></pre></td></tr></table></figure>
+</li>
+</ol>
+<p>该函数主要做了如下事情:</p>
+<ol>
+<li>通过in.nioBuffers() 获取content的直接内存DirectByteBuf[]</li>
+<li>当content个数&gt;=1时, 通过for 循环发送config().getWriteSpinCount()次, 为什么这样做? 是以免一次数据量太大了, 发送一次发送不完, 默认可以连续发送16次。ch.write()这个函数是不是又很常见了。</li>
+</ol>
+<h1 id="ChannelPromise什么时候返回success"><a href="#ChannelPromise什么时候返回success" class="headerlink" title="ChannelPromise什么时候返回success"></a>ChannelPromise什么时候返回success</h1><p>我们可能在代码里面回调addListener(), 使用如下:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">ctx.writeAndFlush(response).addListener(ChannelFutureListener.CLOSE);</div></pre></td></tr></table></figure></p>
+<p>那么, addListener会在什么时候执行呢? 首先ctx.writeAndFlush(response)返回DefaultChannelPromise,  进入addListener()代码如下:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div></pre></td><td class="code"><pre><div class="line">@Override</div><div class="line">public Promise&lt;V&gt; addListener(GenericFutureListener&lt;? extends Future&lt;? super V&gt;&gt; listener) &#123;</div><div class="line">    checkNotNull(listener, &quot;listener&quot;);</div><div class="line">    synchronized (this) &#123;</div><div class="line">        addListener0(listener);</div><div class="line">    &#125;</div><div class="line">    if (isDone()) &#123;</div><div class="line">        notifyListeners();</div><div class="line">    &#125;</div><div class="line">    return this;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>可以看到, 只有isDone()为true时(result=SUCCESS), 才会调用notifyListeners()来执行listener里面的内容, 那么result在哪里会被设置为SUCCESS呢。根据代码显示, 当调用write写入数据时, 将promise连同数据以Entry的形式放入了ChannelOutboundBuffer中:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div></pre></td><td class="code"><pre><div class="line">public void addMessage(Object msg, int size, ChannelPromise promise) &#123; //msg=PooledUnsafeDirectBtyeBuf</div><div class="line">     Entry entry = Entry.newInstance(msg, size, total(msg), promise);</div><div class="line">     if (tailEntry == null) &#123;// //把消息封装成一个entry，然后塞到一个单链表中</div><div class="line">         flushedEntry = null;</div><div class="line">         tailEntry = entry;</div><div class="line">     &#125; else &#123; //注意若不是的话，形成的是一个链</div><div class="line">         Entry tail = tailEntry;</div><div class="line">         tail.next = entry;</div><div class="line">         tailEntry = entry;</div><div class="line">     &#125;</div><div class="line">     if (unflushedEntry == null) &#123;</div><div class="line">         unflushedEntry = entry;</div><div class="line">     &#125;</div><div class="line">     // increment pending bytes after adding message to the unflushed arrays.</div><div class="line">     // See https://github.com/netty/netty/issues/1619</div><div class="line">     //修改当前缓冲区的水位</div><div class="line">     incrementPendingOutboundBytes(entry.pendingSize, false);</div><div class="line"> &#125;</div></pre></td></tr></table></figure></p>
+<p>而在完成Flush到管道后, 回收本地缓存时, 会调用ChannelOutboundBuffer.remove()函数:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div></pre></td><td class="code"><pre><div class="line">public boolean remove() &#123;</div><div class="line">       Entry e = flushedEntry;</div><div class="line">       if (e == null) &#123;</div><div class="line">           clearNioBuffers();</div><div class="line">           return false;</div><div class="line">       &#125;</div><div class="line">       Object msg = e.msg; //PooledUnsafeDirectByteBuf</div><div class="line">       ChannelPromise promise = e.promise;</div><div class="line">       int size = e.pendingSize;</div><div class="line">       removeEntry(e);</div><div class="line">       if (!e.cancelled) &#123;</div><div class="line">           // only release message, notify and decrement if it was not canceled before.</div><div class="line">           ReferenceCountUtil.safeRelease(msg); //释放了直接内存地址，</div><div class="line">           safeSuccess(promise);</div><div class="line">           decrementPendingOutboundBytes(size, false, true);</div><div class="line">       &#125;</div><div class="line">       // recycle the entry</div><div class="line">       e.recycle(); //释放Entry</div><div class="line">       return true;</div><div class="line">   &#125;</div></pre></td></tr></table></figure></p>
+<p>可以看到safeSuccess(promise), 在这里面完成了将Promise置为True, 同时调用notifyListeners()来唤醒监听器。</p>
+<p>至此, write到缓存、flush到网络部分全部讲完了。</p>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/elasticsearch_learning/categories/Netty//" class="article-tag-list-link color1">Netty</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/elasticsearch_learning/2018/05/04/Netty-Http通信编码源码阅读/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
   
     <article id="post-Netty-Http通信解码源码阅读" class="article article-type-post  article-index" itemscope itemprop="blogPost">
   <div class="article-inner">
@@ -1144,236 +1446,6 @@
 
 
   
-    <article id="post-ConcurrentHashMap-put过程介绍" class="article article-type-post  article-index" itemscope itemprop="blogPost">
-  <div class="article-inner">
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/elasticsearch_learning/2017/11/05/ConcurrentHashMap-put过程介绍/">ConcurrentHashMap Put源码介绍</a>
-    </h1>
-  
-
-        
-        <a href="/elasticsearch_learning/2017/11/05/ConcurrentHashMap-put过程介绍/" class="archive-article-date">
-  	<time datetime="2017-11-05T03:20:55.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-11-05</time>
-</a>
-        
-      </header>
-    
-
-    <!-- 目录内容 -->
-    
-    <!-- 目录内容结束 -->
-
-    <div class="article-entry" itemprop="articleBody">
-      
-        <p>在平时项目中, 较多的使用了HashMap容器, 但是它是非线程安全的, 在多线程put的时候, 可能会导致HashMap产生环链而导致死锁。 在并发场景下, 我们就得换成ConcurrentHashMap, 采用分段、红黑树等结构体, 支持多线程同时插入, 又拥有较高的性能。本文章将围绕put的过程进行详细描述。<br>首先放张大图, 对ConcurrentHashMap先有大致的了解。<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/ConcurrentHashMap2.png" height="400" width="450"><br>所有插入的值首先放在table的元素中, 当hash(key)冲突时, 将key-value存放在这个元素的后面, 形成一个链表, 当链表长度达到阈值时, 为减少索引时间, 将链表转变为一个红黑树; 当删除数据时, 红黑树可能会退化为链表; table由于负载高, 也可能会继续扩容。<br>ConcurrentHashMap系列将分为以下三个方面进行详细描述:<br><a href="https://kkewwei.github.io/elasticsearch_learning/2017/11/05/ConcurrentHashMap-put%E8%BF%87%E7%A8%8B%E4%BB%8B%E7%BB%8D/">ConcurrentHashMap Put源码介绍</a><br><a href="https://kkewwei.github.io/elasticsearch_learning/2017/11/14/ConcurrentHashMap%E6%89%A9%E5%AE%B9%E8%BF%87%E7%A8%8B%E4%BB%8B%E7%BB%8D/">ConcurrentHashMap扩容源码介绍</a><br><a href="https://kkewwei.github.io/elasticsearch_learning/2017/11/06/ConcurrentHashMap%E7%BA%A2%E9%BB%91%E6%A0%91%E5%8E%9F%E7%90%86%E4%BB%8B%E7%BB%8D/">ConcurrentHashMap红黑树原理介绍</a></p>
-<h1 id="成员变量介绍"><a href="#成员变量介绍" class="headerlink" title="成员变量介绍"></a>成员变量介绍</h1><p>ConcurrentHashMap拥有出色的性能, 在真正掌握内部结构时, 先要掌握比较重要的成员:</p>
-<ul>
-<li>LOAD_FACTOR: 负载因子, 默认75%, 当table使用率达到75%时, 为减少table的hash碰撞, tabel长度将扩容一倍。负载因子计算: 元素总个数%table.lengh</li>
-<li>TREEIFY_THRESHOLD: 默认8, 当链表长度达到8时, 将结构转变为红黑树。</li>
-<li>UNTREEIFY_THRESHOLD: 默认6, 红黑树转变为链表的阈值。</li>
-<li>MIN_TRANSFER_STRIDE: 默认16, table扩容时, 每个线程最少迁移table的槽位个数。</li>
-<li>MOVED: 值为-1, 当Node.hash为MOVED时, 代表着table正在扩容</li>
-<li>TREEBIN, 置为-2, 代表此元素后接红黑树。</li>
-<li>nextTable: table迁移过程临时变量, 在迁移过程中将元素全部迁移到nextTable上。</li>
-<li>sizeCtl: 用来标志table初始化和扩容的,不同的取值代表着不同的含义:<br>  0: table还没有被初始化<br>  -1: table正在初始化<br>  小于-1: 实际值为resizeStamp(n)&lt;&lt;RESIZE_STAMP_SHIFT+2, 表明table正在扩容<br>  大于0: 初始化完成后, 代表table最大存放元素的个数, 默认为0.75*n</li>
-<li>transferIndex: table容量从n扩到2n时, 是从索引n-&gt;1的元素开始迁移, transferIndex代表当前已经迁移的元素下标</li>
-<li>ForwardingNode: 一个特殊的Node节点, 其hashcode=MOVED, 代表着此时table正在做扩容操作。扩容期间, 若table某个元素为null, 那么该元素设置为ForwardingNode, 当下个线程向这个元素插入数据时, 检查hashcode=MOVED, 就会帮着扩容。</li>
-</ul>
-<h1 id="putVal插入数据"><a href="#putVal插入数据" class="headerlink" title="putVal插入数据"></a>putVal插入数据</h1><p>下面真正开始写入数据:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div><div class="line">61</div><div class="line">62</div><div class="line">63</div><div class="line">64</div><div class="line">65</div><div class="line">66</div><div class="line">67</div><div class="line">68</div><div class="line">69</div><div class="line">70</div><div class="line">71</div><div class="line">72</div><div class="line">73</div><div class="line">74</div><div class="line">75</div><div class="line">76</div><div class="line">77</div><div class="line">78</div><div class="line">79</div></pre></td><td class="code"><pre><div class="line">/** Implementation for put and putIfAbsent */</div><div class="line">final V putVal(K key, V value, boolean onlyIfAbsent) &#123;</div><div class="line">    if (key == null || value == null) throw new NullPointerException();</div><div class="line">    // 定位到table[]中的i</div><div class="line">    int hash = spread(key.hashCode());</div><div class="line">    int binCount = 0;</div><div class="line">    for (Node&lt;K,V&gt;[] tab = table;;) &#123;</div><div class="line">        Node&lt;K,V&gt; f; int n, i, fh;</div><div class="line">        //若table为0， 则初始化这个table</div><div class="line">        if (tab == null || (n = tab.length) == 0)</div><div class="line">            tab = initTable(); //首先初始化</div><div class="line">        //根据hash值计算出在table里面的位置</div><div class="line">        else if ((f = tabAt(tab, i = (n - 1) &amp; hash)) == null) &#123;</div><div class="line">            //如果没有，则向这个位置添加一个节点</div><div class="line">            if (casTabAt(tab, i, null,</div><div class="line">                         new Node&lt;K,V&gt;(hash, key, value, null)))</div><div class="line">                break;                   // no lock when adding to empty bin</div><div class="line">        &#125;</div><div class="line">        //整个table正在扩容</div><div class="line">        else if ((fh = f.hash) == MOVED)</div><div class="line">            //帮着一起扩容</div><div class="line">            tab = helpTransfer(tab, f);</div><div class="line">        //真正插入数据</div><div class="line">        else &#123;</div><div class="line">            V oldVal = null;</div><div class="line">            //那么这个点先禁止别的线程插入数据，若整个table迁移还没有处理到这个元素，此时锁住后，迁移到这里后会被卡主</div><div class="line">            synchronized (f) &#123;</div><div class="line">                if (tabAt(tab, i) == f) &#123;</div><div class="line">                     //普通的数组</div><div class="line">                    if (fh &gt;= 0) &#123;</div><div class="line">                        binCount = 1;</div><div class="line">                        for (Node&lt;K,V&gt; e = f;; ++binCount) &#123;</div><div class="line">                            K ek;</div><div class="line">                            //找到key一样的，则直接替换并退出</div><div class="line">                            if (e.hash == hash &amp;&amp;</div><div class="line">                                ((ek = e.key) == key ||</div><div class="line">                                 (ek != null &amp;&amp; key.equals(ek)))) &#123;</div><div class="line">                                oldVal = e.val;</div><div class="line">                                if (!onlyIfAbsent)</div><div class="line">                                    e.val = value;</div><div class="line">                                break;</div><div class="line">                            &#125;</div><div class="line">                            Node&lt;K,V&gt; pred = e;</div><div class="line">                            //继续找下一个节点，若数组找到最后都没有找到合适的，那么就进行尾插法加入</div><div class="line">                            if ((e = e.next) == null) &#123;</div><div class="line">                                pred.next = new Node&lt;K,V&gt;(hash, key,</div><div class="line">                                                          value, null);</div><div class="line">                                break;</div><div class="line">                            &#125;</div><div class="line">                        &#125;</div><div class="line">                    &#125;</div><div class="line">                    //如果是红合树</div><div class="line">                    else if (f instanceof TreeBin) &#123;</div><div class="line">                        Node&lt;K,V&gt; p;</div><div class="line">                        //赋值固定，就不会再去转变了，只要小于TREEIFY_THRESHOLD就行</div><div class="line">                        binCount = 2;</div><div class="line">                        if ((p = ((TreeBin&lt;K,V&gt;)f).putTreeVal(hash, key,</div><div class="line">                                                       value)) != null) &#123;</div><div class="line">                            oldVal = p.val;</div><div class="line">                            if (!onlyIfAbsent)</div><div class="line">                                p.val = value;</div><div class="line">                        &#125;</div><div class="line">                    &#125;</div><div class="line">                &#125;</div><div class="line">            &#125;</div><div class="line">            if (binCount != 0) &#123;</div><div class="line">                if (binCount &gt;= TREEIFY_THRESHOLD)</div><div class="line">                    //开始将table中元素为i的数组转变为二叉树</div><div class="line">                    treeifyBin(tab, i);</div><div class="line">                if (oldVal != null)</div><div class="line">                    return oldVal;</div><div class="line">                break;</div><div class="line">            &#125;</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line">    //链表或者红黑树不应该增加table的负载</div><div class="line">    addCount(1L, binCount);</div><div class="line">    return null;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
-<p>主要做了如下事情:</p>
-<ul>
-<li>根据spread确定key-value的hash值, hash计算过程如下: (h ^ (h &gt;&gt;&gt; 16)) &amp; HASH_BITS, h=key.hashCode(), HASH_BITS=0x7fffffff, 由此可见, 计算出来的hash&gt;0一定成立, 若node.hash&lt;0是, -1(Moved)代表table正在扩容, -2(TREEBIN)代表此元素后接红黑树</li>
-<li>检查table是否初始化, 若没有初始化,则开始初始化initTable()。 这里可以看出ConcurrentHashMap使用懒性初始化, 只有在真正插入数据时候才进行扩容。</li>
-<li>根据i = (n - 1) &amp; hash))确定需要插入table的位置i:</li>
-</ul>
-<ol>
-<li>若table[i]没有元素, 则将key-value存放进去。</li>
-<li>若table[i].hash为MOVED, 那么说明table正在进行扩容, 则通过helpTransfer()进行扩容(具体参考<a href="https://kkewwei.github.io/elasticsearch_learning/2017/11/14/ConcurrentHashMap%E6%89%A9%E5%AE%B9%E8%BF%87%E7%A8%8B%E4%BB%8B%E7%BB%8D/">ConcurrentHashMap扩容源码介绍</a>)</li>
-<li>否则开始真正插入数据, 插入数据前, 先将table[i]锁住, 插入数据前, 检查table[i].hash, 若大于0, 说明此元素后接的是链表, 或者是个红黑树。 链表插入采取尾插法, 比较简单; 红黑树的插入详见后续描述。</li>
-<li>在链表插入时, 统计当前链表长度, 若长度超过TREEIFY_THRESHOLD(默认值为8), 则需要将链表转变为红黑树结构(具体参考<a href="https://kkewwei.github.io/elasticsearch_learning/2017/11/06/ConcurrentHashMap%E7%BA%A2%E9%BB%91%E6%A0%91%E5%8E%9F%E7%90%86%E4%BB%8B%E7%BB%8D/">ConcurrentHashMap红黑树原理介绍</a>)</li>
-<li>修改table存放所有元素个数、检查table是否需要扩容等, 详见addCount。 这里感觉代码有些问题, 插入任何一个元素, 无论插在table元素上、还是链表或者红黑树上, 都对table容量增加了1, 增加table容量的结果就是可能导致table扩容。 实际上插入链表或者红黑树, 并不会增加table的负载, 这两种情况下, 不应该增加table的负载、而去检查扩容。</li>
-</ol>
-<h2 id="initTable初始化"><a href="#initTable初始化" class="headerlink" title="initTable初始化"></a>initTable初始化</h2><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div></pre></td><td class="code"><pre><div class="line">private final Node&lt;K,V&gt;[] initTable() &#123;</div><div class="line">    Node&lt;K,V&gt;[] tab; int sc;</div><div class="line">    while ((tab = table) == null || tab.length == 0) &#123;//只要没有成功，就一定重新尝试</div><div class="line">        if ((sc = sizeCtl) &lt; 0)  //正在初始化，本节点先尝试放弃cpu的使用</div><div class="line">            Thread.yield(); // lost initialization race; just spin</div><div class="line">        else if (U.compareAndSwapInt(this, SIZECTL, sc, -1)) &#123; //这里应该是个原子操作，将sizeCtl设置为-1</div><div class="line">            try &#123;</div><div class="line">                if ((tab = table) == null || tab.length == 0) &#123; //</div><div class="line">                    int n = (sc &gt; 0) ? sc : DEFAULT_CAPACITY;//sc 大于零说明容量已经初始化了，否则使用默认容量</div><div class="line">                    @SuppressWarnings(&quot;unchecked&quot;)</div><div class="line">                    Node&lt;K,V&gt;[] nt = (Node&lt;K,V&gt;[])new Node&lt;?,?&gt;[n];</div><div class="line">                    table = tab = nt;</div><div class="line">                    sc = n - (n &gt;&gt;&gt; 2);//  //计算阈值，等效于 n*0.75，就是n-0.25*n</div><div class="line">                &#125;</div><div class="line">            &#125; finally &#123;</div><div class="line">                sizeCtl = sc;</div><div class="line">            &#125;</div><div class="line">            break;</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line">    return tab;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
-<p>初始化table主要做了如下事情:</p>
-<ul>
-<li>检查sizeCtl, 若发现&lt;0, 那么说明已经有线程正在初始化, 本线程先放弃cpu使用等待初始化完成</li>
-<li>若本线程是第一个初始化table, 那么原子操作, 将sizeCtl设置为-1, 表明有线程正在对table正在初始化。</li>
-<li>初始化table</li>
-<li>设置sizeCtl= table.length*0.75, 规定了table最大存放元素的个数<h2 id="addCount"><a href="#addCount" class="headerlink" title="addCount"></a>addCount</h2>addCount主要做两个事情: 并发环境下统计ConcurrentHashMap里属性的个数、检查table是否需要扩容。<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div></pre></td><td class="code"><pre><div class="line">private final void addCount(long x, int check) &#123;  //若小于0，则不检查扩容</div><div class="line">    CounterCell[] as; long b, s=baseCount+x;</div><div class="line">    .......//更新元素个数metrics</div><div class="line">    &#125;</div><div class="line">    if (check &gt;= 0) &#123; //s是当前table长度</div><div class="line">        Node&lt;K,V&gt;[] tab, nt; int n, sc;</div><div class="line">        while (s &gt;= (long)(sc = sizeCtl) &amp;&amp; (tab = table) != null &amp;&amp;//达到容积上限，</div><div class="line">               (n = tab.length) &lt; MAXIMUM_CAPACITY) &#123;</div><div class="line">            int rs = resizeStamp(n); //根据目前table长度做一个标识</div><div class="line">            if (sc &lt; 0) &#123; //说明table正在扩容</div><div class="line">                if ((sc &gt;&gt;&gt; RESIZE_STAMP_SHIFT) != rs || sc == rs + 1 ||</div><div class="line">                    sc == rs + MAX_RESIZERS || (nt = nextTable) == null ||</div><div class="line">                    transferIndex &lt;= 0)</div><div class="line">                    break;</div><div class="line">                if (U.compareAndSwapInt(this, SIZECTL, sc, sc + 1))</div><div class="line">                    transfer(tab, nt);</div><div class="line">            &#125; //第一个线程开始扩容，sizeCtl = resizeStamp(n)&lt;&lt;16 + 2</div><div class="line">            else if (U.compareAndSwapInt(this, SIZECTL, sc, //sc = rs &lt;&lt; 16 + 2</div><div class="line">                                         (rs &lt;&lt; RESIZE_STAMP_SHIFT) + 2))//rs &gt; 2^15,rs &lt;&lt; RESIZE_STAMP_SHIFT) + 2) &gt; 2^31+n,int类型的数就是负数了。</div><div class="line">                transfer(tab, null);</div><div class="line">            s = sumCount();</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
-</li>
-</ul>
-<p>主要介绍检查是否需要扩容, 若ConcurrentHashMap总个数s+x达到了最大元素阈值sizeCtl, 那么开始进行扩容, 这里扩容应该分下场景, 链表和红黑树结构体的插入, 不应该进行扩容的。</p>
-<ul>
-<li>若sizeCtl<0, 那么检查是否扩容完成,="" 若扩容完成了,="" 退出;="" 否则将sizectl加1,="" 并进行扩容操作transfer(),="" 详见<a="" href="https://kkewwei.github.io/elasticsearch_learning/2017/11/14/ConcurrentHashMap%E6%89%A9%E5%AE%B9%E8%BF%87%E7%A8%8B%E4%BB%8B%E7%BB%8D/">ConcurrentHashMap扩容源码介绍</0,></li>
-<li>若sizeCtl&gt;0, 那么本线程是第一个开始对table进行扩容的, 将sizeCtl=resizeStamp(n)&lt;&lt;16 + 2, 并进行扩容transfer()</li>
-</ul>
-<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>ConcurrentHashMap为了加快索引速度和插入并发, 采用由数组+链表+红黑树来存储数据,  数据结构之间能够相互转变。 插入数据时, 会检查table是否初始化, 是否在扩容, 插入的元素位置是否为链表、红黑树, 针对不同的情况采取不同的插入方法。</p>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/elasticsearch_learning/categories/Java学习//" class="article-tag-list-link color2">Java学习</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/elasticsearch_learning/2017/11/05/ConcurrentHashMap-put过程介绍/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
-    <article id="post-Condition原理解读" class="article article-type-post  article-index" itemscope itemprop="blogPost">
-  <div class="article-inner">
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/elasticsearch_learning/2017/10/02/Condition原理解读/">Condition接口原理介绍及ArrayBlockingQueue、LinkedBlockingQueue实现</a>
-    </h1>
-  
-
-        
-        <a href="/elasticsearch_learning/2017/10/02/Condition原理解读/" class="archive-article-date">
-  	<time datetime="2017-10-02T11:28:01.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-10-02</time>
-</a>
-        
-      </header>
-    
-
-    <!-- 目录内容 -->
-    
-    <!-- 目录内容结束 -->
-
-    <div class="article-entry" itemprop="articleBody">
-      
-        <p>任何一个java对象都拥有wait()/nitify方法, 它们通过与synchronized结合(参考<a href="https://kkewwei.github.io/elasticsearch_learning/2016/10/27/Java%E7%BA%BF%E7%A8%8B%E7%9F%A5%E8%AF%86%E5%B0%8F%E7%BB%93/">Java 线程知识小结(-)</a>)来实现线程之间的通信机制。 在锁方面Lock与Condition接口配合也实现了相同的功能, 但是它们之间的原理是不相同的。使用上两者的区别如下(图片摘自<a href="https://www.jianshu.com/p/be2dc7c878dc" target="_blank" rel="external">java并发编程之Condition</a>)):<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/Condition1.png" height="400" width="500"><br>最直观的理解是: 在Condition中, 在生产者和消费者模型, 生产者消费者可以在不同的队列上阻塞。而通过object阻塞时, 消费者和生产者都在同一个object上被阻塞。</p>
-<h1 id="基本使用"><a href="#基本使用" class="headerlink" title="基本使用"></a>基本使用</h1><p>我们将以最简单的消费者与生产者的示例讲解Condition与Lock配合使用的例子:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div><div class="line">61</div><div class="line">62</div><div class="line">63</div><div class="line">64</div><div class="line">65</div><div class="line">66</div></pre></td><td class="code"><pre><div class="line">public class ConditonTest &#123;</div><div class="line">    //当前产品个数</div><div class="line">    public static int count = 0;</div><div class="line">    static ReentrantLock reentrantLock = new ReentrantLock();</div><div class="line">    //产品为空时, 那么消费者就得生产者来唤醒, 消费者就得等待生产者生产商品这个条件</div><div class="line">    static  Condition empty = reentrantLock.newCondition();</div><div class="line">    public static void main(String[] args) &#123;</div><div class="line">        ExecutorService pool = Executors.newFixedThreadPool(2);</div><div class="line">        Thread t3 = new Consumer(&quot;A&quot;, ConditonTest.reentrantLock, ConditonTest.empty);</div><div class="line">        Thread t1 = new Producder(&quot;B&quot;, ConditonTest.reentrantLock, ConditonTest.empty);</div><div class="line">        Thread t2 = new Producder(&quot;C&quot;, ConditonTest.reentrantLock, ConditonTest.empty);</div><div class="line">        Thread t4 = new Consumer(&quot;D&quot;, ConditonTest.reentrantLock, ConditonTest.empty);</div><div class="line">        Thread t5 = new Consumer(&quot;E&quot;, ConditonTest.reentrantLock, ConditonTest.empty);</div><div class="line">        // 执行各个线程</div><div class="line">        pool.execute(t1);</div><div class="line">        pool.execute(t2);</div><div class="line">        pool.execute(t3);</div><div class="line">        pool.execute(t4);</div><div class="line">        pool.execute(t5);</div><div class="line">        pool.shutdown();</div><div class="line">    &#125;</div><div class="line">&#125;</div><div class="line">class Producder extends Thread &#123;</div><div class="line">    private String name;</div><div class="line">    Lock lock;</div><div class="line">    Condition empty;</div><div class="line">    public Producder(String name, Lock lock, Condition empty) &#123;</div><div class="line">        this.name = name;</div><div class="line">        this.lock = lock;</div><div class="line">        this.empty = empty;</div><div class="line">    &#125;</div><div class="line">    public void run() &#123;</div><div class="line">        lock.lock(); // 获取锁</div><div class="line">        ConditonTest.count ++;</div><div class="line">        System.out.println(name + &quot;产生一个&quot;);</div><div class="line">        empty.signalAll(); // 唤醒所有等待线程。</div><div class="line">        lock.unlock(); // 释放锁</div><div class="line">    &#125;</div><div class="line">&#125;</div><div class="line">class Consumer extends Thread &#123;</div><div class="line">    private String name;</div><div class="line">    Lock lock;</div><div class="line">    Condition empty;</div><div class="line">    public Consumer(String name, Lock lock, Condition empty) &#123;</div><div class="line">        this.name = name;</div><div class="line">        this.lock = lock;</div><div class="line">        this.empty = empty;</div><div class="line">    &#125;</div><div class="line">    public void run() &#123;</div><div class="line">        lock.lock(); // 获取锁</div><div class="line">        try &#123;</div><div class="line">            while ( ConditonTest.count == 0) &#123;</div><div class="line">                System.out.println(name + &quot;阻塞中&quot;);</div><div class="line">                // 阻塞取款操作, await之后就隐示自动释放了lock，直到被唤醒自动获取</div><div class="line">                empty.await();</div><div class="line">                System.out.println(name + &quot;被唤醒&quot;);</div><div class="line">            &#125;</div><div class="line">            ConditonTest.count --;</div><div class="line">            System.out.println(name + &quot;消费一个&quot;);</div><div class="line">        &#125; catch (InterruptedException e) &#123;</div><div class="line">            e.printStackTrace();</div><div class="line">        &#125; finally &#123;</div><div class="line">            lock.unlock(); // 释放锁</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
-<p>以上只是使用一个Condition条件队列(具体真实应用可参考ArrayBlockingQueue、LinkedBlockingQueue), 在实际应用中, 可以使用多个条件ConditionObject, ConditionObject都是通过调用reentrantLock.newCondition()中产生的, 该类在AbstractQueuedSynchronizer中定义。 条件队列结构如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/Condition2.png" height="250" width="450"><br>每当线程调用Condition.wait()时, 该线程将会通过尾插法放入该条件队列; 当别的线程调用Condition.signal()时, 该线程将从等待队列转移到AQS阻塞队列(参考<a href="https://kkewwei.github.io/elasticsearch_learning/2017/07/23/ReentrantLock%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB/">ReentrantLock源码解读</a>), 使用比较简单。<br>注意阻塞队列和条件队列结构的区别:</p>
-<ul>
-<li>阻塞队列拥有head, head不存放任何线程; 由tail指定结尾; 条件队列首尾由firstWaiter,lastWaiter指定, 第一个线程即为firstWaiter。</li>
-<li>阻塞队列由next, pre连接; 条件队列由nextWaiter连接</li>
-</ul>
-<h1 id="wait"><a href="#wait" class="headerlink" title="wait()"></a>wait()</h1><p>wait主要是将该线程存放在Condition队列等待被唤醒。empty.await()实际调用的AbstractQueuedSynchronizer中的wait函数:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div></pre></td><td class="code"><pre><div class="line">public final void await() throws InterruptedException &#123;</div><div class="line">     //检查当前中断标志位, 若之前有中断, 那么直接向外抛出异常</div><div class="line">    if (Thread.interrupted())</div><div class="line">        throw new InterruptedException();</div><div class="line">    //将该线程添加到CONDITION队列中</div><div class="line">    Node node = addConditionWaiter();</div><div class="line">    //在该节点加入condition队列中等待前，await则需要释放掉当前线程占有的锁</div><div class="line">    int savedState = fullyRelease(node);</div><div class="line">    int interruptMode = 0;  //</div><div class="line">    //检查该线程是否在阻塞队列中。线程首先加入条件队列，若有signal发生，会被signal转移到阻塞队列中</div><div class="line">    while (!isOnSyncQueue(node)) &#123;</div><div class="line">       //已经加入条件队列, 开始进行睡眠</div><div class="line">       LockSupport.park(this);</div><div class="line">       //被唤醒了, 可能是别的线程调用了signal; 也可能是别的线程调用了中断。线程可能在条件队列, 也可能在阻塞队列</div><div class="line">       if ((interruptMode = checkInterruptWhileWaiting(node)) != 0)</div><div class="line">            break;</div><div class="line">        //等于0说明是被signal唤醒的，将在下次while时直接退出循环</div><div class="line">    &#125;</div><div class="line">    //此时在阻塞队列中了</div><div class="line">    if (acquireQueued(node, savedState) &amp;&amp; interruptMode != THROW_IE) //从阻塞队列中唤醒了</div><div class="line">        interruptMode = REINTERRUPT;</div><div class="line">    if (node.nextWaiter != null) // clean up if cancelled</div><div class="line">        unlinkCancelledWaiters();</div><div class="line">    if (interruptMode != 0)</div><div class="line">        reportInterruptAfterWait(interruptMode); //</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
-<p>主要做了如下事情:</p>
-<ul>
-<li>检查线程中断位, 若该线程存在中断信号则抛出异常</li>
-<li>将该线程加入条件队列, waitStatus置为Node.CONDITION, 见addConditionWaiter</li>
-<li>释放被占用的锁, 释放的savedState的值说明下次还需要获取的值。见fullyRelease</li>
-<li>检查线程是否阻塞队列, 见isOnSyncQueue。 若不在阻塞队列的话, 若在条件队列, 则开始调用LockSupport.park(this)睡眠。 若醒过来了存在两种可能: 别的线程调用了中断; 别的线程调用了signal, 需要继续判断是哪种情况, 见checkInterruptWhileWaiting。</li>
-<li>从while退出, 说明已经在阻塞队列了, 进入acquireQueued(参考<a href="https://kkewwei.github.io/elasticsearch_learning/2017/07/23/ReentrantLock%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB/">ReentrantLock源码解读</a>)等待被别的线程释放锁来唤醒</li>
-<li>清理条件队列中剩余线程, 若线程的node状态不为Node.CONDITION, 将从该队列中清理掉, 见unlinkCancelledWaiters函数。</li>
-<li>检查中断信息, 若存在中断, 中断是在调用signal前的话, 说明唤醒原因是因为中断, 那么线程直接向上抛出异常; 若中断是在调用signal之后的话, 那么唤醒原因是因为signal。将中断复位给线程。见reportInterruptAfterWait()<br>以下代码判断线程是否在阻塞队列中:isOnSyncQueue:<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div></pre></td><td class="code"><pre><div class="line">final boolean isOnSyncQueue(Node node) &#123;</div><div class="line">     //只有在等待队列,waitStatus才会等于CONDITION; node.prev !=null,不代表一定是在阻塞队列中, 也可能在迁移的路上</div><div class="line">    if (node.waitStatus == Node.CONDITION || node.prev == null)</div><div class="line">        return false;</div><div class="line">     #若设置了, 肯定是在阻塞队列中。那就说明条件队列的next一定为null</div><div class="line">    if (node.next != null) // If has successor, it must be on queue，</div><div class="line">        return true;</div><div class="line">    /*</div><div class="line">     * node.prev can be non-null, but not yet on queue because</div><div class="line">     * the CAS to place it on queue can fail. So we have to</div><div class="line">     * traverse from tail to make sure it actually made it.  It</div><div class="line">     * will always be near the tail in calls to this method, and</div><div class="line">     * unless the CAS failed (which is unlikely), it will be</div><div class="line">     * there, so we hardly ever traverse much.</div><div class="line">     */</div><div class="line">    return findNodeFromTail(node);  //同归对别在阻塞队列中彻头彻尾找这个节点</div><div class="line">&#125;</div></pre></td></tr></table></figure>
-</li>
-</ul>
-<p>而checkInterruptWhileWaiting主要是为了检查线程从LockSupport.park(this)只醒来的原因:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div></pre></td><td class="code"><pre><div class="line">private int checkInterruptWhileWaiting(Node node) &#123;</div><div class="line">            return Thread.interrupted() ?</div><div class="line">                  //至少线程是被中断过</div><div class="line">                (transferAfterCancelledWait(node) ? THROW_IE : REINTERRUPT) :</div><div class="line">                0;  //返回0说明一定是被signasl唤醒的</div><div class="line">        &#125;</div></pre></td></tr></table></figure></p>
-<p>这里判断, 若不存在中断信号的话, 那么线程一定是被别的线程调用signal唤醒的, 那么进入transferAfterCancelledWait判断线程中断发生的是时间<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div></pre></td><td class="code"><pre><div class="line">final boolean transferAfterCancelledWait(Node node) &#123;</div><div class="line">        //线程被signal唤醒，只会是Node.SIGNAL，而不是Node.CONDITION</div><div class="line">       if (compareAndSetWaitStatus(node, Node.CONDITION, 0)) &#123;</div><div class="line">           enq(node);//说明是被interput的</div><div class="line">           return true;</div><div class="line">       &#125;</div><div class="line">       /*  此后说明是被signal唤醒的，</div><div class="line">        * If we lost out to a signal(), then we can&apos;t proceed  //若果我们从</div><div class="line">        * until it finishes its enq().  Cancelling during an</div><div class="line">        * incomplete transfer is both rare and transient, so just</div><div class="line">        * spin.</div><div class="line">        */</div><div class="line">        //等待调用singla的线程将本节点加入阻塞队列，该线程等待这个操作完成, 若还没有完成的话, 就等待</div><div class="line">       while (!isOnSyncQueue(node))</div><div class="line">           Thread.yield();  //偶尔释放下cpu，线程从运行到就绪状态</div><div class="line">       //说明是被singla唤醒的，同时已经被其他的线程加入了阻塞队列</div><div class="line">       return false;</div><div class="line">   &#125;</div></pre></td></tr></table></figure></p>
-<p>总结一下, 此时线程被唤醒了:</p>
-<ul>
-<li>不存在中断信号, 说明若线程被signal唤醒的, 那么返回0</li>
-<li>存在中断信号, 而线程的statue为Node.CONDITION, 那么说明线程是被中断唤醒的, 之后将会向外抛出InterruptedException异常。</li>
-<li>存在中断信号, 而线程的statue不为Node.CONDITION, 那么说明该中断信号是在线程被signal唤醒之后才出现的, 那么就不会抛向外抛出异常, 而是将中断信号再置位给线程。</li>
-</ul>
-<h1 id="signal"><a href="#signal" class="headerlink" title="signal()"></a>signal()</h1><p>再来了解下signal是如何将唤醒线程的<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div></pre></td><td class="code"><pre><div class="line">private void doSignal(Node first) &#123;</div><div class="line"></div><div class="line">            do &#123;</div><div class="line">                if ( (firstWaiter = first.nextWaiter) == null)</div><div class="line">                    lastWaiter = null;</div><div class="line">                first.nextWaiter = null;</div><div class="line">            &#125; while (!transferForSignal(first) &amp;&amp; //这里while是</div><div class="line">                     (first = firstWaiter) != null);</div><div class="line">        &#125;</div></pre></td></tr></table></figure></p>
-<p>通过不停地循环, 只是希望从条件队列中找到一个status=CONDITION的节点, 并将该节点移动到阻塞队列中。移动的过程如下:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div></pre></td><td class="code"><pre><div class="line">final boolean transferForSignal(Node node) &#123;</div><div class="line">      /*</div><div class="line">       * If cannot change waitStatus, the node has been cancelled.</div><div class="line">       */</div><div class="line">       //如果不是CONDITION， 则返回再看条件队列中下一个元素</div><div class="line">      if (!compareAndSetWaitStatus(node, Node.CONDITION, 0))</div><div class="line">          return false;</div><div class="line"></div><div class="line">      /*</div><div class="line">       * Splice onto queue and try to set waitStatus of predecessor to</div><div class="line">       * indicate that thread is (probably) waiting. If cancelled or</div><div class="line">       * attempt to set waitStatus fails, wake up to resync (in which</div><div class="line">       * case the waitStatus can be transiently and harmlessly wrong).</div><div class="line">       */</div><div class="line">       //将该元素从条件队列移动到等待队列</div><div class="line">      Node p = enq(node);</div><div class="line">       //waitStatus&gt;0的话，只能是cancel, 或者设置signal失败，那么唤醒该线程</div><div class="line">      int ws = p.waitStatus;</div><div class="line">       //若设置signal成功的话，wait函数那里的循环可能没有感觉到; 若没有感觉到会对调用yield减缓循环次数</div><div class="line">      if (ws &gt; 0 || !compareAndSetWaitStatus(p, ws, Node.SIGNAL))</div><div class="line">          //目前线程已经处于阻塞队列, 唤醒该线程, 尝试再获取锁</div><div class="line">          LockSupport.unpark(node.thread);</div><div class="line">      return true;</div><div class="line">  &#125;</div></pre></td></tr></table></figure></p>
-<p>我们现在回顾下, Condition的wait和signal整体逻辑如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/Condition3.png" height="270" width="600"></p>
-<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>Condition的wait和signal必须和锁配合使用, 以上只是结合ReentrantLock使用。ArrayBlockingQueue的实现原理与开头的示例类似, 基于ReentrantLock及Condition实现, Condition也可以与其他AQS结合, 比如CountDownLatch、ReentrantReadWriteLock, Semaphore, 使用大同小异, 这里就不一一讲解了。</p>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/elasticsearch_learning/categories/Java学习//" class="article-tag-list-link color2">Java学习</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/elasticsearch_learning/2017/10/02/Condition原理解读/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
   
     <nav id="page-nav">
       <a class="extend prev" rel="prev" href="/elasticsearch_learning/page/2/">&laquo; Prev</a><a class="page-number" href="/elasticsearch_learning/">1</a><a class="page-number" href="/elasticsearch_learning/page/2/">2</a><span class="page-number current">3</span><a class="page-number" href="/elasticsearch_learning/page/4/">4</a><a class="page-number" href="/elasticsearch_learning/page/5/">5</a><a class="extend next" rel="next" href="/elasticsearch_learning/page/4/">Next &raquo;</a>
@@ -1497,7 +1569,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
+                <a href="javascript:void(0)" class="js-tag color3">Linux, close</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1505,11 +1577,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">Linux, close</a>
+                <a href="javascript:void(0)" class="js-tag color3">Lucene、termVector</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">LockSupport</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">Lucene、词典、FST</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1521,11 +1597,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">Cycler</a>
+                <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1533,7 +1613,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
+                <a href="javascript:void(0)" class="js-tag color2">Cycler</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1553,11 +1633,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
+                <a href="javascript:void(0)" class="js-tag color4">maven, 插件, 打包</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">maven, 插件, 打包</a>
+                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
               </li>
             
             <div class="clearfix"></div>

@@ -19,7 +19,7 @@
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/lucene_fdt1.png">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/lucene_fdt2.png">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/lucene_fdt.png">
-<meta property="og:updated_time" content="2020-02-15T17:09:35.000Z">
+<meta property="og:updated_time" content="2020-02-17T09:53:00.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Lucene8.2.0底层架构-fdt&#x2F;fdx构建过程">
 <meta name="twitter:description" content="StoredField文件主要存放文档-&amp;gt;域-&amp;gt;value的关系, 行式存储, 正排索引结果, 不对字段分词, 便于读取任何字段的value。 fdt存放文档的value及一级索引索引, fdx存放二级索引结构。 本文就以这两个文件结构的建立-&amp;gt;文件写入磁盘的过程来进行详细介绍, 代码主要可见CompressingStoredFieldsWriter。 内存索引结构的建立索引结构">
@@ -47,57 +47,39 @@
   <div id="container" q-class="show:isCtnShow">
     <canvas id="anm-canvas" class="anm-canvas"></canvas>
     <div class="left-col" q-class="show:isShow">
-      
-<div class="overlay" style="background: #4d4d4d"></div>
+      <% var defaultBg = '#4d4d4d'; %>
+<div class="overlay" style="background: <%= theme.style && theme.style.header ? theme.style.header : defaultBg %>"></div>
 <div class="intrude-less">
 	<header id="header" class="inner">
-		<a href="/" class="profilepic">
-      <img src="https://kkewwei.github.io/elasticsearch_learning/img/myself.png" class="js-avatar">
+		<a href="<%=theme.root%>" class="profilepic">
+			<img src="<%=theme.avatar%>" class="js-avatar">
 		</a>
 		<hgroup>
-		  <h1 class="header-author"><a href="/">jianguo</a></h1>
+		  <h1 class="header-author"><a href="<%=theme.root%>"><%=theme.author%></a></h1>
 		</hgroup>
-		
-		<p class="header-subtitle">往事随风</p>
-		
+		<% if (theme.subtitle){ %>
+		<p class="header-subtitle"><%=theme.subtitle%></p>
+		<%}%>
 
 		<nav class="header-menu">
 			<ul>
-			
-				<li><a href="/elasticsearch_learning/">主页</a></li>
-	        
-				<li><a href="/elasticsearch_learning/tags/随笔/">随笔</a></li>
-	        
-				<li><a href="/elasticsearch_learning/categories">分类</a></li>
-	        
+			<% for (var i in theme.menu){ %>
+				<li><a href="<%- url_for(theme.menu[i]) %>"><%= i %></a></li>
+	        <%}%>
 			</ul>
 		</nav>
 		<nav class="header-smart-menu">
-    		
-    			
-    			<a q-on="click: openSlider(e, 'innerArchive')" href="javascript:void(0)">所有文章</a>
-    			
-            
-    			
-    			<a q-on="click: openSlider(e, 'friends')" href="javascript:void(0)">友链</a>
-    			
-            
-    			
-    			<a q-on="click: openSlider(e, 'aboutme')" href="javascript:void(0)">关于我</a>
-    			
-            
+    		<% for (var i in theme.smart_menu){ %>
+    			<% if(theme.smart_menu[i]){ %>
+    			<a q-on="click: openSlider(e, '<%-i%>')" href="javascript:void(0)"><%= theme.smart_menu[i] %></a>
+    			<% } %>
+            <%}%>
 		</nav>
 		<nav class="header-nav">
 			<div class="social">
-				
-					<a class="github" target="_blank" href="#" title="github"><i class="icon-github"></i></a>
-		        
-					<a class="weibo" target="_blank" href="#" title="weibo"><i class="icon-weibo"></i></a>
-		        
-					<a class="rss" target="_blank" href="#" title="rss"><i class="icon-rss"></i></a>
-		        
-					<a class="zhihu" target="_blank" href="#" title="zhihu"><i class="icon-zhihu"></i></a>
-		        
+				<% for (var i in theme.subnav){ %>
+					<a class="<%= i %>" target="_blank" href="<%- url_for(theme.subnav[i]) %>" title="<%= i %>"><i class="icon-<%= i %>"></i></a>
+		        <%}%>
 			</div>
 		</nav>
 	</header>
@@ -228,7 +210,7 @@
 </li>
 </ol>
 <p>该函数主要做了如下两件事情:<br>1.读取字段value, 判断字段类型。字段value类型分为以下五种:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div></pre></td><td class="code"><pre><div class="line">static final int         STRING = 0x00;</div><div class="line">static final int       BYTE_ARR = 0x01;</div><div class="line">static final int    NUMERIC_INT = 0x02;</div><div class="line">static final int  NUMERIC_FLOAT = 0x03;</div><div class="line">static final int   NUMERIC_LONG = 0x04;</div><div class="line">static final int NUMERIC_DOUBLE = 0x05;</div></pre></td></tr></table></figure></p>
-<p>存储时使用3bit表示。<br>2.向内存对象bufferedDocs存储value值, bufferedDocs使用<code>byte[] bytes</code>存储数据, 内存中的建立的索引结构如下所示:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/lucene_fdt1.png" height="160" width="850"><br>需要明确以下两点:</p>
+<p>存储时使用3bit表示。<br>2.向内存对象bufferedDocs存储value值, bufferedDocs使用<code>byte[] bytes</code>存储数据, 内存中的建立的索引结构如下所示:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/lucene_fdt1.png" height="160" width="900"><br>需要明确以下两点:</p>
 <ul>
 <li>所有文档相同字段名称的fieldNuber是一样的。</li>
 <li>所有doc所有域依次按先后顺序存储起来, stored=true构建的存储结构是按行存储的, 属于正排索引, 通过该索引结构很方便读取每个文档每个字段的值。</li>
@@ -245,7 +227,7 @@
 <li>调用indexWriter.writeIndex(), 缓存该chunk的文档数、在fdt中记录的起始位置, 为fdx文件构建一级索引结构。</li>
 <li>获取每个文档在fdt中的长度。</li>
 <li>若内存中缓存的所有文档长度大于2*16kb, 则将bufferedDocs中的数据切分压缩存储到fdt中。</li>
-<li>清空bufferedDocs中的数据。<br>fdt文件结构如下所示:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/lucene_fdt2.png" height="160" width="500"></li>
+<li>清空bufferedDocs中的数据。<br>fdt文件结构如下所示:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/lucene_fdt2.png" height="160" width="550"></li>
 </ol>
 <p>我们需要了解下indexWriter.writeIndex()缓存了哪些索引数据:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div></pre></td><td class="code"><pre><div class="line">void writeIndex(int numDocs, long startPointer) throws IOException &#123;</div><div class="line">  // 在block满的时候才会一起写入fdx</div><div class="line">  if (blockChunks == blockSize) &#123;</div><div class="line">    writeBlock(); // 足够一个block了</div><div class="line">    reset();</div><div class="line">  &#125;</div><div class="line">  // 只有经过writeBlock后才会置-1</div><div class="line">  if (firstStartPointer == -1) &#123;</div><div class="line">    firstStartPointer = maxStartPointer = startPointer;</div><div class="line">  &#125;</div><div class="line">  // 这个chunk的文档数</div><div class="line">  docBaseDeltas[blockChunks] = numDocs;</div><div class="line">  // fdt文件的绝对位置</div><div class="line">  startPointerDeltas[blockChunks] = startPointer - maxStartPointer;</div><div class="line">  ++blockChunks;</div><div class="line">  blockDocs += numDocs;</div><div class="line">  totalDocs += numDocs;</div><div class="line">  maxStartPointer = startPointer; // 当前写入的最大值</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
 <p>1.检查当前缓存的chunk个数是否达到阈值1024, 每个chunk文档数最大个数128个。若达到了, 调用writeBlock()将chunk的索引结构写入fdx中, 我们在第三节会详细介绍该函数。<br>2.记录该chunk的文档数、该chunk在fdt中的起始位置。</p>
@@ -429,22 +411,21 @@
   
 
   
-  <div id="gitment-ctn"></div>
+  <div id="gitment-ctn"></div> 
 <link rel="stylesheet" href="//imsun.github.io/gitment/style/default.css">
-<script src="//www.wenjunjiang.win/js/gitment.js "></script>
+<script src="//imsun.github.io/gitment/dist/gitment.browser.js"></script>
 <script>
 var gitment = new Gitment({
-  id: "Lucene8.2.0底层架构-fdt/fdx构建过程",
-  owner: 'kkewwei',
-  repo: 'comments',
+  id: "<%=url%>",
+  owner: '<%=theme.gitment_owner%>',
+  repo: '<%=theme.gitment_repo%>',
   oauth: {
-    client_id: '9391e497d6b288887f33',
-    client_secret: 'db733731bff4ee2811d9530b1ac4cfc6767e8183',
+    client_id: '<%=theme.gitment_oauth.client_id%>',
+    client_secret: '<%=theme.gitment_oauth.client_secret%>',
   },
 })
 gitment.render('gitment-ctn')
 </script>
-
   
 
 
@@ -564,7 +545,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
+                <a href="javascript:void(0)" class="js-tag color3">Linux, close</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -572,11 +553,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">Linux, close</a>
+                <a href="javascript:void(0)" class="js-tag color3">Lucene、termVector</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">LockSupport</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">Lucene、词典、FST</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -588,11 +573,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">Cycler</a>
+                <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -600,7 +589,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
+                <a href="javascript:void(0)" class="js-tag color2">Cycler</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -620,11 +609,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
+                <a href="javascript:void(0)" class="js-tag color4">maven, 插件, 打包</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">maven, 插件, 打包</a>
+                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
               </li>
             
             <div class="clearfix"></div>

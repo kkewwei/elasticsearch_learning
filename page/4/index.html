@@ -41,57 +41,39 @@
   <div id="container" q-class="show:isCtnShow">
     <canvas id="anm-canvas" class="anm-canvas"></canvas>
     <div class="left-col" q-class="show:isShow">
-      
-<div class="overlay" style="background: #4d4d4d"></div>
+      <% var defaultBg = '#4d4d4d'; %>
+<div class="overlay" style="background: <%= theme.style && theme.style.header ? theme.style.header : defaultBg %>"></div>
 <div class="intrude-less">
 	<header id="header" class="inner">
-		<a href="/" class="profilepic">
-      <img src="https://kkewwei.github.io/elasticsearch_learning/img/myself.png" class="js-avatar">
+		<a href="<%=theme.root%>" class="profilepic">
+			<img src="<%=theme.avatar%>" class="js-avatar">
 		</a>
 		<hgroup>
-		  <h1 class="header-author"><a href="/">jianguo</a></h1>
+		  <h1 class="header-author"><a href="<%=theme.root%>"><%=theme.author%></a></h1>
 		</hgroup>
-		
-		<p class="header-subtitle">往事随风</p>
-		
+		<% if (theme.subtitle){ %>
+		<p class="header-subtitle"><%=theme.subtitle%></p>
+		<%}%>
 
 		<nav class="header-menu">
 			<ul>
-			
-				<li><a href="/elasticsearch_learning/">主页</a></li>
-	        
-				<li><a href="/elasticsearch_learning/tags/随笔/">随笔</a></li>
-	        
-				<li><a href="/elasticsearch_learning/categories">分类</a></li>
-	        
+			<% for (var i in theme.menu){ %>
+				<li><a href="<%- url_for(theme.menu[i]) %>"><%= i %></a></li>
+	        <%}%>
 			</ul>
 		</nav>
 		<nav class="header-smart-menu">
-    		
-    			
-    			<a q-on="click: openSlider(e, 'innerArchive')" href="javascript:void(0)">所有文章</a>
-    			
-            
-    			
-    			<a q-on="click: openSlider(e, 'friends')" href="javascript:void(0)">友链</a>
-    			
-            
-    			
-    			<a q-on="click: openSlider(e, 'aboutme')" href="javascript:void(0)">关于我</a>
-    			
-            
+    		<% for (var i in theme.smart_menu){ %>
+    			<% if(theme.smart_menu[i]){ %>
+    			<a q-on="click: openSlider(e, '<%-i%>')" href="javascript:void(0)"><%= theme.smart_menu[i] %></a>
+    			<% } %>
+            <%}%>
 		</nav>
 		<nav class="header-nav">
 			<div class="social">
-				
-					<a class="github" target="_blank" href="#" title="github"><i class="icon-github"></i></a>
-		        
-					<a class="weibo" target="_blank" href="#" title="weibo"><i class="icon-weibo"></i></a>
-		        
-					<a class="rss" target="_blank" href="#" title="rss"><i class="icon-rss"></i></a>
-		        
-					<a class="zhihu" target="_blank" href="#" title="zhihu"><i class="icon-zhihu"></i></a>
-		        
+				<% for (var i in theme.subnav){ %>
+					<a class="<%= i %>" target="_blank" href="<%- url_for(theme.subnav[i]) %>" title="<%= i %>"><i class="icon-<%= i %>"></i></a>
+		        <%}%>
 			</div>
 		</nav>
 	</header>
@@ -164,6 +146,236 @@
           </div>
           <div id="js-content" class="content-ll">
             
+  
+    <article id="post-ConcurrentHashMap-put过程介绍" class="article article-type-post  article-index" itemscope itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/elasticsearch_learning/2017/11/05/ConcurrentHashMap-put过程介绍/">ConcurrentHashMap Put源码介绍</a>
+    </h1>
+  
+
+        
+        <a href="/elasticsearch_learning/2017/11/05/ConcurrentHashMap-put过程介绍/" class="archive-article-date">
+  	<time datetime="2017-11-05T03:20:55.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-11-05</time>
+</a>
+        
+      </header>
+    
+
+    <!-- 目录内容 -->
+    
+    <!-- 目录内容结束 -->
+
+    <div class="article-entry" itemprop="articleBody">
+      
+        <p>在平时项目中, 较多的使用了HashMap容器, 但是它是非线程安全的, 在多线程put的时候, 可能会导致HashMap产生环链而导致死锁。 在并发场景下, 我们就得换成ConcurrentHashMap, 采用分段、红黑树等结构体, 支持多线程同时插入, 又拥有较高的性能。本文章将围绕put的过程进行详细描述。<br>首先放张大图, 对ConcurrentHashMap先有大致的了解。<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/ConcurrentHashMap2.png" height="400" width="450"><br>所有插入的值首先放在table的元素中, 当hash(key)冲突时, 将key-value存放在这个元素的后面, 形成一个链表, 当链表长度达到阈值时, 为减少索引时间, 将链表转变为一个红黑树; 当删除数据时, 红黑树可能会退化为链表; table由于负载高, 也可能会继续扩容。<br>ConcurrentHashMap系列将分为以下三个方面进行详细描述:<br><a href="https://kkewwei.github.io/elasticsearch_learning/2017/11/05/ConcurrentHashMap-put%E8%BF%87%E7%A8%8B%E4%BB%8B%E7%BB%8D/">ConcurrentHashMap Put源码介绍</a><br><a href="https://kkewwei.github.io/elasticsearch_learning/2017/11/14/ConcurrentHashMap%E6%89%A9%E5%AE%B9%E8%BF%87%E7%A8%8B%E4%BB%8B%E7%BB%8D/">ConcurrentHashMap扩容源码介绍</a><br><a href="https://kkewwei.github.io/elasticsearch_learning/2017/11/06/ConcurrentHashMap%E7%BA%A2%E9%BB%91%E6%A0%91%E5%8E%9F%E7%90%86%E4%BB%8B%E7%BB%8D/">ConcurrentHashMap红黑树原理介绍</a></p>
+<h1 id="成员变量介绍"><a href="#成员变量介绍" class="headerlink" title="成员变量介绍"></a>成员变量介绍</h1><p>ConcurrentHashMap拥有出色的性能, 在真正掌握内部结构时, 先要掌握比较重要的成员:</p>
+<ul>
+<li>LOAD_FACTOR: 负载因子, 默认75%, 当table使用率达到75%时, 为减少table的hash碰撞, tabel长度将扩容一倍。负载因子计算: 元素总个数%table.lengh</li>
+<li>TREEIFY_THRESHOLD: 默认8, 当链表长度达到8时, 将结构转变为红黑树。</li>
+<li>UNTREEIFY_THRESHOLD: 默认6, 红黑树转变为链表的阈值。</li>
+<li>MIN_TRANSFER_STRIDE: 默认16, table扩容时, 每个线程最少迁移table的槽位个数。</li>
+<li>MOVED: 值为-1, 当Node.hash为MOVED时, 代表着table正在扩容</li>
+<li>TREEBIN, 置为-2, 代表此元素后接红黑树。</li>
+<li>nextTable: table迁移过程临时变量, 在迁移过程中将元素全部迁移到nextTable上。</li>
+<li>sizeCtl: 用来标志table初始化和扩容的,不同的取值代表着不同的含义:<br>  0: table还没有被初始化<br>  -1: table正在初始化<br>  小于-1: 实际值为resizeStamp(n)&lt;&lt;RESIZE_STAMP_SHIFT+2, 表明table正在扩容<br>  大于0: 初始化完成后, 代表table最大存放元素的个数, 默认为0.75*n</li>
+<li>transferIndex: table容量从n扩到2n时, 是从索引n-&gt;1的元素开始迁移, transferIndex代表当前已经迁移的元素下标</li>
+<li>ForwardingNode: 一个特殊的Node节点, 其hashcode=MOVED, 代表着此时table正在做扩容操作。扩容期间, 若table某个元素为null, 那么该元素设置为ForwardingNode, 当下个线程向这个元素插入数据时, 检查hashcode=MOVED, 就会帮着扩容。</li>
+</ul>
+<h1 id="putVal插入数据"><a href="#putVal插入数据" class="headerlink" title="putVal插入数据"></a>putVal插入数据</h1><p>下面真正开始写入数据:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div><div class="line">61</div><div class="line">62</div><div class="line">63</div><div class="line">64</div><div class="line">65</div><div class="line">66</div><div class="line">67</div><div class="line">68</div><div class="line">69</div><div class="line">70</div><div class="line">71</div><div class="line">72</div><div class="line">73</div><div class="line">74</div><div class="line">75</div><div class="line">76</div><div class="line">77</div><div class="line">78</div><div class="line">79</div></pre></td><td class="code"><pre><div class="line">/** Implementation for put and putIfAbsent */</div><div class="line">final V putVal(K key, V value, boolean onlyIfAbsent) &#123;</div><div class="line">    if (key == null || value == null) throw new NullPointerException();</div><div class="line">    // 定位到table[]中的i</div><div class="line">    int hash = spread(key.hashCode());</div><div class="line">    int binCount = 0;</div><div class="line">    for (Node&lt;K,V&gt;[] tab = table;;) &#123;</div><div class="line">        Node&lt;K,V&gt; f; int n, i, fh;</div><div class="line">        //若table为0， 则初始化这个table</div><div class="line">        if (tab == null || (n = tab.length) == 0)</div><div class="line">            tab = initTable(); //首先初始化</div><div class="line">        //根据hash值计算出在table里面的位置</div><div class="line">        else if ((f = tabAt(tab, i = (n - 1) &amp; hash)) == null) &#123;</div><div class="line">            //如果没有，则向这个位置添加一个节点</div><div class="line">            if (casTabAt(tab, i, null,</div><div class="line">                         new Node&lt;K,V&gt;(hash, key, value, null)))</div><div class="line">                break;                   // no lock when adding to empty bin</div><div class="line">        &#125;</div><div class="line">        //整个table正在扩容</div><div class="line">        else if ((fh = f.hash) == MOVED)</div><div class="line">            //帮着一起扩容</div><div class="line">            tab = helpTransfer(tab, f);</div><div class="line">        //真正插入数据</div><div class="line">        else &#123;</div><div class="line">            V oldVal = null;</div><div class="line">            //那么这个点先禁止别的线程插入数据，若整个table迁移还没有处理到这个元素，此时锁住后，迁移到这里后会被卡主</div><div class="line">            synchronized (f) &#123;</div><div class="line">                if (tabAt(tab, i) == f) &#123;</div><div class="line">                     //普通的数组</div><div class="line">                    if (fh &gt;= 0) &#123;</div><div class="line">                        binCount = 1;</div><div class="line">                        for (Node&lt;K,V&gt; e = f;; ++binCount) &#123;</div><div class="line">                            K ek;</div><div class="line">                            //找到key一样的，则直接替换并退出</div><div class="line">                            if (e.hash == hash &amp;&amp;</div><div class="line">                                ((ek = e.key) == key ||</div><div class="line">                                 (ek != null &amp;&amp; key.equals(ek)))) &#123;</div><div class="line">                                oldVal = e.val;</div><div class="line">                                if (!onlyIfAbsent)</div><div class="line">                                    e.val = value;</div><div class="line">                                break;</div><div class="line">                            &#125;</div><div class="line">                            Node&lt;K,V&gt; pred = e;</div><div class="line">                            //继续找下一个节点，若数组找到最后都没有找到合适的，那么就进行尾插法加入</div><div class="line">                            if ((e = e.next) == null) &#123;</div><div class="line">                                pred.next = new Node&lt;K,V&gt;(hash, key,</div><div class="line">                                                          value, null);</div><div class="line">                                break;</div><div class="line">                            &#125;</div><div class="line">                        &#125;</div><div class="line">                    &#125;</div><div class="line">                    //如果是红合树</div><div class="line">                    else if (f instanceof TreeBin) &#123;</div><div class="line">                        Node&lt;K,V&gt; p;</div><div class="line">                        //赋值固定，就不会再去转变了，只要小于TREEIFY_THRESHOLD就行</div><div class="line">                        binCount = 2;</div><div class="line">                        if ((p = ((TreeBin&lt;K,V&gt;)f).putTreeVal(hash, key,</div><div class="line">                                                       value)) != null) &#123;</div><div class="line">                            oldVal = p.val;</div><div class="line">                            if (!onlyIfAbsent)</div><div class="line">                                p.val = value;</div><div class="line">                        &#125;</div><div class="line">                    &#125;</div><div class="line">                &#125;</div><div class="line">            &#125;</div><div class="line">            if (binCount != 0) &#123;</div><div class="line">                if (binCount &gt;= TREEIFY_THRESHOLD)</div><div class="line">                    //开始将table中元素为i的数组转变为二叉树</div><div class="line">                    treeifyBin(tab, i);</div><div class="line">                if (oldVal != null)</div><div class="line">                    return oldVal;</div><div class="line">                break;</div><div class="line">            &#125;</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line">    //链表或者红黑树不应该增加table的负载</div><div class="line">    addCount(1L, binCount);</div><div class="line">    return null;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>主要做了如下事情:</p>
+<ul>
+<li>根据spread确定key-value的hash值, hash计算过程如下: (h ^ (h &gt;&gt;&gt; 16)) &amp; HASH_BITS, h=key.hashCode(), HASH_BITS=0x7fffffff, 由此可见, 计算出来的hash&gt;0一定成立, 若node.hash&lt;0是, -1(Moved)代表table正在扩容, -2(TREEBIN)代表此元素后接红黑树</li>
+<li>检查table是否初始化, 若没有初始化,则开始初始化initTable()。 这里可以看出ConcurrentHashMap使用懒性初始化, 只有在真正插入数据时候才进行扩容。</li>
+<li>根据i = (n - 1) &amp; hash))确定需要插入table的位置i:</li>
+</ul>
+<ol>
+<li>若table[i]没有元素, 则将key-value存放进去。</li>
+<li>若table[i].hash为MOVED, 那么说明table正在进行扩容, 则通过helpTransfer()进行扩容(具体参考<a href="https://kkewwei.github.io/elasticsearch_learning/2017/11/14/ConcurrentHashMap%E6%89%A9%E5%AE%B9%E8%BF%87%E7%A8%8B%E4%BB%8B%E7%BB%8D/">ConcurrentHashMap扩容源码介绍</a>)</li>
+<li>否则开始真正插入数据, 插入数据前, 先将table[i]锁住, 插入数据前, 检查table[i].hash, 若大于0, 说明此元素后接的是链表, 或者是个红黑树。 链表插入采取尾插法, 比较简单; 红黑树的插入详见后续描述。</li>
+<li>在链表插入时, 统计当前链表长度, 若长度超过TREEIFY_THRESHOLD(默认值为8), 则需要将链表转变为红黑树结构(具体参考<a href="https://kkewwei.github.io/elasticsearch_learning/2017/11/06/ConcurrentHashMap%E7%BA%A2%E9%BB%91%E6%A0%91%E5%8E%9F%E7%90%86%E4%BB%8B%E7%BB%8D/">ConcurrentHashMap红黑树原理介绍</a>)</li>
+<li>修改table存放所有元素个数、检查table是否需要扩容等, 详见addCount。 这里感觉代码有些问题, 插入任何一个元素, 无论插在table元素上、还是链表或者红黑树上, 都对table容量增加了1, 增加table容量的结果就是可能导致table扩容。 实际上插入链表或者红黑树, 并不会增加table的负载, 这两种情况下, 不应该增加table的负载、而去检查扩容。</li>
+</ol>
+<h2 id="initTable初始化"><a href="#initTable初始化" class="headerlink" title="initTable初始化"></a>initTable初始化</h2><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div></pre></td><td class="code"><pre><div class="line">private final Node&lt;K,V&gt;[] initTable() &#123;</div><div class="line">    Node&lt;K,V&gt;[] tab; int sc;</div><div class="line">    while ((tab = table) == null || tab.length == 0) &#123;//只要没有成功，就一定重新尝试</div><div class="line">        if ((sc = sizeCtl) &lt; 0)  //正在初始化，本节点先尝试放弃cpu的使用</div><div class="line">            Thread.yield(); // lost initialization race; just spin</div><div class="line">        else if (U.compareAndSwapInt(this, SIZECTL, sc, -1)) &#123; //这里应该是个原子操作，将sizeCtl设置为-1</div><div class="line">            try &#123;</div><div class="line">                if ((tab = table) == null || tab.length == 0) &#123; //</div><div class="line">                    int n = (sc &gt; 0) ? sc : DEFAULT_CAPACITY;//sc 大于零说明容量已经初始化了，否则使用默认容量</div><div class="line">                    @SuppressWarnings(&quot;unchecked&quot;)</div><div class="line">                    Node&lt;K,V&gt;[] nt = (Node&lt;K,V&gt;[])new Node&lt;?,?&gt;[n];</div><div class="line">                    table = tab = nt;</div><div class="line">                    sc = n - (n &gt;&gt;&gt; 2);//  //计算阈值，等效于 n*0.75，就是n-0.25*n</div><div class="line">                &#125;</div><div class="line">            &#125; finally &#123;</div><div class="line">                sizeCtl = sc;</div><div class="line">            &#125;</div><div class="line">            break;</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line">    return tab;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>初始化table主要做了如下事情:</p>
+<ul>
+<li>检查sizeCtl, 若发现&lt;0, 那么说明已经有线程正在初始化, 本线程先放弃cpu使用等待初始化完成</li>
+<li>若本线程是第一个初始化table, 那么原子操作, 将sizeCtl设置为-1, 表明有线程正在对table正在初始化。</li>
+<li>初始化table</li>
+<li>设置sizeCtl= table.length*0.75, 规定了table最大存放元素的个数<h2 id="addCount"><a href="#addCount" class="headerlink" title="addCount"></a>addCount</h2>addCount主要做两个事情: 并发环境下统计ConcurrentHashMap里属性的个数、检查table是否需要扩容。<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div></pre></td><td class="code"><pre><div class="line">private final void addCount(long x, int check) &#123;  //若小于0，则不检查扩容</div><div class="line">    CounterCell[] as; long b, s=baseCount+x;</div><div class="line">    .......//更新元素个数metrics</div><div class="line">    &#125;</div><div class="line">    if (check &gt;= 0) &#123; //s是当前table长度</div><div class="line">        Node&lt;K,V&gt;[] tab, nt; int n, sc;</div><div class="line">        while (s &gt;= (long)(sc = sizeCtl) &amp;&amp; (tab = table) != null &amp;&amp;//达到容积上限，</div><div class="line">               (n = tab.length) &lt; MAXIMUM_CAPACITY) &#123;</div><div class="line">            int rs = resizeStamp(n); //根据目前table长度做一个标识</div><div class="line">            if (sc &lt; 0) &#123; //说明table正在扩容</div><div class="line">                if ((sc &gt;&gt;&gt; RESIZE_STAMP_SHIFT) != rs || sc == rs + 1 ||</div><div class="line">                    sc == rs + MAX_RESIZERS || (nt = nextTable) == null ||</div><div class="line">                    transferIndex &lt;= 0)</div><div class="line">                    break;</div><div class="line">                if (U.compareAndSwapInt(this, SIZECTL, sc, sc + 1))</div><div class="line">                    transfer(tab, nt);</div><div class="line">            &#125; //第一个线程开始扩容，sizeCtl = resizeStamp(n)&lt;&lt;16 + 2</div><div class="line">            else if (U.compareAndSwapInt(this, SIZECTL, sc, //sc = rs &lt;&lt; 16 + 2</div><div class="line">                                         (rs &lt;&lt; RESIZE_STAMP_SHIFT) + 2))//rs &gt; 2^15,rs &lt;&lt; RESIZE_STAMP_SHIFT) + 2) &gt; 2^31+n,int类型的数就是负数了。</div><div class="line">                transfer(tab, null);</div><div class="line">            s = sumCount();</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+</li>
+</ul>
+<p>主要介绍检查是否需要扩容, 若ConcurrentHashMap总个数s+x达到了最大元素阈值sizeCtl, 那么开始进行扩容, 这里扩容应该分下场景, 链表和红黑树结构体的插入, 不应该进行扩容的。</p>
+<ul>
+<li>若sizeCtl<0, 那么检查是否扩容完成,="" 若扩容完成了,="" 退出;="" 否则将sizectl加1,="" 并进行扩容操作transfer(),="" 详见<a="" href="https://kkewwei.github.io/elasticsearch_learning/2017/11/14/ConcurrentHashMap%E6%89%A9%E5%AE%B9%E8%BF%87%E7%A8%8B%E4%BB%8B%E7%BB%8D/">ConcurrentHashMap扩容源码介绍</0,></li>
+<li>若sizeCtl&gt;0, 那么本线程是第一个开始对table进行扩容的, 将sizeCtl=resizeStamp(n)&lt;&lt;16 + 2, 并进行扩容transfer()</li>
+</ul>
+<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>ConcurrentHashMap为了加快索引速度和插入并发, 采用由数组+链表+红黑树来存储数据,  数据结构之间能够相互转变。 插入数据时, 会检查table是否初始化, 是否在扩容, 插入的元素位置是否为链表、红黑树, 针对不同的情况采取不同的插入方法。</p>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/elasticsearch_learning/categories/Java学习//" class="article-tag-list-link color2">Java学习</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/elasticsearch_learning/2017/11/05/ConcurrentHashMap-put过程介绍/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
+    <article id="post-Condition原理解读" class="article article-type-post  article-index" itemscope itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/elasticsearch_learning/2017/10/02/Condition原理解读/">Condition接口原理介绍及ArrayBlockingQueue、LinkedBlockingQueue实现</a>
+    </h1>
+  
+
+        
+        <a href="/elasticsearch_learning/2017/10/02/Condition原理解读/" class="archive-article-date">
+  	<time datetime="2017-10-02T11:28:01.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-10-02</time>
+</a>
+        
+      </header>
+    
+
+    <!-- 目录内容 -->
+    
+    <!-- 目录内容结束 -->
+
+    <div class="article-entry" itemprop="articleBody">
+      
+        <p>任何一个java对象都拥有wait()/nitify方法, 它们通过与synchronized结合(参考<a href="https://kkewwei.github.io/elasticsearch_learning/2016/10/27/Java%E7%BA%BF%E7%A8%8B%E7%9F%A5%E8%AF%86%E5%B0%8F%E7%BB%93/">Java 线程知识小结(-)</a>)来实现线程之间的通信机制。 在锁方面Lock与Condition接口配合也实现了相同的功能, 但是它们之间的原理是不相同的。使用上两者的区别如下(图片摘自<a href="https://www.jianshu.com/p/be2dc7c878dc" target="_blank" rel="external">java并发编程之Condition</a>)):<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/Condition1.png" height="400" width="500"><br>最直观的理解是: 在Condition中, 在生产者和消费者模型, 生产者消费者可以在不同的队列上阻塞。而通过object阻塞时, 消费者和生产者都在同一个object上被阻塞。</p>
+<h1 id="基本使用"><a href="#基本使用" class="headerlink" title="基本使用"></a>基本使用</h1><p>我们将以最简单的消费者与生产者的示例讲解Condition与Lock配合使用的例子:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div><div class="line">61</div><div class="line">62</div><div class="line">63</div><div class="line">64</div><div class="line">65</div><div class="line">66</div></pre></td><td class="code"><pre><div class="line">public class ConditonTest &#123;</div><div class="line">    //当前产品个数</div><div class="line">    public static int count = 0;</div><div class="line">    static ReentrantLock reentrantLock = new ReentrantLock();</div><div class="line">    //产品为空时, 那么消费者就得生产者来唤醒, 消费者就得等待生产者生产商品这个条件</div><div class="line">    static  Condition empty = reentrantLock.newCondition();</div><div class="line">    public static void main(String[] args) &#123;</div><div class="line">        ExecutorService pool = Executors.newFixedThreadPool(2);</div><div class="line">        Thread t3 = new Consumer(&quot;A&quot;, ConditonTest.reentrantLock, ConditonTest.empty);</div><div class="line">        Thread t1 = new Producder(&quot;B&quot;, ConditonTest.reentrantLock, ConditonTest.empty);</div><div class="line">        Thread t2 = new Producder(&quot;C&quot;, ConditonTest.reentrantLock, ConditonTest.empty);</div><div class="line">        Thread t4 = new Consumer(&quot;D&quot;, ConditonTest.reentrantLock, ConditonTest.empty);</div><div class="line">        Thread t5 = new Consumer(&quot;E&quot;, ConditonTest.reentrantLock, ConditonTest.empty);</div><div class="line">        // 执行各个线程</div><div class="line">        pool.execute(t1);</div><div class="line">        pool.execute(t2);</div><div class="line">        pool.execute(t3);</div><div class="line">        pool.execute(t4);</div><div class="line">        pool.execute(t5);</div><div class="line">        pool.shutdown();</div><div class="line">    &#125;</div><div class="line">&#125;</div><div class="line">class Producder extends Thread &#123;</div><div class="line">    private String name;</div><div class="line">    Lock lock;</div><div class="line">    Condition empty;</div><div class="line">    public Producder(String name, Lock lock, Condition empty) &#123;</div><div class="line">        this.name = name;</div><div class="line">        this.lock = lock;</div><div class="line">        this.empty = empty;</div><div class="line">    &#125;</div><div class="line">    public void run() &#123;</div><div class="line">        lock.lock(); // 获取锁</div><div class="line">        ConditonTest.count ++;</div><div class="line">        System.out.println(name + &quot;产生一个&quot;);</div><div class="line">        empty.signalAll(); // 唤醒所有等待线程。</div><div class="line">        lock.unlock(); // 释放锁</div><div class="line">    &#125;</div><div class="line">&#125;</div><div class="line">class Consumer extends Thread &#123;</div><div class="line">    private String name;</div><div class="line">    Lock lock;</div><div class="line">    Condition empty;</div><div class="line">    public Consumer(String name, Lock lock, Condition empty) &#123;</div><div class="line">        this.name = name;</div><div class="line">        this.lock = lock;</div><div class="line">        this.empty = empty;</div><div class="line">    &#125;</div><div class="line">    public void run() &#123;</div><div class="line">        lock.lock(); // 获取锁</div><div class="line">        try &#123;</div><div class="line">            while ( ConditonTest.count == 0) &#123;</div><div class="line">                System.out.println(name + &quot;阻塞中&quot;);</div><div class="line">                // 阻塞取款操作, await之后就隐示自动释放了lock，直到被唤醒自动获取</div><div class="line">                empty.await();</div><div class="line">                System.out.println(name + &quot;被唤醒&quot;);</div><div class="line">            &#125;</div><div class="line">            ConditonTest.count --;</div><div class="line">            System.out.println(name + &quot;消费一个&quot;);</div><div class="line">        &#125; catch (InterruptedException e) &#123;</div><div class="line">            e.printStackTrace();</div><div class="line">        &#125; finally &#123;</div><div class="line">            lock.unlock(); // 释放锁</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>以上只是使用一个Condition条件队列(具体真实应用可参考ArrayBlockingQueue、LinkedBlockingQueue), 在实际应用中, 可以使用多个条件ConditionObject, ConditionObject都是通过调用reentrantLock.newCondition()中产生的, 该类在AbstractQueuedSynchronizer中定义。 条件队列结构如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/Condition2.png" height="250" width="450"><br>每当线程调用Condition.wait()时, 该线程将会通过尾插法放入该条件队列; 当别的线程调用Condition.signal()时, 该线程将从等待队列转移到AQS阻塞队列(参考<a href="https://kkewwei.github.io/elasticsearch_learning/2017/07/23/ReentrantLock%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB/">ReentrantLock源码解读</a>), 使用比较简单。<br>注意阻塞队列和条件队列结构的区别:</p>
+<ul>
+<li>阻塞队列拥有head, head不存放任何线程; 由tail指定结尾; 条件队列首尾由firstWaiter,lastWaiter指定, 第一个线程即为firstWaiter。</li>
+<li>阻塞队列由next, pre连接; 条件队列由nextWaiter连接</li>
+</ul>
+<h1 id="wait"><a href="#wait" class="headerlink" title="wait()"></a>wait()</h1><p>wait主要是将该线程存放在Condition队列等待被唤醒。empty.await()实际调用的AbstractQueuedSynchronizer中的wait函数:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div></pre></td><td class="code"><pre><div class="line">public final void await() throws InterruptedException &#123;</div><div class="line">     //检查当前中断标志位, 若之前有中断, 那么直接向外抛出异常</div><div class="line">    if (Thread.interrupted())</div><div class="line">        throw new InterruptedException();</div><div class="line">    //将该线程添加到CONDITION队列中</div><div class="line">    Node node = addConditionWaiter();</div><div class="line">    //在该节点加入condition队列中等待前，await则需要释放掉当前线程占有的锁</div><div class="line">    int savedState = fullyRelease(node);</div><div class="line">    int interruptMode = 0;  //</div><div class="line">    //检查该线程是否在阻塞队列中。线程首先加入条件队列，若有signal发生，会被signal转移到阻塞队列中</div><div class="line">    while (!isOnSyncQueue(node)) &#123;</div><div class="line">       //已经加入条件队列, 开始进行睡眠</div><div class="line">       LockSupport.park(this);</div><div class="line">       //被唤醒了, 可能是别的线程调用了signal; 也可能是别的线程调用了中断。线程可能在条件队列, 也可能在阻塞队列</div><div class="line">       if ((interruptMode = checkInterruptWhileWaiting(node)) != 0)</div><div class="line">            break;</div><div class="line">        //等于0说明是被signal唤醒的，将在下次while时直接退出循环</div><div class="line">    &#125;</div><div class="line">    //此时在阻塞队列中了</div><div class="line">    if (acquireQueued(node, savedState) &amp;&amp; interruptMode != THROW_IE) //从阻塞队列中唤醒了</div><div class="line">        interruptMode = REINTERRUPT;</div><div class="line">    if (node.nextWaiter != null) // clean up if cancelled</div><div class="line">        unlinkCancelledWaiters();</div><div class="line">    if (interruptMode != 0)</div><div class="line">        reportInterruptAfterWait(interruptMode); //</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>主要做了如下事情:</p>
+<ul>
+<li>检查线程中断位, 若该线程存在中断信号则抛出异常</li>
+<li>将该线程加入条件队列, waitStatus置为Node.CONDITION, 见addConditionWaiter</li>
+<li>释放被占用的锁, 释放的savedState的值说明下次还需要获取的值。见fullyRelease</li>
+<li>检查线程是否阻塞队列, 见isOnSyncQueue。 若不在阻塞队列的话, 若在条件队列, 则开始调用LockSupport.park(this)睡眠。 若醒过来了存在两种可能: 别的线程调用了中断; 别的线程调用了signal, 需要继续判断是哪种情况, 见checkInterruptWhileWaiting。</li>
+<li>从while退出, 说明已经在阻塞队列了, 进入acquireQueued(参考<a href="https://kkewwei.github.io/elasticsearch_learning/2017/07/23/ReentrantLock%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB/">ReentrantLock源码解读</a>)等待被别的线程释放锁来唤醒</li>
+<li>清理条件队列中剩余线程, 若线程的node状态不为Node.CONDITION, 将从该队列中清理掉, 见unlinkCancelledWaiters函数。</li>
+<li>检查中断信息, 若存在中断, 中断是在调用signal前的话, 说明唤醒原因是因为中断, 那么线程直接向上抛出异常; 若中断是在调用signal之后的话, 那么唤醒原因是因为signal。将中断复位给线程。见reportInterruptAfterWait()<br>以下代码判断线程是否在阻塞队列中:isOnSyncQueue:<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div></pre></td><td class="code"><pre><div class="line">final boolean isOnSyncQueue(Node node) &#123;</div><div class="line">     //只有在等待队列,waitStatus才会等于CONDITION; node.prev !=null,不代表一定是在阻塞队列中, 也可能在迁移的路上</div><div class="line">    if (node.waitStatus == Node.CONDITION || node.prev == null)</div><div class="line">        return false;</div><div class="line">     #若设置了, 肯定是在阻塞队列中。那就说明条件队列的next一定为null</div><div class="line">    if (node.next != null) // If has successor, it must be on queue，</div><div class="line">        return true;</div><div class="line">    /*</div><div class="line">     * node.prev can be non-null, but not yet on queue because</div><div class="line">     * the CAS to place it on queue can fail. So we have to</div><div class="line">     * traverse from tail to make sure it actually made it.  It</div><div class="line">     * will always be near the tail in calls to this method, and</div><div class="line">     * unless the CAS failed (which is unlikely), it will be</div><div class="line">     * there, so we hardly ever traverse much.</div><div class="line">     */</div><div class="line">    return findNodeFromTail(node);  //同归对别在阻塞队列中彻头彻尾找这个节点</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+</li>
+</ul>
+<p>而checkInterruptWhileWaiting主要是为了检查线程从LockSupport.park(this)只醒来的原因:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div></pre></td><td class="code"><pre><div class="line">private int checkInterruptWhileWaiting(Node node) &#123;</div><div class="line">            return Thread.interrupted() ?</div><div class="line">                  //至少线程是被中断过</div><div class="line">                (transferAfterCancelledWait(node) ? THROW_IE : REINTERRUPT) :</div><div class="line">                0;  //返回0说明一定是被signasl唤醒的</div><div class="line">        &#125;</div></pre></td></tr></table></figure></p>
+<p>这里判断, 若不存在中断信号的话, 那么线程一定是被别的线程调用signal唤醒的, 那么进入transferAfterCancelledWait判断线程中断发生的是时间<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div></pre></td><td class="code"><pre><div class="line">final boolean transferAfterCancelledWait(Node node) &#123;</div><div class="line">        //线程被signal唤醒，只会是Node.SIGNAL，而不是Node.CONDITION</div><div class="line">       if (compareAndSetWaitStatus(node, Node.CONDITION, 0)) &#123;</div><div class="line">           enq(node);//说明是被interput的</div><div class="line">           return true;</div><div class="line">       &#125;</div><div class="line">       /*  此后说明是被signal唤醒的，</div><div class="line">        * If we lost out to a signal(), then we can&apos;t proceed  //若果我们从</div><div class="line">        * until it finishes its enq().  Cancelling during an</div><div class="line">        * incomplete transfer is both rare and transient, so just</div><div class="line">        * spin.</div><div class="line">        */</div><div class="line">        //等待调用singla的线程将本节点加入阻塞队列，该线程等待这个操作完成, 若还没有完成的话, 就等待</div><div class="line">       while (!isOnSyncQueue(node))</div><div class="line">           Thread.yield();  //偶尔释放下cpu，线程从运行到就绪状态</div><div class="line">       //说明是被singla唤醒的，同时已经被其他的线程加入了阻塞队列</div><div class="line">       return false;</div><div class="line">   &#125;</div></pre></td></tr></table></figure></p>
+<p>总结一下, 此时线程被唤醒了:</p>
+<ul>
+<li>不存在中断信号, 说明若线程被signal唤醒的, 那么返回0</li>
+<li>存在中断信号, 而线程的statue为Node.CONDITION, 那么说明线程是被中断唤醒的, 之后将会向外抛出InterruptedException异常。</li>
+<li>存在中断信号, 而线程的statue不为Node.CONDITION, 那么说明该中断信号是在线程被signal唤醒之后才出现的, 那么就不会抛向外抛出异常, 而是将中断信号再置位给线程。</li>
+</ul>
+<h1 id="signal"><a href="#signal" class="headerlink" title="signal()"></a>signal()</h1><p>再来了解下signal是如何将唤醒线程的<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div></pre></td><td class="code"><pre><div class="line">private void doSignal(Node first) &#123;</div><div class="line"></div><div class="line">            do &#123;</div><div class="line">                if ( (firstWaiter = first.nextWaiter) == null)</div><div class="line">                    lastWaiter = null;</div><div class="line">                first.nextWaiter = null;</div><div class="line">            &#125; while (!transferForSignal(first) &amp;&amp; //这里while是</div><div class="line">                     (first = firstWaiter) != null);</div><div class="line">        &#125;</div></pre></td></tr></table></figure></p>
+<p>通过不停地循环, 只是希望从条件队列中找到一个status=CONDITION的节点, 并将该节点移动到阻塞队列中。移动的过程如下:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div></pre></td><td class="code"><pre><div class="line">final boolean transferForSignal(Node node) &#123;</div><div class="line">      /*</div><div class="line">       * If cannot change waitStatus, the node has been cancelled.</div><div class="line">       */</div><div class="line">       //如果不是CONDITION， 则返回再看条件队列中下一个元素</div><div class="line">      if (!compareAndSetWaitStatus(node, Node.CONDITION, 0))</div><div class="line">          return false;</div><div class="line"></div><div class="line">      /*</div><div class="line">       * Splice onto queue and try to set waitStatus of predecessor to</div><div class="line">       * indicate that thread is (probably) waiting. If cancelled or</div><div class="line">       * attempt to set waitStatus fails, wake up to resync (in which</div><div class="line">       * case the waitStatus can be transiently and harmlessly wrong).</div><div class="line">       */</div><div class="line">       //将该元素从条件队列移动到等待队列</div><div class="line">      Node p = enq(node);</div><div class="line">       //waitStatus&gt;0的话，只能是cancel, 或者设置signal失败，那么唤醒该线程</div><div class="line">      int ws = p.waitStatus;</div><div class="line">       //若设置signal成功的话，wait函数那里的循环可能没有感觉到; 若没有感觉到会对调用yield减缓循环次数</div><div class="line">      if (ws &gt; 0 || !compareAndSetWaitStatus(p, ws, Node.SIGNAL))</div><div class="line">          //目前线程已经处于阻塞队列, 唤醒该线程, 尝试再获取锁</div><div class="line">          LockSupport.unpark(node.thread);</div><div class="line">      return true;</div><div class="line">  &#125;</div></pre></td></tr></table></figure></p>
+<p>我们现在回顾下, Condition的wait和signal整体逻辑如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/Condition3.png" height="270" width="600"></p>
+<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>Condition的wait和signal必须和锁配合使用, 以上只是结合ReentrantLock使用。ArrayBlockingQueue的实现原理与开头的示例类似, 基于ReentrantLock及Condition实现, Condition也可以与其他AQS结合, 比如CountDownLatch、ReentrantReadWriteLock, Semaphore, 使用大同小异, 这里就不一一讲解了。</p>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/elasticsearch_learning/categories/Java学习//" class="article-tag-list-link color2">Java学习</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/elasticsearch_learning/2017/10/02/Condition原理解读/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
   
     <article id="post-copyOnWriteArrayListy原理解读" class="article article-type-post  article-index" itemscope itemprop="blogPost">
   <div class="article-inner">
@@ -1173,341 +1385,6 @@
 
 
   
-    <article id="post-maven插件学习" class="article article-type-post  article-index" itemscope itemprop="blogPost">
-  <div class="article-inner">
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/elasticsearch_learning/2017/04/05/maven插件学习/">maven插件学习</a>
-    </h1>
-  
-
-        
-        <a href="/elasticsearch_learning/2017/04/05/maven插件学习/" class="archive-article-date">
-  	<time datetime="2017-04-05T05:32:36.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-04-05</time>
-</a>
-        
-      </header>
-    
-
-    <!-- 目录内容 -->
-    
-    <!-- 目录内容结束 -->
-
-    <div class="article-entry" itemprop="articleBody">
-      
-        <p>maven有三个生命周期:clean, default, site。 clean主要的目的是为了清理上次构建产生的文件, default主要是为了构建项目, site主要了为了搭建和发布项目web站点, 比如项目信心, 以便团队之间更好地交流。我们一般主要关注default声明周期, 这里会大致介绍下常用的phase:</p>
-<table>
-<thead>
-<tr>
-<th style="text-align:left">属性</th>
-<th style="text-align:left">介绍</th>
-<th style="text-align:left">默认绑定插件</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td style="text-align:left">validate</td>
-<td style="text-align:left">验证项目是正确的</td>
-<td style="text-align:left"></td>
-</tr>
-<tr>
-<td style="text-align:left">process-sources</td>
-<td style="text-align:left">将resources从主函数代码里面拷贝到输出文件夹中, 一般是target里面.</td>
-<td style="text-align:left">maven-resources-plugin</td>
-</tr>
-<tr>
-<td style="text-align:left">compile</td>
-<td style="text-align:left">对java进行编译产生class文件</td>
-<td style="text-align:left">maven-compiler-plugin</td>
-</tr>
-<tr>
-<td style="text-align:left">process-test-sources</td>
-<td style="text-align:left">将测试resources从测试函数代码里面拷贝到输出文件夹中.</td>
-<td style="text-align:left">maven-resources-plugin</td>
-</tr>
-<tr>
-<td style="text-align:left">test-compile</td>
-<td style="text-align:left">对测试环境java进行编译产生class文件</td>
-<td style="text-align:left">maven-compiler-plugin</td>
-</tr>
-<tr>
-<td style="text-align:left">test</td>
-<td style="text-align:left">对项目里面的单元测试进行测试, 测试代码不会被打包部署</td>
-<td style="text-align:left">maven-surefire-plugin</td>
-</tr>
-<tr>
-<td style="text-align:left">package</td>
-<td style="text-align:left">将编译的class打包成jar包</td>
-<td style="text-align:left">maven-jar-plugin</td>
-</tr>
-<tr>
-<td style="text-align:left">install</td>
-<td style="text-align:left">打包后将jar放入本地仓库.m2中</td>
-<td style="text-align:left">maven-install-plugin</td>
-</tr>
-<tr>
-<td style="text-align:left">deploy</td>
-<td style="text-align:left">打包后将jar放入远程仓库中</td>
-<td style="text-align:left">maven-install-plugin</td>
-</tr>
-</tbody>
-</table>
-<p>本文将主要主要对打包方式进行讲解。</p>
-<h2 id="打包方式"><a href="#打包方式" class="headerlink" title="打包方式"></a>打包方式</h2><p>而打包的方式主要分为四种:默认jar打包、shade打包、assembly打包、source打包</p>
-<table>
-<thead>
-<tr>
-<th style="text-align:left">属性</th>
-<th style="text-align:left">介绍</th>
-<th style="text-align:left">默认绑定插件</th>
-<th style="text-align:left">查看使用参数</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td style="text-align:left">jar</td>
-<td style="text-align:left">仅仅将class文件打进包中, 不包含依赖的jar包, 不是可执行jar包, 缺少依赖的jar class</td>
-<td style="text-align:left">maven-jar-plugin</td>
-<td style="text-align:left">mvn jar:help</td>
-</tr>
-<tr>
-<td style="text-align:left">shade</td>
-<td style="text-align:left">在jar的基础上, 将class的依赖也打包进来</td>
-<td style="text-align:left">maven-shade-plugin</td>
-<td style="text-align:left">mvn shade:help</td>
-</tr>
-<tr>
-<td style="text-align:left">assembly</td>
-<td style="text-align:left">当前节点所拥有的线程</td>
-<td style="text-align:left">maven-assembly-plugin</td>
-<td style="text-align:left">mvn assembly:help</td>
-</tr>
-<tr>
-<td style="text-align:left">source</td>
-<td style="text-align:left">把当前源码打进包</td>
-<td style="text-align:left">maven-source-plugin</td>
-<td style="text-align:left">mvn source:help</td>
-</tr>
-</tbody>
-</table>
-<p>针对每种goal具体使用, 还可以使用类似命令查看: <code>mvn shade:help -Ddetail=true -Dgoal=&lt;goal-name&gt;</code></p>
-<h2 id="shade打包"><a href="#shade打包" class="headerlink" title="shade打包"></a>shade打包</h2><p>shade打包主要是将依赖全部放入jar文件中, 以便可以直接成为可执行的jar包, 这里将以一个示例进行讲解:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div></pre></td><td class="code"><pre><div class="line">&lt;plugin&gt;</div><div class="line">    &lt;groupId&gt;org.apache.maven.plugins&lt;/groupId&gt;</div><div class="line">    &lt;artifactId&gt;maven-shade-plugin&lt;/artifactId&gt;</div><div class="line">    &lt;version&gt;2.4.3&lt;/version&gt;</div><div class="line">    &lt;configuration&gt;</div><div class="line">        &lt;!-- put your configurations here --&gt;</div><div class="line">    &lt;/configuration&gt;</div><div class="line">    &lt;executions&gt;</div><div class="line">        &lt;execution&gt;</div><div class="line">            &lt;phase&gt;package&lt;/phase&gt;</div><div class="line">            &lt;goals&gt;</div><div class="line">                &lt;goal&gt;shade&lt;/goal&gt;</div><div class="line">            &lt;/goals&gt;</div><div class="line">            &lt;configuration&gt;</div><div class="line">                &lt;finalName&gt;$&#123;project.artifactId&#125;-$&#123;project.version&#125;-with-dependencies&lt;/finalName&gt;</div><div class="line">                &lt;transformers&gt;</div><div class="line">                    &lt;transformer implementation=&quot;org.apache.maven.plugins.shade.resource.ManifestResourceTransformer&quot;&gt;</div><div class="line">                        &lt;mainClass&gt;MyQueryMojo&lt;/mainClass&gt;</div><div class="line">                        &lt;manifestEntries&gt;</div><div class="line">                            &lt;ha&gt;s&lt;/ha&gt;</div><div class="line">                        &lt;/manifestEntries&gt;</div><div class="line">                    &lt;/transformer&gt;</div><div class="line">                &lt;/transformers&gt;</div><div class="line">            &lt;/configuration&gt;</div><div class="line">        &lt;/execution&gt;</div><div class="line">    &lt;/executions&gt;</div><div class="line">&lt;/plugin&gt;</div></pre></td></tr></table></figure></p>
-<p>可以看到, 我们定义了引入的plugin shade的版本号。接下来我们将对每个标签进行详细说明:<br>1 configuration:配置信息, 我们可以对所有executions定义一个默认的配置信息, 当然在具体的execution定义执行计划, 是可以覆盖这里的默认配置的。<br>2 execution: 相当于一个执行计划, 都放在executions里面。</p>
-<table>
-<thead>
-<tr>
-<th style="text-align:left">配置</th>
-<th style="text-align:left">介绍</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td style="text-align:left">phase</td>
-<td style="text-align:left">我们需要定义这个执行计划在生命阶段执行, 默认是在package阶段执行。</td>
-</tr>
-<tr>
-<td style="text-align:left">goals</td>
-<td style="text-align:left">执行目标, 我们可以通过mvn shade:help可以该阶段的所有目标, 默认为shade。</td>
-</tr>
-<tr>
-<td style="text-align:left">configuration</td>
-<td style="text-align:left">对打包可以配置一些参数</td>
-</tr>
-</tbody>
-</table>
-<p>在configuration中, 我们可以通过finalName定义产生的jar名称, 通过transformer可以将某些artifactId按照某种方式进行整合到jar中, 我们以常用的示例进行介绍ManifestResourceTransformer, ManifestResourceTransformer允许我们向打包文件里面的MANIFEST.MF添加配置属性, 属性元素都要放在manifestEntries里面, mainClass除外, 可以放在外层。mvn还提供许多针对资源进行整合的Transformer, 详情可参考<a href="http://maven.apache.org/plugins/maven-shade-plugin/examples/resource-transformers.html#" target="_blank" rel="external">官方文档</a>。<br>同时在configuration中还可以配置别的参数, 比如outputDirectory定义了jar存放位置。 include/exclude: 可以从某个jar包中排除某些类给排除掉。 所有参数可以<a href="http://maven.apache.org/plugins/maven-shade-plugin/shade-mojo.html" target="_blank" rel="external">参考</a>;.</p>
-<h2 id="assembly打包"><a href="#assembly打包" class="headerlink" title="assembly打包"></a>assembly打包</h2><p>Maven Assembly Plugin 和 Shade Plugin 都可以用来在构建单一 Jar 包时，将所有 Dependency 打入这个最终生成的 Jar 中去。但是两者在具体的行为上有所不同：Assembly 插件不仅会将 Dependency 中的 Class 文件打入最终的 Jar 包，还会将 Dependency 中的资源文件，诸如 properties 文件打入最终的 Jar 包。当项目和其 Dependency 中有同名的资源文件是，就会发生冲突，项目中的同名文件便不会加入到最终的 Jar 包中。如果这个文件是一个关键的配置文件，便会导致问题。而 Shade Plugin 不存在这样的问题。(<a href="https://ssailyang.iteye.com/blog/1745589" target="_blank" rel="external">参考</a>)</p>
-<h2 id="自定义插件"><a href="#自定义插件" class="headerlink" title="自定义插件"></a>自定义插件</h2><p>我们还可以自定义插件, 具体可参考文档:<br><a href="https://www.cnblogs.com/oscar1987121/p/10959083.html" target="_blank" rel="external">https://www.cnblogs.com/oscar1987121/p/10959083.html</a><br><a href="http://maven.apache.org/plugins/maven-shade-plugin/examples/use-shader-other-impl.html" target="_blank" rel="external">http://maven.apache.org/plugins/maven-shade-plugin/examples/use-shader-other-impl.html</a></p>
-<h2 id="使用经验"><a href="#使用经验" class="headerlink" title="使用经验"></a>使用经验</h2><p>1.若在项目app0使用shade/assembly打包后产生jar1, 则第三方依赖将会全部转成class文件, 比如fastJson, fastJson的版本号将在这里全部被抹掉。若别的项目app1引用app0 jar1包。 那么在app1中, 通过maven dependency将看不到fastJason版本号,也只能看到fastJson的class文件。<br>比如我们在app0配置的pom.xml如下:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div></pre></td><td class="code"><pre><div class="line">&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;?&gt;</div><div class="line">&lt;project xmlns=&quot;http://maven.apache.org/POM/4.0.0&quot;</div><div class="line">         xmlns:xsi=&quot;http://www.w3.org/2001/XMLSchema-instance&quot;</div><div class="line">         xsi:schemaLocation=&quot;http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd&quot;&gt;</div><div class="line">    &lt;modelVersion&gt;4.0.0&lt;/modelVersion&gt;</div><div class="line">    &lt;groupId&gt;dep1&lt;/groupId&gt;</div><div class="line">    &lt;artifactId&gt;dep1&lt;/artifactId&gt;</div><div class="line">    &lt;version&gt;1.0.3-SNAPSHOT&lt;/version&gt;</div><div class="line">    &lt;dependencies&gt;</div><div class="line">        &lt;dependency&gt;</div><div class="line">            &lt;groupId&gt;com.alibaba&lt;/groupId&gt;</div><div class="line">            &lt;artifactId&gt;fastjson&lt;/artifactId&gt;</div><div class="line">            &lt;version&gt;1.1.43&lt;/version&gt;</div><div class="line">        &lt;/dependency&gt;</div><div class="line">    &lt;/dependencies&gt;</div><div class="line">    &lt;build&gt;</div><div class="line">        &lt;plugins&gt;</div><div class="line">            &lt;plugin&gt;</div><div class="line">                &lt;groupId&gt;org.apache.maven.plugins&lt;/groupId&gt;</div><div class="line">                &lt;artifactId&gt;maven-shade-plugin&lt;/artifactId&gt;</div><div class="line">                &lt;version&gt;2.4.1&lt;/version&gt;</div><div class="line">                &lt;executions&gt;</div><div class="line">                    &lt;execution&gt;</div><div class="line">                        &lt;id&gt;ds&lt;/id&gt;</div><div class="line">                        &lt;phase&gt;package&lt;/phase&gt;</div><div class="line">                        &lt;goals&gt;</div><div class="line">                            &lt;goal&gt;shade&lt;/goal&gt;</div><div class="line">                        &lt;/goals&gt;</div><div class="line">                    &lt;/execution&gt;</div><div class="line">                &lt;/executions&gt;</div><div class="line">            &lt;/plugin&gt;</div><div class="line">        &lt;/plugins&gt;</div><div class="line">    &lt;/build&gt;</div><div class="line">&lt;/project&gt;</div></pre></td></tr></table></figure></p>
-<p>但是我们在app1中看到的app0的配置文件却是这样的<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div></pre></td><td class="code"><pre><div class="line">&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;?&gt;</div><div class="line">&lt;project xmlns=&quot;http://maven.apache.org/POM/4.0.0&quot; xmlns:xsi=&quot;http://www.w3.org/2001/XMLSchema-instance&quot; xsi:schemaLocation=&quot;http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd&quot;&gt;</div><div class="line">  &lt;modelVersion&gt;4.0.0&lt;/modelVersion&gt;</div><div class="line">  &lt;groupId&gt;dep1&lt;/groupId&gt;</div><div class="line">  &lt;artifactId&gt;dep1&lt;/artifactId&gt;</div><div class="line">  &lt;version&gt;1.0.3-SNAPSHOT&lt;/version&gt;</div><div class="line">  &lt;build&gt;</div><div class="line">    &lt;plugins&gt;</div><div class="line">      &lt;plugin&gt;</div><div class="line">        &lt;artifactId&gt;maven-shade-plugin&lt;/artifactId&gt;</div><div class="line">        &lt;version&gt;2.4.1&lt;/version&gt;</div><div class="line">        &lt;executions&gt;</div><div class="line">          &lt;execution&gt;</div><div class="line">            &lt;id&gt;ds&lt;/id&gt;</div><div class="line">            &lt;phase&gt;package&lt;/phase&gt;</div><div class="line">            &lt;goals&gt;</div><div class="line">              &lt;goal&gt;shade&lt;/goal&gt;</div><div class="line">            &lt;/goals&gt;</div><div class="line">          &lt;/execution&gt;</div><div class="line">        &lt;/executions&gt;</div><div class="line">      &lt;/plugin&gt;</div><div class="line">    &lt;/plugins&gt;</div><div class="line">  &lt;/build&gt;</div><div class="line">&lt;/project&gt;</div></pre></td></tr></table></figure></p>
-<p>我们通过mvn dependency:tree也完全看不到fastJson的版本号, 可以看到, app1里面看到app0的配置文件里面全部没有了fastJson的信息了(但是实际引入的fastJson版本, 其实在jar包内META-INF/maven/com.alibaba/fastjson路径里面的pom.xml可以看到)。<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/mvn_shade1.png" height="200" width="400"><br>这样的话, 尽管jar包有冲突, 比如下图的那个冲突, java选择的那个版本是dep1后面的那个fastJson, 尽管下面那个fastJson路径更短(shade打包方式, 使fastJson相关class全部打到dep1里面了, 索引路径更短, 而且dep1先声明的)。<br>2.通过默认jar方式, 打包内容将不会被包含第三方依赖。那么还是可以看到app0里面引入的fastJons版本信息。<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/mvn_shade2.png" height="200" width="550"><br>3.若出现jar包冲突的话, 那么选取最短路径上的jar, 同时会覆盖被冲突的包。<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/mvn_shade3.png" height="200" width="400"><br>比如这里将会选择下面那个fastJson版本。</p>
-<h2 id="在mvn中查看第三方依赖"><a href="#在mvn中查看第三方依赖" class="headerlink" title="在mvn中查看第三方依赖"></a>在mvn中查看第三方依赖</h2><ol>
-<li>通过mvn dependency:tree/list查看</li>
-<li>在Intellij IDea的右边-&gt; Maven Projects右键 -&gt; show Dependencies可查看。</li>
-</ol>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color4">maven, 插件, 打包</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/elasticsearch_learning/categories/工具学习//" class="article-tag-list-link color5">工具学习</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/elasticsearch_learning/2017/04/05/maven插件学习/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
-    <article id="post-git-基本命令学习心得" class="article article-type-post  article-index" itemscope itemprop="blogPost">
-  <div class="article-inner">
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/elasticsearch_learning/2017/03/08/git-基本命令学习心得/">git 基本命令学习心得-1</a>
-    </h1>
-  
-
-        
-        <a href="/elasticsearch_learning/2017/03/08/git-基本命令学习心得/" class="archive-article-date">
-  	<time datetime="2017-03-08T04:46:57.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-03-08</time>
-</a>
-        
-      </header>
-    
-
-    <!-- 目录内容 -->
-    
-    <!-- 目录内容结束 -->
-
-    <div class="article-entry" itemprop="articleBody">
-      
-        <p>一般在公共分支上操作,不能修改分支的提交记录, 但是可以使用cherry-pick, revert这样的可以使用, 而rebase, reset这样的命令一般在私有分支上才可用。</p>
-<h1 id="rebase"><a href="#rebase" class="headerlink" title="rebase"></a>rebase</h1><p>git rebase是用来更改提交的基, 通过重新在当前分支提交一连串的commit来实现的, 比如dev分支从master A提交产生的, 在master分支又进行了B、C、D提交, 在dev分支进行了E、F、G提交, 此时为了保证D能够合并到master最新的D提交上, 那么就使用rebase。<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/git_rebase3.png" height="300" width="550"><br><code>git:(dev) git rebase master</code>, 此时处于G(最新提交)操作。变基是以共同祖先节点开始变的, 执行后就像放电影一样, 会将E、F、G的所有内容顺序与D合并。比如基于D与E合并后变成D’, 基于D’与F合并变成F’, 基于F’和G合并变成G’。箭头代表着基于哪些commit进行了merge。 完成rebase操作后, 提交链路被就改了。<br>用法:1.git rebase master 2. 通过vim解决冲突, 3.使用git add .保存 4.git rebase –continue继续解决下一个冲突<br>注意: 并没有要求修改comment, commit不变</p>
-<h2 id="半路rebase"><a href="#半路rebase" class="headerlink" title="半路rebase"></a>半路rebase</h2><p>以上示例是我们在dev分支的最新提交H上进行rebase的, 假如我们不在最新G上操作, 而是在F上进行rebase操作, 会出现什么结果呢?<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/git_rebase2.png" height="300" width="550"><br>可以看到dev分支没有任何变化, 而是将EF提交分别与D提交合并, 使EF部分变基到master分支上。</p>
-<h2 id="rebase-i-参数"><a href="#rebase-i-参数" class="headerlink" title="rebase -i 参数"></a>rebase -i 参数</h2><p>-i参数使rebase将于用户交互的形式完成merge, 根据这个参数, 用户可以完成多次提交顺序的复制、删除、编辑commit、修改提交顺序等一系列操作。<br><code>git:(dev): git rebase -i master</code>之后, 将弹出这样的界面:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/git_rebase5.png" height="350" width="450"></p>
-<p>红框1说明dev分支从master分支产生之后, 进行了三次提交, 这三次提交会和master最新的提交分别顺序进行合并。 红框1里面每行分为三部分:</p>
-<ul>
-<li>操作action</li>
-<li>commit hash值</li>
-<li>commit commit<br>其中action介绍在红框2中, 主要分为这几种类型:<br>1) p pick = use commit: 提交这次commit, 分别修改每次提交的comment内容。<br>git rebase -i master这种和别的分支进行rebase, 所有提交的comment是可以修改成功的。<br>git rebase -i HEAD~3 这种和本身历史提交进行rebase, 也提示需要修改comment, 但是最终没有生效。<br>2) r, reword = use commit, but edit the commit message: 提交这次commit, 同时修改这次comment的内容<br>git rebase -i HEAD~3 这种和本身历史提交进行rebase, 也提示需要修改comment, 同时修改这次comment的内容, 可以成功, 仅仅当前一次提交。(与说明相符)<br>git rebase -i master这种和别的分支进行rebase, 修改comment是可以修改成功的。 但是总是发生某些提交丢失的情况, 一般禁止使用。<br>3) e, edit = use commit, but stop for amending<br>git rebase -i master: 和p参数没啥区别, 能修改所有提交的comment<br>git rebase -i HEAD~3 : 可以停下来让你修改当前comment, 直到你调用–continue才能继续<br>4) s, squash = use commit, but meld into previous commit: 提交这次commit, 将本次提交和上次的提交合并(提交内容和提交comment都合并进去),使看起来是一次提交。<br>执行以下命令:<code>git:(dev): git rebase -i HEAD~3</code>, 并且修改action如下:<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line">pick 159f932 d1</div><div class="line">squash 4279e75 d2</div><div class="line">pick 116755e d3</div></pre></td></tr></table></figure>
-</li>
-</ul>
-<p><img src="https://kkewwei.github.io/elasticsearch_learning/img/git_rebase6.png" height="350" width="450"><br>git log展示如上, 可以看出第一个和第二次的提交合并了, 所有的提交comment都修改了。<br>git rebase -i master也能和描述也是一致的。<br>5) f, fixup = like “squash”, but discard this commit’s log message: 和squash效果一样, 和之前提交的commit会合并到一起, 本次提交的comment会直接丢弃。<br>git rebase -i master: 可以一起修改前缀的comment(也可以将#去掉,同一个comment分两行显示两个comment), 后续的提交还可以修改comment。<br>git rebase -i HEAD~3 : 这次提交的coment直接丢弃, 所有提交都不给改的机会。<br>6) x, exec = run command (the rest of the line) using shell :执行shell命令, 可以忽略使用<br>7) d, drop = remove commit 直接丢弃这次提交(包括提交内容与comment)</p>
-<h2 id="i参数控制复制、删除、重置提交顺序等"><a href="#i参数控制复制、删除、重置提交顺序等" class="headerlink" title="i参数控制复制、删除、重置提交顺序等"></a>i参数控制复制、删除、重置提交顺序等</h2><p>rebase -i参数可以通过重复上面的提交记录操作这些操作, 比如:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line">pick 159f932 d1</div><div class="line">squash 4279e75 d2</div><div class="line">pick 116755e d3</div><div class="line">pick 159f932 d1</div></pre></td></tr></table></figure></p>
-<p>该提交将重复提交第一次提交, 提交结果如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/git_rebase7.png" height="350" width="450"><br>本地rebase之后再向远程推送, 可能会冲突, 这时确定没有人在基于那个分支分发的话, 可以通过git push –force origin mybranch分支。 master一般不允许直接这么弄</p>
-<h1 id="cherry-pick"><a href="#cherry-pick" class="headerlink" title="cherry-pick"></a>cherry-pick</h1><p>cherry-pick主要是将一个分支单独的提交变化合并到另外一个分支上, 以下图为例, 当前处于master的D提交上, 想让dev分支上的G提交改变合并到当前master分支上, 那么就执行:<br><code>git:(master D提交): git cherry-pick G</code>, 提交完成后, G提交出的变化代码就会和master分支D处全部代码合并, 产生提交D’。注意,这里虽然合并了, 但是并没有改变分支提交记录, 图中用虚线表达着从提交历史上看, D’和G毫无关联。<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/git_rebase10.png" height="350" width="450"><br>cherry-pick在提取G提交的变化时, 能将变化抽取出来的, 就将变化提取出来, 能合并就合并。变化合并到D时, 有冲突就解决冲突。<br>cherry-pick与rebase使用上的区别:<br>rebase: 修改提交历史, 改变的是整个分支的提交基, 将每次提交都与另外一个分支提交一一合并。<br>cherry-pick: 不会修改提交历史,仅仅产生一个新的提交。像挑选樱桃一样, 可以某个分支某次提交与另一个分支提交代码合并。<br>-m 参数<br>git cherry-pick G -m 1/2等<br>git show –pretty=raw xszdsdsdds<br><a href="https://stackoverflow.com/questions/12626754/git-cherry-pick-syntax-and-merge-branches/12628579#12628579" target="_blank" rel="external">https://stackoverflow.com/questions/12626754/git-cherry-pick-syntax-and-merge-branches/12628579#12628579</a></p>
-<h1 id="revert"><a href="#revert" class="headerlink" title="revert"></a>revert</h1><p>revert的含义是撤销(丢弃)某次提交, 下图为例, 比如想撤销G提交: <code>git:(master D提交): git revert G</code>, 实际就是丢弃G的提交, 具体实现是将G提交变化从当前提交D中去掉, 然后产生新的提交D’。<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/git_revert1.png" height="350" width="450"><br>同cherry-pick一样, 并不改变历史提交记录, 仅仅将D和F(G的父提交)合并, 产生的新提交D’与G提交没有任何关系。<br>比如<code>git:(master D提交): git revert HEAD</code>, 撤销最近一次提交(也就提交D提交), 可能要产生冲突, 解决冲突后通过git add、git revert –continue来完成此次操作。</p>
-<h1 id="checkout"><a href="#checkout" class="headerlink" title="checkout"></a>checkout</h1><p>checkout主要是从<code>对象库中(仓库)</code>拿出一个提交, 然后放在工作目录中, HEAD会指向当前提交(前提是工作区、暂存区、本地仓库一致, 否则会冲突); 附带功能是从<code>暂存区(索引)</code>中检出文件来重置工作区的文件, 使用示例如下:</p>
-<ul>
-<li>git:(master D提交): git checkout G<br>将当前分支切换到G提交上面去, 此时工作区、暂存区、本地仓库代码将一致</li>
-<li>git:(master D提交): git checkout – file1<br>用<code>暂存区</code>的文件file1来重置<code>工作区</code>的file1, 而不是从本地代码仓库来恢复。</li>
-<li>git:(master D提交): git checkout G – file1<br>用G提交的代码<code>暂存区</code>的文件file1来重置<code>工作区</code>的file1。<br>checkout不会去修改提交记录, 仅仅是修改了HEAD。</li>
-</ul>
-<h1 id="reset"><a href="#reset" class="headerlink" title="reset"></a>reset</h1><p>reset主要是将仓库中的某次提交拿出来, 然后放回到暂存区、工作目录中, HEAD, master会指向当前提交, 提交历史会被改变。</p>
-<ul>
-<li>在切换到某一次提交时, 可使用 三个参数:<br>—soft: 仅仅是将当前master、HEAD指针指向commit3<br>—mixed: 在—soft的基础上, 用commit3的提交来重置暂存区。(默认)<br>—hard: 在—hard的集群上, 用commit3的提交来重置暂存区、工作区。<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/git_reset.png" height="250" width="700"></li>
-<li>git:(master D提交): git reset HEAD file1<br>用<code>本地代码仓库</code>的文件file1来重置<code>暂存区</code>(索引)的file1。</li>
-</ul>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color2">git, rebase, cherry-pick, reset, checkout</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/elasticsearch_learning/categories/工具学习//" class="article-tag-list-link color5">工具学习</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/elasticsearch_learning/2017/03/08/git-基本命令学习心得/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
   
     <nav id="page-nav">
       <a class="extend prev" rel="prev" href="/elasticsearch_learning/page/3/">&laquo; Prev</a><a class="page-number" href="/elasticsearch_learning/">1</a><a class="page-number" href="/elasticsearch_learning/page/2/">2</a><a class="page-number" href="/elasticsearch_learning/page/3/">3</a><span class="page-number current">4</span><a class="page-number" href="/elasticsearch_learning/page/5/">5</a><a class="extend next" rel="next" href="/elasticsearch_learning/page/5/">Next &raquo;</a>
@@ -1631,7 +1508,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
+                <a href="javascript:void(0)" class="js-tag color3">Linux, close</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1639,11 +1516,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">Linux, close</a>
+                <a href="javascript:void(0)" class="js-tag color3">Lucene、termVector</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">LockSupport</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">Lucene、词典、FST</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1655,11 +1536,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">Cycler</a>
+                <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1667,7 +1552,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
+                <a href="javascript:void(0)" class="js-tag color2">Cycler</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1687,11 +1572,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
+                <a href="javascript:void(0)" class="js-tag color4">maven, 插件, 打包</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">maven, 插件, 打包</a>
+                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
               </li>
             
             <div class="clearfix"></div>
