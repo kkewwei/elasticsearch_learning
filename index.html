@@ -41,39 +41,57 @@
   <div id="container" q-class="show:isCtnShow">
     <canvas id="anm-canvas" class="anm-canvas"></canvas>
     <div class="left-col" q-class="show:isShow">
-      <% var defaultBg = '#4d4d4d'; %>
-<div class="overlay" style="background: <%= theme.style && theme.style.header ? theme.style.header : defaultBg %>"></div>
+      
+<div class="overlay" style="background: #4d4d4d"></div>
 <div class="intrude-less">
 	<header id="header" class="inner">
-		<a href="<%=theme.root%>" class="profilepic">
-			<img src="<%=theme.avatar%>" class="js-avatar">
+		<a href="/" class="profilepic">
+      <img src="https://kkewwei.github.io/elasticsearch_learning/img/myself.png" class="js-avatar">
 		</a>
 		<hgroup>
-		  <h1 class="header-author"><a href="<%=theme.root%>"><%=theme.author%></a></h1>
+		  <h1 class="header-author"><a href="/">jianguo</a></h1>
 		</hgroup>
-		<% if (theme.subtitle){ %>
-		<p class="header-subtitle"><%=theme.subtitle%></p>
-		<%}%>
+		
+		<p class="header-subtitle">往事随风</p>
+		
 
 		<nav class="header-menu">
 			<ul>
-			<% for (var i in theme.menu){ %>
-				<li><a href="<%- url_for(theme.menu[i]) %>"><%= i %></a></li>
-	        <%}%>
+			
+				<li><a href="/elasticsearch_learning/">主页</a></li>
+	        
+				<li><a href="/elasticsearch_learning/tags/随笔/">随笔</a></li>
+	        
+				<li><a href="/elasticsearch_learning/categories">分类</a></li>
+	        
 			</ul>
 		</nav>
 		<nav class="header-smart-menu">
-    		<% for (var i in theme.smart_menu){ %>
-    			<% if(theme.smart_menu[i]){ %>
-    			<a q-on="click: openSlider(e, '<%-i%>')" href="javascript:void(0)"><%= theme.smart_menu[i] %></a>
-    			<% } %>
-            <%}%>
+    		
+    			
+    			<a q-on="click: openSlider(e, 'innerArchive')" href="javascript:void(0)">所有文章</a>
+    			
+            
+    			
+    			<a q-on="click: openSlider(e, 'friends')" href="javascript:void(0)">友链</a>
+    			
+            
+    			
+    			<a q-on="click: openSlider(e, 'aboutme')" href="javascript:void(0)">关于我</a>
+    			
+            
 		</nav>
 		<nav class="header-nav">
 			<div class="social">
-				<% for (var i in theme.subnav){ %>
-					<a class="<%= i %>" target="_blank" href="<%- url_for(theme.subnav[i]) %>" title="<%= i %>"><i class="icon-<%= i %>"></i></a>
-		        <%}%>
+				
+					<a class="github" target="_blank" href="#" title="github"><i class="icon-github"></i></a>
+		        
+					<a class="weibo" target="_blank" href="#" title="weibo"><i class="icon-weibo"></i></a>
+		        
+					<a class="rss" target="_blank" href="#" title="rss"><i class="icon-rss"></i></a>
+		        
+					<a class="zhihu" target="_blank" href="#" title="zhihu"><i class="icon-zhihu"></i></a>
+		        
 			</div>
 		</nav>
 	</header>
@@ -195,8 +213,8 @@
 <p>该函数主要做了如下事情:<br>1.将该节点的flags、label存储到fst的bytes中。<br>2.首先判断存储存储该节点每条边是否需要等长存储, 若等长存储的话, 然后再调用<code>writeArrayPacked</code>重写bytes进行等长存储。<br>3.调用<code>bytes.reverse</code>将该节点的存储byte颠倒存储。</p>
 <p>当写入所有字符串后, 再调用<code>builder.finish()</code>完成了整个fst的构建。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div></pre></td><td class="code"><pre><div class="line">public FST&lt;T&gt; finish() throws IOException &#123;</div><div class="line">  final UnCompiledNode&lt;T&gt; root = frontier[0];</div><div class="line">   // 参数为0, 表示将所有frontier维护的所有节点都写入FST</div><div class="line">  freezeTail(0);</div><div class="line">  //结束FST的写入</div><div class="line">  fst.finish(compileNode(root, lastInput.length()).node); // 将头也写入</div><div class="line">  return fst;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
 <p>首先将</p>
-<p>最终存放在fst.bytes中的结构<a href="http://examples.mikemccandless.com/fst.py?terms=abcde%2F1%0D%0Aabdde%2F2%0D%0Aabede%2F3%0D%0Aaccde%2F4%0D%0Aadcde%2F5%0D%0A&cmd=Build+it%21" target="_blank" rel="external">如下</a>:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/lucene_fst5.png" height="360" width="850"></p>
-<h2 id="构建fst图示例"><a href="#构建fst图示例" class="headerlink" title="构建fst图示例"></a>构建fst图示例</h2><p>我们就以开始写入第二个字符串abdde的过程进行介绍fst的构建过程。<br>1.在第二个字符串写入之前存储如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/lucene_fst2.png" height="160" width="700"><br>2.在写入abdde时,对第一个字符串freezeTail后的存储如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/lucene_fst3.png" height="360" width="850"><br>3.完成abdde写入后的存储如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/lucene_fst4.png" height="360" width="850"></p>
+<p>最终存放在fst.bytes中的结构<a href="http://examples.mikemccandless.com/fst.py?terms=abcde%2F1%0D%0Aabdde%2F2%0D%0Aabede%2F3%0D%0Aaccde%2F4%0D%0Aadcde%2F5%0D%0A&cmd=Build+it%21" target="_blank" rel="external">如下</a>:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/lucene_fst5.png" height="150" width="600"></p>
+<h2 id="构建fst图示例"><a href="#构建fst图示例" class="headerlink" title="构建fst图示例"></a>构建fst图示例</h2><p>我们就以开始写入第二个字符串abdde的过程进行介绍fst的构建过程。<br>1.在第二个字符串写入之前存储如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/lucene_fst2.png" height="140" width="700"><br>2.在写入abdde时,对第一个字符串freezeTail后的存储如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/lucene_fst3.png" height="300" width="850"><br>3.完成abdde写入后的存储如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/lucene_fst4.png" height="300" width="850"></p>
 <h1 id="查询"><a href="#查询" class="headerlink" title="查询"></a>查询</h1><h1 id="参考"><a href="#参考" class="headerlink" title="参考"></a>参考</h1><p><a href="https://blog.51cto.com/sbp810050504/1361551" target="_blank" rel="external">https://blog.51cto.com/sbp810050504/1361551</a></p>
 
       
@@ -1441,6 +1459,14 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">NIO, write, read</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">Flink、Slot分配、SubTask申请slot, SubTask部署</a>
               </li>
              
@@ -1449,15 +1475,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">NIO, write, read</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">Lucene、termVector</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">LockSupport</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1469,11 +1487,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">Lucene、DocValue</a>
+                <a href="javascript:void(0)" class="js-tag color2">LockSupport</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
+                <a href="javascript:void(0)" class="js-tag color1">Lucene、DocValue</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1481,7 +1499,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
+                <a href="javascript:void(0)" class="js-tag color2">Cycler</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1489,11 +1507,19 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">Cycler</a>
+                <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">netty4, ServerBootstrap, Initiale</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1505,15 +1531,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">maven, 插件, 打包</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
               </li>
             
             <div class="clearfix"></div>
