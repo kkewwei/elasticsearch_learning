@@ -41,57 +41,39 @@
   <div id="container" q-class="show:isCtnShow">
     <canvas id="anm-canvas" class="anm-canvas"></canvas>
     <div class="left-col" q-class="show:isShow">
-      
-<div class="overlay" style="background: #4d4d4d"></div>
+      <% var defaultBg = '#4d4d4d'; %>
+<div class="overlay" style="background: <%= theme.style && theme.style.header ? theme.style.header : defaultBg %>"></div>
 <div class="intrude-less">
 	<header id="header" class="inner">
-		<a href="/" class="profilepic">
-      <img src="https://kkewwei.github.io/elasticsearch_learning/img/myself.png" class="js-avatar">
+		<a href="<%=theme.root%>" class="profilepic">
+			<img src="<%=theme.avatar%>" class="js-avatar">
 		</a>
 		<hgroup>
-		  <h1 class="header-author"><a href="/">jianguo</a></h1>
+		  <h1 class="header-author"><a href="<%=theme.root%>"><%=theme.author%></a></h1>
 		</hgroup>
-		
-		<p class="header-subtitle">往事随风</p>
-		
+		<% if (theme.subtitle){ %>
+		<p class="header-subtitle"><%=theme.subtitle%></p>
+		<%}%>
 
 		<nav class="header-menu">
 			<ul>
-			
-				<li><a href="/elasticsearch_learning/">主页</a></li>
-	        
-				<li><a href="/elasticsearch_learning/tags/随笔/">随笔</a></li>
-	        
-				<li><a href="/elasticsearch_learning/categories">分类</a></li>
-	        
+			<% for (var i in theme.menu){ %>
+				<li><a href="<%- url_for(theme.menu[i]) %>"><%= i %></a></li>
+	        <%}%>
 			</ul>
 		</nav>
 		<nav class="header-smart-menu">
-    		
-    			
-    			<a q-on="click: openSlider(e, 'innerArchive')" href="javascript:void(0)">所有文章</a>
-    			
-            
-    			
-    			<a q-on="click: openSlider(e, 'friends')" href="javascript:void(0)">友链</a>
-    			
-            
-    			
-    			<a q-on="click: openSlider(e, 'aboutme')" href="javascript:void(0)">关于我</a>
-    			
-            
+    		<% for (var i in theme.smart_menu){ %>
+    			<% if(theme.smart_menu[i]){ %>
+    			<a q-on="click: openSlider(e, '<%-i%>')" href="javascript:void(0)"><%= theme.smart_menu[i] %></a>
+    			<% } %>
+            <%}%>
 		</nav>
 		<nav class="header-nav">
 			<div class="social">
-				
-					<a class="github" target="_blank" href="#" title="github"><i class="icon-github"></i></a>
-		        
-					<a class="weibo" target="_blank" href="#" title="weibo"><i class="icon-weibo"></i></a>
-		        
-					<a class="rss" target="_blank" href="#" title="rss"><i class="icon-rss"></i></a>
-		        
-					<a class="zhihu" target="_blank" href="#" title="zhihu"><i class="icon-zhihu"></i></a>
-		        
+				<% for (var i in theme.subnav){ %>
+					<a class="<%= i %>" target="_blank" href="<%- url_for(theme.subnav[i]) %>" title="<%= i %>"><i class="icon-<%= i %>"></i></a>
+		        <%}%>
 			</div>
 		</nav>
 	</header>
@@ -164,6 +146,143 @@
           </div>
           <div id="js-content" class="content-ll">
             
+  
+    <article id="post-Flink原理-Akka通信模块" class="article article-type-post  article-index" itemscope itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/elasticsearch_learning/2019/04/20/Flink原理-Akka通信模块/">Flink原理-Akka通信&amp;TaskManager注册</a>
+    </h1>
+  
+
+        
+        <a href="/elasticsearch_learning/2019/04/20/Flink原理-Akka通信模块/" class="archive-article-date">
+  	<time datetime="2019-04-20T15:16:59.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2019-04-20</time>
+</a>
+        
+      </header>
+    
+
+    <!-- 目录内容 -->
+    
+    <!-- 目录内容结束 -->
+
+    <div class="article-entry" itemprop="articleBody">
+      
+        <p>Flink对于JobManager和TaskManager之间通信采用Akka remote实现, 本文将以tm和jm之间的一次远程通信为示例进行讲解。为了读者更好地理解, 本文首先介绍AKKa相关基本知识。</p>
+<h1 id="Akka基础学习"><a href="#Akka基础学习" class="headerlink" title="Akka基础学习"></a>Akka基础学习</h1><p>本文首先以hello world为例进行讲解:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div></pre></td><td class="code"><pre><div class="line">public class hello &#123;</div><div class="line">    public static void main(String[] args) &#123;</div><div class="line">        // 创建系统</div><div class="line">        final ActorSystem system = ActorSystem.create(&quot;hello&quot;);</div><div class="line">        // 创建消息角色(): greeter1, 接受消息处理类: Greeter</div><div class="line">        final ActorRef greeter1 = system.actorOf(Props.create(Greeter.class), &quot;Sender1&quot;);</div><div class="line">        final ActorRef greeter2 = system.actorOf(Props.create(Greeter.class), &quot;Sender2&quot;);</div><div class="line">        //消息发送greeter1 -&gt;  greeter2, 消息内容&quot;tell1&quot;</div><div class="line">        greeter2.tell(&quot;tell1&quot;, greeter1);</div><div class="line"></div><div class="line">        //通过ask, 表示角色发送完消息, 希望对方返回。</div><div class="line">        Future&lt;String&gt; future  = Patterns.ask(greeter1, &quot;ask1&quot;, 5000).&lt;String&gt;mapTo(ClassTag$.MODULE$.&lt;String&gt;apply(String.class));</div><div class="line">        future.onComplete(new OnComplete&lt;String&gt;() &#123;</div><div class="line">            public void onComplete(Throwable throwable, String o) throws Throwable &#123;</div><div class="line">                if (throwable == null) &#123;</div><div class="line">                    System.out.println(o);</div><div class="line">                &#125;</div><div class="line">            &#125;</div><div class="line">        &#125;, system.dispatcher());</div><div class="line"></div><div class="line">        //获取greeter1的绝对路径</div><div class="line">        String url = greeter1.path().parent().toString()+&quot;/&quot;+greeter1.path().name()+&quot;#&quot;+greeter1.path().uid();</div><div class="line">        // 通过actorSelection, 可以查找角色, 这个函数比较重要, 我们只知道某个角色的绝对路径, 我们通过该函数, 就可以获取到该角色。一般用于远程数据传输。</div><div class="line">        ActorSelection actorSelection = system.actorSelection(url);</div><div class="line">        Future&lt;ActorIdentity&gt; identify  = Patterns.ask(actorSelection, new Identify(1), 5000).&lt;ActorIdentity&gt;mapTo(ClassTag$.MODULE$.&lt;ActorIdentity&gt;apply(ActorIdentity.class));</div><div class="line">        identify.onComplete(new OnComplete&lt;ActorIdentity&gt;() &#123;</div><div class="line">            public void onComplete(Throwable throwable, ActorIdentity o) throws Throwable &#123;</div><div class="line">                if (throwable != null) &#123;</div><div class="line">                &#125; else &#123;</div><div class="line">                    // 我们可以对比发现, 之前那个角色通过绝对路径获取到了。</div><div class="line">                    ActorRef actorRef = o.getRef();</div><div class="line">                    System.out.println(&quot;system.actorSelection verify:&quot; + (actorRef==greeter1));</div><div class="line">                &#125;</div><div class="line">            &#125;</div><div class="line">        &#125;, system.dispatcher());</div><div class="line">    &#125;</div><div class="line">    //消息处理类, 必须继承UntypedActor</div><div class="line">    public static class Greeter extends UntypedActor &#123;</div><div class="line">        // 消息角色真正接收到数据的函数</div><div class="line">        public void onReceive(Object message) &#123;</div><div class="line">            if(message instanceof String &amp;&amp; ((String)message).equals(&quot;tell1&quot;)) &#123;</div><div class="line">                System.out.println(message);</div><div class="line">                getSender().tell(&quot;word2&quot;, getSelf());</div><div class="line">            &#125; else if(message instanceof String &amp;&amp; ((String)message).equals(&quot;ask1&quot;)) &#123;</div><div class="line">                System.out.println(message);</div><div class="line">                // getSelf()表示本角色</div><div class="line">                getSender().tell(&quot;Patterns.ask()&quot;, getSelf());</div><div class="line">            &#125; else &#123;</div><div class="line">                System.out.println(&quot;unhandled:&quot; + message);</div><div class="line">                unhandled(message);</div><div class="line">            &#125;</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>输出为:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div></pre></td><td class="code"><pre><div class="line">tell1</div><div class="line">unhandled:word2</div><div class="line">ask1</div><div class="line">Patterns.ask()</div><div class="line">system.actorSelection verify:true</div></pre></td></tr></table></figure></p>
+<ol>
+<li>在使用actorSelection函数的时候, 我们需要了解一个关键字<a href="https://doc.akka.io/docs/akka/2.3.6/java/untyped-actors.html#actorselection-java" target="_blank" rel="external">Identify</a>, 它被定义为每个角色都知道其含义的消息, 当接收到Identify时, 角色自动回复ActorIdentity, 其中包含着对地址的角色。actorSelection可以获取该角色的引用, 这样就可以首先和该角色通信了。</li>
+<li>ask和tell的区别是, ask希望对方角色返回结果, 而tell不需要返回结果。</li>
+</ol>
+<h1 id="Akka-RPC通信过程"><a href="#Akka-RPC通信过程" class="headerlink" title="Akka RPC通信过程"></a>Akka RPC通信过程</h1><h2 id="AkkaRpcService和RpcServer"><a href="#AkkaRpcService和RpcServer" class="headerlink" title="AkkaRpcService和RpcServer"></a>AkkaRpcService和RpcServer</h2><p>在正式介绍之前, 先介绍AkkaRpcService, 作为Flink Akka通信核心类, 它包含了akka通信系统ActorSystem, 任何角色产生, 都会调用RpcService.startServer<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div></pre></td><td class="code"><pre><div class="line">   public &lt;C extends RpcEndpoint &amp; RpcGateway&gt; RpcServer startServer(C rpcEndpoint) &#123;</div><div class="line">	CompletableFuture&lt;Void&gt; terminationFuture = new CompletableFuture&lt;&gt;();</div><div class="line">	final Props akkaRpcActorProps;</div><div class="line">	if (rpcEndpoint instanceof FencedRpcEndpoint) &#123;</div><div class="line">		akkaRpcActorProps = Props.create(FencedAkkaRpcActor.class, rpcEndpoint, terminationFuture, getVersion());</div><div class="line">	&#125; else &#123;</div><div class="line">		akkaRpcActorProps = Props.create(AkkaRpcActor.class, rpcEndpoint, terminationFuture, getVersion());</div><div class="line">	&#125;</div><div class="line">	ActorRef actorRef;</div><div class="line">	synchronized (lock) &#123;</div><div class="line">		actorRef = actorSystem.actorOf(akkaRpcActorProps, rpcEndpoint.getEndpointId());</div><div class="line">		actors.put(actorRef, rpcEndpoint);</div><div class="line">	&#125;</div><div class="line">	LOG.info(&quot;Starting RPC endpoint for &#123;&#125; at &#123;&#125; .&quot;, rpcEndpoint.getClass().getName(), actorRef.path());</div><div class="line">	final String akkaAddress = AkkaUtils.getAkkaURL(actorSystem, actorRef);</div><div class="line">	final String hostname;</div><div class="line">	Option&lt;String&gt; host = actorRef.path().address().host();</div><div class="line">	if (host.isEmpty()) &#123;</div><div class="line">		hostname = &quot;localhost&quot;;</div><div class="line">	&#125; else &#123;</div><div class="line">		hostname = host.get();</div><div class="line">	&#125;</div><div class="line">	Set&lt;Class&lt;?&gt;&gt; implementedRpcGateways = new HashSet&lt;&gt;(RpcUtils.extractImplementedRpcGateways(rpcEndpoint.getClass()));</div><div class="line">	implementedRpcGateways.add(RpcServer.class);</div><div class="line">	implementedRpcGateways.add(AkkaBasedEndpoint.class);</div><div class="line">	final InvocationHandler akkaInvocationHandler;</div><div class="line">	if (rpcEndpoint instanceof FencedRpcEndpoint) &#123;</div><div class="line">		// a FencedRpcEndpoint needs a FencedAkkaInvocationHandler</div><div class="line">		akkaInvocationHandler = new FencedAkkaInvocationHandler&lt;&gt;(</div><div class="line">			akkaAddress,</div><div class="line">			hostname,</div><div class="line">			actorRef,</div><div class="line">			timeout,</div><div class="line">			maximumFramesize,</div><div class="line">			terminationFuture,</div><div class="line">			((FencedRpcEndpoint&lt;?&gt;) rpcEndpoint)::getFencingToken);</div><div class="line">		implementedRpcGateways.add(FencedMainThreadExecutable.class);</div><div class="line">	&#125; else &#123;</div><div class="line">		akkaInvocationHandler = new AkkaInvocationHandler(</div><div class="line">			akkaAddress,</div><div class="line">			hostname,</div><div class="line">			actorRef,</div><div class="line">			timeout,</div><div class="line">			maximumFramesize,</div><div class="line">			terminationFuture);</div><div class="line">	&#125;</div><div class="line">	ClassLoader classLoader = getClass().getClassLoader();</div><div class="line">	RpcServer server = (RpcServer) Proxy.newProxyInstance(</div><div class="line">		classLoader,</div><div class="line">		implementedRpcGateways.toArray(new Class&lt;?&gt;[implementedRpcGateways.size()]),</div><div class="line">		akkaInvocationHandler);</div><div class="line">	return server;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>可以看到:</p>
+<ol>
+<li>角色接收到信息后, 处理的类为FencedAkkaRpcActor/AkkaRpcActor。</li>
+<li>调用函数时的接口handler也分为FencedAkkaInvocationHandler/AkkaInvocationHandler。每次代理GateWay请求时, 首先会调用AkkaInvocationHandler.invoke()类。<br>我们再来介绍下: RpcServer, RpcServer作为任何一个请求终端, 每次都将从相同的AkkaRpcService中参数, 实际封装了ActorRef来进行内部数据传输。</li>
+</ol>
+<h1 id="TM向JM注册"><a href="#TM向JM注册" class="headerlink" title="TM向JM注册"></a>TM向JM注册</h1><p>我们以TaskManager启动后, 会去主动连接JobMaster的ResourceManager, 以它们之间的通信为例进行讲解。YarnTaskExecutorRunner在运行主函数时, 会去调用TaskExecutor.connectToResourceManager()主动连接JobManager:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div></pre></td><td class="code"><pre><div class="line">   private void connectToResourceManager() &#123;</div><div class="line">       log.info(&quot;Connecting to ResourceManager &#123;&#125;.&quot;, resourceManagerAddress);</div><div class="line">	resourceManagerConnection =</div><div class="line">		new TaskExecutorToResourceManagerConnection(</div><div class="line">			log,</div><div class="line">			getRpcService(),</div><div class="line">			getAddress(),</div><div class="line">			getResourceID(),</div><div class="line">			taskManagerLocation.dataPort(),</div><div class="line">			hardwareDescription,</div><div class="line">			resourceManagerAddress.getAddress(),</div><div class="line">			resourceManagerAddress.getResourceManagerId(),</div><div class="line">			getMainThreadExecutor(),</div><div class="line">			new ResourceManagerRegistrationListener());</div><div class="line">	resourceManagerConnection.start();</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>建立好TaskExecutorToResourceManagerConnection之后,看下是如何操作的:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div></pre></td><td class="code"><pre><div class="line">public void start() &#123;</div><div class="line">	final RetryingRegistration&lt;F, G, S&gt; newRegistration = createNewRegistration();</div><div class="line">	if (REGISTRATION_UPDATER.compareAndSet(this, null, newRegistration)) &#123;</div><div class="line">		newRegistration.startRegistration();</div><div class="line">	&#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>该函数主要做了如下事情:</p>
+<ol>
+<li>通过createNewRegistration构建ResourceManagerRegistration对象, 并没有做其他的事。同时在父类RetryingRegistration中定义了一个CompletableFuture, 当complete时候(成功向jm注册后), 会去调用TaskExecutorToResourceManagerConnection.onRegistrationSuccess(), 之后会详细介绍。</li>
+<li>通过AkkaRpcService.startRegistration真正开始注册TaskManager。接下来看下如何向JobManager的ResourceManager注册该TaskManager。<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div></pre></td><td class="code"><pre><div class="line">   public void startRegistration() &#123;</div><div class="line">	try &#123;</div><div class="line">		// trigger resolution of the resource manager address to a callable gateway</div><div class="line">		final CompletableFuture&lt;G&gt; resourceManagerFuture;</div><div class="line">		if (FencedRpcGateway.class.isAssignableFrom(targetType)) &#123;</div><div class="line">		    //返回的就是clazz对象ResourceManagerGateway的代理</div><div class="line">			resourceManagerFuture = (CompletableFuture&lt;G&gt;) rpcService.connect(</div><div class="line">				targetAddress,</div><div class="line">				fencingToken,</div><div class="line">				targetType.asSubclass(FencedRpcGateway.class));</div><div class="line">		&#125; else &#123;</div><div class="line">			resourceManagerFuture = rpcService.connect(targetAddress, targetType);</div><div class="line">		&#125;</div><div class="line">		// upon success, start the registration attempts</div><div class="line">		CompletableFuture&lt;Void&gt; resourceManagerAcceptFuture = resourceManagerFuture.thenAcceptAsync(</div><div class="line">			(G result) -&gt; &#123;</div><div class="line">				log.info(&quot;Resolved &#123;&#125; address, beginning registration&quot;, targetName);</div><div class="line">				// 真正想远程JobManager进行注册</div><div class="line">				register(result, 1, initialRegistrationTimeout);</div><div class="line">			&#125;,</div><div class="line">			rpcService.getExecutor());</div><div class="line">	&#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+</li>
+</ol>
+<p>主要逻辑如下:</p>
+<ol>
+<li>调用rpcService.connect, 获取代理, 代理中包含指向jobManager的ResourceManager的地址(akka.tcp://flink@jobmanager:port/user/resourcemanager)的角色, 以进行rpc通信。</li>
+<li>当产生代理后, 再调用register进行真正RPC远程向JobManager的ResourceManager注册。</li>
+</ol>
+<h2 id="构建远程RPC调用的角色及代理"><a href="#构建远程RPC调用的角色及代理" class="headerlink" title="构建远程RPC调用的角色及代理"></a>构建远程RPC调用的角色及代理</h2><p>我们首先来看下是如何获取代理的:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div></pre></td><td class="code"><pre><div class="line">private &lt;C extends RpcGateway&gt; CompletableFuture&lt;C&gt; connectInternal(</div><div class="line">			final String address,</div><div class="line">			final Class&lt;C&gt; clazz,</div><div class="line">			Function&lt;ActorRef, InvocationHandler&gt; invocationHandlerFactory) &#123;</div><div class="line">		// 根据路径获取YarnResourceManager中JobManager ResourceManager的路径引用</div><div class="line">		final ActorSelection actorSel = actorSystem.actorSelection(address);</div><div class="line">		// 向该远程路径发送RPC请求, 获取对该远程路径的回话角色, 之后就可以向这个地址发送数据了</div><div class="line">		final Future&lt;ActorIdentity&gt; identify = Patterns</div><div class="line">			.ask(actorSel, new Identify(42), timeout.toMilliseconds())</div><div class="line">			.&lt;ActorIdentity&gt;mapTo(ClassTag$.MODULE$.&lt;ActorIdentity&gt;apply(ActorIdentity.class));</div><div class="line"></div><div class="line">		final CompletableFuture&lt;ActorIdentity&gt; identifyFuture = FutureUtils.toJava(identify);</div><div class="line">		final CompletableFuture&lt;ActorRef&gt; actorRefFuture = identifyFuture.thenApply(</div><div class="line">			(ActorIdentity actorIdentity) -&gt; &#123;</div><div class="line">				if (actorIdentity.getRef() == null) &#123;</div><div class="line">				&#125; else &#123;</div><div class="line">				    //获取对应的引用</div><div class="line">					return actorIdentity.getRef();</div><div class="line">				&#125;</div><div class="line">			&#125;);</div><div class="line">		// 发送handshake请求</div><div class="line">		final CompletableFuture&lt;HandshakeSuccessMessage&gt; handshakeFuture = actorRefFuture.thenCompose(</div><div class="line">			(ActorRef actorRef) -&gt; FutureUtils.toJava(</div><div class="line">				Patterns</div><div class="line">					.ask(actorRef, new RemoteHandshakeMessage(clazz, getVersion()), timeout.toMilliseconds())</div><div class="line">					.&lt;HandshakeSuccessMessage&gt;mapTo(ClassTag$.MODULE$.&lt;HandshakeSuccessMessage&gt;apply(HandshakeSuccessMessage.class))));</div><div class="line">		return actorRefFuture.thenCombineAsync(</div><div class="line">			handshakeFuture,</div><div class="line">			(ActorRef actorRef, HandshakeSuccessMessage ignored) -&gt; &#123;</div><div class="line">			    //获取FencedAkkaInvocationHandler</div><div class="line">				InvocationHandler invocationHandler = invocationHandlerFactory.apply(actorRef);</div><div class="line">				ClassLoader classLoader = getClass().getClassLoader();</div><div class="line">				@SuppressWarnings(&quot;unchecked&quot;)</div><div class="line">				// 构建针对ResourceManagerGateway的代理, handler为FencedAkkaInvocationHandler</div><div class="line">				C proxy = (C) Proxy.newProxyInstance(</div><div class="line">					classLoader,</div><div class="line">					new Class&lt;?&gt;[]&#123;clazz&#125;,</div><div class="line">					invocationHandler);</div><div class="line">				return proxy;</div><div class="line">			&#125;,</div><div class="line">			actorSystem.dispatcher());</div><div class="line">	&#125;</div></pre></td></tr></table></figure></p>
+<p>连接请求也比较简单, 每次RPC调用时, 都使用ask:</p>
+<ol>
+<li>向ResourceManager发送Identify, 远程响应并发返回对应路径的角色</li>
+<li>向ResourceManager发送RemoteHandshakeMessage, 再次和远程确认。</li>
+<li>以上两个RPC调用完成后, 构建针对ResourceManagerGateway的代理, 其中handler为FencedAkkaInvocationHandler(rpcEndpoint=ActorRef)。</li>
+</ol>
+<h2 id="TM向JM远程RPC注册"><a href="#TM向JM远程RPC注册" class="headerlink" title="TM向JM远程RPC注册"></a>TM向JM远程RPC注册</h2><p>当获取到通信的ActorRef后, 调用register进行注册:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div></pre></td><td class="code"><pre><div class="line">   private void register(final G gateway, final int attempt, final long timeoutMillis) &#123;</div><div class="line">	try &#123;</div><div class="line">	    // 跑到ResourceManagerConnection.invokeRegistration</div><div class="line">		log.info(&quot;Registration at &#123;&#125; attempt &#123;&#125; (timeout=&#123;&#125;ms)&quot;, targetName, attempt, timeoutMillis);</div><div class="line">		CompletableFuture&lt;RegistrationResponse&gt; registrationFuture = invokeRegistration(gateway, fencingToken, timeoutMillis);</div><div class="line">		// if the registration was successful, let the TaskExecutor know</div><div class="line">		CompletableFuture&lt;Void&gt; registrationAcceptFuture = registrationFuture.thenAcceptAsync(</div><div class="line">			(RegistrationResponse result) -&gt; &#123;</div><div class="line">				if (!isCanceled()) &#123;</div><div class="line">					if (result instanceof RegistrationResponse.Success) &#123;</div><div class="line">						// registration successful!</div><div class="line">						S success = (S) result;  // JobMasterRegistrationSuccess</div><div class="line">						//表示完成了JobMaster的注册，将completionFuture置为完成</div><div class="line">						completionFuture.complete(Tuple2.of(gateway, success));</div><div class="line">					&#125;</div><div class="line">				&#125;</div><div class="line">			&#125;,</div><div class="line">			rpcService.getExecutor());</div><div class="line">	&#125;</div><div class="line">	catch (Throwable t) &#123;</div><div class="line">		completionFuture.completeExceptionally(t);</div><div class="line">		cancel();</div><div class="line">	&#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>可以看到:</p>
+<ol>
+<li>register中真正向ResourceManager通信的是invokeRegistration()。</li>
+<li>将completionFuture置为完成, 那么将触发之前定义的TaskExecutorToResourceManagerConnection.onRegistrationSuccess()。<br>我们先看invokeRegistration的实现逻辑:<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div></pre></td><td class="code"><pre><div class="line">      protected CompletableFuture&lt;RegistrationResponse&gt; invokeRegistration(</div><div class="line">		ResourceManagerGateway resourceManager, ResourceManagerId fencingToken, long timeoutMillis) throws Exception &#123;</div><div class="line">	Time timeout = Time.milliseconds(timeoutMillis);</div><div class="line">	//resourceManager=FencedAkkaInvocationHandler,返回TaskExecutorRegistrationSuccess， 这里会跳到JobManager</div><div class="line">	return resourceManager.registerTaskExecutor(</div><div class="line">		taskExecutorAddress,</div><div class="line">		resourceID,</div><div class="line">		dataPort,</div><div class="line">		hardwareDescription,</div><div class="line">		timeout);</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+</li>
+</ol>
+<p>resourceManager.registerTaskExecutor将首先跑到FencedAkkaInvocationHandler.invoke, 最终真正发送rpc请求的是invokeRpc:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div></pre></td><td class="code"><pre><div class="line">private Object invokeRpc(Method method, Object[] args) throws Exception &#123;</div><div class="line">	String methodName = method.getName();</div><div class="line">	Class&lt;?&gt;[] parameterTypes = method.getParameterTypes();</div><div class="line">	Annotation[][] parameterAnnotations = method.getParameterAnnotations();</div><div class="line">	Time futureTimeout = extractRpcTimeout(parameterAnnotations, args, timeout);</div><div class="line">	//这里会构建函数名称等</div><div class="line">	final RpcInvocation rpcInvocation = createRpcInvocationMessage(methodName, parameterTypes, args);</div><div class="line">	Class&lt;?&gt; returnType = method.getReturnType();</div><div class="line">	final Object result;</div><div class="line">	if (Objects.equals(returnType, Void.TYPE)) &#123;</div><div class="line">		tell(rpcInvocation);</div><div class="line">		result = null;</div><div class="line">	&#125; else if (Objects.equals(returnType, CompletableFuture.class)) &#123;</div><div class="line">		// execute an asynchronous call, 需要返回请求结果。</div><div class="line">		result = ask(rpcInvocation, futureTimeout);</div><div class="line">	&#125; else &#123;</div><div class="line">		// execute a synchronous call</div><div class="line">		CompletableFuture&lt;?&gt; futureResult = ask(rpcInvocation, futureTimeout);</div><div class="line">		result = futureResult.get(futureTimeout.getSize(), futureTimeout.getUnit());</div><div class="line">	&#125;</div><div class="line">	return result;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>最终通过ask将请求发送出去, 其中包括函数名, 参数等信息。</p>
+<h1 id="远程ResourceManager接收到请求"><a href="#远程ResourceManager接收到请求" class="headerlink" title="远程ResourceManager接收到请求"></a>远程ResourceManager接收到请求</h1><p>我们可以看到在构建YarnResourceManager时, resourceManagerEndpointId为<code>resourcemanager</code>, 最终其ActorRef对应的直接地址为: akka.tcp://flink@jobmanager:port/user/resourcemanager, 印证了之前TM向JM注册时, JM通信的终端就是该类。在ActorRef构建过程中, 知道JM接受处理类为AkkaRpcActor.onReceive(FencedAkkaRpcActor父类), 继续调用的是handleRpcMessage()<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div></pre></td><td class="code"><pre><div class="line">protected void handleRpcMessage(Object message) &#123;</div><div class="line">	if (message instanceof RunAsync) &#123;</div><div class="line">		handleRunAsync((RunAsync) message);</div><div class="line">	&#125; else if (message instanceof CallAsync) &#123;</div><div class="line">		handleCallAsync((CallAsync) message);</div><div class="line">	&#125; else if (message instanceof RpcInvocation) &#123;</div><div class="line">		handleRpcInvocation((RpcInvocation) message);</div><div class="line">	&#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>flink针对不同类型的消息, 使用调用的函数, 很显然, 这里调用handleRpcInvocation:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div></pre></td><td class="code"><pre><div class="line">private void handleRpcInvocation(RpcInvocation rpcInvocation) &#123;</div><div class="line">	Method rpcMethod = null;</div><div class="line">	try &#123;</div><div class="line">		String methodName = rpcInvocation.getMethodName();</div><div class="line">		Class&lt;?&gt;[] parameterTypes = rpcInvocation.getParameterTypes();</div><div class="line">		rpcMethod = lookupRpcMethod(methodName, parameterTypes);</div><div class="line">	&#125;</div><div class="line">	if (rpcMethod != null) &#123;</div><div class="line">		try &#123;</div><div class="line">			// this supports declaration of anonymous classes</div><div class="line">			rpcMethod.setAccessible(true);</div><div class="line">			if (rpcMethod.getReturnType().equals(Void.TYPE)) &#123;</div><div class="line">				// No return value to send back</div><div class="line">				rpcMethod.invoke(rpcEndpoint, rpcInvocation.getArgs());</div><div class="line">			&#125;</div><div class="line">			else &#123;</div><div class="line">				final Object result;</div><div class="line">				try &#123;</div><div class="line">					result = rpcMethod.invoke(rpcEndpoint, rpcInvocation.getArgs());</div><div class="line">				&#125;</div><div class="line">				if (result instanceof CompletableFuture) &#123;</div><div class="line">					final CompletableFuture&lt;?&gt; future = (CompletableFuture&lt;?&gt;) result;</div><div class="line">					Promise.DefaultPromise&lt;Object&gt; promise = new Promise.DefaultPromise&lt;&gt;();</div><div class="line"></div><div class="line">					future.whenComplete(</div><div class="line">						(value, throwable) -&gt; &#123;</div><div class="line">							if (throwable != null) &#123;</div><div class="line">								promise.failure(throwable);</div><div class="line">							&#125; else &#123;</div><div class="line">							    //再回调一下</div><div class="line">								promise.success(value);</div><div class="line">							&#125;</div><div class="line">						&#125;);</div><div class="line"></div><div class="line">					Patterns.pipe(promise.future(), getContext().dispatcher()).to(getSender());</div><div class="line">				&#125;</div><div class="line">			&#125;</div><div class="line">		&#125;</div><div class="line">	&#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>最终调用的是result = rpcMethod.invoke()来处理TM发送的请求。实际调用ResourceManager.registerTaskExecutor()-&gt;registerTaskExecutorInternal()<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div></pre></td><td class="code"><pre><div class="line">private RegistrationResponse registerTaskExecutorInternal(</div><div class="line">		TaskExecutorGateway taskExecutorGateway,</div><div class="line">		String taskExecutorAddress,</div><div class="line">		ResourceID taskExecutorResourceId,</div><div class="line">		int dataPort,</div><div class="line">		HardwareDescription hardwareDescription) &#123;</div><div class="line">	WorkerRegistration&lt;WorkerType&gt; oldRegistration = taskExecutors.remove(taskExecutorResourceId);</div><div class="line">	// 首先做些清理, 删掉旧的</div><div class="line">	if (oldRegistration != null) &#123;</div><div class="line">		// TODO :: suggest old taskExecutor to stop itself</div><div class="line">		log.debug(&quot;Replacing old registration of TaskExecutor &#123;&#125;.&quot;, taskExecutorResourceId);</div><div class="line">		// remove old task manager registration from slot manager</div><div class="line">		slotManager.unregisterTaskManager(oldRegistration.getInstanceID());</div><div class="line">	&#125;</div><div class="line">       // 跑到YarnResourceManager.workerStarted(在yarn返回container成功后，会去注册Container)</div><div class="line">	final WorkerType newWorker = workerStarted(taskExecutorResourceId);</div><div class="line">	if (newWorker == null) &#123;</div><div class="line">	    //找不到, 就说明这个container不是这个JM申请的</div><div class="line">		log.warn(&quot;Discard registration from TaskExecutor &#123;&#125; at (&#123;&#125;) because the framework did &quot; +</div><div class="line">			&quot;not recognize it&quot;, taskExecutorResourceId, taskExecutorAddress);</div><div class="line">		return new RegistrationResponse.Decline(&quot;unrecognized TaskExecutor&quot;);</div><div class="line">	&#125; else &#123;</div><div class="line">		WorkerRegistration&lt;WorkerType&gt; registration =</div><div class="line">		    //taskExecutorGateway=AkkaInvocationHandler，  newWorker = YarnWorkerNode</div><div class="line">			new WorkerRegistration&lt;&gt;(taskExecutorGateway, newWorker, dataPort, hardwareDescription);</div><div class="line">		// 统计活跃而Container。</div><div class="line">		taskExecutors.put(taskExecutorResourceId, registration);</div><div class="line">		taskManagerHeartbeatManager.monitorTarget(taskExecutorResourceId, new HeartbeatTarget&lt;Void&gt;() &#123;</div><div class="line">			@Override</div><div class="line">			public void receiveHeartbeat(ResourceID resourceID, Void payload) &#123;</div><div class="line">				// the ResourceManager will always send heartbeat requests to the</div><div class="line">				// TaskManager</div><div class="line">			&#125;</div><div class="line">			@Override</div><div class="line">			public void requestHeartbeat(ResourceID resourceID, Void payload) &#123;</div><div class="line">				taskExecutorGateway.heartbeatFromResourceManager(resourceID);</div><div class="line">			&#125;</div><div class="line">		&#125;);</div><div class="line">		return new TaskExecutorRegistrationSuccess(</div><div class="line">			registration.getInstanceID(),</div><div class="line">			resourceId,</div><div class="line">			resourceManagerConfiguration.getHeartbeatInterval().toMilliseconds(),</div><div class="line">			clusterInformation);</div><div class="line">	&#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>ResourceManager注册主要做了如下事情:</p>
+<ol>
+<li>从taskExecutors中删除旧的通信管道。</li>
+<li>跑到YarnResourceManager.workerStarted()里面, 从JM端根据获取当初yarn分配的Container。</li>
+<li>向taskExecutors添加新产生的管道WorkerRegistration。管道里包含TaskExecutorGateway的代理, 其中handler为AkkaInvocationHandler, 且包含连接JobManager的ActorRef。</li>
+<li>JM对连接的TM添加监控。然后响应TM。</li>
+</ol>
+<h1 id="TM接收到JM响应"><a href="#TM接收到JM响应" class="headerlink" title="TM接收到JM响应"></a>TM接收到JM响应</h1><p>当TM接收到JM响应, 就会回调之前定义的TaskExecutorToResourceManagerConnection.onRegistrationSuccess()。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div></pre></td><td class="code"><pre><div class="line">private void establishResourceManagerConnection(</div><div class="line">		ResourceManagerGateway resourceManagerGateway,</div><div class="line">		ResourceID resourceManagerResourceId,</div><div class="line">		InstanceID taskExecutorRegistrationId,</div><div class="line">		ClusterInformation clusterInformation) &#123;</div><div class="line">	// TM向JM会报本地slot的情况, 供JM来分配给申请者。</div><div class="line">	final CompletableFuture&lt;Acknowledge&gt; slotReportResponseFuture = resourceManagerGateway.sendSlotReport(</div><div class="line">		getResourceID(),</div><div class="line">		taskExecutorRegistrationId,</div><div class="line">		taskSlotTable.createSlotReport(getResourceID()),</div><div class="line">		taskManagerConfiguration.getTimeout());</div><div class="line">	// monitor the resource manager as heartbeat target</div><div class="line">	resourceManagerHeartbeatManager.monitorTarget(resourceManagerResourceId, new HeartbeatTarget&lt;SlotReport&gt;() &#123;</div><div class="line">		@Override</div><div class="line">		public void receiveHeartbeat(ResourceID resourceID, SlotReport slotReport) &#123;</div><div class="line">			resourceManagerGateway.heartbeatFromTaskManager(resourceID, slotReport);</div><div class="line">		&#125;</div><div class="line">		@Override</div><div class="line">		public void requestHeartbeat(ResourceID resourceID, SlotReport slotReport) &#123;</div><div class="line">			// the TaskManager won&apos;t send heartbeat requests to the ResourceManager</div><div class="line">		&#125;</div><div class="line">	&#125;);</div><div class="line">	// set the propagated blob server address</div><div class="line">	final InetSocketAddress blobServerAddress = new InetSocketAddress(</div><div class="line">		clusterInformation.getBlobServerHostname(),</div><div class="line">		clusterInformation.getBlobServerPort());</div><div class="line">	blobCacheService.setBlobServerAddress(blobServerAddress);</div><div class="line">	establishedResourceManagerConnection = new EstablishedResourceManagerConnection(</div><div class="line">		resourceManagerGateway,</div><div class="line">		resourceManagerResourceId,</div><div class="line">		taskExecutorRegistrationId);</div><div class="line">	stopRegistrationTimeout();</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>TM当收到Response, 回调函数做了如下事情:</p>
+<ol>
+<li>通过resourceManagerGateway.sendSlotReport向YarnResourceManager汇报当前TM可用slot, 可用slot都将保存在 JobManager ResourceManager.freeSlots里面。</li>
+<li>开始向ResourceManager上报心跳。</li>
+</ol>
+<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>可以看到, Akka通信最底层依靠的是Patterns.ask来完成, 整个通信流程也是比较清晰的。</p>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/elasticsearch_learning/categories/Flink//" class="article-tag-list-link color1">Flink</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/elasticsearch_learning/2019/04/20/Flink原理-Akka通信模块/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
   
     <article id="post-Flink原理-TaskManager处理SubTask" class="article article-type-post  article-index" itemscope itemprop="blogPost">
   <div class="article-inner">
@@ -1274,101 +1393,6 @@
 
 
   
-    <article id="post-Netty-PoolThreadCache源码探究" class="article article-type-post  article-index" itemscope itemprop="blogPost">
-  <div class="article-inner">
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/elasticsearch_learning/2018/07/14/Netty-PoolThreadCache源码探究/">Netty PoolThreadCache原理探究</a>
-    </h1>
-  
-
-        
-        <a href="/elasticsearch_learning/2018/07/14/Netty-PoolThreadCache源码探究/" class="archive-article-date">
-  	<time datetime="2018-07-14T11:04:06.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2018-07-14</time>
-</a>
-        
-      </header>
-    
-
-    <!-- 目录内容 -->
-    
-    <!-- 目录内容结束 -->
-
-    <div class="article-entry" itemprop="articleBody">
-      
-        <p>NioEventLoop在为数据分配存放的内存时, 会首先尝试从线程本地缓存中去申请, 只有当本地缓存中申请失败, 才会考虑从全局内存中申请, 本地缓存的管理者就是PoolThreadCache对象。 Netty自己实现了类似LocalThread的类来充当线程缓存: PoolThreadLocalCache, 本节将充分围绕这两个类的源代码进行描述。</p>
-<h1 id="PoolThreadCache"><a href="#PoolThreadCache" class="headerlink" title="PoolThreadCache"></a>PoolThreadCache</h1><p>Netty自己进行内存管理, 将内存主要分为Tiny, small, normal等size不等的区间。 在PoolThreadCache中将缓存也按照size进行划分, 下图是PoolThreadCache的内部整体结构图:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/PoolThreadCache2.png" height="400" width="450"><br>图中只展示了small类型数组的大小(为4), 而tiny、normal数组的大小分别分32、 3。 每个数据元素代表着缓存不同类型大小的对象。 比如回收size为32B的对象, 将相应的内存块放在tiny类型数组、下标为1 (log(32&gt;&gt;4))的queue中。 本文章大量用到某一级别的缓存块, 举个例子:normal级别的缓存块有[8k, 16k, 32k]。<br>下面大致介绍下PoolThreadCache里面的属性作用:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div></pre></td><td class="code"><pre><div class="line">final PoolArena&lt;byte[]&gt; heapArena;</div><div class="line">final PoolArena&lt;ByteBuffer&gt; directArena;</div><div class="line"></div><div class="line">// Hold the caches for the different size classes, which are tiny, small and normal.</div><div class="line">//tiny内存缓存的个数。默认为512</div><div class="line">private final MemoryRegionCache&lt;byte[]&gt;[] tinySubPageHeapCaches;</div><div class="line">//small内存缓存的个数,默认为256个</div><div class="line">private final MemoryRegionCache&lt;byte[]&gt;[] smallSubPageHeapCaches;</div><div class="line">private final MemoryRegionCache&lt;ByteBuffer&gt;[] tinySubPageDirectCaches;</div><div class="line">private final MemoryRegionCache&lt;ByteBuffer&gt;[] smallSubPageDirectCaches;</div><div class="line">//normalCacheSize缓存的个数，默认为64</div><div class="line">private final MemoryRegionCache&lt;byte[]&gt;[] normalHeapCaches;</div><div class="line">private final MemoryRegionCache&lt;ByteBuffer&gt;[] normalDirectCaches;</div><div class="line"></div><div class="line">private final int freeSweepAllocationThreshold;</div><div class="line"></div><div class="line">private final Thread deathWatchThread;</div><div class="line">//线程消亡后，释放资源</div><div class="line">private final Runnable freeTask;</div><div class="line">//freeSweepAllocationThreshold  在本地线程每分配freeSweepAllocationThreshold 次内存后，检测一下是否需要释放内存。</div><div class="line">private int allocations;</div></pre></td></tr></table></figure></p>
-<p><code>heapArena</code>与<code>directArena</code>作用一样, 根据用户使用direct内存还是heap内存来确定使用哪个块。由构造函数可以看出directArena与PoolThreadCache绑定了, 同时PoolThreadCache也与某个NioEventLoop对应的线程绑定的, 所以该NioEventLoop线程都与唯一的directArena(&amp;heapArena)绑定着, 这样相对减轻了线程间申请内存导致互斥的发生。<code>smallSubPageHeapCaches</code>数组长度为4(如上图所示), 依次缓存[512K, 1024k, 2048k, 4096k]大小的缓存, 每个的元素对应的缓存queue个数不能超过256个; 而tinySubPageHeapCaches数组缓存的是[16B, 32B, … , 496B]大小的内存块, 每个元素对应的缓存queue个数不能超过512个。<code>normalHeapCaches</code>数组结构相同, 但是只缓存[8k, 16k, 32k]大小的内存块, 每个元素对应的缓存queue个数不超过64个。 normal最大内存块为16m, 而缓存仅仅缓存最大32k内存的原因是这是一种巨大的开销: 试想仅仅16m对应的级别存储, 就可缓存16M*64大小的内存块放在内存, 而这些内存块等着被新分配出去而没有主动释放, 存在巨大的浪费。 至于tiny、small、normal缓存每一等级划分规则, 可参考<a href="https://kkewwei.github.io/elasticsearch_learning/2018/05/23/Netty%E5%86%85%E5%AD%98%E5%AD%A6%E4%B9%A0/"> Netty PoolArea内存原理探究</a><br> 由于normalHeapCaches的特殊性, 如下展示该部分的代码实现:<br> <figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div></pre></td><td class="code"><pre><div class="line">private static &lt;T&gt; MemoryRegionCache&lt;T&gt;[] createNormalCaches(</div><div class="line">           int cacheSize, int maxCachedBufferCapacity, PoolArena&lt;T&gt; area) &#123;</div><div class="line">       if (cacheSize &gt; 0) &#123;</div><div class="line">           int max = Math.min(area.chunkSize, maxCachedBufferCapacity); //默认32k</div><div class="line">           //normalHeapCaches 数组中的元素的大小，是以2的幂倍pageSize递增的</div><div class="line">           int arraySize = Math.max(1, log2(max / area.pageSize) + 1);</div><div class="line">           //只缓存8k，16k，32k的缓存，太大的话，内存扛不住，若最大缓存32m的话，缓存64*32M个，太大了，扛不住</div><div class="line">           @SuppressWarnings(&quot;unchecked&quot;)</div><div class="line">           MemoryRegionCache&lt;T&gt;[] cache = new MemoryRegionCache[arraySize];</div><div class="line">           for (int i = 0; i &lt; cache.length; i++) &#123;</div><div class="line">               cache[i] = new NormalMemoryRegionCache&lt;T&gt;(cacheSize);</div><div class="line">           &#125;</div><div class="line">           return cache;</div><div class="line">       &#125; else &#123;</div><div class="line">           return null;</div><div class="line">       &#125;</div><div class="line">   &#125;</div></pre></td></tr></table></figure></p>
-<p> 最大缓存的大小由io.netty.allocator.maxCachedBufferCapacity来指定, 默认缓存最大32k。</p>
-<p>以下展示缓存中分配内存的过程, 以从normal级别缓存分配内存为例:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line"> boolean allocateNormal(PoolArena&lt;?&gt; area, PooledByteBuf&lt;?&gt; buf, int reqCapacity, int normCapacity) &#123;</div><div class="line">    return allocate(cacheForNormal(area, normCapacity), buf, reqCapacity);</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
-<p>在cacheForNormal中根据normCapacity确定从normalSubPageDirectCaches对应级别获取缓存内存块, 接着开始分配内存:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div></pre></td><td class="code"><pre><div class="line">@SuppressWarnings(&#123; &quot;unchecked&quot;, &quot;rawtypes&quot; &#125;)</div><div class="line">private boolean allocate(MemoryRegionCache&lt;?&gt; cache, PooledByteBuf buf, int reqCapacity) &#123;</div><div class="line">    if (cache == null) &#123;</div><div class="line">        // no cache found so just return false here</div><div class="line">        return false;</div><div class="line">    &#125;</div><div class="line">    boolean allocated = cache.allocate(buf, reqCapacity);</div><div class="line">    if (++ allocations &gt;= freeSweepAllocationThreshold) &#123;</div><div class="line">        allocations = 0;</div><div class="line">        trim();</div><div class="line">    &#125;</div><div class="line">    return allocated;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
-<p>做了如下事情:</p>
-<ul>
-<li>若没有该级别的缓存块, 则直接退出。</li>
-<li>若缓存有该级别的缓存块, 则将该缓存块分配出去, 同时判断从PoolThreadCache缓存中成功分配内存的次数是否达到阈值freeSweepAllocationThreshold(8192次), 若达到阈值, 则在trim()中尝试释放分配率很低的缓存块, 以免内存泄漏。</li>
-</ul>
-<p>trim()是如何确定哪些缓存块需要释放呢? 它会分别检查tiny、small、normal类型缓存块, 并轮训其中每一级别缓存块, 调用MemoryRegionCache.trim()检查是否需要释放, 以下以检查normal类型16k级别缓存块为例来说明:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div></pre></td><td class="code"><pre><div class="line">public final void trim() &#123;</div><div class="line">    int free = size - allocations;</div><div class="line">    allocations = 0;</div><div class="line"></div><div class="line">    // We not even allocated all the number that are</div><div class="line">     //只有从该级别分配大于预定值，tiny：512，small:256 , normal:64次</div><div class="line">    if (free &gt; 0) &#123;</div><div class="line">        free(free);//才不会释放该缓存</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
-<p><code>size</code>表示该16K级别的queue单位十年内必须分配多少次, 才不会释放(默认64个)<br><code>allocations</code>表示在达到MemoryRegionCache成功分配freeSweepAllocationThreshold次缓存中、从16K级别的缓存块中分配的缓存次数。<br>free大于0表示成功分配freeSweepAllocationThreshold次缓存中时间内,从当前缓存中分配的次数allocations小于阈值size, 该缓存队列需要释放。 如果从16KB级缓存队列中成功分配的缓存次数超过size(64次), 则不会释放级别缓存queue。若没有从该级别缓存队列中成功分配一次, 那么该级别的缓存queue存放的缓存块将全部释放。</p>
-<h2 id="PoolThreadLocalCache"><a href="#PoolThreadLocalCache" class="headerlink" title="PoolThreadLocalCache"></a>PoolThreadLocalCache</h2><p>文章开头讲了, 线程首先从本地缓存分配内存。PoolThreadCache主要解决了了如何从本地缓存分配内存, 而本地缓存如何与该线程联系在一起的呢? 这就是PoolThreadLocalCache起的作用。<br>PoolThreadLocalCache是全局唯一的, 任何线程分配内存, 都会调用同一个PoolThreadLocalCache.get()获取PoolThreadCache。 PoolThreadLocalCache继承了FastThreadLocal, PoolThreadLocalCache.get()实际调用了FastThreadLocal.get()方法:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div></pre></td><td class="code"><pre><div class="line">public final V get() &#123;</div><div class="line">    return get(InternalThreadLocalMap.get());</div><div class="line">&#125;</div><div class="line"></div><div class="line">public final V get(InternalThreadLocalMap threadLocalMap) &#123;</div><div class="line">     //想得到该层级缓存，发现没有，那么只能去初始话一个</div><div class="line">    Object v = threadLocalMap.indexedVariable(index);</div><div class="line">    if (v != InternalThreadLocalMap.UNSET) &#123;</div><div class="line">        return (V) v;</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    return initialize(threadLocalMap);</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
-<p>在InternalThreadLocalMap中定义了slowThreadLocalMap属性, 该类型是我们熟悉的ThreadLocal。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">static final ThreadLocal&lt;InternalThreadLocalMap&gt; slowThreadLocalMap = new ThreadLocal&lt;InternalThreadLocalMap&gt;();</div></pre></td></tr></table></figure></p>
-<p>若从本地缓冲中获取不到PoolThreadCache, 则会调用PoolThreadLocalCache.initialize()初始一个:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div></pre></td><td class="code"><pre><div class="line">protected synchronized PoolThreadCache initialValue() &#123;</div><div class="line">    final PoolArena&lt;byte[]&gt; heapArena = leastUsedArena(heapArenas); //找出被别的NioEventLoop使用最少次数多PoolArea</div><div class="line">    final PoolArena&lt;ByteBuffer&gt; directArena = leastUsedArena(directArenas);</div><div class="line"></div><div class="line">    if (useCacheForAllThreads || Thread.currentThread() instanceof FastThreadLocalThread) &#123;</div><div class="line">        return new PoolThreadCache( //为每一级别增加缓存</div><div class="line">                heapArena, directArena, tinyCacheSize, smallCacheSize, normalCacheSize,</div><div class="line">                DEFAULT_MAX_CACHED_BUFFER_CAPACITY, DEFAULT_CACHE_TRIM_INTERVAL);</div><div class="line">    &#125;</div><div class="line">    // No caching for non FastThreadLocalThreads.</div><div class="line">    return new PoolThreadCache(heapArena, directArena, 0, 0, 0, 0, 0);</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
-<p>这里我们需要注意leastUsedArena()函数。 Netty默认会产生NioEventLoop |work|个PoolArea块, 至于该线程绑定哪个PoolArea呢, 是根据该PoolArea被多少线程绑定次数来依据的。 被越少的线程绑定到一起, 分配内存发生冲突的概率越小。 这里选择被绑定次数最低的那个PoolArea来构建PoolThreadCache。<br>至此, 线程与PoolThreadCache实现了一一绑定。 之后该线程分配内存, 都会利用PoolThreadLocalCache.get()获取PoolThreadCache, 然后利用里面的PoolArea来完成的。</p>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/elasticsearch_learning/categories/Netty//" class="article-tag-list-link color1">Netty</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/elasticsearch_learning/2018/07/14/Netty-PoolThreadCache源码探究/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
   
     <nav id="page-nav">
       <a class="extend prev" rel="prev" href="/elasticsearch_learning/">&laquo; Prev</a><a class="page-number" href="/elasticsearch_learning/">1</a><span class="page-number current">2</span><a class="page-number" href="/elasticsearch_learning/page/3/">3</a><a class="page-number" href="/elasticsearch_learning/page/4/">4</a><a class="page-number" href="/elasticsearch_learning/page/5/">5</a><a class="extend next" rel="next" href="/elasticsearch_learning/page/3/">Next &raquo;</a>
@@ -1492,7 +1516,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">Lucene、词典、FST</a>
+                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1500,11 +1524,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">LockSupport</a>
+                <a href="javascript:void(0)" class="js-tag color3">Linux, close</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">Linux, close</a>
+                <a href="javascript:void(0)" class="js-tag color3">Lucene、词典、tim、tip</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">LockSupport</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1512,7 +1540,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
+                <a href="javascript:void(0)" class="js-tag color3">Lucene、termVector</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1520,7 +1548,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">Lucene、termVector</a>
+                <a href="javascript:void(0)" class="js-tag color4">Lucene、词典、FST</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1528,7 +1556,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">ReentrantLock</a>
+                <a href="javascript:void(0)" class="js-tag color2">Cycler</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1536,7 +1564,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">Cycler</a>
+                <a href="javascript:void(0)" class="js-tag color4">ReentrantLock</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">netty4, ServerBootstrap, Initiale</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1548,19 +1580,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">netty4, ServerBootstrap, Initiale</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">maven, 插件, 打包</a>
+                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
+                <a href="javascript:void(0)" class="js-tag color4">maven, 插件, 打包</a>
               </li>
             
             <div class="clearfix"></div>
