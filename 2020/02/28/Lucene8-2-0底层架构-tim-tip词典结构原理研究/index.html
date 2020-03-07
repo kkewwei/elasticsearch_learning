@@ -9,17 +9,17 @@
   <title>Lucene8.2.0底层架构-tim/tip词典结构原理研究 | Hexo</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
   <meta name="google-site-verification" content="sCUXxLczmZVJ1Fkt5jSJGE9xPpdVD25hYciudlUUVNQ" />
-  <meta name="description" content="无名小辈">
-<meta name="keywords" content="Lucene、词典、tim、tip">
+  <meta name="description" content="Lucene查询中使用最多的就是词典结构, 根据term查询在哪些文档中存在, 也被称为倒排索引。本文就以词典构建过程来进行深入研究。在构建词典前, 需要先介绍两个重要的类:TermVectorsConsumerPerField和FreqProxTermsWriterPerField 词典在内存中解析在对字段设置时, 需要如下设置:123456789FieldType fieldType = ne">
+<meta name="keywords" content="Lucene、词典、tim、tip、doc、pos、fst、倒排索引">
 <meta property="og:type" content="article">
 <meta property="og:title" content="Lucene8.2.0底层架构-tim&#x2F;tip词典结构原理研究">
 <meta property="og:url" content="https://kkewwei.github.io/elasticsearch_learning/2020/02/28/Lucene8-2-0底层架构-tim-tip词典结构原理研究/index.html">
 <meta property="og:site_name" content="Hexo">
-<meta property="og:description" content="无名小辈">
-<meta property="og:updated_time" content="2020-02-28T05:31:15.000Z">
+<meta property="og:description" content="Lucene查询中使用最多的就是词典结构, 根据term查询在哪些文档中存在, 也被称为倒排索引。本文就以词典构建过程来进行深入研究。在构建词典前, 需要先介绍两个重要的类:TermVectorsConsumerPerField和FreqProxTermsWriterPerField 词典在内存中解析在对字段设置时, 需要如下设置:123456789FieldType fieldType = ne">
+<meta property="og:updated_time" content="2020-03-06T07:38:48.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Lucene8.2.0底层架构-tim&#x2F;tip词典结构原理研究">
-<meta name="twitter:description" content="无名小辈">
+<meta name="twitter:description" content="Lucene查询中使用最多的就是词典结构, 根据term查询在哪些文档中存在, 也被称为倒排索引。本文就以词典构建过程来进行深入研究。在构建词典前, 需要先介绍两个重要的类:TermVectorsConsumerPerField和FreqProxTermsWriterPerField 词典在内存中解析在对字段设置时, 需要如下设置:123456789FieldType fieldType = ne">
   
     <link rel="alternative" href="/atom.xml" title="Hexo" type="application/atom+xml">
   
@@ -193,7 +193,7 @@
 	    <div id="toc-article" class="toc-article">
 	      <span id="toc-close" class="toc-close" title="隐藏导航" onclick="showBtn();">×</span>
 		      <strong class="toc-title">文章目录</strong>
-        
+        <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#词典在内存中解析"><span class="toc-number">1.</span> <span class="toc-text">词典在内存中解析</span></a></li></ol>
          </div>
    <script type="text/javascript">
 	function showToc(){
@@ -214,7 +214,16 @@
 
     <div class="article-entry" itemprop="articleBody">
       
-        
+        <p>Lucene查询中使用最多的就是词典结构, 根据term查询在哪些文档中存在, 也被称为倒排索引。本文就以词典构建过程来进行深入研究。<br>在构建词典前, 需要先介绍两个重要的类:<code>TermVectorsConsumerPerField</code>和<code>FreqProxTermsWriterPerField</code></p>
+<h1 id="词典在内存中解析"><a href="#词典在内存中解析" class="headerlink" title="词典在内存中解析"></a>词典在内存中解析</h1><p>在对字段设置时, 需要如下设置:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div></pre></td><td class="code"><pre><div class="line">FieldType fieldType = new FieldType();</div><div class="line">// 对term建立倒排索引存储的数据</div><div class="line">fieldType.setIndexOptions(IndexOptions.DOCS_AND_FREQS_AND_POSITIONS_AND_OFFSETS);</div><div class="line">fieldType.setTokenized(true);//分词</div><div class="line">fieldType.setStoreTermVectors(true);//分词</div><div class="line">fieldType.setOmitNorms(true);//分词</div><div class="line">fieldType.setStoreTermVectorOffsets(true);//分词</div><div class="line">fieldType.setStoreTermVectorPayloads(true);//分词</div><div class="line">fieldType.setStoreTermVectorPositions(true);//分词</div></pre></td></tr></table></figure></p>
+<p>其中我们需要了解setIndexOptions的参数:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div></pre></td><td class="code"><pre><div class="line">// 不建立词的倒排索引</div><div class="line">NONE,</div><div class="line">// 仅仅对词的建立索引结构</div><div class="line">DOCS,</div><div class="line">// 在termVector中仅存储词频</div><div class="line">DOCS_AND_FREQS,</div><div class="line">// 在termVector中存储词频和词position</div><div class="line">DOCS_AND_FREQS_AND_POSITIONS,</div><div class="line">// 在termVector中存储词频和词position和offset</div><div class="line">DOCS_AND_FREQS_AND_POSITIONS_AND_OFFSETS,</div></pre></td></tr></table></figure></p>
+<p>实际也是在开始检查<code>DefaultIndexingChain.processField()</code>检查该字段设置:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div></pre></td><td class="code"><pre><div class="line">if (fieldType.indexOptions() != IndexOptions.NONE) &#123;</div><div class="line">  // 每个字段只会保存一个 PerField 对象。</div><div class="line">  fp = getOrAddField(fieldName, fieldType, true);</div><div class="line">  // 这个文档中这个域不是重复写入</div><div class="line">  boolean first = fp.fieldGen != fieldGen;</div><div class="line">  // 创建倒排索引</div><div class="line">  fp.invert(field, first);</div><div class="line">  // 域是第一次写入</div><div class="line">  if (first) &#123;</div><div class="line">    // 这里才是真正存放，和fieldHash存放的是一个对象。真正统计的是当前文档所有的域。</div><div class="line">    fields[fieldCount++] = fp;</div><div class="line">    fp.fieldGen = fieldGen;</div><div class="line">  &#125;</div><div class="line">&#125; else &#123;</div><div class="line">  // 若我们fieldType=NONE, 那么关于存储termVector设置都是不合理的。</div><div class="line">  verifyUnIndexedFieldType(fieldName, fieldType);</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>该函数主要做了两件事:<br>1.检查该字段是否已经写入过。<br>2.调用<code>fp.inver</code>对该字段进行分词。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div></pre></td><td class="code"><pre><div class="line">  public void invert(IndexableField field, boolean first) throws IOException &#123; // PerFieldl里面开始</div><div class="line">    if (first) &#123; // 第一次该字段被写入</div><div class="line">      invertState.reset(); // 每次写入一个新的文档，这里都会被清空</div><div class="line">    &#125;</div><div class="line">    IndexableFieldType fieldType = field.fieldType();</div><div class="line"></div><div class="line">    final boolean analyzed = fieldType.tokenized() &amp;&amp; docState.analyzer != null; // 是否分词</div><div class="line">     // 对域的值进行了分词</div><div class="line">    try (TokenStream stream = tokenStream = field.tokenStream(docState.analyzer, tokenStream)) &#123;</div><div class="line">      // 针对TermVectorsConsumerPerField里面termvector参数进行设置</div><div class="line">      termsHashPerField.start(field, first);</div><div class="line">      while (stream.incrementToken()) &#123;</div><div class="line">        // 每个词增量为1</div><div class="line">        // 对position和offset进行统计。</div><div class="line">        invertState.position += posIncr; // 每个词新增1</div><div class="line">        invertState.lastPosition = invertState.position;</div><div class="line">        // 词的起始位置</div><div class="line">        int startOffset = invertState.offset + invertState.offsetAttribute.startOffset();</div><div class="line">        // 这个词的末尾</div><div class="line">        int endOffset = invertState.offset + invertState.offsetAttribute.endOffset();</div><div class="line">        // 该文档该域上一个词的截止为止</div><div class="line">        invertState.lastStartOffset = startOffset;</div><div class="line">        // 真正对词进行</div><div class="line">        termsHashPerField.add();</div><div class="line">      &#125;</div><div class="line">      stream.end();</div><div class="line">    &#125;</div><div class="line">    if (analyzed) &#123; // 若分词的话，</div><div class="line">      invertState.position += docState.analyzer.getPositionIncrementGap(fieldInfo.name);</div><div class="line">      invertState.offset += docState.analyzer.getOffsetGap(fieldInfo.name);</div><div class="line">    &#125;</div><div class="line">  &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>该函数主要做了如下事情:<br>1.置空invertState统计, 每个文档每个域将分别统计。<br>2.统计该词的相关信息, 放入invertState<br>3.调用<code>termsHashPerField.add()</code>开始对一个词读取相应索引结构。</p>
+<ol>
+<li>若分词的话, 需要对每个域值增加position和offset统计。对于域multiValue字段使用，用于设置多值数据间的间隔。<br>我们需要重点关注第三步:<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div></pre></td><td class="code"><pre><div class="line">void add() throws IOException &#123;</div><div class="line">  int termID = bytesHash.add(termAtt.getBytesRef());  // 属于第几个不重复的term，和add()函数里面的bytesHash不是同一个对象的</div><div class="line">  // 新的term</div><div class="line">  if (termID &gt;= 0) &#123;/</div><div class="line">    bytesHash.byteStart(termID);</div><div class="line">    if (numPostingInt + intPool.intUpto &gt; IntBlockPool.INT_BLOCK_SIZE) &#123;</div><div class="line">      intPool.nextBuffer();</div><div class="line">    &#125;</div><div class="line">    //当 bytePool 不足的时候,在 freeByteBlocks 中分配新的 buffer。</div><div class="line">    if (ByteBlockPool.BYTE_BLOCK_SIZE - bytePool.byteUpto &lt; numPostingInt*ByteBlockPool.FIRST_LEVEL_SIZE) &#123;</div><div class="line">      bytePool.nextBuffer();</div><div class="line">    &#125;</div><div class="line">    //此处 streamCount 为 2,表明在 intPool 中,每两项表示一个词,一个是指向 bytePool 中 freq 信息偏移量的,一个是指向 bytePool 中prox 信息偏移量的。</div><div class="line">    intUptos = intPool.buffer;</div><div class="line">    intUptoStart = intPool.intUpto;  // int当前buffer内的可分配位置</div><div class="line">    intPool.intUpto += streamCount;  // 先在intPool中申请2个位置</div><div class="line"></div><div class="line">    postingsArray.intStarts[termID] = intUptoStart + intPool.intOffset; // 第i个词在int中（为了快速找到该词的int位置）绝对起始起始位置</div><div class="line">   //在 bytePool 中分配两个空间,一个放 freq 信息,一个放 prox 信息的。</div><div class="line">    for(int i=0;i&lt;streamCount;i++) &#123;</div><div class="line">      final int upto = bytePool.newSlice(ByteBlockPool.FIRST_LEVEL_SIZE); // 申请两个slice，返回的是该slice的相对起始位置</div><div class="line">      intUptos[intUptoStart+i] = upto + bytePool.byteOffset; // 把slice起始位置放在intUptos中</div><div class="line">    &#125;</div><div class="line">    postingsArray.byteStarts[termID] = intUptos[intUptoStart]; // 把该termId的使用byteBlockPool起始位置给记录下来</div><div class="line">    // 前面试把架子搭好了</div><div class="line">    newTerm(termID);</div><div class="line"></div><div class="line">  &#125; else &#123; // 这说明已经索引过此词项(再次在原始文档中出现)</div><div class="line">    termID = (-termID)-1; // 获得真实的termId</div><div class="line">    int intStart = postingsArray.intStarts[termID];</div><div class="line">    intUptos = intPool.buffers[intStart &gt;&gt; IntBlockPool.INT_BLOCK_SHIFT]; // 是哪个buffer</div><div class="line">    intUptoStart = intStart &amp; IntBlockPool.INT_BLOCK_MASK;</div><div class="line">    addTerm(termID);</div><div class="line">  &#125;</div><div class="line">  //并没有再次存放termsId</div><div class="line">  if (doNextCall) &#123; // 为啥会在TermVectorsConsumerPerField中重复来一次add，前面分明已经记录了</div><div class="line">    nextPerField.add(postingsArray.textStarts[termID]); // 进入TermVectorsConsumerPerField.add(termId),也就是本类上面的函数</div><div class="line">  &#125; // postingsArray.textStarts[termID]实际等价于bytesHash里面的bytesStart[termID]</div><div class="line">&#125;</div></pre></td></tr></table></figure></li>
+</ol>
+
       
 
       
@@ -248,7 +257,7 @@
 		<ul class="article-tag-list">
 			 
         		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color3">Lucene、词典、tim、tip</a>
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">Lucene、词典、tim、tip、doc、pos、fst、倒排索引</a>
         		</li>
       		
 		</ul>
@@ -329,6 +338,15 @@
   
 <nav id="article-nav">
   
+    <a href="/elasticsearch_learning/2020/03/02/Lucene8-2-0底层架构-tvd-tvm词典向量结构研究/" id="article-nav-newer" class="article-nav-link-wrap">
+      <i class="icon-circle-left"></i>
+      <div class="article-nav-title">
+        
+          Lucene8.2.0底层架构-tvd/tvm词典向量结构研究
+        
+      </div>
+    </a>
+  
   
     <a href="/elasticsearch_learning/2020/02/25/Lucene8-2-0底层架构-词典fst原理解析/" id="article-nav-older" class="article-nav-link-wrap">
       <div class="article-nav-title">Lucene8.2.0底层架构-词典fst原理解析</div>
@@ -358,7 +376,7 @@
                 </span>
                 <span class="tooltip-content">
                     <div class="toc-article">
-                    目录，不存在的…
+                    <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#词典在内存中解析"><span class="toc-number">1.</span> <span class="toc-text">词典在内存中解析</span></a></li></ol>
                     </div>
                 </span>
             </div>
@@ -378,21 +396,22 @@
   
 
   
-  <div id="gitment-ctn"></div> 
+  <div id="gitment-ctn"></div>
 <link rel="stylesheet" href="//imsun.github.io/gitment/style/default.css">
-<script src="//imsun.github.io/gitment/dist/gitment.browser.js"></script>
+<script src="//www.wenjunjiang.win/js/gitment.js "></script>
 <script>
 var gitment = new Gitment({
-  id: "<%=url%>",
-  owner: '<%=theme.gitment_owner%>',
-  repo: '<%=theme.gitment_repo%>',
+  id: "Lucene8.2.0底层架构-tim/tip词典结构原理研究",
+  owner: 'kkewwei',
+  repo: 'comments',
   oauth: {
-    client_id: '<%=theme.gitment_oauth.client_id%>',
-    client_secret: '<%=theme.gitment_oauth.client_secret%>',
+    client_id: '9391e497d6b288887f33',
+    client_secret: 'db733731bff4ee2811d9530b1ac4cfc6767e8183',
   },
 })
 gitment.render('gitment-ctn')
 </script>
+
   
 
 
@@ -508,23 +527,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">Linux, close</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">Flink、Slot分配、SubTask申请slot, SubTask部署</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">LockSupport</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">Lucene、词典、tim、tip</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -532,11 +535,23 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">Lucene、termVector</a>
+                <a href="javascript:void(0)" class="js-tag color1">Lucene、ByteBlockPool</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">Lucene、StoredField</a>
+                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">Linux, close</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">LockSupport</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">Lucene、词典、tim、tip、doc、pos、fst、倒排索引</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -545,6 +560,14 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">Lucene、DocValue</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">Lucene、StoredField</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">Lucene、termVector、tvd、tvm、倒排索引</a>
               </li>
              
               <li class="article-tag-list-item">

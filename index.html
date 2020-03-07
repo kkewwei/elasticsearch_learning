@@ -165,6 +165,95 @@
           <div id="js-content" class="content-ll">
             
   
+    <article id="post-Lucene8-2-0底层架构-tvd-tvm词典向量结构研究" class="article article-type-post  article-index" itemscope itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/elasticsearch_learning/2020/03/02/Lucene8-2-0底层架构-tvd-tvm词典向量结构研究/">Lucene8.2.0底层架构-tvd/tvm词典向量结构研究</a>
+    </h1>
+  
+
+        
+        <a href="/elasticsearch_learning/2020/03/02/Lucene8-2-0底层架构-tvd-tvm词典向量结构研究/" class="archive-article-date">
+  	<time datetime="2020-03-02T10:39:17.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2020-03-02</time>
+</a>
+        
+      </header>
+    
+
+    <!-- 目录内容 -->
+    
+    <!-- 目录内容结束 -->
+
+    <div class="article-entry" itemprop="articleBody">
+      
+        
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">Lucene、termVector、tvd、tvm、倒排索引</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/elasticsearch_learning/categories/Lucene//" class="article-tag-list-link color2">Lucene</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/elasticsearch_learning/2020/03/02/Lucene8-2-0底层架构-tvd-tvm词典向量结构研究/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
     <article id="post-Lucene8-2-0底层架构-tim-tip词典结构原理研究" class="article article-type-post  article-index" itemscope itemprop="blogPost">
   <div class="article-inner">
     
@@ -190,7 +279,16 @@
 
     <div class="article-entry" itemprop="articleBody">
       
-        
+        <p>Lucene查询中使用最多的就是词典结构, 根据term查询在哪些文档中存在, 也被称为倒排索引。本文就以词典构建过程来进行深入研究。<br>在构建词典前, 需要先介绍两个重要的类:<code>TermVectorsConsumerPerField</code>和<code>FreqProxTermsWriterPerField</code></p>
+<h1 id="词典在内存中解析"><a href="#词典在内存中解析" class="headerlink" title="词典在内存中解析"></a>词典在内存中解析</h1><p>在对字段设置时, 需要如下设置:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div></pre></td><td class="code"><pre><div class="line">FieldType fieldType = new FieldType();</div><div class="line">// 对term建立倒排索引存储的数据</div><div class="line">fieldType.setIndexOptions(IndexOptions.DOCS_AND_FREQS_AND_POSITIONS_AND_OFFSETS);</div><div class="line">fieldType.setTokenized(true);//分词</div><div class="line">fieldType.setStoreTermVectors(true);//分词</div><div class="line">fieldType.setOmitNorms(true);//分词</div><div class="line">fieldType.setStoreTermVectorOffsets(true);//分词</div><div class="line">fieldType.setStoreTermVectorPayloads(true);//分词</div><div class="line">fieldType.setStoreTermVectorPositions(true);//分词</div></pre></td></tr></table></figure></p>
+<p>其中我们需要了解setIndexOptions的参数:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div></pre></td><td class="code"><pre><div class="line">// 不建立词的倒排索引</div><div class="line">NONE,</div><div class="line">// 仅仅对词的建立索引结构</div><div class="line">DOCS,</div><div class="line">// 在termVector中仅存储词频</div><div class="line">DOCS_AND_FREQS,</div><div class="line">// 在termVector中存储词频和词position</div><div class="line">DOCS_AND_FREQS_AND_POSITIONS,</div><div class="line">// 在termVector中存储词频和词position和offset</div><div class="line">DOCS_AND_FREQS_AND_POSITIONS_AND_OFFSETS,</div></pre></td></tr></table></figure></p>
+<p>实际也是在开始检查<code>DefaultIndexingChain.processField()</code>检查该字段设置:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div></pre></td><td class="code"><pre><div class="line">if (fieldType.indexOptions() != IndexOptions.NONE) &#123;</div><div class="line">  // 每个字段只会保存一个 PerField 对象。</div><div class="line">  fp = getOrAddField(fieldName, fieldType, true);</div><div class="line">  // 这个文档中这个域不是重复写入</div><div class="line">  boolean first = fp.fieldGen != fieldGen;</div><div class="line">  // 创建倒排索引</div><div class="line">  fp.invert(field, first);</div><div class="line">  // 域是第一次写入</div><div class="line">  if (first) &#123;</div><div class="line">    // 这里才是真正存放，和fieldHash存放的是一个对象。真正统计的是当前文档所有的域。</div><div class="line">    fields[fieldCount++] = fp;</div><div class="line">    fp.fieldGen = fieldGen;</div><div class="line">  &#125;</div><div class="line">&#125; else &#123;</div><div class="line">  // 若我们fieldType=NONE, 那么关于存储termVector设置都是不合理的。</div><div class="line">  verifyUnIndexedFieldType(fieldName, fieldType);</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>该函数主要做了两件事:<br>1.检查该字段是否已经写入过。<br>2.调用<code>fp.inver</code>对该字段进行分词。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div></pre></td><td class="code"><pre><div class="line">  public void invert(IndexableField field, boolean first) throws IOException &#123; // PerFieldl里面开始</div><div class="line">    if (first) &#123; // 第一次该字段被写入</div><div class="line">      invertState.reset(); // 每次写入一个新的文档，这里都会被清空</div><div class="line">    &#125;</div><div class="line">    IndexableFieldType fieldType = field.fieldType();</div><div class="line"></div><div class="line">    final boolean analyzed = fieldType.tokenized() &amp;&amp; docState.analyzer != null; // 是否分词</div><div class="line">     // 对域的值进行了分词</div><div class="line">    try (TokenStream stream = tokenStream = field.tokenStream(docState.analyzer, tokenStream)) &#123;</div><div class="line">      // 针对TermVectorsConsumerPerField里面termvector参数进行设置</div><div class="line">      termsHashPerField.start(field, first);</div><div class="line">      while (stream.incrementToken()) &#123;</div><div class="line">        // 每个词增量为1</div><div class="line">        // 对position和offset进行统计。</div><div class="line">        invertState.position += posIncr; // 每个词新增1</div><div class="line">        invertState.lastPosition = invertState.position;</div><div class="line">        // 词的起始位置</div><div class="line">        int startOffset = invertState.offset + invertState.offsetAttribute.startOffset();</div><div class="line">        // 这个词的末尾</div><div class="line">        int endOffset = invertState.offset + invertState.offsetAttribute.endOffset();</div><div class="line">        // 该文档该域上一个词的截止为止</div><div class="line">        invertState.lastStartOffset = startOffset;</div><div class="line">        // 真正对词进行</div><div class="line">        termsHashPerField.add();</div><div class="line">      &#125;</div><div class="line">      stream.end();</div><div class="line">    &#125;</div><div class="line">    if (analyzed) &#123; // 若分词的话，</div><div class="line">      invertState.position += docState.analyzer.getPositionIncrementGap(fieldInfo.name);</div><div class="line">      invertState.offset += docState.analyzer.getOffsetGap(fieldInfo.name);</div><div class="line">    &#125;</div><div class="line">  &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>该函数主要做了如下事情:<br>1.置空invertState统计, 每个文档每个域将分别统计。<br>2.统计该词的相关信息, 放入invertState<br>3.调用<code>termsHashPerField.add()</code>开始对一个词读取相应索引结构。</p>
+<ol>
+<li>若分词的话, 需要对每个域值增加position和offset统计。对于域multiValue字段使用，用于设置多值数据间的间隔。<br>我们需要重点关注第三步:<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div></pre></td><td class="code"><pre><div class="line">void add() throws IOException &#123;</div><div class="line">  int termID = bytesHash.add(termAtt.getBytesRef());  // 属于第几个不重复的term，和add()函数里面的bytesHash不是同一个对象的</div><div class="line">  // 新的term</div><div class="line">  if (termID &gt;= 0) &#123;/</div><div class="line">    bytesHash.byteStart(termID);</div><div class="line">    if (numPostingInt + intPool.intUpto &gt; IntBlockPool.INT_BLOCK_SIZE) &#123;</div><div class="line">      intPool.nextBuffer();</div><div class="line">    &#125;</div><div class="line">    //当 bytePool 不足的时候,在 freeByteBlocks 中分配新的 buffer。</div><div class="line">    if (ByteBlockPool.BYTE_BLOCK_SIZE - bytePool.byteUpto &lt; numPostingInt*ByteBlockPool.FIRST_LEVEL_SIZE) &#123;</div><div class="line">      bytePool.nextBuffer();</div><div class="line">    &#125;</div><div class="line">    //此处 streamCount 为 2,表明在 intPool 中,每两项表示一个词,一个是指向 bytePool 中 freq 信息偏移量的,一个是指向 bytePool 中prox 信息偏移量的。</div><div class="line">    intUptos = intPool.buffer;</div><div class="line">    intUptoStart = intPool.intUpto;  // int当前buffer内的可分配位置</div><div class="line">    intPool.intUpto += streamCount;  // 先在intPool中申请2个位置</div><div class="line"></div><div class="line">    postingsArray.intStarts[termID] = intUptoStart + intPool.intOffset; // 第i个词在int中（为了快速找到该词的int位置）绝对起始起始位置</div><div class="line">   //在 bytePool 中分配两个空间,一个放 freq 信息,一个放 prox 信息的。</div><div class="line">    for(int i=0;i&lt;streamCount;i++) &#123;</div><div class="line">      final int upto = bytePool.newSlice(ByteBlockPool.FIRST_LEVEL_SIZE); // 申请两个slice，返回的是该slice的相对起始位置</div><div class="line">      intUptos[intUptoStart+i] = upto + bytePool.byteOffset; // 把slice起始位置放在intUptos中</div><div class="line">    &#125;</div><div class="line">    postingsArray.byteStarts[termID] = intUptos[intUptoStart]; // 把该termId的使用byteBlockPool起始位置给记录下来</div><div class="line">    // 前面试把架子搭好了</div><div class="line">    newTerm(termID);</div><div class="line"></div><div class="line">  &#125; else &#123; // 这说明已经索引过此词项(再次在原始文档中出现)</div><div class="line">    termID = (-termID)-1; // 获得真实的termId</div><div class="line">    int intStart = postingsArray.intStarts[termID];</div><div class="line">    intUptos = intPool.buffers[intStart &gt;&gt; IntBlockPool.INT_BLOCK_SHIFT]; // 是哪个buffer</div><div class="line">    intUptoStart = intStart &amp; IntBlockPool.INT_BLOCK_MASK;</div><div class="line">    addTerm(termID);</div><div class="line">  &#125;</div><div class="line">  //并没有再次存放termsId</div><div class="line">  if (doNextCall) &#123; // 为啥会在TermVectorsConsumerPerField中重复来一次add，前面分明已经记录了</div><div class="line">    nextPerField.add(postingsArray.textStarts[termID]); // 进入TermVectorsConsumerPerField.add(termId),也就是本类上面的函数</div><div class="line">  &#125; // postingsArray.textStarts[termID]实际等价于bytesHash里面的bytesStart[termID]</div><div class="line">&#125;</div></pre></td></tr></table></figure></li>
+</ol>
+
       
 
       
@@ -203,7 +301,7 @@
 		<ul class="article-tag-list">
 			 
         		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color3">Lucene、词典、tim、tip</a>
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">Lucene、词典、tim、tip、doc、pos、fst、倒排索引</a>
         		</li>
       		
 		</ul>
@@ -374,95 +472,6 @@
 
 
   
-    <article id="post-Lucene8-2-0底层架构-tvd-tvx构建过程" class="article article-type-post  article-index" itemscope itemprop="blogPost">
-  <div class="article-inner">
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/elasticsearch_learning/2020/02/17/Lucene8-2-0底层架构-tvd-tvx构建过程/">Lucene8.2.0底层架构-tvd/tvx构建过程</a>
-    </h1>
-  
-
-        
-        <a href="/elasticsearch_learning/2020/02/17/Lucene8-2-0底层架构-tvd-tvx构建过程/" class="archive-article-date">
-  	<time datetime="2020-02-17T14:43:54.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2020-02-17</time>
-</a>
-        
-      </header>
-    
-
-    <!-- 目录内容 -->
-    
-    <!-- 目录内容结束 -->
-
-    <div class="article-entry" itemprop="articleBody">
-      
-        
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color3">Lucene、termVector</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/elasticsearch_learning/categories/Lucene//" class="article-tag-list-link color2">Lucene</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/elasticsearch_learning/2020/02/17/Lucene8-2-0底层架构-tvd-tvx构建过程/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
     <article id="post-Lucene底层架构-dvm-dvm构建过程" class="article article-type-post  article-index" itemscope itemprop="blogPost">
   <div class="article-inner">
     
@@ -470,7 +479,7 @@
         
   
     <h1 itemprop="name">
-      <a class="article-title" href="/elasticsearch_learning/2019/11/15/Lucene底层架构-dvm-dvm构建过程/">Lucene8.2.0底层架构-dvm/dvm构建过程</a>
+      <a class="article-title" href="/elasticsearch_learning/2019/11/15/Lucene底层架构-dvm-dvm构建过程/">Lucene8.2.0底层架构-dvd/dvm构建过程</a>
     </h1>
   
 
@@ -614,12 +623,12 @@
 
     <div class="article-entry" itemprop="articleBody">
       
-        <p>StoredField文件主要存放文档-&gt;域-&gt;value的关系, 行式存储, 正排索引结果, 不对字段分词, 便于读取任何字段的value。 fdt存放文档的value及一级索引索引, fdx存放二级索引结构。 本文就以这两个文件结构的建立-&gt;文件写入磁盘的过程来进行详细介绍, 代码主要可见CompressingStoredFieldsWriter。</p>
+        <p>StoredField文件主要存放文档-&gt;域-&gt;value的关系, 每个文档的所有域都保存一起,再保存下一行, 行式存储, 正排索引结果, 不对字段分词, 便于读取任何字段的value。 fdt存放文档的value及一级索引索引, fdx存放二级索引结构。 本文就以这两个文件结构的建立-&gt;文件写入磁盘的过程来进行详细介绍, 代码主要可见CompressingStoredFieldsWriter。</p>
 <h1 id="内存索引结构的建立"><a href="#内存索引结构的建立" class="headerlink" title="内存索引结构的建立"></a>内存索引结构的建立</h1><p>索引结构建立是指将文档按照规范存储到内存中, 当对字段进行如下设置时, 才会建立该索引文档:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line">FieldType fieldType = new FieldType();</div><div class="line">fieldType.setStored(true);</div></pre></td></tr></table></figure></p>
 <p>实际是在<code>DefaultIndexingChain.processField()</code>里面开始检查字段是否设置了该参数:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div></pre></td><td class="code"><pre><div class="line">// Add stored fields:</div><div class="line">if (fieldType.stored()) &#123;</div><div class="line">  if (fp == null) &#123;</div><div class="line">    fp = getOrAddField(fieldName, fieldType, false);</div><div class="line">  &#125;</div><div class="line">  if (fieldType.stored()) &#123;</div><div class="line">    // 域的值</div><div class="line">    String value = field.stringValue();</div><div class="line">    try &#123;</div><div class="line">      // 面向行的存储，docValue是面向列的存储, field值存放在CompressingStoredFieldsWriter的bufferedDocs中</div><div class="line">      storedFieldsConsumer.writeField(fp.fieldInfo, field);</div><div class="line">    &#125;</div><div class="line">  &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
 <p>该函数主要做了两件事:</p>
 <ol>
-<li>检查该域是否已经缓存到了内存中。详情可参考:</li>
+<li>检查该域之前文档是否已经写入过。详情可参考:</li>
 <li>若设置了stored=true, 那么最终进入到进入CompressingStoredFieldsWriter.writeField, 将字段的value缓存起来。<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div></pre></td><td class="code"><pre><div class="line">public void writeField(FieldInfo info, IndexableField field) &#123;</div><div class="line">  ++numStoredFieldsInDoc;</div><div class="line">  int bits = 0;</div><div class="line">  Number number = field.numericValue();</div><div class="line">  if (number != null) &#123;</div><div class="line">    if (number instanceof Byte || number instanceof Short || number instanceof Integer) &#123;</div><div class="line">      bits = NUMERIC_INT;</div><div class="line">    &#125; else if (number instanceof Long) &#123;</div><div class="line">      bits = NUMERIC_LONG;</div><div class="line">    &#125;</div><div class="line">    ......</div><div class="line">    string = null;</div><div class="line">    bytes = null;</div><div class="line">  &#125; else &#123;</div><div class="line">    bytes = field.binaryValue();</div><div class="line">    // 是二进制数的话</div><div class="line">    if (bytes != null) &#123;</div><div class="line">      bits = BYTE_ARR;</div><div class="line">      string = null;</div><div class="line">    &#125; else &#123;</div><div class="line">      bits = STRING; // 是字符串的话</div><div class="line">      string = field.stringValue();</div><div class="line">    &#125;</div><div class="line">  &#125;</div><div class="line">  // 低三位代表类型，高5位代表字段编号</div><div class="line">  final long infoAndBits = (((long) info.number) &lt;&lt; TYPE_BITS) | bits;</div><div class="line">  //写入字段编号，字段类型</div><div class="line">  bufferedDocs.writeVLong(infoAndBits);</div><div class="line">  if (bytes != null) &#123;</div><div class="line">    bufferedDocs.writeVInt(bytes.length);</div><div class="line">    bufferedDocs.writeBytes(bytes.bytes, bytes.offset, bytes.length);</div><div class="line">  &#125; else if (string != null) &#123;</div><div class="line">    bufferedDocs.writeString(string);</div><div class="line">  &#125; else &#123;</div><div class="line">    if (number instanceof Byte || number instanceof Short || number instanceof Integer) &#123;</div><div class="line">      bufferedDocs.writeZInt(number.intValue());</div><div class="line">    &#125; else if (number instanceof Long) &#123;</div><div class="line">      writeTLong(bufferedDocs, number.longValue());</div><div class="line">    &#125;</div><div class="line">    ......</div><div class="line">    &#125;</div><div class="line">  &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
 </li>
 </ol>
@@ -870,6 +879,109 @@
       
         <p class="article-more-link">
           <a class="article-more-a" href="/elasticsearch_learning/2019/10/17/ES段合并源码分析/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
+    <article id="post-Lucene8-2-0底层架构-ByteBlockPool结构分析" class="article article-type-post  article-index" itemscope itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/elasticsearch_learning/2019/10/06/Lucene8-2-0底层架构-ByteBlockPool结构分析/">Lucene8.2.0底层架构-ByteBlockPool结构分析</a>
+    </h1>
+  
+
+        
+        <a href="/elasticsearch_learning/2019/10/06/Lucene8-2-0底层架构-ByteBlockPool结构分析/" class="archive-article-date">
+  	<time datetime="2019-10-06T08:04:05.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2019-10-06</time>
+</a>
+        
+      </header>
+    
+
+    <!-- 目录内容 -->
+    
+    <!-- 目录内容结束 -->
+
+    <div class="article-entry" itemprop="articleBody">
+      
+        <p>Lucene对于针对倒排索引时, 需要大量的byte数组来存储数据, 但是byte[]长度不能扩展, 而在建立倒排索引时, 并不能固定需要在一个数组中存放多少byte, 只靠数组本身的特性并不能满足数组动态扩容的特性, Lucene自己开发了类ByteBlockPool来满足这一特性。针对int类型开发了IntBlockPool, 两者原理相同, 本文就以ByteBlockPool存储细节来展开介绍。</p>
+<h1 id="属性介绍"><a href="#属性介绍" class="headerlink" title="属性介绍"></a>属性介绍</h1><p>先看下相关属性:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div></pre></td><td class="code"><pre><div class="line"> // 真正存放byte的地方, 还是可以扩容的。</div><div class="line"> public byte[][] buffers = new byte[10][];</div><div class="line"> //指向二元buffers的第一元指针, 当前正在向第几个byte[]存放数据</div><div class="line"> private int bufferUpto = -1;</div><div class="line">//当前正在写入的byte[]内的相对偏移量，就是buffer内可分配的起始位置。</div><div class="line"> public int byteUpto = BYTE_BLOCK_SIZE;</div><div class="line"> //当前块buffer</div><div class="line"> public byte[] buffer;</div><div class="line">// buffer在所有buffers的位置（当前buffer在全局的偏移量），(bufferUpto -1)*BYTE_BLOCK_SIZE</div><div class="line"> public int byteOffset = -BYTE_BLOCK_SIZE;</div><div class="line"> // 当使用完当前buffer后, 会再次申请一个byte[]来存放byte。每次申请一个byte[], 都对应了一个级别, 每个级别可以申请的内存大小都是固定的。NEXT_LEVEL_ARRAY定义当前级别的下一个级别是第几级, LEVEL_SIZE_ARRAY对应了每个级别可以申请的byte[]大小。最多有9级别, 当超过第9级别后, 后面再申请的话, 只能是第9级。这里使用了一个小技巧来实现这个操作, NEXT_LEVEL_ARRAY[8]=9,表示第8级别后面是第9级, NEXT_LEVEL_ARRAY[9]=9表示第9级后面还是第9级。</div><div class="line"> public final static int[] NEXT_LEVEL_ARRAY = &#123;1, 2, 3, 4, 5, 6, 7, 8, 9, 9&#125;;</div><div class="line"> public final static int[] LEVEL_SIZE_ARRAY = &#123;5, 14, 20, 30, 40, 40, 80, 80, 120, 200&#125;;</div><div class="line"> // 定义了最开始的分配byte[]的级别</div><div class="line"> public final static int FIRST_LEVEL_SIZE = LEVEL_SIZE_ARRAY[0];</div></pre></td></tr></table></figure></p>
+<p>ByteBlockPool使用二进制buffers来真正存储数据, 当需要扩容时候, 再产生新的数组来存储byte。</p>
+<h1 id="产生buffer"><a href="#产生buffer" class="headerlink" title="产生buffer"></a>产生buffer</h1><p>当前<code>buffer</code>不足以存放byte时, 就会产生新的byte[]来存放数据。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div></pre></td><td class="code"><pre><div class="line">// buffer已经不足以新的申请需求, 那么就产生新的buffer来存放, 一次申请不能超过32kb大小空间</div><div class="line">public void nextBuffer() &#123;</div><div class="line">   // buffers中已存满buffer了, 需要扩容</div><div class="line">   if (1+bufferUpto == buffers.length) &#123;</div><div class="line">     byte[][] newBuffers = new byte[ArrayUtil.oversize(buffers.length+1,</div><div class="line">                                                       NUM_BYTES_OBJECT_REF)][];</div><div class="line">     // 只是拷贝了数组引用，并没有copy数组, 这里体现了ByteBlockPool的优势</div><div class="line">     System.arraycopy(buffers, 0, newBuffers, 0, buffers.length);</div><div class="line">     buffers = newBuffers;</div><div class="line">   &#125;</div><div class="line">   //产生一个新的buffer, 大小为32kb, 供slice来分配数据</div><div class="line">   buffer = buffers[1+bufferUpto] = allocator.getByteBlock();</div><div class="line">   bufferUpto++;//buffers写入位置+1</div><div class="line"></div><div class="line">   byteUpto = 0;//buffer写入位置</div><div class="line">   byteOffset += BYTE_BLOCK_SIZE;//指针位置初始化</div><div class="line"> &#125;</div></pre></td></tr></table></figure></p>
+<p>产生新的buffer过程, 就是对ByteBlockPool扩容的过程, 相对于二进制或者List扩容, ByteBlockPool的优势在于不对数据进行移动, 移动的仅仅是数组指针。 扩容时仅仅产生一个32k的byte数组。ByteBlockPool仅仅管理这些byte的指针。</p>
+<h1 id="从buffer中产生slice"><a href="#从buffer中产生slice" class="headerlink" title="从buffer中产生slice"></a>从buffer中产生slice</h1><p>ByteBlockPool申请一个空闲的32k的数组buffer。每次写入byte时, 首先会从这个buffer中申请一块区域存放byte, 这块区域就称为一个slice。 我们看下ByteBlockPool是如何管理从buffer中申请slice的。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div></pre></td><td class="code"><pre><div class="line">// 从当前buffer中申请一个size大小的slice</div><div class="line">public int newSlice(final int size) &#123;</div><div class="line">   // 当前buffer剩余可用空间装不下size了, 那么我们就需要产生一个新的buffer了</div><div class="line">  if (byteUpto &gt; BYTE_BLOCK_SIZE-size)</div><div class="line">    nextBuffer();</div><div class="line">  // 此时能保证当前buffer一定可以存的下size了</div><div class="line">  final int upto = byteUpto;</div><div class="line">  byteUpto += size;</div><div class="line">  buffer[byteUpto-1] = 16;//赋值为16 调用时 会从byteUpto开始写入，当遇到buffer[pos]位置不为0 时，会调用allocSlice方法 通过 16&amp;15得到当前NEXT_LEVEL_ARRAY中level</div><div class="line">  return upto; //申请的slice的相对起始位置</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>新申请的slice的大小是FIRST_LEVEL_SIZE:5, 该函数主要做了如下事情:<br>1.检查当前buffer剩余空间是否能满足size大小的slice申请, 若不满足, 再申请新的一个新的buffer存放。<br>2.在当前buffer中申请新的slice, 针对申请的最后一位存放16. 代表下一级申请slice的大小16&amp;15=1。<br>申请过程如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/lucene_bytebuffer.png" height="200" width="600"></p>
+<h1 id="扩容现存的slice"><a href="#扩容现存的slice" class="headerlink" title="扩容现存的slice"></a>扩容现存的slice</h1><p>ByteBlockPool主要解决的问题是数组动态增长的问题, 我们不确定未来还有多少字符串需要继续写入, 我们申请的slice很可能就不够byte存放, 而allocSlice解决的就是当前slice扩容的问题。扩容前我们首先回答如下几个问题:</p>
+<ol>
+<li>什么时候需要扩容? 扩容多大? 当存储byte的位置不为0, 则说明说明当前byte代表着slice已经存满, 该byte代表着扩容slice申请的一个级别。</li>
+</ol>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div></pre></td><td class="code"><pre><div class="line">// slice代表当前buffer, upto代表slice结束位置, slice[upto]存放的是下一级别</div><div class="line">public int allocSlice(final byte[] slice, final int upto) &#123;</div><div class="line">    // 确定下一级别</div><div class="line">    final int level = slice[upto] &amp; 15;</div><div class="line">    final int newLevel = NEXT_LEVEL_ARRAY[level];</div><div class="line">    // 下一级别申请的大小</div><div class="line">    final int newSize = LEVEL_SIZE_ARRAY[newLevel];</div><div class="line"></div><div class="line">    // 当前buffer是否还够下一级别的byte[]的申请</div><div class="line">    if (byteUpto &gt; BYTE_BLOCK_SIZE-newSize) &#123;</div><div class="line">      nextBuffer();</div><div class="line">    &#125;</div><div class="line">     // 当前块的起始位置</div><div class="line">    final int newUpto = byteUpto;</div><div class="line">     // upto的在整个buffers的绝对位置</div><div class="line">    final int offset = newUpto + byteOffset;</div><div class="line">    // 目前buffer内新的可写入位置</div><div class="line">    byteUpto += newSize;</div><div class="line">    // 从当前级别空余3位出来存储当前slice扩容下一级别的起始位置</div><div class="line">    // 第一步, 先空出</div><div class="line">    buffer[newUpto] = slice[upto-3];</div><div class="line">    buffer[newUpto+1] = slice[upto-2];</div><div class="line">    buffer[newUpto+2] = slice[upto-1];</div><div class="line">     // 空出来的3位连同级别位存放位置</div><div class="line">    // Write forwarding address at end of last slice:</div><div class="line">    slice[upto-3] = (byte) (offset &gt;&gt;&gt; 24);</div><div class="line">    slice[upto-2] = (byte) (offset &gt;&gt;&gt; 16);</div><div class="line">    slice[upto-1] = (byte) (offset &gt;&gt;&gt; 8);</div><div class="line">    slice[upto] = (byte) offset;</div><div class="line">    // 在新扩容的slice结尾填下下一级别</div><div class="line">    // Write new level:</div><div class="line">    buffer[byteUpto-1] = (byte) (16|newLevel);</div><div class="line">    return newUpto+3;</div><div class="line">  &#125;</div></pre></td></tr></table></figure>
+<p>主要过程用图像表示如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/lucene_bytebuffer2.png" height="200" width="600"><br>其中address是在整个buffers中的绝对位置。 一个buffer可以产生不同的slice, 每个slice不需要连续, slice扩容分为9级, 达到9级后新申请的内存大小都按照第9级别来分配。</p>
+<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>ByteBlockPool通过管理字符串二维数组方式实现动态扩容, 而且扩容成本也不高。lucene中在字符串存储上使用了较多较为巧妙的方法, 正是这些巧妙方法, 使得lucene有着比较优秀的性能。</p>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">Lucene、ByteBlockPool</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/elasticsearch_learning/categories/Lucene//" class="article-tag-list-link color2">Lucene</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/elasticsearch_learning/2019/10/06/Lucene8-2-0底层架构-ByteBlockPool结构分析/">展开全文 >></a>
         </p>
       
 
@@ -1197,106 +1309,6 @@
 
 
   
-    <article id="post-Flink原理-Container启动命令内存参数分析" class="article article-type-post  article-index" itemscope itemprop="blogPost">
-  <div class="article-inner">
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/elasticsearch_learning/2019/06/08/Flink原理-Container启动命令内存参数分析/">Flink原理-Container启动命令内存参数分析</a>
-    </h1>
-  
-
-        
-        <a href="/elasticsearch_learning/2019/06/08/Flink原理-Container启动命令内存参数分析/" class="archive-article-date">
-  	<time datetime="2019-06-08T11:22:29.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2019-06-08</time>
-</a>
-        
-      </header>
-    
-
-    <!-- 目录内容 -->
-    
-    <!-- 目录内容结束 -->
-
-    <div class="article-entry" itemprop="articleBody">
-      
-        <p>如下是flink on yarn启动的一个示例:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">/bin/flink run -m yarn-cluster -yd -yjm 1024 -ys 2 -ytm 2048 clink-with-dependencies.jar  --topic_name topic1 --log_name --source_num 50  --sink_num 50</div></pre></td></tr></table></figure></p>
-<p>其中我们定义了JobManager的大小为1024M, TaskManager大小为2048M, 但是通过实际观察发现JobManager heap大小为424M, TaskManager heap memory大小为1304M, direct memory大小为744M , 参数值为啥是这个呢?</p>
-<h1 id="JobManager内存参数设置"><a href="#JobManager内存参数设置" class="headerlink" title="JobManager内存参数设置"></a>JobManager内存参数设置</h1><p>可以看到, JM内存设置与实际严重不符, 我们直接上代码找下原因吧。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">121390 YarnJobClusterEntrypoint -Xmx424m -Dlog.file=/opt/meituan/hadoop-flink/hadoop-2.7.1/logs/userlogs/application_1554212859057_0525/container_1554212859057_0525_01_000001/jobmanager.log -Dlogback.configurationFile=file:logback.xml -Dlog4j.configuration=file:log4j.properties</div></pre></td></tr></table></figure></p>
-<p>JM启动命令的产生是在AbstractYarnClusterDescriptor.startAppMaster()中, 最终进入了setupApplicationMasterContainer()中:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div></pre></td><td class="code"><pre><div class="line">protected ContainerLaunchContext setupApplicationMasterContainer(</div><div class="line">		String yarnClusterEntrypoint, //获取的是org.apache.flink.yarn.entrypoint.YarnJobClusterEntrypoint</div><div class="line">		boolean hasLogback,</div><div class="line">		boolean hasLog4j,</div><div class="line">		boolean hasKrb5,</div><div class="line">		int jobManagerMemoryMb) &#123;</div><div class="line">	// ------------------ Prepare Application Master Container  ------------------------------</div><div class="line">	// respect custom JVM options in the YAML file</div><div class="line">	String javaOpts = flinkConfiguration.getString(CoreOptions.FLINK_JVM_OPTIONS);</div><div class="line">	if (flinkConfiguration.getString(CoreOptions.FLINK_JM_JVM_OPTIONS).length() &gt; 0) &#123;</div><div class="line">		javaOpts += &quot; &quot; + flinkConfiguration.getString(CoreOptions.FLINK_JM_JVM_OPTIONS);</div><div class="line">	&#125;</div><div class="line">	// Set up the container launch context for the application master</div><div class="line">	ContainerLaunchContext amContainer = Records.newRecord(ContainerLaunchContext.class);</div><div class="line">	final  Map&lt;String, String&gt; startCommandValues = new HashMap&lt;&gt;();</div><div class="line">	startCommandValues.put(&quot;java&quot;, &quot;$JAVA_HOME/bin/java&quot;);</div><div class="line">	startCommandValues.put(&quot;jvmmem&quot;, &quot;-Xmx&quot; +</div><div class="line">		Utils.calculateHeapSize(jobManagerMemoryMb, flinkConfiguration) +</div><div class="line">		&quot;m&quot;);</div><div class="line">	startCommandValues.put(&quot;jvmopts&quot;, javaOpts);</div><div class="line">	String logging = &quot;&quot;;</div><div class="line"></div><div class="line">      //构建启动命令，class指定了申请的container启动哪个主函数，也就是jm  applicationMaster的地址</div><div class="line">	startCommandValues.put(&quot;logging&quot;, logging);</div><div class="line">	startCommandValues.put(&quot;class&quot;, yarnClusterEntrypoint);   //获取的是org.apache.flink.yarn.entrypoint.YarnJobClusterEntrypoint</div><div class="line">	startCommandValues.put(&quot;redirects&quot;,</div><div class="line">		&quot;1&gt; &quot; + ApplicationConstants.LOG_DIR_EXPANSION_VAR + &quot;/jobmanager.out &quot; +</div><div class="line">		&quot;2&gt; &quot; + ApplicationConstants.LOG_DIR_EXPANSION_VAR + &quot;/jobmanager.err&quot;);</div><div class="line">	startCommandValues.put(&quot;args&quot;, &quot;&quot;);</div><div class="line"></div><div class="line">	final String commandTemplate = flinkConfiguration  // jm 启动默认命令</div><div class="line">		.getString(ConfigConstants.YARN_CONTAINER_START_COMMAND_TEMPLATE,</div><div class="line">			ConfigConstants.DEFAULT_YARN_CONTAINER_START_COMMAND_TEMPLATE);</div><div class="line">	final String amCommand =</div><div class="line">		BootstrapTools.getStartCommand(commandTemplate, startCommandValues); //获取真正的 jm  启动命令</div><div class="line"></div><div class="line">	// 真正去通过yarn调度启动JM</div><div class="line">	amContainer.setCommands(Collections.singletonList(amCommand));</div><div class="line">	return amContainer;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
-<p>可以看到, JM启动默认只设置了-Xmx, 在Utils.calculateHeapSize(jobManagerMemoryMb)中设置了,<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div></pre></td><td class="code"><pre><div class="line">public static int calculateHeapSize(int memory, org.apache.flink.configuration.Configuration conf) &#123;</div><div class="line">       // container占用比率,containerized.heap-cutoff-ratio, 默认25%</div><div class="line">	float memoryCutoffRatio = conf.getFloat(ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_RATIO);</div><div class="line">	// container占用最小内存大小: containerized.heap-cutoff-min, 最少600mb</div><div class="line">	int minCutoff = conf.getInteger(ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_MIN);</div><div class="line">	if (memoryCutoffRatio &gt; 1 || memoryCutoffRatio &lt; 0) &#123;</div><div class="line">		throw new IllegalArgumentException(&quot;The configuration value &apos;&quot;</div><div class="line">			+ ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_RATIO.key()</div><div class="line">			+ &quot;&apos; must be between 0 and 1. Value given=&quot; + memoryCutoffRatio);</div><div class="line">	&#125;</div><div class="line">	if (minCutoff &gt; memory) &#123;</div><div class="line">		throw new IllegalArgumentException(&quot;The configuration value &apos;&quot;</div><div class="line">			+ ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_MIN.key()</div><div class="line">			+ &quot;&apos; is higher (&quot; + minCutoff + &quot;) than the requested amount of memory &quot; + memory);</div><div class="line">	&#125;</div><div class="line">	int heapLimit = (int) ((float) memory * memoryCutoffRatio);</div><div class="line">	if (heapLimit &lt; minCutoff) &#123;</div><div class="line">		heapLimit = minCutoff;</div><div class="line">	&#125;</div><div class="line">	return memory - heapLimit;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
-<p>可以看到, JM启动时, 去掉yarn container占用内存大小, 即为JM大小。 container大小为20%*heap, 但是不得小于600MB,  这里当然只能600M, 所以剩余JM heap大小为(1024-600)MB=424MB。</p>
-<h1 id="TaskManager内存参数设置"><a href="#TaskManager内存参数设置" class="headerlink" title="TaskManager内存参数设置"></a>TaskManager内存参数设置</h1><p>如下是TM启动后的参数, 可以发现, 堆内内存+对外内存=申请的内存, 那么这个内存如何确定比例的?<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">183863 YarnTaskExecutorRunner -Xms1304m -Xmx1304m -XX:MaxDirectMemorySize=744m -Dlog.file=/opt/meituan/hadoop-flink/hadoop-2.7.1/logs/userlogs/application_1554212859057_0525/container_1554212859057_0525_01_000003/taskmanager.log -Dlogback.configurationFile=file:./logback.xml -Dlog4j.configuration=file:./log4j.properties</div></pre></td></tr></table></figure></p>
-<p>当JM为TM申请container成功后, 在<a href="https://kkewwei.github.io/elasticsearch_learning/2019/03/12/Flink%E5%8E%9F%E7%90%86-slot%E5%88%86%E9%85%8D/#%E7%94%B3%E8%AF%B7container%E6%88%90%E5%8A%9F">createTaskExecutorLaunchContext</a>中确定JM启动参数, 最终进入到了ContaineredTaskManagerParameters.create中:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div></pre></td><td class="code"><pre><div class="line">public static ContaineredTaskManagerParameters create(</div><div class="line">		Configuration config,</div><div class="line">		long containerMemoryMB,</div><div class="line">		int numSlots) &#123;</div><div class="line">	// (1) try to compute how much memory used by container</div><div class="line">	// 首先确定yarn Container使用多少内存(算是堆外内存)</div><div class="line">	final long cutoffMB = calculateCutoffMB(config, containerMemoryMB);</div><div class="line"></div><div class="line">	// (2) split the remaining Java memory between heap and off-heap</div><div class="line">	//确定堆内内存大小</div><div class="line">	final long heapSizeMB = TaskManagerServices.calculateHeapSizeMB(containerMemoryMB - cutoffMB, config);</div><div class="line">	// use the cut-off memory for off-heap (that was its intention)</div><div class="line">	// 堆内内存以外的全是堆内内存</div><div class="line">	final long offHeapSizeMB = containerMemoryMB - heapSizeMB;</div><div class="line"></div><div class="line">	// (3) obtain the additional environment variables from the configuration</div><div class="line">	final HashMap&lt;String, String&gt; envVars = new HashMap&lt;&gt;();</div><div class="line">	final String prefix = ResourceManagerOptions.CONTAINERIZED_TASK_MANAGER_ENV_PREFIX;</div><div class="line"></div><div class="line">	for (String key : config.keySet()) &#123;</div><div class="line">		if (key.startsWith(prefix) &amp;&amp; key.length() &gt; prefix.length()) &#123;</div><div class="line">			// remove prefix</div><div class="line">			String envVarKey = key.substring(prefix.length());</div><div class="line">			envVars.put(envVarKey, config.getString(key, null));</div><div class="line">		&#125;</div><div class="line">	&#125;</div><div class="line"></div><div class="line">	// done</div><div class="line">	return new ContaineredTaskManagerParameters(</div><div class="line">		containerMemoryMB, heapSizeMB, offHeapSizeMB, numSlots, envVars);</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
-<p>该函数主要做了如下逻辑:</p>
-<ol>
-<li>确定yarn container本身需要的内存(算是堆外内存)。</li>
-<li>确定堆内的内存大小。</li>
-<li>确定堆外内存大小, 不是堆内的内存就全部算是堆外内存。<br>首先我们看下如何确定yarn container大小的:<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div></pre></td><td class="code"><pre><div class="line">public static long calculateCutoffMB(Configuration config, long containerMemoryMB) &#123;</div><div class="line">	Preconditions.checkArgument(containerMemoryMB &gt; 0);</div><div class="line">	// (1) check cutoff ratio  // 默认值0.25f</div><div class="line">	final float memoryCutoffRatio = config.getFloat(</div><div class="line">		ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_RATIO);</div><div class="line">	// (2) check min cutoff value   最少预留大小默认600MB</div><div class="line">	final int minCutoff = config.getInteger(</div><div class="line">		ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_MIN);</div><div class="line">	// (3) check between heap and off-heap</div><div class="line">	long cutoff = (long) (containerMemoryMB * memoryCutoffRatio);</div><div class="line">	//取最大值</div><div class="line">	if (cutoff &lt; minCutoff) &#123;</div><div class="line">		cutoff = minCutoff;</div><div class="line">	&#125;</div><div class="line">	return cutoff;  //至少预留600MB，</div><div class="line">&#125;</div></pre></td></tr></table></figure>
-</li>
-</ol>
-<p>yarn container大小取值原则: 在申请内存的containerized.heap-cutoff-ratio(默认25%)与containerized.heap-cutoff-min(默认600M)之前取最大值。本示例中, container占用600M<br>接下来我们看下如何确定堆内内存的:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div></pre></td><td class="code"><pre><div class="line">public static long calculateHeapSizeMB(long totalJavaMemorySizeMB, Configuration config) &#123;</div><div class="line">	// subtract the Java memory used for network buffers (always off-heap)</div><div class="line">	//  网络buffer, 最小64M，最大1GB, 是totalJavaMemorySizeMB*0.1</div><div class="line">	final long networkBufMB =</div><div class="line">		calculateNetworkBufferMemory(</div><div class="line">			totalJavaMemorySizeMB &lt;&lt; 20, // megabytes to bytes</div><div class="line">			config) &gt;&gt; 20; // bytes to megabytes</div><div class="line">	final long remainingJavaMemorySizeMB = totalJavaMemorySizeMB - networkBufMB;</div><div class="line">	// split the available Java memory between heap and off-heap</div><div class="line">	final boolean useOffHeap = config.getBoolean(TaskManagerOptions.MEMORY_OFF_HEAP);  // 默认为false</div><div class="line"></div><div class="line">	final long heapSizeMB;</div><div class="line">	if (useOffHeap) &#123;// 默认线上是关闭的</div><div class="line">		long offHeapSize;</div><div class="line">		String managedMemorySizeDefaultVal = TaskManagerOptions.MANAGED_MEMORY_SIZE.defaultValue();</div><div class="line">		if (!config.getString(TaskManagerOptions.MANAGED_MEMORY_SIZE).equals(managedMemorySizeDefaultVal)) &#123;</div><div class="line">			try &#123;// 将划去networkBuffer大小*一个堆外的系数（默认是0.7）得到其他的堆外内存</div><div class="line">				offHeapSize = MemorySize.parse(config.getString(TaskManagerOptions.MANAGED_MEMORY_SIZE), MEGA_BYTES).getMebiBytes();</div><div class="line">			&#125;</div><div class="line">		&#125; else &#123;</div><div class="line">			offHeapSize = Long.valueOf(managedMemorySizeDefaultVal);</div><div class="line">		&#125;</div><div class="line"></div><div class="line">		if (offHeapSize &lt;= 0) &#123;</div><div class="line">			// calculate off-heap section via fraction</div><div class="line">			double fraction = config.getFloat(TaskManagerOptions.MANAGED_MEMORY_FRACTION);</div><div class="line">			offHeapSize = (long) (fraction * remainingJavaMemorySizeMB);</div><div class="line">		&#125;</div><div class="line"></div><div class="line">		TaskManagerServicesConfiguration</div><div class="line">			.checkConfigParameter(offHeapSize &lt; remainingJavaMemorySizeMB, offHeapSize,</div><div class="line">				TaskManagerOptions.MANAGED_MEMORY_SIZE.key(),</div><div class="line">				&quot;Managed memory size too large for &quot; + networkBufMB +</div><div class="line">					&quot; MB network buffer memory and a total of &quot; + totalJavaMemorySizeMB +</div><div class="line">					&quot; MB JVM memory&quot;);</div><div class="line">		heapSizeMB = remainingJavaMemorySizeMB - offHeapSize;</div><div class="line">	&#125; else &#123;</div><div class="line">		heapSizeMB = remainingJavaMemorySizeMB;</div><div class="line">	&#125;</div><div class="line"></div><div class="line">	return heapSizeMB;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
-<p>内存大小确定过程:</p>
-<ol>
-<li>首先确定网络buffer大小: 是totalJavaMemorySizeMB<em>0.1, 而且最小64M，最大1GB。 这里是(2048-600)</em>0.1MB=144.8M。</li>
-<li>剩余内存大小为(2048-600)*0.9MB=1304MB。</li>
-<li>在我们代码中, useOffHeap是false, 由taskmanager.memory.off-heap设置, 默认为false。<br>那么, TM启动的参数就很明显了, HEAP为1304MB, OFF-HEAD为2048MB-1304MB=744MB(包括Container占用空闲+网络buffer)。</li>
-</ol>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/elasticsearch_learning/categories/Flink//" class="article-tag-list-link color1">Flink</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/elasticsearch_learning/2019/06/08/Flink原理-Container启动命令内存参数分析/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
   
     <nav id="page-nav">
       <span class="page-number current">1</span><a class="page-number" href="/elasticsearch_learning/page/2/">2</a><a class="page-number" href="/elasticsearch_learning/page/3/">3</a><span class="space">&hellip;</span><a class="page-number" href="/elasticsearch_learning/page/5/">5</a><a class="extend next" rel="next" href="/elasticsearch_learning/page/2/">Next &raquo;</a>
@@ -1416,23 +1428,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">Linux, close</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">Flink、Slot分配、SubTask申请slot, SubTask部署</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">LockSupport</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">Lucene、词典、tim、tip</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1440,11 +1436,23 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">Lucene、termVector</a>
+                <a href="javascript:void(0)" class="js-tag color1">Lucene、ByteBlockPool</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">Lucene、StoredField</a>
+                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">Linux, close</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">LockSupport</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">Lucene、词典、tim、tip、doc、pos、fst、倒排索引</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1453,6 +1461,14 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">Lucene、DocValue</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">Lucene、StoredField</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">Lucene、termVector、tvd、tvm、倒排索引</a>
               </li>
              
               <li class="article-tag-list-item">

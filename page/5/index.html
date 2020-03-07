@@ -165,6 +165,103 @@
           <div id="js-content" class="content-ll">
             
   
+    <article id="post-Java-NIO-write-read过程分析" class="article article-type-post  article-index" itemscope itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/elasticsearch_learning/2017/04/10/Java-NIO-write-read过程分析/">Java NIO Write过程分析</a>
+    </h1>
+  
+
+        
+        <a href="/elasticsearch_learning/2017/04/10/Java-NIO-write-read过程分析/" class="archive-article-date">
+  	<time datetime="2017-04-10T15:35:58.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-04-10</time>
+</a>
+        
+      </header>
+    
+
+    <!-- 目录内容 -->
+    
+    <!-- 目录内容结束 -->
+
+    <div class="article-entry" itemprop="articleBody">
+      
+        <p>在<a href="https://kkewwei.github.io/elasticsearch_learning/2017/04/10/JAVA-NIO%E5%8E%9F%E7%90%861/#JAVA-NIO%E7%9A%84%E5%9F%BA%E6%9C%AC%E4%BD%BF%E7%94%A8">JAVA NIO通信分析</a>中, 说明了客户端与服务器端是如何建立连接的, 那么本文将在上文的基础上, 了解服务器端是如何根据建立的连接进行写和读的。由于读写流程基本一致, 这里只分析如何进行写入的。</p>
+<h1 id="write"><a href="#write" class="headerlink" title="write"></a>write</h1><p>服务器端调用了<code>SocketChannel.write(ByteBuffer.wrap( msg.getBytes()));</code>, 此时开启了写的流程:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div></pre></td><td class="code"><pre><div class="line">public int write(ByteBuffer buf) throws IOException &#123; \</div><div class="line">      if (buf == null)</div><div class="line">          throw new NullPointerException();</div><div class="line">      // 可以看到, 管道只要有一个在写, 那么久不让别的线程使用了</div><div class="line">      synchronized (writeLock) &#123;</div><div class="line">          // SocketChannelImp state=ST_CONNECTED</div><div class="line">          ensureWriteOpen();</div><div class="line">          int n = 0;</div><div class="line">          try &#123;</div><div class="line">              begin();</div><div class="line">              synchronized (stateLock) &#123;</div><div class="line">                  if (!isOpen())</div><div class="line">                      return 0;</div><div class="line">                  writerThread = NativeThread.current();</div><div class="line">              &#125;</div><div class="line">              for (;;) &#123;</div><div class="line">                  n = IOUtil.write(fd, buf, -1, nd); // 成功的话，就是写入成功的size</div><div class="line">                  // 如果发现退出时因为中断原因, 并且管道还正常打开的话, 那么就继续写入。</div><div class="line">                  if ((n == IOStatus.INTERRUPTED) &amp;&amp; isOpen())</div><div class="line">                      continue;</div><div class="line">                  // 这里对IOS_UNAVAILABLE/EOF进行了识别, 若异常为IOS_UNAVAILABLE/EOF, 则没有问题, 但是还是直接退出了。</div><div class="line">                  //返回的是成功写入的条数, -1 代表写入到文件末尾了, -2代表写入缓存满了/没有可以读取的了</div><div class="line">                  return IOStatus.normalize(n);</div><div class="line">              &#125;</div><div class="line">          &#125; finally &#123;</div><div class="line">              writerCleanup();</div><div class="line">              end(n &gt; 0 || (n == IOStatus.UNAVAILABLE));</div><div class="line">              synchronized (stateLock) &#123;</div><div class="line">                  if ((n &lt;= 0) &amp;&amp; (!isOutputOpen))</div><div class="line">                      throw new AsynchronousCloseException();</div><div class="line">              &#125;</div><div class="line">              assert IOStatus.check(n);</div><div class="line">          &#125;</div><div class="line">      &#125;</div><div class="line">  &#125;</div></pre></td></tr></table></figure></p>
+<p>这里主要做了如下工作:</p>
+<ol>
+<li>调用begin, 向当前线程的blocker属性赋值, 以便在写入时, 能影响中断信号。</li>
+<li>循环调用IOUtil.write向套接字写入数据, 返回的n表示当前写入的byte大小<br>3.当写入完成后, 调用writerCleanup清理现场。比如将writerThread置位, 代表没有线程写入了, 检查是否有必要进行将管道置为失败
+        
+          <a class="article-more-a" href="/elasticsearch_learning/2017/04/10/Java-NIO-write-read过程分析/#more">more >></a>
+        
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color2">NIO, write, read</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/elasticsearch_learning/categories/Java-NIO及网络通信//" class="article-tag-list-link color4">Java NIO及网络通信</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/elasticsearch_learning/2017/04/10/Java-NIO-write-read过程分析/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
     <article id="post-JAVA-NIO原理1" class="article article-type-post  article-index" itemscope itemprop="blogPost">
   <div class="article-inner">
     
@@ -1286,23 +1383,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">Linux, close</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">Flink、Slot分配、SubTask申请slot, SubTask部署</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">LockSupport</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">Lucene、词典、tim、tip</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1310,11 +1391,23 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">Lucene、termVector</a>
+                <a href="javascript:void(0)" class="js-tag color1">Lucene、ByteBlockPool</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">Lucene、StoredField</a>
+                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">Linux, close</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">LockSupport</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">Lucene、词典、tim、tip、doc、pos、fst、倒排索引</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1323,6 +1416,14 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">Lucene、DocValue</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">Lucene、StoredField</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">Lucene、termVector、tvd、tvm、倒排索引</a>
               </li>
              
               <li class="article-tag-list-item">

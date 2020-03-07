@@ -9,20 +9,20 @@
   <title>Lucene8.2.0底层架构-fdt/fdx构建过程 | Hexo</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
   <meta name="google-site-verification" content="sCUXxLczmZVJ1Fkt5jSJGE9xPpdVD25hYciudlUUVNQ" />
-  <meta name="description" content="StoredField文件主要存放文档-&amp;gt;域-&amp;gt;value的关系, 行式存储, 正排索引结果, 不对字段分词, 便于读取任何字段的value。 fdt存放文档的value及一级索引索引, fdx存放二级索引结构。 本文就以这两个文件结构的建立-&amp;gt;文件写入磁盘的过程来进行详细介绍, 代码主要可见CompressingStoredFieldsWriter。 内存索引结构的建立索引结构">
+  <meta name="description" content="StoredField文件主要存放文档-&amp;gt;域-&amp;gt;value的关系, 每个文档的所有域都保存一起,再保存下一行, 行式存储, 正排索引结果, 不对字段分词, 便于读取任何字段的value。 fdt存放文档的value及一级索引索引, fdx存放二级索引结构。 本文就以这两个文件结构的建立-&amp;gt;文件写入磁盘的过程来进行详细介绍, 代码主要可见CompressingStoredField">
 <meta name="keywords" content="Lucene、StoredField">
 <meta property="og:type" content="article">
 <meta property="og:title" content="Lucene8.2.0底层架构-fdt&#x2F;fdx构建过程">
 <meta property="og:url" content="https://kkewwei.github.io/elasticsearch_learning/2019/10/29/Lucenec底层架构-fdt-fdx构建过程/index.html">
 <meta property="og:site_name" content="Hexo">
-<meta property="og:description" content="StoredField文件主要存放文档-&amp;gt;域-&amp;gt;value的关系, 行式存储, 正排索引结果, 不对字段分词, 便于读取任何字段的value。 fdt存放文档的value及一级索引索引, fdx存放二级索引结构。 本文就以这两个文件结构的建立-&amp;gt;文件写入磁盘的过程来进行详细介绍, 代码主要可见CompressingStoredFieldsWriter。 内存索引结构的建立索引结构">
+<meta property="og:description" content="StoredField文件主要存放文档-&amp;gt;域-&amp;gt;value的关系, 每个文档的所有域都保存一起,再保存下一行, 行式存储, 正排索引结果, 不对字段分词, 便于读取任何字段的value。 fdt存放文档的value及一级索引索引, fdx存放二级索引结构。 本文就以这两个文件结构的建立-&amp;gt;文件写入磁盘的过程来进行详细介绍, 代码主要可见CompressingStoredField">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/lucene_fdt1.png">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/lucene_fdt2.png">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/lucene_fdt.png">
-<meta property="og:updated_time" content="2020-02-17T09:53:00.000Z">
+<meta property="og:updated_time" content="2020-03-03T14:43:07.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Lucene8.2.0底层架构-fdt&#x2F;fdx构建过程">
-<meta name="twitter:description" content="StoredField文件主要存放文档-&amp;gt;域-&amp;gt;value的关系, 行式存储, 正排索引结果, 不对字段分词, 便于读取任何字段的value。 fdt存放文档的value及一级索引索引, fdx存放二级索引结构。 本文就以这两个文件结构的建立-&amp;gt;文件写入磁盘的过程来进行详细介绍, 代码主要可见CompressingStoredFieldsWriter。 内存索引结构的建立索引结构">
+<meta name="twitter:description" content="StoredField文件主要存放文档-&amp;gt;域-&amp;gt;value的关系, 每个文档的所有域都保存一起,再保存下一行, 行式存储, 正排索引结果, 不对字段分词, 便于读取任何字段的value。 fdt存放文档的value及一级索引索引, fdx存放二级索引结构。 本文就以这两个文件结构的建立-&amp;gt;文件写入磁盘的过程来进行详细介绍, 代码主要可见CompressingStoredField">
 <meta name="twitter:image" content="https://kkewwei.github.io/elasticsearch_learning/img/lucene_fdt1.png">
   
     <link rel="alternative" href="/atom.xml" title="Hexo" type="application/atom+xml">
@@ -218,12 +218,12 @@
 
     <div class="article-entry" itemprop="articleBody">
       
-        <p>StoredField文件主要存放文档-&gt;域-&gt;value的关系, 行式存储, 正排索引结果, 不对字段分词, 便于读取任何字段的value。 fdt存放文档的value及一级索引索引, fdx存放二级索引结构。 本文就以这两个文件结构的建立-&gt;文件写入磁盘的过程来进行详细介绍, 代码主要可见CompressingStoredFieldsWriter。</p>
+        <p>StoredField文件主要存放文档-&gt;域-&gt;value的关系, 每个文档的所有域都保存一起,再保存下一行, 行式存储, 正排索引结果, 不对字段分词, 便于读取任何字段的value。 fdt存放文档的value及一级索引索引, fdx存放二级索引结构。 本文就以这两个文件结构的建立-&gt;文件写入磁盘的过程来进行详细介绍, 代码主要可见CompressingStoredFieldsWriter。</p>
 <h1 id="内存索引结构的建立"><a href="#内存索引结构的建立" class="headerlink" title="内存索引结构的建立"></a>内存索引结构的建立</h1><p>索引结构建立是指将文档按照规范存储到内存中, 当对字段进行如下设置时, 才会建立该索引文档:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line">FieldType fieldType = new FieldType();</div><div class="line">fieldType.setStored(true);</div></pre></td></tr></table></figure></p>
 <p>实际是在<code>DefaultIndexingChain.processField()</code>里面开始检查字段是否设置了该参数:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div></pre></td><td class="code"><pre><div class="line">// Add stored fields:</div><div class="line">if (fieldType.stored()) &#123;</div><div class="line">  if (fp == null) &#123;</div><div class="line">    fp = getOrAddField(fieldName, fieldType, false);</div><div class="line">  &#125;</div><div class="line">  if (fieldType.stored()) &#123;</div><div class="line">    // 域的值</div><div class="line">    String value = field.stringValue();</div><div class="line">    try &#123;</div><div class="line">      // 面向行的存储，docValue是面向列的存储, field值存放在CompressingStoredFieldsWriter的bufferedDocs中</div><div class="line">      storedFieldsConsumer.writeField(fp.fieldInfo, field);</div><div class="line">    &#125;</div><div class="line">  &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
 <p>该函数主要做了两件事:</p>
 <ol>
-<li>检查该域是否已经缓存到了内存中。详情可参考:</li>
+<li>检查该域之前文档是否已经写入过。详情可参考:</li>
 <li>若设置了stored=true, 那么最终进入到进入CompressingStoredFieldsWriter.writeField, 将字段的value缓存起来。<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div></pre></td><td class="code"><pre><div class="line">public void writeField(FieldInfo info, IndexableField field) &#123;</div><div class="line">  ++numStoredFieldsInDoc;</div><div class="line">  int bits = 0;</div><div class="line">  Number number = field.numericValue();</div><div class="line">  if (number != null) &#123;</div><div class="line">    if (number instanceof Byte || number instanceof Short || number instanceof Integer) &#123;</div><div class="line">      bits = NUMERIC_INT;</div><div class="line">    &#125; else if (number instanceof Long) &#123;</div><div class="line">      bits = NUMERIC_LONG;</div><div class="line">    &#125;</div><div class="line">    ......</div><div class="line">    string = null;</div><div class="line">    bytes = null;</div><div class="line">  &#125; else &#123;</div><div class="line">    bytes = field.binaryValue();</div><div class="line">    // 是二进制数的话</div><div class="line">    if (bytes != null) &#123;</div><div class="line">      bits = BYTE_ARR;</div><div class="line">      string = null;</div><div class="line">    &#125; else &#123;</div><div class="line">      bits = STRING; // 是字符串的话</div><div class="line">      string = field.stringValue();</div><div class="line">    &#125;</div><div class="line">  &#125;</div><div class="line">  // 低三位代表类型，高5位代表字段编号</div><div class="line">  final long infoAndBits = (((long) info.number) &lt;&lt; TYPE_BITS) | bits;</div><div class="line">  //写入字段编号，字段类型</div><div class="line">  bufferedDocs.writeVLong(infoAndBits);</div><div class="line">  if (bytes != null) &#123;</div><div class="line">    bufferedDocs.writeVInt(bytes.length);</div><div class="line">    bufferedDocs.writeBytes(bytes.bytes, bytes.offset, bytes.length);</div><div class="line">  &#125; else if (string != null) &#123;</div><div class="line">    bufferedDocs.writeString(string);</div><div class="line">  &#125; else &#123;</div><div class="line">    if (number instanceof Byte || number instanceof Short || number instanceof Integer) &#123;</div><div class="line">      bufferedDocs.writeZInt(number.intValue());</div><div class="line">    &#125; else if (number instanceof Long) &#123;</div><div class="line">      writeTLong(bufferedDocs, number.longValue());</div><div class="line">    &#125;</div><div class="line">    ......</div><div class="line">    &#125;</div><div class="line">  &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
 </li>
 </ol>
@@ -375,7 +375,7 @@
       <i class="icon-circle-left"></i>
       <div class="article-nav-title">
         
-          Lucene8.2.0底层架构-dvm/dvm构建过程
+          Lucene8.2.0底层架构-dvd/dvm构建过程
         
       </div>
     </a>
@@ -429,21 +429,22 @@
   
 
   
-  <div id="gitment-ctn"></div> 
+  <div id="gitment-ctn"></div>
 <link rel="stylesheet" href="//imsun.github.io/gitment/style/default.css">
-<script src="//imsun.github.io/gitment/dist/gitment.browser.js"></script>
+<script src="//www.wenjunjiang.win/js/gitment.js "></script>
 <script>
 var gitment = new Gitment({
-  id: "<%=url%>",
-  owner: '<%=theme.gitment_owner%>',
-  repo: '<%=theme.gitment_repo%>',
+  id: "Lucene8.2.0底层架构-fdt/fdx构建过程",
+  owner: 'kkewwei',
+  repo: 'comments',
   oauth: {
-    client_id: '<%=theme.gitment_oauth.client_id%>',
-    client_secret: '<%=theme.gitment_oauth.client_secret%>',
+    client_id: '9391e497d6b288887f33',
+    client_secret: 'db733731bff4ee2811d9530b1ac4cfc6767e8183',
   },
 })
 gitment.render('gitment-ctn')
 </script>
+
   
 
 
@@ -559,23 +560,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">Linux, close</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">Flink、Slot分配、SubTask申请slot, SubTask部署</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">LockSupport</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">Lucene、词典、tim、tip</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -583,11 +568,23 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">Lucene、termVector</a>
+                <a href="javascript:void(0)" class="js-tag color1">Lucene、ByteBlockPool</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">Lucene、StoredField</a>
+                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">Linux, close</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">LockSupport</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">Lucene、词典、tim、tip、doc、pos、fst、倒排索引</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -596,6 +593,14 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">Lucene、DocValue</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">Lucene、StoredField</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">Lucene、termVector、tvd、tvm、倒排索引</a>
               </li>
              
               <li class="article-tag-list-item">
