@@ -16,10 +16,12 @@
 <meta property="og:url" content="https://kkewwei.github.io/elasticsearch_learning/2020/02/28/Lucene8-2-0底层架构-tim-tip词典结构原理研究/index.html">
 <meta property="og:site_name" content="Hexo">
 <meta property="og:description" content="Lucene查询中使用最多的就是词典结构, 根据term查询在哪些文档中存在, 也被称为倒排索引。本文就以词典构建过程来进行深入研究。在构建词典前, 需要先介绍两个重要的类:TermVectorsConsumerPerField和FreqProxTermsWriterPerField 词典在内存中解析在对字段设置时, 需要如下设置:123456789FieldType fieldType = ne">
-<meta property="og:updated_time" content="2020-03-07T15:20:43.000Z">
+<meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/lucene_tim1.png">
+<meta property="og:updated_time" content="2020-03-07T15:33:12.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Lucene8.2.0底层架构-tim&#x2F;tip词典结构原理研究">
 <meta name="twitter:description" content="Lucene查询中使用最多的就是词典结构, 根据term查询在哪些文档中存在, 也被称为倒排索引。本文就以词典构建过程来进行深入研究。在构建词典前, 需要先介绍两个重要的类:TermVectorsConsumerPerField和FreqProxTermsWriterPerField 词典在内存中解析在对字段设置时, 需要如下设置:123456789FieldType fieldType = ne">
+<meta name="twitter:image" content="https://kkewwei.github.io/elasticsearch_learning/img/lucene_tim1.png">
   
     <link rel="alternative" href="/atom.xml" title="Hexo" type="application/atom+xml">
   
@@ -43,57 +45,39 @@
   <div id="container" q-class="show:isCtnShow">
     <canvas id="anm-canvas" class="anm-canvas"></canvas>
     <div class="left-col" q-class="show:isShow">
-      
-<div class="overlay" style="background: #4d4d4d"></div>
+      <% var defaultBg = '#4d4d4d'; %>
+<div class="overlay" style="background: <%= theme.style && theme.style.header ? theme.style.header : defaultBg %>"></div>
 <div class="intrude-less">
 	<header id="header" class="inner">
-		<a href="/" class="profilepic">
-      <img src="https://kkewwei.github.io/elasticsearch_learning/img/myself.png" class="js-avatar">
+		<a href="<%=theme.root%>" class="profilepic">
+			<img src="<%=theme.avatar%>" class="js-avatar">
 		</a>
 		<hgroup>
-		  <h1 class="header-author"><a href="/">jianguo</a></h1>
+		  <h1 class="header-author"><a href="<%=theme.root%>"><%=theme.author%></a></h1>
 		</hgroup>
-		
-		<p class="header-subtitle">往事随风</p>
-		
+		<% if (theme.subtitle){ %>
+		<p class="header-subtitle"><%=theme.subtitle%></p>
+		<%}%>
 
 		<nav class="header-menu">
 			<ul>
-			
-				<li><a href="/elasticsearch_learning/">主页</a></li>
-	        
-				<li><a href="/elasticsearch_learning/tags/随笔/">随笔</a></li>
-	        
-				<li><a href="/elasticsearch_learning/categories">分类</a></li>
-	        
+			<% for (var i in theme.menu){ %>
+				<li><a href="<%- url_for(theme.menu[i]) %>"><%= i %></a></li>
+	        <%}%>
 			</ul>
 		</nav>
 		<nav class="header-smart-menu">
-    		
-    			
-    			<a q-on="click: openSlider(e, 'innerArchive')" href="javascript:void(0)">所有文章</a>
-    			
-            
-    			
-    			<a q-on="click: openSlider(e, 'friends')" href="javascript:void(0)">友链</a>
-    			
-            
-    			
-    			<a q-on="click: openSlider(e, 'aboutme')" href="javascript:void(0)">关于我</a>
-    			
-            
+    		<% for (var i in theme.smart_menu){ %>
+    			<% if(theme.smart_menu[i]){ %>
+    			<a q-on="click: openSlider(e, '<%-i%>')" href="javascript:void(0)"><%= theme.smart_menu[i] %></a>
+    			<% } %>
+            <%}%>
 		</nav>
 		<nav class="header-nav">
 			<div class="social">
-				
-					<a class="github" target="_blank" href="#" title="github"><i class="icon-github"></i></a>
-		        
-					<a class="weibo" target="_blank" href="#" title="weibo"><i class="icon-weibo"></i></a>
-		        
-					<a class="rss" target="_blank" href="#" title="rss"><i class="icon-rss"></i></a>
-		        
-					<a class="zhihu" target="_blank" href="#" title="zhihu"><i class="icon-zhihu"></i></a>
-		        
+				<% for (var i in theme.subnav){ %>
+					<a class="<%= i %>" target="_blank" href="<%- url_for(theme.subnav[i]) %>" title="<%= i %>"><i class="icon-<%= i %>"></i></a>
+		        <%}%>
 			</div>
 		</nav>
 	</header>
@@ -219,7 +203,7 @@
 <p>1.setIndexOptions的参数含义:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div></pre></td><td class="code"><pre><div class="line">// 不建立词的倒排索引</div><div class="line">NONE,</div><div class="line">// 仅仅对词的建立索引结构</div><div class="line">DOCS,</div><div class="line">// 在termVector中仅存储词频</div><div class="line">DOCS_AND_FREQS,</div><div class="line">// 在termVector中存储词频和词position</div><div class="line">DOCS_AND_FREQS_AND_POSITIONS,</div><div class="line">// 在termVector中存储词频和词position和offset</div><div class="line">DOCS_AND_FREQS_AND_POSITIONS_AND_OFFSETS,</div></pre></td></tr></table></figure></p>
 <p>这些参数将作用于词典中, doc仅仅是建立termId-&gt;doc的映射; freq还统每个域中每个单词的频率, postion统计了每个单词在每个域中的位置, offset统计了每个单词在每个域中的偏移量。</p>
 <ol>
-<li>setStoreTermVector…()主要是是否产生termVector, 只有当setIndexOptions设置为非NONE, 设置这些参数才有效。<br>这两类参数含义很像, 实际统计内容也很像, 只是前一个作用于词典的统计, 词典是全局型的; 而后一个作用于termVector, 统计的是单个域内的。后面将详细介绍termVector和词典。<br>此时不得不提下两个重要的类<code>FreqProxTermsWriterPerField</code>,<code>FreqProxTermsWriter</code>,<code>TermVectorsConsumerPerField</code>,<code>TermVectorsConsumer</code>, 他们对于构建词典和termVector起着至关重要的作用。<br>需要着重介绍</li>
+<li>setStoreTermVector…()主要是是否产生termVector, 只有当setIndexOptions设置为非NONE, 设置这些参数才有效。<br>这两类参数含义很像, 实际统计内容也很像, 只是前一个作用于词典的统计, 词典是全局型的; 而后一个作用于termVector, 统计的是单个域内的。后面将详细介绍termVector和词典。<br>此时不得不提下两个重要的类<code>FreqProxTermsWriterPerField</code>,<code>FreqProxTermsWriter</code>,<code>TermVectorsConsumerPerField</code>,<code>TermVectorsConsumer</code>, 他们对于构建词典和termVector起着至关重要的作用。<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/lucene_tim1.png" height="400" width="500"><br>需要着重介绍</li>
 </ol>
 <p>实际也是在开始检查<code>DefaultIndexingChain.processField()</code>检查该字段设置:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div></pre></td><td class="code"><pre><div class="line">if (fieldType.indexOptions() != IndexOptions.NONE) &#123;</div><div class="line">  // 每个字段只会保存一个 PerField 对象。</div><div class="line">  fp = getOrAddField(fieldName, fieldType, true);</div><div class="line">  // 这个文档中这个域不是重复写入</div><div class="line">  boolean first = fp.fieldGen != fieldGen;</div><div class="line">  // 创建倒排索引</div><div class="line">  fp.invert(field, first);</div><div class="line">  // 域是第一次写入</div><div class="line">  if (first) &#123;</div><div class="line">    // 这里才是真正存放，和fieldHash存放的是一个对象。真正统计的是当前文档所有的域。</div><div class="line">    fields[fieldCount++] = fp;</div><div class="line">    fp.fieldGen = fieldGen;</div><div class="line">  &#125;</div><div class="line">&#125; else &#123;</div><div class="line">  // 若我们fieldType=NONE, 那么关于存储termVector设置都是不合理的。</div><div class="line">  verifyUnIndexedFieldType(fieldName, fieldType);</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
 <p>该函数主要做了两件事:<br>1.检查该字段是否已经写入过。<br>2.调用<code>fp.inver</code>对该字段进行分词。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div></pre></td><td class="code"><pre><div class="line">  public void invert(IndexableField field, boolean first) throws IOException &#123; // PerFieldl里面开始</div><div class="line">    if (first) &#123; // 第一次该字段被写入</div><div class="line">      invertState.reset(); // 每次写入一个新的文档，这里都会被清空</div><div class="line">    &#125;</div><div class="line">    IndexableFieldType fieldType = field.fieldType();</div><div class="line"></div><div class="line">    final boolean analyzed = fieldType.tokenized() &amp;&amp; docState.analyzer != null; // 是否分词</div><div class="line">     // 对域的值进行了分词</div><div class="line">    try (TokenStream stream = tokenStream = field.tokenStream(docState.analyzer, tokenStream)) &#123;</div><div class="line">      // 针对TermVectorsConsumerPerField里面termvector参数进行设置</div><div class="line">      termsHashPerField.start(field, first);</div><div class="line">      while (stream.incrementToken()) &#123;</div><div class="line">        // 每个词增量为1</div><div class="line">        // 对position和offset进行统计。</div><div class="line">        invertState.position += posIncr; // 每个词新增1</div><div class="line">        invertState.lastPosition = invertState.position;</div><div class="line">        // 词的起始位置</div><div class="line">        int startOffset = invertState.offset + invertState.offsetAttribute.startOffset();</div><div class="line">        // 这个词的末尾</div><div class="line">        int endOffset = invertState.offset + invertState.offsetAttribute.endOffset();</div><div class="line">        // 该文档该域上一个词的截止为止</div><div class="line">        invertState.lastStartOffset = startOffset;</div><div class="line">        // 真正对词进行</div><div class="line">        termsHashPerField.add();</div><div class="line">      &#125;</div><div class="line">      stream.end();</div><div class="line">    &#125;</div><div class="line">    if (analyzed) &#123; // 若分词的话，</div><div class="line">      invertState.position += docState.analyzer.getPositionIncrementGap(fieldInfo.name);</div><div class="line">      invertState.offset += docState.analyzer.getOffsetGap(fieldInfo.name);</div><div class="line">    &#125;</div><div class="line">  &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
@@ -543,15 +527,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">Lucene、ByteBlockPool</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">Lucene、词典、tim、tip、doc、pos、fst、倒排索引</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">Lucene、DocValue</a>
+                <a href="javascript:void(0)" class="js-tag color3">Linux, close</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -559,19 +535,27 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">Linux, close</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">Lucene、termVector、tvd、tvm、倒排索引</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">Lucene、词典、FST</a>
+                <a href="javascript:void(0)" class="js-tag color5">Lucene、词典、tim、tip、doc、pos、fst、倒排索引</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">Lucene、ByteBlockPool</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">Lucene、DocValue</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">Lucene、StoredField</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">Lucene、词典、FST</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -583,19 +567,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">ReentrantLock</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">netty4, ServerBootstrap, Initiale</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -607,11 +587,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">maven, 插件, 打包</a>
+                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
+                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">maven, 插件, 打包</a>
               </li>
             
             <div class="clearfix"></div>
