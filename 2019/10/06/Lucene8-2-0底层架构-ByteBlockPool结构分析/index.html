@@ -17,8 +17,8 @@
 <meta property="og:site_name" content="Hexo">
 <meta property="og:description" content="Lucene对于针对倒排索引时, 需要大量的byte数组来存储数据, 但是byte[]长度不能扩展, 而在建立倒排索引时, 并不能固定需要在一个数组中存放多少byte, 只靠数组本身的特性并不能满足数组动态扩容的特性, Lucene自己开发了类ByteBlockPool来满足这一特性。针对int类型开发了IntBlockPool, 两者原理相同, 本文就以ByteBlockPool存储细节来展开介">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/lucene_bytebuffer.png">
-<meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/lucene_bytebuffer2.png">
-<meta property="og:updated_time" content="2020-03-07T13:34:40.000Z">
+<meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/lucene_bytebuffer1.png">
+<meta property="og:updated_time" content="2020-03-07T13:41:27.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Lucene8.2.0底层架构-ByteBlockPool结构分析">
 <meta name="twitter:description" content="Lucene对于针对倒排索引时, 需要大量的byte数组来存储数据, 但是byte[]长度不能扩展, 而在建立倒排索引时, 并不能固定需要在一个数组中存放多少byte, 只靠数组本身的特性并不能满足数组动态扩容的特性, Lucene自己开发了类ByteBlockPool来满足这一特性。针对int类型开发了IntBlockPool, 两者原理相同, 本文就以ByteBlockPool存储细节来展开介">
@@ -46,39 +46,57 @@
   <div id="container" q-class="show:isCtnShow">
     <canvas id="anm-canvas" class="anm-canvas"></canvas>
     <div class="left-col" q-class="show:isShow">
-      <% var defaultBg = '#4d4d4d'; %>
-<div class="overlay" style="background: <%= theme.style && theme.style.header ? theme.style.header : defaultBg %>"></div>
+      
+<div class="overlay" style="background: #4d4d4d"></div>
 <div class="intrude-less">
 	<header id="header" class="inner">
-		<a href="<%=theme.root%>" class="profilepic">
-			<img src="<%=theme.avatar%>" class="js-avatar">
+		<a href="/" class="profilepic">
+      <img src="https://kkewwei.github.io/elasticsearch_learning/img/myself.png" class="js-avatar">
 		</a>
 		<hgroup>
-		  <h1 class="header-author"><a href="<%=theme.root%>"><%=theme.author%></a></h1>
+		  <h1 class="header-author"><a href="/">jianguo</a></h1>
 		</hgroup>
-		<% if (theme.subtitle){ %>
-		<p class="header-subtitle"><%=theme.subtitle%></p>
-		<%}%>
+		
+		<p class="header-subtitle">往事随风</p>
+		
 
 		<nav class="header-menu">
 			<ul>
-			<% for (var i in theme.menu){ %>
-				<li><a href="<%- url_for(theme.menu[i]) %>"><%= i %></a></li>
-	        <%}%>
+			
+				<li><a href="/elasticsearch_learning/">主页</a></li>
+	        
+				<li><a href="/elasticsearch_learning/tags/随笔/">随笔</a></li>
+	        
+				<li><a href="/elasticsearch_learning/categories">分类</a></li>
+	        
 			</ul>
 		</nav>
 		<nav class="header-smart-menu">
-    		<% for (var i in theme.smart_menu){ %>
-    			<% if(theme.smart_menu[i]){ %>
-    			<a q-on="click: openSlider(e, '<%-i%>')" href="javascript:void(0)"><%= theme.smart_menu[i] %></a>
-    			<% } %>
-            <%}%>
+    		
+    			
+    			<a q-on="click: openSlider(e, 'innerArchive')" href="javascript:void(0)">所有文章</a>
+    			
+            
+    			
+    			<a q-on="click: openSlider(e, 'friends')" href="javascript:void(0)">友链</a>
+    			
+            
+    			
+    			<a q-on="click: openSlider(e, 'aboutme')" href="javascript:void(0)">关于我</a>
+    			
+            
 		</nav>
 		<nav class="header-nav">
 			<div class="social">
-				<% for (var i in theme.subnav){ %>
-					<a class="<%= i %>" target="_blank" href="<%- url_for(theme.subnav[i]) %>" title="<%= i %>"><i class="icon-<%= i %>"></i></a>
-		        <%}%>
+				
+					<a class="github" target="_blank" href="#" title="github"><i class="icon-github"></i></a>
+		        
+					<a class="weibo" target="_blank" href="#" title="weibo"><i class="icon-weibo"></i></a>
+		        
+					<a class="rss" target="_blank" href="#" title="rss"><i class="icon-rss"></i></a>
+		        
+					<a class="zhihu" target="_blank" href="#" title="zhihu"><i class="icon-zhihu"></i></a>
+		        
 			</div>
 		</nav>
 	</header>
@@ -211,7 +229,7 @@
 <li>什么时候需要扩容? 扩容多大? 当存储byte的位置不为0, 则说明说明当前byte代表着slice已经存满, 该byte代表着扩容slice申请的一个级别。</li>
 </ol>
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div></pre></td><td class="code"><pre><div class="line">// slice代表当前buffer, upto代表slice结束位置, slice[upto]存放的是下一级别</div><div class="line">public int allocSlice(final byte[] slice, final int upto) &#123;</div><div class="line">    // 确定下一级别</div><div class="line">    final int level = slice[upto] &amp; 15;</div><div class="line">    final int newLevel = NEXT_LEVEL_ARRAY[level];</div><div class="line">    // 下一级别申请的大小</div><div class="line">    final int newSize = LEVEL_SIZE_ARRAY[newLevel];</div><div class="line"></div><div class="line">    // 当前buffer是否还够下一级别的byte[]的申请</div><div class="line">    if (byteUpto &gt; BYTE_BLOCK_SIZE-newSize) &#123;</div><div class="line">      nextBuffer();</div><div class="line">    &#125;</div><div class="line">     // 当前块的起始位置</div><div class="line">    final int newUpto = byteUpto;</div><div class="line">     // upto的在整个buffers的绝对位置</div><div class="line">    final int offset = newUpto + byteOffset;</div><div class="line">    // 目前buffer内新的可写入位置</div><div class="line">    byteUpto += newSize;</div><div class="line">    // 从当前级别空余3位出来存储当前slice扩容下一级别的起始位置</div><div class="line">    // 第一步, 先空出</div><div class="line">    buffer[newUpto] = slice[upto-3];</div><div class="line">    buffer[newUpto+1] = slice[upto-2];</div><div class="line">    buffer[newUpto+2] = slice[upto-1];</div><div class="line">     // 空出来的3位连同级别位存放位置</div><div class="line">    // Write forwarding address at end of last slice:</div><div class="line">    slice[upto-3] = (byte) (offset &gt;&gt;&gt; 24);</div><div class="line">    slice[upto-2] = (byte) (offset &gt;&gt;&gt; 16);</div><div class="line">    slice[upto-1] = (byte) (offset &gt;&gt;&gt; 8);</div><div class="line">    slice[upto] = (byte) offset;</div><div class="line">    // 在新扩容的slice结尾填下下一级别</div><div class="line">    // Write new level:</div><div class="line">    buffer[byteUpto-1] = (byte) (16|newLevel);</div><div class="line">    return newUpto+3;</div><div class="line">  &#125;</div></pre></td></tr></table></figure>
-<p>主要过程用图像表示如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/lucene_bytebuffer2.png" height="200" width="600"><br>其中address是在整个buffers中的绝对位置。 一个buffer可以产生不同的slice, 每个slice不需要连续, slice扩容分为9级, 达到9级后新申请的内存大小都按照第9级别来分配。</p>
+<p>主要过程用图像表示如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/lucene_bytebuffer1.png" height="200" width="600"><br>其中address是在整个buffers中的绝对位置。 一个buffer可以产生不同的slice, 每个slice不需要连续, slice扩容分为9级, 达到9级后新申请的内存大小都按照第9级别来分配。</p>
 <h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>ByteBlockPool通过管理字符串二维数组方式实现动态扩容, 而且扩容成本也不高。lucene中在字符串存储上使用了较多较为巧妙的方法, 正是这些巧妙方法, 使得lucene有着比较优秀的性能。</p>
 
       
@@ -386,21 +404,22 @@
   
 
   
-  <div id="gitment-ctn"></div> 
+  <div id="gitment-ctn"></div>
 <link rel="stylesheet" href="//imsun.github.io/gitment/style/default.css">
-<script src="//imsun.github.io/gitment/dist/gitment.browser.js"></script>
+<script src="//www.wenjunjiang.win/js/gitment.js "></script>
 <script>
 var gitment = new Gitment({
-  id: "<%=url%>",
-  owner: '<%=theme.gitment_owner%>',
-  repo: '<%=theme.gitment_repo%>',
+  id: "Lucene8.2.0底层架构-ByteBlockPool结构分析",
+  owner: 'kkewwei',
+  repo: 'comments',
   oauth: {
-    client_id: '<%=theme.gitment_oauth.client_id%>',
-    client_secret: '<%=theme.gitment_oauth.client_secret%>',
+    client_id: '9391e497d6b288887f33',
+    client_secret: 'db733731bff4ee2811d9530b1ac4cfc6767e8183',
   },
 })
 gitment.render('gitment-ctn')
 </script>
+
   
 
 
