@@ -19,7 +19,7 @@
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/lucene_fdt1.png">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/lucene_fdt2.png">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/lucene_fdt.png">
-<meta property="og:updated_time" content="2020-03-03T14:43:07.000Z">
+<meta property="og:updated_time" content="2020-03-09T11:11:46.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Lucene8.2.0底层架构-fdt&#x2F;fdx构建过程">
 <meta name="twitter:description" content="StoredField文件主要存放文档-&amp;gt;域-&amp;gt;value的关系, 每个文档的所有域都保存一起,再保存下一行, 行式存储, 正排索引结果, 不对字段分词, 便于读取任何字段的value。 fdt存放文档的value及一级索引索引, fdx存放二级索引结构。 本文就以这两个文件结构的建立-&amp;gt;文件写入磁盘的过程来进行详细介绍, 代码主要可见CompressingStoredField">
@@ -233,7 +233,7 @@
 <li>所有文档相同字段名称的fieldNuber是一样的。</li>
 <li>所有doc所有域依次按先后顺序存储起来, stored=true构建的存储结构是按行存储的, 属于正排索引, 通过该索引结构很方便读取每个文档每个字段的值。</li>
 </ul>
-<h1 id="flush-产生fdt文件"><a href="#flush-产生fdt文件" class="headerlink" title="flush()/产生fdt文件"></a>flush()/产生fdt文件</h1><p>这里flush的主要作用是将内存中的所有文档结构生成一个chunk, 并将这些结构刷新到fdt文件中, 成为一个chunk。每当完成对一个文档建立了索引后, 便会检查缓存在内存中的文档数/bufferedDocs树是否超过阈值,超过了则会触发flush。一个chunk在内存中最大占用16KB/128个文档, 参数在构建CompressingStoredFieldsFormat时给写死了, 详细代码可参考: DefaultIndexingChain.finishStoredFields(), 本节从CompressingStoredFieldsWriter.finishDocument开始介绍。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div></pre></td><td class="code"><pre><div class="line">public void finishDocument() throws IOException &#123;</div><div class="line">   // this.numStoredFields存放的当前缓存的每个文档中设置了stred=true的域个数</div><div class="line">  if (numBufferedDocs == this.numStoredFields.length) &#123;</div><div class="line">    final int newLength = ArrayUtil.oversize(numBufferedDocs + 1, 4);</div><div class="line">    this.numStoredFields = ArrayUtil.growExact(this.numStoredFields, newLength);</div><div class="line">    endOffsets = ArrayUtil.growExact(endOffsets, newLength);</div><div class="line">  &#125;</div><div class="line">  // 该doc有几个域需要存储</div><div class="line">  this.numStoredFields[numBufferedDocs] = numStoredFieldsInDoc;</div><div class="line">  numStoredFieldsInDoc = 0;</div><div class="line">  // endOffsets存储的是该文档的内容在bufferedDocs中的位置, 便于查找每个文档所有域内容</div><div class="line">  endOffsets[numBufferedDocs] = bufferedDocs.getPosition();</div><div class="line">  // 缓存文档数+1</div><div class="line">  ++numBufferedDocs;</div><div class="line">  // 该bufferedDocs使用大小超过chunk限制16k了，或者该bufferedDocs存储文档书超过chunk限制128了。那么就该创建一个chunk</div><div class="line">  if (triggerFlush()) &#123;</div><div class="line">    // 将缓存中的文档创建一个chunk, 建立一级索引</div><div class="line">    flush();</div><div class="line">  &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<h1 id="flush-产生fdt文件"><a href="#flush-产生fdt文件" class="headerlink" title="flush()/产生fdt文件"></a>flush()/产生fdt文件</h1><p>这里flush的主要作用是将内存中的所有文档结构生成一个chunk, 并将这些结构刷新到fdt文件中, 成为一个chunk, 并不会产生一个segment。每当完成对一个文档建立了索引后, 便会检查缓存在内存中的文档数/bufferedDocs树是否超过阈值,超过了则会触发flush。一个chunk在内存中最大占用16KB/128个文档, 参数在构建CompressingStoredFieldsFormat时给写死了, 详细代码可参考: DefaultIndexingChain.finishStoredFields(), 本节从CompressingStoredFieldsWriter.finishDocument开始介绍。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div></pre></td><td class="code"><pre><div class="line">public void finishDocument() throws IOException &#123;</div><div class="line">   // this.numStoredFields存放的当前缓存的每个文档中设置了stred=true的域个数</div><div class="line">  if (numBufferedDocs == this.numStoredFields.length) &#123;</div><div class="line">    final int newLength = ArrayUtil.oversize(numBufferedDocs + 1, 4);</div><div class="line">    this.numStoredFields = ArrayUtil.growExact(this.numStoredFields, newLength);</div><div class="line">    endOffsets = ArrayUtil.growExact(endOffsets, newLength);</div><div class="line">  &#125;</div><div class="line">  // 该doc有几个域需要存储</div><div class="line">  this.numStoredFields[numBufferedDocs] = numStoredFieldsInDoc;</div><div class="line">  numStoredFieldsInDoc = 0;</div><div class="line">  // endOffsets存储的是该文档的内容在bufferedDocs中的位置, 便于查找每个文档所有域内容</div><div class="line">  endOffsets[numBufferedDocs] = bufferedDocs.getPosition();</div><div class="line">  // 缓存文档数+1</div><div class="line">  ++numBufferedDocs;</div><div class="line">  // 该bufferedDocs使用大小超过chunk限制16k了，或者该bufferedDocs存储文档书超过chunk限制128了。那么就该创建一个chunk</div><div class="line">  if (triggerFlush()) &#123;</div><div class="line">    // 将缓存中的文档创建一个chunk, 建立一级索引</div><div class="line">    flush();</div><div class="line">  &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
 <p>该函数主要功能:</p>
 <ul>
 <li>缓存该文档的信息, 包括该文档中stored=true的域个数、文档byte在bufferedDocs占用的结束位置。</li>
@@ -249,7 +249,7 @@
 </ol>
 <p>我们需要了解下indexWriter.writeIndex()缓存了哪些索引数据:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div></pre></td><td class="code"><pre><div class="line">void writeIndex(int numDocs, long startPointer) throws IOException &#123;</div><div class="line">  // 在block满的时候才会一起写入fdx</div><div class="line">  if (blockChunks == blockSize) &#123;</div><div class="line">    writeBlock(); // 足够一个block了</div><div class="line">    reset();</div><div class="line">  &#125;</div><div class="line">  // 只有经过writeBlock后才会置-1</div><div class="line">  if (firstStartPointer == -1) &#123;</div><div class="line">    firstStartPointer = maxStartPointer = startPointer;</div><div class="line">  &#125;</div><div class="line">  // 这个chunk的文档数</div><div class="line">  docBaseDeltas[blockChunks] = numDocs;</div><div class="line">  // fdt文件的绝对位置</div><div class="line">  startPointerDeltas[blockChunks] = startPointer - maxStartPointer;</div><div class="line">  ++blockChunks;</div><div class="line">  blockDocs += numDocs;</div><div class="line">  totalDocs += numDocs;</div><div class="line">  maxStartPointer = startPointer; // 当前写入的最大值</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
 <p>1.检查当前缓存的chunk个数是否达到阈值1024, 每个chunk文档数最大个数128个。若达到了, 调用writeBlock()将chunk的索引结构写入fdx中, 我们在第三节会详细介绍该函数。<br>2.记录该chunk的文档数、该chunk在fdt中的起始位置。</p>
-<h1 id="刷到fdx文件"><a href="#刷到fdx文件" class="headerlink" title="刷到fdx文件"></a>刷到fdx文件</h1><p>block记录的是一批chunk的索引结构, 一个fdx可以存储不止一个block, 产生一个block主要有一下两种情况:<br>1.内存缓存的chunk个数超过阈值1024, 会在每次产生一个chunk的时候检查。<br>2.用户主动通过indexWriter.flush()触发。<br>结束一个fdx文件的写入, 有一下两种情况:<br>1.lucene建立的索引结构占用内存超过阈值, 会在每次索引一个文档的时候检查。<br>2.用户主动通过indexWriter.flush()触发。<br>针对第一种情况, 每当对一个文档建立完成后, 就会检查缓存的文档数或者lucene构建索引共占用的内存是否超过阈值, 我们可以通过如下参数设置这些阈值:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line">indexWriterConfig = (IndexWriterConfig) indexWriter.getConfig();</div><div class="line">//统计的是距上次flush到目前内存中缓存的数据</div><div class="line">indexWriterConfig.setMaxBufferedDocs(201);</div><div class="line">indexWriterConfig.indexWriterConfig.setRAMBufferSizeMB(16)</div></pre></td></tr></table></figure></p>
+<h1 id="刷到fdx文件"><a href="#刷到fdx文件" class="headerlink" title="刷到fdx文件"></a>刷到fdx文件</h1><p>刷新到fdx文件，只会产生一个block, block记录的是一批chunk的索引结构, 一个fdx可以存储不止一个block, 产生一个block主要有一下两种情况:<br>1.内存缓存的chunk个数超过阈值1024, 会在每次产生一个block的时候检查。<br>2.用户主动通过indexWriter.flush()触发（此时一个block的chunk数小于1024）。<br>结束一个fdx文件的写入（产生一个segment）, 有一下两种情况:<br>1.lucene建立的索引结构占用内存或者缓存文档书超过阈值, 会在每次索引一个文档的时候检查。<br>2.用户主动通过indexWriter.flush()触发。<br>针对第一种情况, 每当对一个文档建立完成后, 就会检查缓存的文档数或者lucene构建索引共占用的内存是否超过阈值, 我们可以通过如下参数设置这些阈值:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line">indexWriterConfig = (IndexWriterConfig) indexWriter.getConfig();</div><div class="line">//统计的是距上次flush到目前内存中缓存的数据</div><div class="line">indexWriterConfig.setMaxBufferedDocs(201);</div><div class="line">indexWriterConfig.indexWriterConfig.setRAMBufferSizeMB(16)</div></pre></td></tr></table></figure></p>
 <p>lucene默认内存参数设置16mb, 文档个数缓存无限制。而在es中, 默认也没有对文档个数限制, 而对总的内存使用做出限制, 可以通过indices.memory.index_buffer_size设置, 默认10%内存, 若超过了内存限制, 则会进行所有索引文件的刷新工作, 当然也包括fdt/fdx文件的构建。 检查是否超过阈值的代码可参考DocumentsWriterFlushControl.doAfterDocument()。<br>实际完成一个fdx文件写入的代码可以看下StoredFieldsConsumer.flush()函数:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div></pre></td><td class="code"><pre><div class="line">void flush(SegmentWriteState state, Sorter.DocMap sortMap) throws IOException &#123;</div><div class="line">  try &#123;</div><div class="line">    // CompressingStoredFieldsWriter, 将所有chunk的索引结构写入fdx。新建的索引结构写入新的fdt、fdt中</div><div class="line">    writer.finish(state.fieldInfos, state.segmentInfo.maxDoc());</div><div class="line">  &#125; finally &#123;</div><div class="line">    IOUtils.close(writer);</div><div class="line">    // 每flush一次, 就会清空writer。下次写入时产生一个新的writer</div><div class="line">    writer = null;</div><div class="line">  &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
 <p>这里我们可以看到一个事实: 每次由于内存满了而刷新时, CompressingStoredFieldsWriter对象就被置空。也就是说, 若因为构建索引的内存超过阈值, 那么将所有chunk组成一个block, 写入fdx文档。 之后新来的数据全部写到新的fdt及fdx文件中。<br>我们需要重点看下这里的finish做了那些事情:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div></pre></td><td class="code"><pre><div class="line">public void finish(FieldInfos fis, int numDocs) throws IOException &#123;</div><div class="line">  // 若此时还有缓存的文档不够一个chunk文档数, 则将这些缓存的文档构建一个chunk。</div><div class="line">  if (numBufferedDocs &gt; 0) &#123;</div><div class="line">    flush();</div><div class="line">    // chunk不够128个文档</div><div class="line">    numDirtyChunks++; // incomplete: we had to force this flush</div><div class="line">  &#125;</div><div class="line">  // 向fdx写入chunk的索引结构。</div><div class="line">  indexWriter.finish(numDocs, fieldsStream.getFilePointer());</div><div class="line">  fieldsStream.writeVLong(numChunks); // fdt</div><div class="line">  fieldsStream.writeVLong(numDirtyChunks);</div><div class="line">  // 关闭fdt文件。</div><div class="line">  CodecUtil.writeFooter(fieldsStream);</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
 <p>主要事情如下:<br>1.若内存缓存有文档(不足一个chunk), 则强制产生一个chunk。比如用户主动调用indexWriter.flush()时, 内幕才能缓存的文档就不足一个chunk。<br>2.调用indexWriter.finish()将chunk的索引结构写入fdx。<br>3.结尾fdt文件写入。</p>
@@ -429,22 +429,21 @@
   
 
   
-  <div id="gitment-ctn"></div>
+  <div id="gitment-ctn"></div> 
 <link rel="stylesheet" href="//imsun.github.io/gitment/style/default.css">
-<script src="//www.wenjunjiang.win/js/gitment.js "></script>
+<script src="//imsun.github.io/gitment/dist/gitment.browser.js"></script>
 <script>
 var gitment = new Gitment({
-  id: "Lucene8.2.0底层架构-fdt/fdx构建过程",
-  owner: 'kkewwei',
-  repo: 'comments',
+  id: "<%=url%>",
+  owner: '<%=theme.gitment_owner%>',
+  repo: '<%=theme.gitment_repo%>',
   oauth: {
-    client_id: '9391e497d6b288887f33',
-    client_secret: 'db733731bff4ee2811d9530b1ac4cfc6767e8183',
+    client_id: '<%=theme.gitment_oauth.client_id%>',
+    client_secret: '<%=theme.gitment_oauth.client_secret%>',
   },
 })
 gitment.render('gitment-ctn')
 </script>
-
   
 
 
@@ -572,14 +571,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">Linux, close</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">LockSupport</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">Lucene、ByteBlockPool</a>
               </li>
              
@@ -596,11 +587,19 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">Lucene、StoredField</a>
+                <a href="javascript:void(0)" class="js-tag color2">LockSupport</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">Linux, close</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">Lucene、DocValue</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">Lucene、StoredField</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -612,11 +611,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">ReentrantLock</a>
+                <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
+                <a href="javascript:void(0)" class="js-tag color4">ReentrantLock</a>
               </li>
              
               <li class="article-tag-list-item">
