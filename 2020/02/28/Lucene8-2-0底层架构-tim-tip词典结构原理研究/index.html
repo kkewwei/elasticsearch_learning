@@ -17,9 +17,8 @@
 <meta property="og:site_name" content="Hexo">
 <meta property="og:description" content="Lucene中主要有两类倒排索引结构， 一种是词典结构， 涉及tim、tip、doc、pos。另外一种就是词典向量，涉及tvd,tvm（参考Lucene8.2.0底层架构-tvd/tvm词典向量结构研究）, 这者统计的信息大体相同，这两个类都继承自TermsHashPerField，都是对segment内相同域名所有文档共享这两个类。前者由FreqProxTermsWriterPerField构建">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/lucene_tim1.png">
-<meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/lucene_tim2.png">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/lucene_tim3.png">
-<meta property="og:updated_time" content="2020-03-09T15:14:42.000Z">
+<meta property="og:updated_time" content="2020-03-09T15:16:43.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Lucene8.2.0底层架构-tim&#x2F;tip词典结构原理研究">
 <meta name="twitter:description" content="Lucene中主要有两类倒排索引结构， 一种是词典结构， 涉及tim、tip、doc、pos。另外一种就是词典向量，涉及tvd,tvm（参考Lucene8.2.0底层架构-tvd/tvm词典向量结构研究）, 这者统计的信息大体相同，这两个类都继承自TermsHashPerField，都是对segment内相同域名所有文档共享这两个类。前者由FreqProxTermsWriterPerField构建">
@@ -47,57 +46,39 @@
   <div id="container" q-class="show:isCtnShow">
     <canvas id="anm-canvas" class="anm-canvas"></canvas>
     <div class="left-col" q-class="show:isShow">
-      
-<div class="overlay" style="background: #4d4d4d"></div>
+      <% var defaultBg = '#4d4d4d'; %>
+<div class="overlay" style="background: <%= theme.style && theme.style.header ? theme.style.header : defaultBg %>"></div>
 <div class="intrude-less">
 	<header id="header" class="inner">
-		<a href="/" class="profilepic">
-      <img src="https://kkewwei.github.io/elasticsearch_learning/img/myself.png" class="js-avatar">
+		<a href="<%=theme.root%>" class="profilepic">
+			<img src="<%=theme.avatar%>" class="js-avatar">
 		</a>
 		<hgroup>
-		  <h1 class="header-author"><a href="/">jianguo</a></h1>
+		  <h1 class="header-author"><a href="<%=theme.root%>"><%=theme.author%></a></h1>
 		</hgroup>
-		
-		<p class="header-subtitle">往事随风</p>
-		
+		<% if (theme.subtitle){ %>
+		<p class="header-subtitle"><%=theme.subtitle%></p>
+		<%}%>
 
 		<nav class="header-menu">
 			<ul>
-			
-				<li><a href="/elasticsearch_learning/">主页</a></li>
-	        
-				<li><a href="/elasticsearch_learning/tags/随笔/">随笔</a></li>
-	        
-				<li><a href="/elasticsearch_learning/categories">分类</a></li>
-	        
+			<% for (var i in theme.menu){ %>
+				<li><a href="<%- url_for(theme.menu[i]) %>"><%= i %></a></li>
+	        <%}%>
 			</ul>
 		</nav>
 		<nav class="header-smart-menu">
-    		
-    			
-    			<a q-on="click: openSlider(e, 'innerArchive')" href="javascript:void(0)">所有文章</a>
-    			
-            
-    			
-    			<a q-on="click: openSlider(e, 'friends')" href="javascript:void(0)">友链</a>
-    			
-            
-    			
-    			<a q-on="click: openSlider(e, 'aboutme')" href="javascript:void(0)">关于我</a>
-    			
-            
+    		<% for (var i in theme.smart_menu){ %>
+    			<% if(theme.smart_menu[i]){ %>
+    			<a q-on="click: openSlider(e, '<%-i%>')" href="javascript:void(0)"><%= theme.smart_menu[i] %></a>
+    			<% } %>
+            <%}%>
 		</nav>
 		<nav class="header-nav">
 			<div class="social">
-				
-					<a class="github" target="_blank" href="#" title="github"><i class="icon-github"></i></a>
-		        
-					<a class="weibo" target="_blank" href="#" title="weibo"><i class="icon-weibo"></i></a>
-		        
-					<a class="rss" target="_blank" href="#" title="rss"><i class="icon-rss"></i></a>
-		        
-					<a class="zhihu" target="_blank" href="#" title="zhihu"><i class="icon-zhihu"></i></a>
-		        
+				<% for (var i in theme.subnav){ %>
+					<a class="<%= i %>" target="_blank" href="<%- url_for(theme.subnav[i]) %>" title="<%= i %>"><i class="icon-<%= i %>"></i></a>
+		        <%}%>
 			</div>
 		</nav>
 	</header>
@@ -218,7 +199,7 @@
 
     <div class="article-entry" itemprop="articleBody">
       
-        <p>Lucene中主要有两类倒排索引结构， 一种是词典结构， 涉及tim、tip、doc、pos。另外一种就是词典向量，涉及tvd,tvm（参考<a href="https://kkewwei.github.io/elasticsearch_learning/2020/03/02/Lucene8-2-0%E5%BA%95%E5%B1%82%E6%9E%B6%E6%9E%84-tvd-tvm%E8%AF%8D%E5%85%B8%E5%90%91%E9%87%8F%E7%BB%93%E6%9E%84%E7%A0%94%E7%A9%B6/">Lucene8.2.0底层架构-tvd/tvm词典向量结构研究</a>）, 这者统计的信息大体相同，这两个类都继承自<code>TermsHashPerField</code>，都是对segment内相同域名所有文档共享这两个类。<br>前者由<code>FreqProxTermsWriterPerField</code>构建, 后者由<code>TermVectorsConsumerPerField</code>构建。两者之间结构相似，先放一张图让大家对该对象有个大致的印象：<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/lucene_tim1.png" height="600" width="500"><br>可以看到，将两者连接起来的是bytePool（结构可参考<a href="https://kkewwei.github.io/elasticsearch_learning/2019/10/06/Lucene8-2-0%E5%BA%95%E5%B1%82%E6%9E%B6%E6%9E%84-ByteBlockPool%E7%BB%93%E6%9E%84%E5%88%86%E6%9E%90/">Lucene8.2.0底层架构-ByteBlockPool结构分析</a>）,该对象就是存放的term内容，在词典和termVector构建之间共享以节约内存使用，不过前者产生的termId是segment该域级别唯一的，而后者是文档级别该域唯一。<br>Lucene查询中使用最多的就是词典结构, 根据term查询在哪些文档中存在, 也被称为倒排索引， 倒排索引结构如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/lucene_tim2.png" height="500" width="500"><br>由图可知，只要知道term，我们就可以很好地知道该term在每个document每个域的词频，位置，offset等信息，本文就以词典构建过程来进行深入研究。</p>
+        <p>Lucene中主要有两类倒排索引结构， 一种是词典结构， 涉及tim、tip、doc、pos。另外一种就是词典向量，涉及tvd,tvm（参考<a href="https://kkewwei.github.io/elasticsearch_learning/2020/03/02/Lucene8-2-0%E5%BA%95%E5%B1%82%E6%9E%B6%E6%9E%84-tvd-tvm%E8%AF%8D%E5%85%B8%E5%90%91%E9%87%8F%E7%BB%93%E6%9E%84%E7%A0%94%E7%A9%B6/">Lucene8.2.0底层架构-tvd/tvm词典向量结构研究</a>）, 这者统计的信息大体相同，这两个类都继承自<code>TermsHashPerField</code>，都是对segment内相同域名所有文档共享这两个类。<br>前者由<code>FreqProxTermsWriterPerField</code>构建, 后者由<code>TermVectorsConsumerPerField</code>构建。两者之间结构相似，先放一张图让大家对该对象有个大致的印象：<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/lucene_tim1.png" height="500" width="400"><br>可以看到，将两者连接起来的是bytePool（结构可参考<a href="https://kkewwei.github.io/elasticsearch_learning/2019/10/06/Lucene8-2-0%E5%BA%95%E5%B1%82%E6%9E%B6%E6%9E%84-ByteBlockPool%E7%BB%93%E6%9E%84%E5%88%86%E6%9E%90/">Lucene8.2.0底层架构-ByteBlockPool结构分析</a>）,该对象就是存放的term内容，在词典和termVector构建之间共享以节约内存使用，不过前者产生的termId是segment该域级别唯一的，而后者是文档级别该域唯一。<br>Lucene查询中使用最多的就是词典结构, 根据term查询在哪些文档中存在, 也被称为倒排索引， 倒排索引结构如下:<br>&lt;img src=”<a href="https://kkewwei.github.io/elasticsearch_learning/img/lucene_tim2.png">https://kkewwei.github.io/elasticsearch_learning/img/lucene_tim2.png</a>“ height=350” width=”350”/&gt;<br>由图可知，只要知道term，我们就可以很好地知道该term在每个document每个域的词频，位置，offset等信息，本文就以词典构建过程来进行深入研究。</p>
 <h1 id="词典在内存中构建"><a href="#词典在内存中构建" class="headerlink" title="词典在内存中构建"></a>词典在内存中构建</h1><p>在对字典字段设置时, 可以进行如下设置:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div></pre></td><td class="code"><pre><div class="line">FieldType fieldType = new FieldType();</div><div class="line">// 对term建立倒排索引存储的数据</div><div class="line">fieldType.setIndexOptions(IndexOptions.DOCS_AND_FREQS_AND_POSITIONS_AND_OFFSETS);</div><div class="line">fieldType.setTokenized(true);//分词</div><div class="line">fieldType.setStoreTermVectors(true);//分词</div><div class="line">fieldType.setOmitNorms(true);//分词</div><div class="line">fieldType.setStoreTermVectorOffsets(true);//分词</div><div class="line">fieldType.setStoreTermVectorPayloads(true);//分词</div><div class="line">fieldType.setStoreTermVectorPositions(true);//分词</div></pre></td></tr></table></figure></p>
 <p>1.setIndexOptions的参数含义:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div></pre></td><td class="code"><pre><div class="line">// 不建立词的倒排索引</div><div class="line">NONE,</div><div class="line">// 仅仅对词的建立索引结构</div><div class="line">DOCS,</div><div class="line">// 在termVector中仅存储词频</div><div class="line">DOCS_AND_FREQS,</div><div class="line">// 在termVector中存储词频和词position</div><div class="line">DOCS_AND_FREQS_AND_POSITIONS,</div><div class="line">// 在termVector中存储词频和词position和offset</div><div class="line">DOCS_AND_FREQS_AND_POSITIONS_AND_OFFSETS,</div></pre></td></tr></table></figure></p>
 <p>这些参数将作用于词典中, doc仅仅是建立termId-&gt;doc的映射; freq还统每个域中每个单词的频率, postion统计了每个单词在每个域中的位置, offset统计了每个单词在每个域中的偏移量。</p>
@@ -239,7 +220,7 @@
 <p>该函数主要统计了如下信息：<br>1.统计position和offset。<br>2.这里并没有立即统计词频， 词频必须等该文档该域写完后才能统计。</p>
 <p>我们再看下如何向一个已经存在的term统计freq、position及offset：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div></pre></td><td class="code"><pre><div class="line">void addTerm(final int termID) &#123;</div><div class="line">  final FreqProxPostingsArray postings = freqProxPostingsArray;</div><div class="line">  if (!hasFreq) &#123;//不需要词频</div><div class="line">    ......</div><div class="line">  &#125; else if (docState.docID != postings.lastDocIDs[termID]) &#123; </div><div class="line">    // 上一个文档的该域所有term已经处理完了</div><div class="line">    if (1 == postings.termFreqs[termID]) &#123;  // 词频为1</div><div class="line">      writeVInt(0, postings.lastDocCodes[termID]|1); </div><div class="line">    &#125; else &#123;</div><div class="line">      writeVInt(0, postings.lastDocCodes[termID]);</div><div class="line">      writeVInt(0, postings.termFreqs[termID]);</div><div class="line">    &#125;</div><div class="line">    //初始化当前文档的词频</div><div class="line">    postings.termFreqs[termID] = getTermFreq(); </div><div class="line">    fieldState.maxTermFrequency = Math.max(postings.termFreqs[termID], fieldState.maxTermFrequency);</div><div class="line">    //  这次出现文档-上次出现文档</div><div class="line">    postings.lastDocCodes[termID] = (docState.docID - postings.lastDocIDs[termID]) &lt;&lt; 1;</div><div class="line">    postings.lastDocIDs[termID] = docState.docID;</div><div class="line">    if (hasProx) &#123;</div><div class="line">      // 保存termId</div><div class="line">      writeProx(termID, fieldState.position);</div><div class="line">      if (hasOffsets) &#123;</div><div class="line">        // 保存offset</div><div class="line">        postings.lastOffsets[termID] = 0;</div><div class="line">        writeOffsets(termID, fieldState.offset);</div><div class="line">      &#125;</div><div class="line">    &#125;</div><div class="line">    fieldState.uniqueTermCount++;</div><div class="line">  &#125; else &#123; </div><div class="line">    // 当前文档当前域的term还没有处理完</div><div class="line">    postings.termFreqs[termID] = Math.addExact(postings.termFreqs[termID], getTermFreq()); </div><div class="line">    // 增加词频</div><div class="line">    fieldState.maxTermFrequency = Math.max(fieldState.maxTermFrequency, postings.termFreqs[termID]);</div><div class="line">    if (hasProx) &#123; </div><div class="line">      // 继续统计post</div><div class="line">      writeProx(termID, fieldState.position-postings.lastPositions[termID]);</div><div class="line">      if (hasOffsets) &#123;</div><div class="line">        // 统计offser</div><div class="line">        writeOffsets(termID, fieldState.offset);</div><div class="line">      &#125;</div><div class="line">    &#125;</div><div class="line">  &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
 <p>向bytePool中已经存在的termId：<br>1.这里会检查该词最后一次出现的DocId是否和本文档一致 若不一直，则说明上一个文档该term已经处理完了，需要将文档DocId，词频保存带第一个slice中。可能这里有疑问，为啥该词若是第一次出现时不需要检文档Id是否发生了变化，因为该词第一次出现时，上一个文档更不存在。<br>2.将词position&amp;offset保存到第二个slice中。</p>
-<p>最终建立的逻辑结构如下所示：<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/lucene_tim3.png" height="500" width="500"><br>freqProxPostingsArray里面数组下标就是termId, 如何展示的是termId=1的term 倒排索引存放情况。</p>
+<p>最终建立的逻辑结构如下所示：<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/lucene_tim3.png" height="300" width="300"><br>freqProxPostingsArray里面数组下标就是termId, 如何展示的是termId=1的term 倒排索引存放情况。</p>
 <h1 id="flush到文件中"><a href="#flush到文件中" class="headerlink" title="flush到文件中"></a>flush到文件中</h1><p>flush到文件中指的是形成一个segment，触发条件有两点（同<a href="https://kkewwei.github.io/elasticsearch_learning/2019/10/29/Lucenec%E5%BA%95%E5%B1%82%E6%9E%B6%E6%9E%84-fdt-fdx%E6%9E%84%E5%BB%BA%E8%BF%87%E7%A8%8B/#%E5%88%B7%E5%88%B0fdx%E6%96%87%E4%BB%B6">fdx</a>，<a href="https://kkewwei.github.io/elasticsearch_learning/2019/11/15/Lucene%E5%BA%95%E5%B1%82%E6%9E%B6%E6%9E%84-dvm-dvm%E6%9E%84%E5%BB%BA%E8%BF%87%E7%A8%8B/#%E5%88%B7%E6%96%B0%E5%88%B0%E6%96%87%E4%BB%B6">dvm</a>一样）：<br>1.lucene建立的索引结构占用内存或者缓存文档书超过阈值, 会在每次索引一个文档的时候检查。<br>2.用户主动通过indexWriter.flush()触发。</p>
 <p>本节就从<code>BlockTreeTermsWriter.write</code>开始介绍：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div></pre></td><td class="code"><pre><div class="line">public void write(Fields fields, NormsProducer norms) throws IOException &#123;</div><div class="line">  String lastField = null;</div><div class="line">  // 遍历该segment内的每个域</div><div class="line">  for(String field : fields) &#123;</div><div class="line">    lastField = field;</div><div class="line">    Terms terms = fields.terms(field); </div><div class="line">    if (terms == null) &#123;</div><div class="line">      continue;</div><div class="line">    &#125;</div><div class="line">     // 遍历FreqProxTermsWriterPerField里面每个termId使用的，读取term的顺序前按照字符串排好序了</div><div class="line">    TermsEnum termsEnum = terms.iterator();</div><div class="line">    // 一个域单独产生一个</div><div class="line">    TermsWriter termsWriter = new TermsWriter(fieldInfos.fieldInfo(field)); </div><div class="line">    while (true) &#123;</div><div class="line">      // 这里会从FreqProxPostingsArray.textStarts循环遍历每一个termId。</div><div class="line">      BytesRef term = termsEnum.next(); </div><div class="line">      if (term == null) &#123;</div><div class="line">        break;</div><div class="line">      &#125;</div><div class="line">      // 将该term加入词典及建立字典索引结构。</div><div class="line">      termsWriter.write(term, termsEnum, norms); </div><div class="line">    &#125;</div><div class="line">    termsWriter.finish();// 完成field 的构建。每个单词一个finish</div><div class="line">  &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
 <p>该函数主要是遍历该segment中每个域里所有的词， 然后调用<code>termsWriter.write</code>建立词典结构：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div></pre></td><td class="code"><pre><div class="line">public void write(BytesRef text, TermsEnum termsEnum, NormsProducer norms) throws IOException &#123;</div><div class="line">  // 将该term的倒排索引读取出来并建立索引结构</div><div class="line">  BlockTermState state = postingsWriter.writeTerm(text, termsEnum, docsSeen, norms); // 针对的是一个词</div><div class="line">  if (state != null) &#123;</div><div class="line">    // 将当前词加入词典中</div><div class="line">    pushTerm(text); </div><div class="line">    PendingTerm term = new PendingTerm(text, state); </div><div class="line">    pending.add(term);//当前term加入待索引列表</div><div class="line">    sumDocFreq += state.docFreq; // 该词在多少文档中出现过</div><div class="line">    sumTotalTermFreq += state.totalTermFreq; //该词总的出现频次</div><div class="line">    numTerms++;  //</div><div class="line">    if (firstPendingTerm == null) &#123;</div><div class="line">      firstPendingTerm = term; // 写入的第一个词</div><div class="line">    &#125;</div><div class="line">    lastPendingTerm = term;</div><div class="line">  &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
