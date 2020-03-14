@@ -151,7 +151,382 @@
             <canvas data-colors="#eaeaea" data-sectionHeight="100" data-contentId="js-content" id="myCanvas1" class="anm-canvas"></canvas>
           </div>
           <div id="js-content" class="content-ll">
-            
+            <article id="post-maven插件学习" class="article article-type-post " itemscope itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 class="article-title" itemprop="name">
+      maven插件学习
+    </h1>
+  
+
+        
+        <a href="/elasticsearch_learning/2017/04/05/maven插件学习/" class="archive-article-date">
+  	<time datetime="2017-04-05T05:32:36.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-04-05</time>
+</a>
+        
+         
+      <span class="archive-article-date">
+              阅读量 <span id="busuanzi_value_page_pv"></span>
+      </span>
+      
+      </header>
+    
+
+    <!-- 目录内容 -->
+    
+      <p class="show-toc-btn" id="show-toc-btn" onclick="showToc();" style="display:none">
+        <span class="btn-bg"></span>
+        <span class="btn-text">文章导航</span>
+      </p>
+	    <div id="toc-article" class="toc-article">
+	      <span id="toc-close" class="toc-close" title="隐藏导航" onclick="showBtn();">×</span>
+		      <strong class="toc-title">文章目录</strong>
+        <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#打包方式"><span class="toc-number">1.</span> <span class="toc-text">打包方式</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#shade打包"><span class="toc-number">2.</span> <span class="toc-text">shade打包</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#assembly打包"><span class="toc-number">3.</span> <span class="toc-text">assembly打包</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#自定义插件"><span class="toc-number">4.</span> <span class="toc-text">自定义插件</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#使用经验"><span class="toc-number">5.</span> <span class="toc-text">使用经验</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#在mvn中查看第三方依赖"><span class="toc-number">6.</span> <span class="toc-text">在mvn中查看第三方依赖</span></a></li></ol>
+         </div>
+   <script type="text/javascript">
+	function showToc(){
+		var toc_article = document.getElementById("toc-article");
+		var show_toc_btn = document.getElementById("show-toc-btn");
+		toc_article.setAttribute("style","display:block");
+		show_toc_btn.setAttribute("style","display:none");
+		};
+	function showBtn(){
+		var toc_article = document.getElementById("toc-article");
+		var show_toc_btn = document.getElementById("show-toc-btn");
+		toc_article.setAttribute("style","display:none");
+		show_toc_btn.setAttribute("style","display:block");
+		};
+   </script>
+      
+    <!-- 目录内容结束 -->
+
+    <div class="article-entry" itemprop="articleBody">
+      
+        <p>maven有三个生命周期:clean, default, site。 clean主要的目的是为了清理上次构建产生的文件, default主要是为了构建项目, site主要了为了搭建和发布项目web站点, 比如项目信心, 以便团队之间更好地交流。我们一般主要关注default声明周期, 这里会大致介绍下常用的phase:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">属性</th>
+<th style="text-align:left">介绍</th>
+<th style="text-align:left">默认绑定插件</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left">validate</td>
+<td style="text-align:left">验证项目是正确的</td>
+<td style="text-align:left"></td>
+</tr>
+<tr>
+<td style="text-align:left">process-sources</td>
+<td style="text-align:left">将resources从主函数代码里面拷贝到输出文件夹中, 一般是target里面.</td>
+<td style="text-align:left">maven-resources-plugin</td>
+</tr>
+<tr>
+<td style="text-align:left">compile</td>
+<td style="text-align:left">对java进行编译产生class文件</td>
+<td style="text-align:left">maven-compiler-plugin</td>
+</tr>
+<tr>
+<td style="text-align:left">process-test-sources</td>
+<td style="text-align:left">将测试resources从测试函数代码里面拷贝到输出文件夹中.</td>
+<td style="text-align:left">maven-resources-plugin</td>
+</tr>
+<tr>
+<td style="text-align:left">test-compile</td>
+<td style="text-align:left">对测试环境java进行编译产生class文件</td>
+<td style="text-align:left">maven-compiler-plugin</td>
+</tr>
+<tr>
+<td style="text-align:left">test</td>
+<td style="text-align:left">对项目里面的单元测试进行测试, 测试代码不会被打包部署</td>
+<td style="text-align:left">maven-surefire-plugin</td>
+</tr>
+<tr>
+<td style="text-align:left">package</td>
+<td style="text-align:left">将编译的class打包成jar包</td>
+<td style="text-align:left">maven-jar-plugin</td>
+</tr>
+<tr>
+<td style="text-align:left">install</td>
+<td style="text-align:left">打包后将jar放入本地仓库.m2中</td>
+<td style="text-align:left">maven-install-plugin</td>
+</tr>
+<tr>
+<td style="text-align:left">deploy</td>
+<td style="text-align:left">打包后将jar放入远程仓库中</td>
+<td style="text-align:left">maven-install-plugin</td>
+</tr>
+</tbody>
+</table>
+<p>本文将主要主要对打包方式进行讲解。</p>
+<h2 id="打包方式"><a href="#打包方式" class="headerlink" title="打包方式"></a>打包方式</h2><p>而打包的方式主要分为四种:默认jar打包、shade打包、assembly打包、source打包</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">属性</th>
+<th style="text-align:left">介绍</th>
+<th style="text-align:left">默认绑定插件</th>
+<th style="text-align:left">查看使用参数</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left">jar</td>
+<td style="text-align:left">仅仅将class文件打进包中, 不包含依赖的jar包, 不是可执行jar包, 缺少依赖的jar class</td>
+<td style="text-align:left">maven-jar-plugin</td>
+<td style="text-align:left">mvn jar:help</td>
+</tr>
+<tr>
+<td style="text-align:left">shade</td>
+<td style="text-align:left">在jar的基础上, 将class的依赖也打包进来</td>
+<td style="text-align:left">maven-shade-plugin</td>
+<td style="text-align:left">mvn shade:help</td>
+</tr>
+<tr>
+<td style="text-align:left">assembly</td>
+<td style="text-align:left">当前节点所拥有的线程</td>
+<td style="text-align:left">maven-assembly-plugin</td>
+<td style="text-align:left">mvn assembly:help</td>
+</tr>
+<tr>
+<td style="text-align:left">source</td>
+<td style="text-align:left">把当前源码打进包</td>
+<td style="text-align:left">maven-source-plugin</td>
+<td style="text-align:left">mvn source:help</td>
+</tr>
+</tbody>
+</table>
+<p>针对每种goal具体使用, 还可以使用类似命令查看: <code>mvn shade:help -Ddetail=true -Dgoal=&lt;goal-name&gt;</code></p>
+<h2 id="shade打包"><a href="#shade打包" class="headerlink" title="shade打包"></a>shade打包</h2><p>shade打包主要是将依赖全部放入jar文件中, 以便可以直接成为可执行的jar包, 这里将以一个示例进行讲解:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div></pre></td><td class="code"><pre><div class="line">&lt;plugin&gt;</div><div class="line">    &lt;groupId&gt;org.apache.maven.plugins&lt;/groupId&gt;</div><div class="line">    &lt;artifactId&gt;maven-shade-plugin&lt;/artifactId&gt;</div><div class="line">    &lt;version&gt;2.4.3&lt;/version&gt;</div><div class="line">    &lt;configuration&gt;</div><div class="line">        &lt;!-- put your configurations here --&gt;</div><div class="line">    &lt;/configuration&gt;</div><div class="line">    &lt;executions&gt;</div><div class="line">        &lt;execution&gt;</div><div class="line">            &lt;phase&gt;package&lt;/phase&gt;</div><div class="line">            &lt;goals&gt;</div><div class="line">                &lt;goal&gt;shade&lt;/goal&gt;</div><div class="line">            &lt;/goals&gt;</div><div class="line">            &lt;configuration&gt;</div><div class="line">                &lt;finalName&gt;$&#123;project.artifactId&#125;-$&#123;project.version&#125;-with-dependencies&lt;/finalName&gt;</div><div class="line">                &lt;transformers&gt;</div><div class="line">                    &lt;transformer implementation=&quot;org.apache.maven.plugins.shade.resource.ManifestResourceTransformer&quot;&gt;</div><div class="line">                        &lt;mainClass&gt;MyQueryMojo&lt;/mainClass&gt;</div><div class="line">                        &lt;manifestEntries&gt;</div><div class="line">                            &lt;ha&gt;s&lt;/ha&gt;</div><div class="line">                        &lt;/manifestEntries&gt;</div><div class="line">                    &lt;/transformer&gt;</div><div class="line">                &lt;/transformers&gt;</div><div class="line">            &lt;/configuration&gt;</div><div class="line">        &lt;/execution&gt;</div><div class="line">    &lt;/executions&gt;</div><div class="line">&lt;/plugin&gt;</div></pre></td></tr></table></figure></p>
+<p>可以看到, 我们定义了引入的plugin shade的版本号。接下来我们将对每个标签进行详细说明:<br>1 configuration:配置信息, 我们可以对所有executions定义一个默认的配置信息, 当然在具体的execution定义执行计划, 是可以覆盖这里的默认配置的。<br>2 execution: 相当于一个执行计划, 都放在executions里面。</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">配置</th>
+<th style="text-align:left">介绍</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left">phase</td>
+<td style="text-align:left">我们需要定义这个执行计划在生命阶段执行, 默认是在package阶段执行。</td>
+</tr>
+<tr>
+<td style="text-align:left">goals</td>
+<td style="text-align:left">执行目标, 我们可以通过mvn shade:help可以该阶段的所有目标, 默认为shade。</td>
+</tr>
+<tr>
+<td style="text-align:left">configuration</td>
+<td style="text-align:left">对打包可以配置一些参数</td>
+</tr>
+</tbody>
+</table>
+<p>在configuration中, 我们可以通过finalName定义产生的jar名称, 通过transformer可以将某些artifactId按照某种方式进行整合到jar中, 我们以常用的示例进行介绍ManifestResourceTransformer, ManifestResourceTransformer允许我们向打包文件里面的MANIFEST.MF添加配置属性, 属性元素都要放在manifestEntries里面, mainClass除外, 可以放在外层。mvn还提供许多针对资源进行整合的Transformer, 详情可参考<a href="http://maven.apache.org/plugins/maven-shade-plugin/examples/resource-transformers.html#" target="_blank" rel="external">官方文档</a>。<br>同时在configuration中还可以配置别的参数, 比如outputDirectory定义了jar存放位置。 include/exclude: 可以从某个jar包中排除某些类给排除掉。 所有参数可以<a href="http://maven.apache.org/plugins/maven-shade-plugin/shade-mojo.html" target="_blank" rel="external">参考</a>;.</p>
+<h2 id="assembly打包"><a href="#assembly打包" class="headerlink" title="assembly打包"></a>assembly打包</h2><p>Maven Assembly Plugin 和 Shade Plugin 都可以用来在构建单一 Jar 包时，将所有 Dependency 打入这个最终生成的 Jar 中去。但是两者在具体的行为上有所不同：Assembly 插件不仅会将 Dependency 中的 Class 文件打入最终的 Jar 包，还会将 Dependency 中的资源文件，诸如 properties 文件打入最终的 Jar 包。当项目和其 Dependency 中有同名的资源文件是，就会发生冲突，项目中的同名文件便不会加入到最终的 Jar 包中。如果这个文件是一个关键的配置文件，便会导致问题。而 Shade Plugin 不存在这样的问题。(<a href="https://ssailyang.iteye.com/blog/1745589" target="_blank" rel="external">参考</a>)</p>
+<h2 id="自定义插件"><a href="#自定义插件" class="headerlink" title="自定义插件"></a>自定义插件</h2><p>我们还可以自定义插件, 具体可参考文档:<br><a href="https://www.cnblogs.com/oscar1987121/p/10959083.html" target="_blank" rel="external">https://www.cnblogs.com/oscar1987121/p/10959083.html</a><br><a href="http://maven.apache.org/plugins/maven-shade-plugin/examples/use-shader-other-impl.html" target="_blank" rel="external">http://maven.apache.org/plugins/maven-shade-plugin/examples/use-shader-other-impl.html</a></p>
+<h2 id="使用经验"><a href="#使用经验" class="headerlink" title="使用经验"></a>使用经验</h2><p>1.若在项目app0使用shade/assembly打包后产生jar1, 则第三方依赖将会全部转成class文件, 比如fastJson, fastJson的版本号将在这里全部被抹掉。若别的项目app1引用app0 jar1包。 那么在app1中, 通过maven dependency将看不到fastJason版本号,也只能看到fastJson的class文件。<br>比如我们在app0配置的pom.xml如下:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div></pre></td><td class="code"><pre><div class="line">&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;?&gt;</div><div class="line">&lt;project xmlns=&quot;http://maven.apache.org/POM/4.0.0&quot;</div><div class="line">         xmlns:xsi=&quot;http://www.w3.org/2001/XMLSchema-instance&quot;</div><div class="line">         xsi:schemaLocation=&quot;http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd&quot;&gt;</div><div class="line">    &lt;modelVersion&gt;4.0.0&lt;/modelVersion&gt;</div><div class="line">    &lt;groupId&gt;dep1&lt;/groupId&gt;</div><div class="line">    &lt;artifactId&gt;dep1&lt;/artifactId&gt;</div><div class="line">    &lt;version&gt;1.0.3-SNAPSHOT&lt;/version&gt;</div><div class="line">    &lt;dependencies&gt;</div><div class="line">        &lt;dependency&gt;</div><div class="line">            &lt;groupId&gt;com.alibaba&lt;/groupId&gt;</div><div class="line">            &lt;artifactId&gt;fastjson&lt;/artifactId&gt;</div><div class="line">            &lt;version&gt;1.1.43&lt;/version&gt;</div><div class="line">        &lt;/dependency&gt;</div><div class="line">    &lt;/dependencies&gt;</div><div class="line">    &lt;build&gt;</div><div class="line">        &lt;plugins&gt;</div><div class="line">            &lt;plugin&gt;</div><div class="line">                &lt;groupId&gt;org.apache.maven.plugins&lt;/groupId&gt;</div><div class="line">                &lt;artifactId&gt;maven-shade-plugin&lt;/artifactId&gt;</div><div class="line">                &lt;version&gt;2.4.1&lt;/version&gt;</div><div class="line">                &lt;executions&gt;</div><div class="line">                    &lt;execution&gt;</div><div class="line">                        &lt;id&gt;ds&lt;/id&gt;</div><div class="line">                        &lt;phase&gt;package&lt;/phase&gt;</div><div class="line">                        &lt;goals&gt;</div><div class="line">                            &lt;goal&gt;shade&lt;/goal&gt;</div><div class="line">                        &lt;/goals&gt;</div><div class="line">                    &lt;/execution&gt;</div><div class="line">                &lt;/executions&gt;</div><div class="line">            &lt;/plugin&gt;</div><div class="line">        &lt;/plugins&gt;</div><div class="line">    &lt;/build&gt;</div><div class="line">&lt;/project&gt;</div></pre></td></tr></table></figure></p>
+<p>但是我们在app1中看到的app0的配置文件却是这样的<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div></pre></td><td class="code"><pre><div class="line">&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;?&gt;</div><div class="line">&lt;project xmlns=&quot;http://maven.apache.org/POM/4.0.0&quot; xmlns:xsi=&quot;http://www.w3.org/2001/XMLSchema-instance&quot; xsi:schemaLocation=&quot;http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd&quot;&gt;</div><div class="line">  &lt;modelVersion&gt;4.0.0&lt;/modelVersion&gt;</div><div class="line">  &lt;groupId&gt;dep1&lt;/groupId&gt;</div><div class="line">  &lt;artifactId&gt;dep1&lt;/artifactId&gt;</div><div class="line">  &lt;version&gt;1.0.3-SNAPSHOT&lt;/version&gt;</div><div class="line">  &lt;build&gt;</div><div class="line">    &lt;plugins&gt;</div><div class="line">      &lt;plugin&gt;</div><div class="line">        &lt;artifactId&gt;maven-shade-plugin&lt;/artifactId&gt;</div><div class="line">        &lt;version&gt;2.4.1&lt;/version&gt;</div><div class="line">        &lt;executions&gt;</div><div class="line">          &lt;execution&gt;</div><div class="line">            &lt;id&gt;ds&lt;/id&gt;</div><div class="line">            &lt;phase&gt;package&lt;/phase&gt;</div><div class="line">            &lt;goals&gt;</div><div class="line">              &lt;goal&gt;shade&lt;/goal&gt;</div><div class="line">            &lt;/goals&gt;</div><div class="line">          &lt;/execution&gt;</div><div class="line">        &lt;/executions&gt;</div><div class="line">      &lt;/plugin&gt;</div><div class="line">    &lt;/plugins&gt;</div><div class="line">  &lt;/build&gt;</div><div class="line">&lt;/project&gt;</div></pre></td></tr></table></figure></p>
+<p>我们通过mvn dependency:tree也完全看不到fastJson的版本号, 可以看到, app1里面看到app0的配置文件里面全部没有了fastJson的信息了(但是实际引入的fastJson版本, 其实在jar包内META-INF/maven/com.alibaba/fastjson路径里面的pom.xml可以看到)。<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/mvn_shade1.png" height="200" width="400"><br>这样的话, 尽管jar包有冲突, 比如下图的那个冲突, java选择的那个版本是dep1后面的那个fastJson, 尽管下面那个fastJson路径更短(shade打包方式, 使fastJson相关class全部打到dep1里面了, 索引路径更短, 而且dep1先声明的)。<br>2.通过默认jar方式, 打包内容将不会被包含第三方依赖。那么还是可以看到app0里面引入的fastJons版本信息。<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/mvn_shade2.png" height="200" width="550"><br>3.若出现jar包冲突的话, 那么选取最短路径上的jar, 同时会覆盖被冲突的包。<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/mvn_shade3.png" height="200" width="400"><br>比如这里将会选择下面那个fastJson版本。</p>
+<h2 id="在mvn中查看第三方依赖"><a href="#在mvn中查看第三方依赖" class="headerlink" title="在mvn中查看第三方依赖"></a>在mvn中查看第三方依赖</h2><ol>
+<li>通过mvn dependency:tree/list查看</li>
+<li>在Intellij IDea的右边-&gt; Maven Projects右键 -&gt; show Dependencies可查看。</li>
+</ol>
+
+      
+
+      
+        <div class="page-reward">
+          <a href="javascript:;" class="page-reward-btn tooltip-top">
+            <div class="tooltip tooltip-east">
+            <span class="tooltip-item">
+              赏
+            </span>
+            <span class="tooltip-content">
+              <span class="tooltip-text">
+                <span class="tooltip-inner">
+                  <p class="reward-p"><i class="icon icon-quo-left"></i>谢谢阅读<i class="icon icon-quo-right"></i></p>
+                  <div class="reward-box">
+                    
+                    
+                  </div>
+                </span>
+              </span>
+            </span>
+          </div>
+          </a>
+        </div>
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color4">maven, 插件, 打包</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/elasticsearch_learning/categories/工具学习//" class="article-tag-list-link color5">工具学习</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+
+      
+        
+<div class="share-btn share-icons tooltip-left">
+  <div class="tooltip tooltip-east">
+    <span class="tooltip-item">
+      <a href="javascript:;" class="share-sns share-outer">
+        <i class="icon icon-share"></i>
+      </a>
+    </span>
+    <span class="tooltip-content">
+      <div class="share-wrap">
+        <div class="share-icons">
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="icon icon-weibo"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="icon icon-weixin"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="icon icon-qq"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="icon icon-douban"></i>
+          </a>
+          <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a>
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="icon icon-facebook"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="icon icon-twitter"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="icon icon-google"></i>
+          </a>
+        </div>
+      </div>
+    </span>
+  </div>
+</div>
+
+<div class="page-modal wx-share js-wx-box">
+    <a class="close js-modal-close" href="javascript:;"><i class="icon icon-close"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//pan.baidu.com/share/qrcode?url=https://kkewwei.github.io/elasticsearch_learning/2017/04/05/maven插件学习/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div class="mask js-mask"></div>
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+  
+<nav id="article-nav">
+  
+    <a href="/elasticsearch_learning/2017/04/10/JAVA-NIO原理1/" id="article-nav-newer" class="article-nav-link-wrap">
+      <i class="icon-circle-left"></i>
+      <div class="article-nav-title">
+        
+          JAVA NIO通信分析
+        
+      </div>
+    </a>
+  
+  
+    <a href="/elasticsearch_learning/2017/03/08/git-基本命令学习心得/" id="article-nav-older" class="article-nav-link-wrap">
+      <div class="article-nav-title">git 基本命令学习心得-1</div>
+      <i class="icon-circle-right"></i>
+    </a>
+  
+</nav>
+
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+        <div class="toc-container tooltip-left">
+            <i class="icon-font icon-category"></i>
+            <div class="tooltip tooltip-east">
+                <span class="tooltip-item">
+                </span>
+                <span class="tooltip-content">
+                    <div class="toc-article">
+                    <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#打包方式"><span class="toc-number">1.</span> <span class="toc-text">打包方式</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#shade打包"><span class="toc-number">2.</span> <span class="toc-text">shade打包</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#assembly打包"><span class="toc-number">3.</span> <span class="toc-text">assembly打包</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#自定义插件"><span class="toc-number">4.</span> <span class="toc-text">自定义插件</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#使用经验"><span class="toc-number">5.</span> <span class="toc-text">使用经验</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#在mvn中查看第三方依赖"><span class="toc-number">6.</span> <span class="toc-text">在mvn中查看第三方依赖</span></a></li></ol>
+                    </div>
+                </span>
+            </div>
+        </div>
+        
+    </div>
+</aside>
+
+
+
+  
+
+  
+
+  
+
+  
+
+  
+  <div id="gitment-ctn"></div>
+<link rel="stylesheet" href="//imsun.github.io/gitment/style/default.css">
+<script src="//www.wenjunjiang.win/js/gitment.js "></script>
+<script>
+var gitment = new Gitment({
+  id: "maven插件学习",
+  owner: 'kkewwei',
+  repo: 'comments',
+  oauth: {
+    client_id: '9391e497d6b288887f33',
+    client_secret: 'db733731bff4ee2811d9530b1ac4cfc6767e8183',
+  },
+})
+gitment.render('gitment-ctn')
+</script>
+
+  
+
+
           </div>
         </div>
       </div>
@@ -292,23 +667,19 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">Lucene、ByteBlockPool</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">LockSupport</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">Lucene、StoredField</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">Lucene、termVector、tvd、tvm、倒排索引</a>
+                <a href="javascript:void(0)" class="js-tag color1">Lucene、ByteBlockPool</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">Lucene、词典、tim、tip、doc、pos、fst、倒排索引</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">Lucene、termVector、tvd、tvm、倒排索引</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -320,11 +691,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">Cycler</a>
+                <a href="javascript:void(0)" class="js-tag color4">Lucene、StoredField</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">Cycler</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -348,11 +723,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
+                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
+                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
               </li>
              
               <li class="article-tag-list-item">

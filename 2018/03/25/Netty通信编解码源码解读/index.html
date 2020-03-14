@@ -148,7 +148,289 @@
             <canvas data-colors="#eaeaea" data-sectionHeight="100" data-contentId="js-content" id="myCanvas1" class="anm-canvas"></canvas>
           </div>
           <div id="js-content" class="content-ll">
-            
+            <article id="post-Netty通信编解码源码解读" class="article article-type-post " itemscope itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 class="article-title" itemprop="name">
+      Netty Thrift方式通信编解码源码解读
+    </h1>
+  
+
+        
+        <a href="/elasticsearch_learning/2018/03/25/Netty通信编解码源码解读/" class="archive-article-date">
+  	<time datetime="2018-03-25T03:11:12.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2018-03-25</time>
+</a>
+        
+         
+      <span class="archive-article-date">
+              阅读量 <span id="busuanzi_value_page_pv"></span>
+      </span>
+      
+      </header>
+    
+
+    <!-- 目录内容 -->
+    
+      <p class="show-toc-btn" id="show-toc-btn" onclick="showToc();" style="display:none">
+        <span class="btn-bg"></span>
+        <span class="btn-text">文章导航</span>
+      </p>
+	    <div id="toc-article" class="toc-article">
+	      <span id="toc-close" class="toc-close" title="隐藏导航" onclick="showBtn();">×</span>
+		      <strong class="toc-title">文章目录</strong>
+        <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#介绍"><span class="toc-number">1.</span> <span class="toc-text">介绍</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#零拷贝"><span class="toc-number">1.1.</span> <span class="toc-text">零拷贝</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#编解码处理器"><span class="toc-number">1.2.</span> <span class="toc-text">编解码处理器</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#代码引入"><span class="toc-number">1.3.</span> <span class="toc-text">代码引入</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#ByteToMessageDecoder"><span class="toc-number">2.</span> <span class="toc-text">ByteToMessageDecoder</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#LengthFieldBasedFrameDecoder"><span class="toc-number">3.</span> <span class="toc-text">LengthFieldBasedFrameDecoder</span></a></li></ol>
+         </div>
+   <script type="text/javascript">
+	function showToc(){
+		var toc_article = document.getElementById("toc-article");
+		var show_toc_btn = document.getElementById("show-toc-btn");
+		toc_article.setAttribute("style","display:block");
+		show_toc_btn.setAttribute("style","display:none");
+		};
+	function showBtn(){
+		var toc_article = document.getElementById("toc-article");
+		var show_toc_btn = document.getElementById("show-toc-btn");
+		toc_article.setAttribute("style","display:none");
+		show_toc_btn.setAttribute("style","display:block");
+		};
+   </script>
+      
+    <!-- 目录内容结束 -->
+
+    <div class="article-entry" itemprop="articleBody">
+      
+        <h1 id="介绍"><a href="#介绍" class="headerlink" title="介绍"></a>介绍</h1><h2 id="零拷贝"><a href="#零拷贝" class="headerlink" title="零拷贝"></a>零拷贝</h2><p>Netty的“零拷贝”主要体现以下几个方面(<a href="http://www.infoq.com/cn/articles/netty-high-performance?utm_source=infoq&utm_medium=popular_links..." target="_blank" rel="external">参考</a>)：<br>1.Netty的接收和发送ByteBuffer采用DIRECT BUFFERS，使用堆外直接内存进行Socket读写，不需要进行字节缓冲区的二次拷贝。如果使用传统的堆内存（HEAP BUFFERS）进行Socket读写，JVM会将堆内存Buffer拷贝一份到直接内存中(内存拷贝)，然后才写入Socket中。相比于堆外直接内存，消息在发送过程中多了一次缓冲区的内存拷贝。<br>2.Netty 提供了 CompositeByteBuf 类, 它可以将多个 ByteBuf 合并为一个逻辑上的 ByteBuf, 避免了传统通过内存拷贝的方式将几个小Buffer合并成一个大的Buffer。<br>3.通过 FileRegion 包装的FileChannel.tranferTo方法 实现文件传输, 可以直接将文件缓冲区的数据发送到目标 Channel，避免了传统通过循环write方式导致的内存拷贝问题。<br>4.通过 wrap 操作, 我们可以将 byte[] 数组、ByteBuf、ByteBuffer等包装成一个 Netty ByteBuf 对象, 进而避免了拷贝操作。</p>
+<h2 id="编解码处理器"><a href="#编解码处理器" class="headerlink" title="编解码处理器"></a>编解码处理器</h2><p>编码与解码器原理相同, 只是做的工作相反, 这里以分析解码器ChannelInboundHandlerAdapter为例<br>解码处理器目前接触比较多的两种:</p>
+<ul>
+<li>ByteToMessageDecoder<br>ByteToMessageDecoder解码器主要将接收的byte位按照定义的帧的结构从原始byte中解析出来, 成为一个个独立的Message(帧/数据报), 常见的比如LengthFieldBasedFrameDecoder。</li>
+<li>MessageToMessageDecoder<br>MessageToMessageDecoder解码器主要将一个个独立的独立的Message, 根据定义的解码规则, 赋予具体的寓意, 比如将整个byte解析成string类型(StringDecoder)等。</li>
+</ul>
+<h2 id="代码引入"><a href="#代码引入" class="headerlink" title="代码引入"></a>代码引入</h2><p>需要再次强调的是, 此时pipeline链上的处理上下文: HeadContext-&gt; EncoderContext-&gt;DecoderContext-&gt;SelfCustemHanderContext-&gt;TailContext.<br>在<a href="https://kkewwei.github.io/elasticsearch_learning/2018/01/22/NioEventLoop%E7%AF%87/">NioEventLoop篇</a>说到, 关于IO SelectionKey.OP_READ类型的任务, 当接收到了数据, 会从unsafe.read()进入到如下代码中(实际调用NioByteUnsafe.read()):<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div></pre></td><td class="code"><pre><div class="line">    public final void read() &#123;</div><div class="line">        final ChannelConfig config = config();</div><div class="line">        final ChannelPipeline pipeline = pipeline();</div><div class="line">        final ByteBufAllocator allocator = config.getAllocator();</div><div class="line">        final RecvByteBufAllocator.Handle allocHandle = recvBufAllocHandle();//// allocHandle主要用于预估本次ByteBuf的初始大小，避免分配太多导致浪费或者分配过小放不下单次读取的数据而需要多次读取</div><div class="line">        allocHandle.reset(config);</div><div class="line">        ByteBuf byteBuf = null;</div><div class="line">        boolean close = false;</div><div class="line">        try &#123;</div><div class="line">            do &#123;</div><div class="line">                byteBuf = allocHandle.allocate(allocator);</div><div class="line">                allocHandle.lastBytesRead(doReadBytes(byteBuf));</div><div class="line">                if (allocHandle.lastBytesRead() &lt;= 0) &#123; // 未读取到数据则直接释放该ByteBuf,如果返回-1表示读取出错，后面会关闭该连接</div><div class="line">                    // nothing was read. release the buffer.</div><div class="line">                    byteBuf.release();</div><div class="line">                    byteBuf = null;</div><div class="line">                    close = allocHandle.lastBytesRead() &lt; 0;</div><div class="line">                    break;</div><div class="line">                &#125;</div><div class="line">                allocHandle.incMessagesRead(1);</div><div class="line">                readPending = false;</div><div class="line">                pipeline.fireChannelRead(byteBuf);</div><div class="line">                byteBuf = null;</div><div class="line">            &#125; while (allocHandle.continueReading());</div><div class="line">            allocHandle.readComplete();//记录本次读取到的数据长度（用于计算下次分配ByteBuf时的初始化大小）</div><div class="line">            pipeline.fireChannelReadComplete();// 本轮数据读取完毕</div><div class="line">            if (close) &#123;// 如果读取的时候发生错误则关闭连接</div><div class="line">                closeOnRead(pipeline);</div><div class="line">            &#125;</div><div class="line">        &#125; catch (Throwable t) &#123;</div><div class="line">            handleReadException(pipeline, byteBuf, t, close, allocHandle);</div><div class="line">        &#125; finally &#123;</div><div class="line"></div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>这里分配的内存是直接内存。当读取完一次数据后, 通过pipeline.fireChannelReadComplete()向下传递, HeadContext做的事仅仅是找到下一个属性为IN的Context(EncoderContext). 一般对应的handler为ByteToMessageDecoder类解码器, 本文以LengthFieldBasedFrameDecoder来分析。</p>
+<h1 id="ByteToMessageDecoder"><a href="#ByteToMessageDecoder" class="headerlink" title="ByteToMessageDecoder"></a>ByteToMessageDecoder</h1><p>属性cumulation存放的是之前没有解析完成的数据, 作为缓存和下次接收的数据一起解析。<br>回到代码里, 需要关注channelRead:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div></pre></td><td class="code"><pre><div class="line">@Override</div><div class="line">    public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception &#123;</div><div class="line">        if (msg instanceof ByteBuf) &#123;    //PoolUnsafeDirectByteBuf</div><div class="line">            CodecOutputList out = CodecOutputList.newInstance();//创建解码消息List存放集合</div><div class="line">            try &#123;</div><div class="line">                ByteBuf data = (ByteBuf) msg;  //data = PoolUnsafeDirectByteBuf</div><div class="line">                first = cumulation == null;</div><div class="line">                if (first) &#123;</div><div class="line">                    cumulation = data;</div><div class="line">                &#125; else &#123;</div><div class="line">                    cumulation = cumulator.cumulate(ctx.alloc(), cumulation, data); // cumulator = MERGE_CUMULATOR</div><div class="line">                &#125;</div><div class="line">                callDecode(ctx, cumulation, out);</div><div class="line">            &#125; catch (DecoderException e) &#123;</div><div class="line">                throw e;</div><div class="line">            &#125; catch (Throwable t) &#123;</div><div class="line">                throw new DecoderException(t);</div><div class="line">            &#125; finally &#123;//如果累积对象中没有数据了(因为所有发送的数据刚刚好n个msg)</div><div class="line">                if (cumulation != null &amp;&amp; !cumulation.isReadable()) &#123;</div><div class="line">                    numReads = 0;</div><div class="line">                    cumulation.release();</div><div class="line">                    cumulation = null;</div><div class="line">                &#125; else if (++ numReads &gt;= discardAfterReads) &#123;</div><div class="line">                    // We did enough reads already try to discard some bytes so we not risk to see a OOME.</div><div class="line">                    // See https://github.com/netty/netty/issues/4275</div><div class="line">                    numReads = 0;</div><div class="line">                    discardSomeReadBytes();</div><div class="line">                &#125;</div><div class="line"></div><div class="line">                int size = out.size();</div><div class="line">                decodeWasNull = !out.insertSinceRecycled();</div><div class="line">                fireChannelRead(ctx, out, size); //针对解析后的out结果，逐个调用message</div><div class="line">                out.recycle();</div><div class="line">            &#125;</div><div class="line">        &#125; else &#123;</div><div class="line">            ctx.fireChannelRead(msg);</div><div class="line">        &#125;</div><div class="line">    &#125;</div></pre></td></tr></table></figure></p>
+<p>主要做的事情:<br>1) 首先判断msg是否为ByteBuf: 若不是, 则说明此轮传递的不是数据解码, 继续向外传递。<br>2) 如果cumulation为空, 说明之前解析的帧与数据长度恰好吻合, 没有剩余数据需要下次拼接解析的, 否则, 需要将上次剩余的cumulation与新接收的ByteBuf合成一个新的ByteBuf继续解析。合成器默认为MERGE_CUMULATOR。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div></pre></td><td class="code"><pre><div class="line">@Override</div><div class="line">       public ByteBuf cumulate(ByteBufAllocator alloc, ByteBuf cumulation, ByteBuf in) &#123;  //alloc: PooledByteBufAllocator(directe:true) , cumulation = PooledUnsafeDirectByteBuf</div><div class="line">           final ByteBuf buffer;</div><div class="line">           if (cumulation.writerIndex() &gt; cumulation.maxCapacity() - in.readableBytes()</div><div class="line">                   || cumulation.refCnt() &gt; 1 || cumulation.isReadOnly()) &#123;</div><div class="line">               // Expand cumulation (by replace it) when either there is not more room in the buffer</div><div class="line">               // or if the refCnt is greater then 1 which may happen when the user use slice().retain() or</div><div class="line">               // duplicate().retain() or if its read-only.</div><div class="line">               //</div><div class="line">               // See:</div><div class="line">               // - https://github.com/netty/netty/issues/2327</div><div class="line">               // - https://github.com/netty/netty/issues/1764</div><div class="line">               buffer = expandCumulation(alloc, cumulation, in.readableBytes());</div><div class="line">           &#125; else &#123;</div><div class="line">               buffer = cumulation;</div><div class="line">           &#125;</div><div class="line">           buffer.writeBytes(in); //将新的数据，写入这个cumulation</div><div class="line">           in.release();  //释放资源</div><div class="line">           return buffer;</div><div class="line">       &#125;</div></pre></td></tr></table></figure></p>
+<ul>
+<li>首先判断目前的cumulation最大容器能否装的下即将合成的缓存, 实际上cumulation.maxCapacity()的取值非常大(2147483647), 如果装不下的, 需要申请新的缓存区域:expandCumulation<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div></pre></td><td class="code"><pre><div class="line">ByteBuf oldCumulation = cumulation;</div><div class="line">     cumulation = alloc.buffer(oldCumulation.readableBytes() + readable);//重新生成一个新的缓存区， 注意这里的参数是长度，而没有数据的数据</div><div class="line">     cumulation.writeBytes(oldCumulation);  //会跑到AbstractByteBuf.writeBytes()里面，向新的cumulation写回旧的数据</div><div class="line">     oldCumulation.release(); //释放旧的缓冲区</div><div class="line">     return cumulation;</div></pre></td></tr></table></figure>
+</li>
+</ul>
+<p>cumulation = alloc.buffer(size)可以看出是新生成的缓存与之前缓存区域毫不相关(根据size申请的), 会将新旧缓存放入同一个最新的缓存cumulation。<br>3) 解码callDecode<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div></pre></td><td class="code"><pre><div class="line">while (in.isReadable()) &#123;</div><div class="line">   int outSize = out.size();</div><div class="line">   if (outSize &gt; 0) &#123; //out为经过转码形成帧的的数据</div><div class="line">       fireChannelRead(ctx, out, outSize);//每当读取到帧了，就会立刻向上发送解析好的帧，看情况解析出来一个，发送一个</div><div class="line">       out.clear();</div><div class="line">       outSize = 0;</div><div class="line">   &#125;</div><div class="line">   int oldInputLength = in.readableBytes();  //24</div><div class="line">   decodeRemovalReentryProtection(ctx, in, out);  //这里会循环的调用解码decode</div><div class="line">   if (outSize == out.size()) &#123; //decode没有解析出东西</div><div class="line">       if (oldInputLength == in.readableBytes()) &#123; //没有读取到任何东西，可能帧显示的长度大于实际的位数，没有数据了, 需要下次接受的数据补齐</div><div class="line">           break;</div><div class="line">       &#125; else &#123; //还是向前消费了许多东西，可能读到了坏的帧，丢弃了</div><div class="line">           continue;</div><div class="line">       &#125;</div><div class="line">   &#125;</div><div class="line">   if (oldInputLength == in.readableBytes()) &#123;  //说明outSize &lt; out.size(),读取到新的帧了，但是指针还没有向前进，哪里有问题</div><div class="line">       throw new DecoderException(</div><div class="line">               StringUtil.simpleClassName(getClass()) +</div><div class="line">                       &quot;.decode() did not read anything but decoded a message.&quot;);</div><div class="line">   &#125;</div><div class="line"> &#125;</div></pre></td></tr></table></figure></p>
+<ul>
+<li>首先查看是否解析出来了数据报(帧), 若解析出来了, 则通过fireChannelRead向上传递。</li>
+<li>开始这轮真正的数据解析工作, decodeRemovalReentryProtection里面需要注意decode函数, 在<code>LengthFieldBasedFrameDecoder</code>里实现。</li>
+<li>对这轮解析结果进行分析:<br>   若没有解析出数据, 说明缓存区域没有消费数据, 显示的帧长度大于实际拥有的数据量, 此时会将数据缓存起来放入cumulation, 等待下次接收到数据后一起解析。<br>   若没有解析出数据, 说明可能存在损坏的帧, 解码时候把废弃的帧给丢弃了。<br>   若解析出来的数据, 但是却没有消费数据, 说明出现了问题, 向外抛出异常。<br>4) 检查是否还有帧可以继续向上传递。<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div></pre></td><td class="code"><pre><div class="line">static void fireChannelRead(ChannelHandlerContext ctx, List&lt;Object&gt; msgs, int numElements) &#123;</div><div class="line">       if (msgs instanceof CodecOutputList) &#123;   //都单个单个的发送</div><div class="line">           fireChannelRead(ctx, (CodecOutputList) msgs, numElements);</div><div class="line">       &#125; else &#123;</div><div class="line">           for (int i = 0; i &lt; numElements; i++) &#123;</div><div class="line">               ctx.fireChannelRead(msgs.get(i));</div><div class="line">           &#125;</div><div class="line">       &#125;</div><div class="line">   &#125;</div></pre></td></tr></table></figure>
+</li>
+</ul>
+<p>可以看出实际也是每个帧单独向上发送的。</p>
+<h1 id="LengthFieldBasedFrameDecoder"><a href="#LengthFieldBasedFrameDecoder" class="headerlink" title="LengthFieldBasedFrameDecoder"></a>LengthFieldBasedFrameDecoder</h1><p>LengthFieldBasedFrameDecoder作为ByteToMessageDecoder的父类, 它只用定义具体的规则, 如何拆分byte成为每一个个数据报(帧), 也就是只用实现protected final void decode(ChannelHandlerContext ctx, ByteBuf in, List<object> out)即可: 从原始byte in中解析出一个帧, 放入out中。<br>我们需要理解几个属性的函数:</object></p>
+<ul>
+<li>maxFrameLength: 定义了每个帧的最大长度, 超过此长度的帧将作为废弃数据直接丢弃掉。</li>
+<li>lengthFieldOffset:  帧长度位置的偏移量(起始位置), 情况:帧的第一个部分不是长度字段。</li>
+<li>lengthFieldLength: 定义帧长度的字段本身的长度。</li>
+<li>lengthAdjustment:  数据内容长度需需要调整的长度, 情况: 帧的长度还可能包含了部分不属于帧内容字段长度, 需要把这部分长度给去掉</li>
+<li>initialBytesToStrip:  解析时候, 需要跳过的长度, 以进入到帧的数据部分</li>
+<li>failFast: 当解析出的帧内容长度大于阈值, 是否立即抛出异常,默认为false, 建议不要修改。 当设置为true后, 把该帧全部内容丢弃后再抛出异常。</li>
+<li>discardingTooLongFrame: 当帧解析出来的帧内容长度 &gt; maxFrameLength时,并且剩余缓存可读字段 &lt; 解析的帧长度, 需要discardingTooLongFrame置位true,  意味着下次接收的帧需要继续丢弃,当前帧处于丢弃模式。</li>
+<li>tooLongFrameLength: 超过长度限制maxFrameLength的帧长度</li>
+<li>bytesToDiscard: 对于下次接收的数据中需要继续丢弃的byte长度。 当接收的帧长度大于阈值, 会丢弃该帧及内容<br>关系如下:<img src="https://kkewwei.github.io/elasticsearch_learning/img/Thrift%E5%B8%A7.png"><br>也可<a href="https://blog.csdn.net/u010853261/article/details/55803933" target="_blank" rel="external"> 参考/a&gt;<br>其中:</a></li>
+<li>head1和head2可以由用户自定义语义。</li>
+<li>有的人会想, initialBytesToStrip、lengthFieldOffset、lengthFieldLength这三个属性有一定的关系, 还为啥会当把三个参数都传递进来, 我想设计者是为了给使用者更大的灵活性,比如 lengthFieldLength后面专门空几个byte啥都不干放着也是行的, 一般initialBytesToStrip = lengthFieldOffset+lengthFieldLength<br>解码函数如下:<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div><div class="line">61</div><div class="line">62</div><div class="line">63</div></pre></td><td class="code"><pre><div class="line">if (discardingTooLongFrame) &#123;//如果当前的编码器处于丢弃超长帧的状态，上一个包最后一个帧还有东西要丢弃，要对当前包接着丢</div><div class="line">     long bytesToDiscard = this.bytesToDiscard; //获取需要丢弃的长度</div><div class="line">     int localBytesToDiscard = (int) Math.min(bytesToDiscard, in.readableBytes());//丢弃的长度不能超过当前缓冲区可读的字节数</div><div class="line">     in.skipBytes(localBytesToDiscard);//跳过需要忽略的字节长度</div><div class="line">     bytesToDiscard -= localBytesToDiscard;////bytesToDiscard减去已经忽略的字节长度</div><div class="line">     this.bytesToDiscard = bytesToDiscard; //下轮还需要忽略的长度</div><div class="line">     failIfNecessary(false);</div><div class="line"> &#125;</div><div class="line"> //对当前缓冲区中可读字节数和长度偏移量进行对比，如果小于偏移量，谁明缓冲区数据报内容没有，直接返回</div><div class="line"> if (in.readableBytes() &lt; lengthFieldEndOffset) &#123;//数据报内数据不够，返回null，由IO线程继续读取数据，此轮不解码</div><div class="line">     return null; //当前帧没有value</div><div class="line"> &#125;</div><div class="line">// 拿到长度字段的起始偏移量index</div><div class="line"> int actualLengthFieldOffset = in.readerIndex() + lengthFieldOffset;  //长度域终点位置</div><div class="line"> long frameLength = getUnadjustedFrameLength(in, actualLengthFieldOffset, lengthFieldLength, byteOrder);/// 拿到实际的未调整过的内容长度</div><div class="line"> if (frameLength &lt; 0) &#123;</div><div class="line">     in.skipBytes(lengthFieldEndOffset);</div><div class="line">     throw new CorruptedFrameException(</div><div class="line">             &quot;negative pre-adjustment length field: &quot; + frameLength);</div><div class="line"> &#125;</div><div class="line"> // frameLength = (head1_length+length_length)(lengthFieldEndOffset)+head2_length(lengthAdjustment)+content_length(frameLength)</div><div class="line"> frameLength += lengthAdjustment + lengthFieldEndOffset;</div><div class="line"> if (frameLength &lt; lengthFieldEndOffset) &#123;</div><div class="line">     in.skipBytes(lengthFieldEndOffset);//当前帧忽略过</div><div class="line">     throw new CorruptedFrameException(</div><div class="line">             &quot;Adjusted frame length (&quot; + frameLength + &quot;) is less &quot; +</div><div class="line">             &quot;than lengthFieldEndOffset: &quot; + lengthFieldEndOffset);</div><div class="line"> &#125;</div><div class="line"> // 数据帧长长度超出最大帧长度，说明这个帧当前帧不合法， 需要丢弃当前帧，跳到包里下一个帧里面。</div><div class="line"> if (frameLength &gt; maxFrameLength) &#123;</div><div class="line">     long discard = frameLength - in.readableBytes();//前面</div><div class="line">     tooLongFrameLength = frameLength;</div><div class="line">     // 当前可读字节已达到frameLength，直接跳过frameLength个字节，丢弃之后，后面有可能就是一个合法的数据包</div><div class="line">     if (discard &lt; 0) &#123;// // 当前可读字节已达到frameLength，直接跳过frameLength个字节，丢弃之后，后面有可能就是一个合法的数据包</div><div class="line">         // buffer contains more bytes then the frameLength so we can discard all now</div><div class="line">         in.skipBytes((int) frameLength);//丢弃当前不合法帧，直接跳到包里下一个帧里面</div><div class="line">     &#125; else &#123;</div><div class="line">         // Enter the discard mode and discard everything received so far.</div><div class="line">         discardingTooLongFrame = true;//下个报接着丢上一个报最后一个帧</div><div class="line">         bytesToDiscard = discard;</div><div class="line">         in.skipBytes(in.readableBytes());//丢弃整个帧</div><div class="line">     &#125;</div><div class="line">     failIfNecessary(true);</div><div class="line">     return null;</div><div class="line"> &#125;</div><div class="line"> // never overflows because it&apos;s less than maxFrameLength</div><div class="line"> int frameLengthInt = (int) frameLength;</div><div class="line"> if (in.readableBytes() &lt; frameLengthInt) &#123;  //什么都没有读取到，而且in指针也没有向前去，后面将退出，不会在继续循环</div><div class="line">     return null;</div><div class="line"> &#125;</div><div class="line"> if (initialBytesToStrip &gt; frameLengthInt) &#123;</div><div class="line">     in.skipBytes(frameLengthInt);</div><div class="line">     throw new CorruptedFrameException(</div><div class="line">             &quot;Adjusted frame length (&quot; + frameLength + &quot;) is less &quot; +</div><div class="line">             &quot;than initialBytesToStrip: &quot; + initialBytesToStrip);</div><div class="line"> &#125;</div><div class="line"> in.skipBytes(initialBytesToStrip); //这段值已经读取出来了（长度），后续都是head2+content</div><div class="line"> // extract frame</div><div class="line"> int readerIndex = in.readerIndex();</div><div class="line"> int actualFrameLength = frameLengthInt - initialBytesToStrip;</div><div class="line"> ByteBuf frame = extractFrame(ctx, in, readerIndex, actualFrameLength);</div><div class="line"> in.readerIndex(readerIndex + actualFrameLength);  //设置可读位置</div><div class="line"> return frame;</div></pre></td></tr></table></figure>
+</li>
+</ul>
+<p>主要操作如下:<br>1) 如果当前处于丢弃模式(discardingTooLongFrame), 若是,那么继续丢弃还需要丢弃的byte, 并且检查是否该抛出异常:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div></pre></td><td class="code"><pre><div class="line">private void failIfNecessary(boolean firstDetectionOfTooLongFrame) &#123;</div><div class="line">        if (bytesToDiscard == 0) &#123; //不是第一次遇到，就是说下次编码的时候不需要丢弃了，说明这个超长帧读取完毕，那么将这个编码器的状态设置为非丢弃超长帧状态</div><div class="line">            // Reset to the initial state and tell the handlers that</div><div class="line">            // the frame was too large.</div><div class="line">            long tooLongFrameLength = this.tooLongFrameLength; //超过限制的帧长度</div><div class="line">            this.tooLongFrameLength = 0; //主要是复位</div><div class="line">            discardingTooLongFrame = false;</div><div class="line">            if (!failFast || firstDetectionOfTooLongFrame) &#123;// 如果没有设置快速失败，或者设置了快速失败并且是第一次检测到大包错误，抛出异常，让handler去处理</div><div class="line">                fail(tooLongFrameLength); //bytesToDiscard，最起码不是第一次，bytesToDiscard为0.直接丢弃</div><div class="line">            &#125;</div><div class="line">        &#125; else &#123;  //第一次遇到，发现当前帧长度太长了</div><div class="line">            // Keep discarding and notify handlers if necessary.</div><div class="line">            if (failFast &amp;&amp; firstDetectionOfTooLongFrame) &#123;</div><div class="line">                fail(tooLongFrameLength); //是第一次遇到，直接丢失</div><div class="line">            &#125;</div><div class="line">        &#125;</div><div class="line">    &#125;</div></pre></td></tr></table></figure></p>
+<ul>
+<li>当上一个帧需要丢弃content全部丢弃完了, 那么就直接抛出异常。failFast肯定为false,因为bytesToDiscard, 就说明此次不是最开始遇见超过阈值长度的帧。</li>
+<li>反之, 说明是首次发现帧太长了, 需要丢弃。failFast肯定为true。<br>2) 若当前缓存可读byte &lt; 长度偏移量, 直接退出继续, 数据仍然放在了缓存。<br>3) 计算出帧整体的长度,包括了length + head2 + content:<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">frameLength += lengthAdjustment + lengthFieldEndOffset;</div></pre></td></tr></table></figure>
+</li>
+</ul>
+<p>4) 检查帧frameLength是否超过的阈值,若超过了:</p>
+<ul>
+<li>检查当前缓存可读数据是否够length长度丢弃, 若够的话, 缓存可读区域向前移动frameLength长度</li>
+<li>否则, 进入丢弃模式: discardingTooLongFrame设置为true、记录下次需要丢弃的长度。<br>并运行failIfNecessary, 检查是现在立刻抛出异常, 还是等下轮丢弃完再抛。<br>5) 检查当前缓存可读长度是否超过frameLength, 若没有的话, 说明当前帧长度超过了发送的长度限制(默认1024bit), 当前帧被多次发送了, 这里解析函数就直接退出。下次接收的数据会自动累加到当前可读数据上,等待下次再解析出这个帧。<br>6) 跳过initialBytesToStrip, 并开始读取相应的帧内容, 并向上传递该帧内容。</li>
+</ul>
+
+      
+
+      
+        <div class="page-reward">
+          <a href="javascript:;" class="page-reward-btn tooltip-top">
+            <div class="tooltip tooltip-east">
+            <span class="tooltip-item">
+              赏
+            </span>
+            <span class="tooltip-content">
+              <span class="tooltip-text">
+                <span class="tooltip-inner">
+                  <p class="reward-p"><i class="icon icon-quo-left"></i>谢谢阅读<i class="icon icon-quo-right"></i></p>
+                  <div class="reward-box">
+                    
+                    
+                  </div>
+                </span>
+              </span>
+            </span>
+          </div>
+          </a>
+        </div>
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/elasticsearch_learning/categories/Netty//" class="article-tag-list-link color1">Netty</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+
+      
+        
+<div class="share-btn share-icons tooltip-left">
+  <div class="tooltip tooltip-east">
+    <span class="tooltip-item">
+      <a href="javascript:;" class="share-sns share-outer">
+        <i class="icon icon-share"></i>
+      </a>
+    </span>
+    <span class="tooltip-content">
+      <div class="share-wrap">
+        <div class="share-icons">
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="icon icon-weibo"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="icon icon-weixin"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="icon icon-qq"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="icon icon-douban"></i>
+          </a>
+          <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a>
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="icon icon-facebook"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="icon icon-twitter"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="icon icon-google"></i>
+          </a>
+        </div>
+      </div>
+    </span>
+  </div>
+</div>
+
+<div class="page-modal wx-share js-wx-box">
+    <a class="close js-modal-close" href="javascript:;"><i class="icon icon-close"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//pan.baidu.com/share/qrcode?url=https://kkewwei.github.io/elasticsearch_learning/2018/03/25/Netty通信编解码源码解读/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div class="mask js-mask"></div>
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+  
+<nav id="article-nav">
+  
+    <a href="/elasticsearch_learning/2018/04/01/TCP三次握手及四次分手抓包分析/" id="article-nav-newer" class="article-nav-link-wrap">
+      <i class="icon-circle-left"></i>
+      <div class="article-nav-title">
+        
+          TCP三次握手及四次分手抓包分析
+        
+      </div>
+    </a>
+  
+  
+    <a href="/elasticsearch_learning/2018/01/22/NioEventLoop篇/" id="article-nav-older" class="article-nav-link-wrap">
+      <div class="article-nav-title">NioEventLoop篇</div>
+      <i class="icon-circle-right"></i>
+    </a>
+  
+</nav>
+
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+        <div class="toc-container tooltip-left">
+            <i class="icon-font icon-category"></i>
+            <div class="tooltip tooltip-east">
+                <span class="tooltip-item">
+                </span>
+                <span class="tooltip-content">
+                    <div class="toc-article">
+                    <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#介绍"><span class="toc-number">1.</span> <span class="toc-text">介绍</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#零拷贝"><span class="toc-number">1.1.</span> <span class="toc-text">零拷贝</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#编解码处理器"><span class="toc-number">1.2.</span> <span class="toc-text">编解码处理器</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#代码引入"><span class="toc-number">1.3.</span> <span class="toc-text">代码引入</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#ByteToMessageDecoder"><span class="toc-number">2.</span> <span class="toc-text">ByteToMessageDecoder</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#LengthFieldBasedFrameDecoder"><span class="toc-number">3.</span> <span class="toc-text">LengthFieldBasedFrameDecoder</span></a></li></ol>
+                    </div>
+                </span>
+            </div>
+        </div>
+        
+    </div>
+</aside>
+
+
+
+  
+
+  
+
+  
+
+  
+
+  
+  <div id="gitment-ctn"></div>
+<link rel="stylesheet" href="//imsun.github.io/gitment/style/default.css">
+<script src="//www.wenjunjiang.win/js/gitment.js "></script>
+<script>
+var gitment = new Gitment({
+  id: "Netty Thrift方式通信编解码源码解读",
+  owner: 'kkewwei',
+  repo: 'comments',
+  oauth: {
+    client_id: '9391e497d6b288887f33',
+    client_secret: 'db733731bff4ee2811d9530b1ac4cfc6767e8183',
+  },
+})
+gitment.render('gitment-ctn')
+</script>
+
+  
+
+
           </div>
         </div>
       </div>
@@ -289,23 +571,19 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">Lucene、ByteBlockPool</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">LockSupport</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">Lucene、StoredField</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">Lucene、termVector、tvd、tvm、倒排索引</a>
+                <a href="javascript:void(0)" class="js-tag color1">Lucene、ByteBlockPool</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">Lucene、词典、tim、tip、doc、pos、fst、倒排索引</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">Lucene、termVector、tvd、tvm、倒排索引</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -317,11 +595,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">Cycler</a>
+                <a href="javascript:void(0)" class="js-tag color4">Lucene、StoredField</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">Cycler</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -345,11 +627,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
+                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
+                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
               </li>
              
               <li class="article-tag-list-item">

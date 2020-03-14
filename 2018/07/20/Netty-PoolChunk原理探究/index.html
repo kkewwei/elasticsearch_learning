@@ -150,7 +150,296 @@
             <canvas data-colors="#eaeaea" data-sectionHeight="100" data-contentId="js-content" id="myCanvas1" class="anm-canvas"></canvas>
           </div>
           <div id="js-content" class="content-ll">
-            
+            <article id="post-Netty-PoolChunk原理探究" class="article article-type-post " itemscope itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 class="article-title" itemprop="name">
+      Netty PoolChunk原理探究
+    </h1>
+  
+
+        
+        <a href="/elasticsearch_learning/2018/07/20/Netty-PoolChunk原理探究/" class="archive-article-date">
+  	<time datetime="2018-07-20T10:48:20.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2018-07-20</time>
+</a>
+        
+         
+      <span class="archive-article-date">
+              阅读量 <span id="busuanzi_value_page_pv"></span>
+      </span>
+      
+      </header>
+    
+
+    <!-- 目录内容 -->
+    
+      <p class="show-toc-btn" id="show-toc-btn" onclick="showToc();" style="display:none">
+        <span class="btn-bg"></span>
+        <span class="btn-text">文章导航</span>
+      </p>
+	    <div id="toc-article" class="toc-article">
+	      <span id="toc-close" class="toc-close" title="隐藏导航" onclick="showBtn();">×</span>
+		      <strong class="toc-title">文章目录</strong>
+        <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#PoolChunk分配内存"><span class="toc-number">1.</span> <span class="toc-text">PoolChunk分配内存</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#分配大于page的内存"><span class="toc-number">1.1.</span> <span class="toc-text">分配大于page的内存</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#分配小于page的内存"><span class="toc-number">1.2.</span> <span class="toc-text">分配小于page的内存</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#释放内存"><span class="toc-number">1.3.</span> <span class="toc-text">释放内存</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#总结"><span class="toc-number">2.</span> <span class="toc-text">总结</span></a></li></ol>
+         </div>
+   <script type="text/javascript">
+	function showToc(){
+		var toc_article = document.getElementById("toc-article");
+		var show_toc_btn = document.getElementById("show-toc-btn");
+		toc_article.setAttribute("style","display:block");
+		show_toc_btn.setAttribute("style","display:none");
+		};
+	function showBtn(){
+		var toc_article = document.getElementById("toc-article");
+		var show_toc_btn = document.getElementById("show-toc-btn");
+		toc_article.setAttribute("style","display:none");
+		show_toc_btn.setAttribute("style","display:block");
+		};
+   </script>
+      
+    <!-- 目录内容结束 -->
+
+    <div class="article-entry" itemprop="articleBody">
+      
+        <p>Netty分配内存(0~16M)与回收主要是在PoolChunk上完成的, 在内存分配时希望是有序的。当没有内存可分配时, 一次申请到16M PoolChunk内存, 用户实际使用时可能一次性不能使用16M, 所以逻辑上将PoolChunk划分成不同的块, 使用平衡二叉树进行管理内存的分配, 构建的二叉树结构如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/PoolChunk1.png" height="400" width="450"><br>该二叉树将PoolChunk分11层, 第一层为1个16M, 第二层为2个8MB,第三层为4个4MB的内存块, 直到第11层为2048个8KB的内存块,  8kb的内存块称之为page。</p>
+<ul>
+<li>如果我们申请16M的内存, 那么将直接在该二叉树第一层申请。</li>
+<li>若申请32K的内存, 那么在该二叉树第8层申请。</li>
+<li>若申请8K的内存, 那么将直接在第11层申请。<br>*实际申请内存大小时, size一定限定为2^x, 参考<a href="https://kkewwei.github.io/elasticsearch_learning/2018/05/23/Netty%E5%86%85%E5%AD%98%E5%AD%A6%E4%B9%A0/">Netty PoolArea原理探究</a><br>接下来介绍PoolChunk的成员属性:<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div></pre></td><td class="code"><pre><div class="line">//该PoolChunk所属的PoolArena, 上层PoolArena控制着在哪块PoolArena上分配</div><div class="line">final PoolArena&lt;T&gt; arena;。</div><div class="line">//对外内存: DirectByteBuffer, 堆内内存 byte[]。</div><div class="line">final T memory;</div><div class="line">// 是内存池还是非内存池方式</div><div class="line">final boolean unpooled;</div><div class="line">private final byte[] memoryMap;  //PoolChunk的物理视图是连续的PoolSubpage,用PoolSubpage保持，而memoryMap是所有PoolSubpage的逻辑映射，映射为一颗平衡二叉数，用来标记每一个PoolSubpage是否被分配。下文会更进一步说明</div><div class="line">private final byte[] depthMap;    //而depthMap中保存的值表示各个id对应的深度，是个固定值，初始化后不再变更。</div><div class="line">//与叶子节点个数相同, 一个叶子节点可以映射PoolSupage中一个元素, 若叶子节点与该元素完成了映射, 说明该叶子节点已经被分配出去了</div><div class="line">private final PoolSubpage&lt;T&gt;[] subpages;</div><div class="line">/** Used to determine if the requested capacity is equal to or greater than pageSize. */</div><div class="line">//用来判断申请的内存是否超过pageSize大小</div><div class="line">private final int subpageOverflowMask;</div><div class="line">//每个PoolSubpage的大小，默认为8192个字节（8K)</div><div class="line">private final int pageSize;</div><div class="line">//pageSize 2的 pageShifts幂</div><div class="line">private final int pageShifts;</div><div class="line">// 平衡二叉树的深度，</div><div class="line">private final int maxOrder;</div><div class="line">//PoolChunk的总内存大小,chunkSize =   (1&lt;&lt;maxOrder) * pageSize。</div><div class="line">private final int chunkSize;</div><div class="line">// PoolChunk由maxSubpageAllocs个PoolSubpage组成, 默认2048个。</div><div class="line">private final int maxSubpageAllocs;</div><div class="line">/** Used to mark memory as unusable */</div><div class="line">//标记为已被分配的值，该值为 maxOrder + 1=12, 当memoryMap[id] = unusable时，则表示id节点已被分配</div><div class="line">private final byte unusable;</div><div class="line"></div><div class="line">//当前PoolChunk剩余可分配内存, 初始为16M。</div><div class="line">private int freeBytes;</div><div class="line"></div><div class="line">//一个PoolChunk分配后，会根据其使用率挂在一个PoolChunkList中(q050, q025...)</div><div class="line">PoolChunkList&lt;T&gt; parent;</div></pre></td></tr></table></figure>
+</li>
+</ul>
+<p>当我们需要分配内存时, 会在二叉树上查找满足大小的节点, 我们需要考虑的一个问题: 若申请了第11层下标为2048节点的8k内存, 下标为1024的父节点怎么才能避免被不被16k的申请所申请到呢?<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/PoolChunk2.png" height="200" width="250"><br>Netty为每一层分配的一个层号, 根据层号可以直接获取该节点剩余最大可分配的内存空间。<br>当第11层下标为2048的节点被分配出去:</p>
+<ol>
+<li>则该节点的层号被修改为12, 表示该节点不可再分配。</li>
+<li>同时id为1024的父节点层号改为11, id为512的节点层号改为10, …, id为1的节点层号改为2.</li>
+</ol>
+<p>当申请16k的内存时, 分配的节点的层号必须等于(11-log(16k/8k)) = 10, id为1024的节点自然被淘汰了。动态记录每个节点层数的成员属性为memoryMap, 记录每个节点深度的成员属性为depthMap, 其中memoryMap值是可以动态改变的, 而depthMap是静态不变的。<br>构造函数中该成员斌量初始过程如下:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div></pre></td><td class="code"><pre><div class="line">memoryMap = new byte[maxSubpageAllocs &lt;&lt; 1];</div><div class="line">depthMap = new byte[memoryMap.length];</div><div class="line">int memoryMapIndex = 1;</div><div class="line">for (int d = 0; d &lt;= maxOrder; ++ d) &#123; // move down the tree one level at a time</div><div class="line">    int depth = 1 &lt;&lt; d;</div><div class="line">    for (int p = 0; p &lt; depth; ++ p) &#123;</div><div class="line">        // in each level traverse left to right and set value to the depth of subtree</div><div class="line">        memoryMap[memoryMapIndex] = (byte) d;</div><div class="line">        depthMap[memoryMapIndex] = (byte) d;</div><div class="line">        memoryMapIndex ++;</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>实际操作中, 针对数据构造二叉树, 实际从memoryMap下标为1的节点开始使用, 数组元素个数为4096。</p>
+<h1 id="PoolChunk分配内存"><a href="#PoolChunk分配内存" class="headerlink" title="PoolChunk分配内存"></a>PoolChunk分配内存</h1><p>在PoolArea.allocateNormal()中调用newChunk产生PoolChunk<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div></pre></td><td class="code"><pre><div class="line">protected PoolChunk&lt;ByteBuffer&gt; newChunk(int pageSize, int maxOrder,</div><div class="line">        int pageShifts, int chunkSize) &#123;</div><div class="line">    //</div><div class="line">    if (directMemoryCacheAlignment == 0) &#123;</div><div class="line">        return new PoolChunk&lt;ByteBuffer&gt;(this,</div><div class="line">                 //allocateDirect(chunkSize)会直接创建直接内存， 用直接内存地址构建的DirectByteBuffer</div><div class="line">                allocateDirect(chunkSize), pageSize, maxOrder,</div><div class="line">                pageShifts, chunkSize, 0);  //pageShifts= log8k = 13</div><div class="line">    &#125;</div><div class="line">    final ByteBuffer memory = allocateDirect(chunkSize</div><div class="line">            + directMemoryCacheAlignment);</div><div class="line">    return new PoolChunk&lt;ByteBuffer&gt;(this, memory, pageSize,</div><div class="line">            maxOrder, pageShifts, chunkSize,</div><div class="line">            offsetCacheLine(memory));</div></pre></td></tr></table></figure></p>
+<p>我们需要关注下如何通过allocateDirect()产生堆外内存的:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div></pre></td><td class="code"><pre><div class="line"> private static ByteBuffer allocateDirect(int capacity) &#123;</div><div class="line">    //如果不是调用cleaner来回收对象，那么将使用DirectByteBuff来回收对象</div><div class="line">    return PlatformDependent.useDirectBufferNoCleaner() ?</div><div class="line">            PlatformDependent.allocateDirectNoCleaner(capacity) : ByteBuffer.allocateDirect(capacity);</div><div class="line">&#125;</div><div class="line">static ByteBuffer allocateDirectNoCleaner(int capacity) &#123;</div><div class="line">return newDirectBuffer(UNSAFE.allocateMemory(capacity), capacity);</div></pre></td></tr></table></figure></p>
+<p>最终是通过直接内存地址的address来产生DirectByteBuffer的, 此时该对象没有cleaner成员变量, 将不能通过cleaner来回收直接内存。<br>接下来看看如何是从PoolChunk中分配内存的:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div></pre></td><td class="code"><pre><div class="line">long allocate(int normCapacity) &#123;</div><div class="line">    if ((normCapacity &amp; subpageOverflowMask) != 0) &#123;</div><div class="line">        return allocateRun(normCapacity);  //// 大于等于pageSize时返回的是可分配normCapacity的节点的id</div><div class="line">    &#125; else &#123;  //分配小于8k</div><div class="line">        return allocateSubpage(normCapacity); //（small）返回是第几个long,long第几位</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<ul>
+<li>返回值handle可以定位出该内存块的处在该PoolChunk中具体的位置信息。</li>
+<li>若申请的内存大于等于page(8k), 进入allocateRun进行申请, 返回值handler就是找到的节点在二叉树中的下标(int长度); 若申请的内存小于8K, 进入allocateSubpage进行申请, 返回长度是个long。</li>
+</ul>
+<h2 id="分配大于page的内存"><a href="#分配大于page的内存" class="headerlink" title="分配大于page的内存"></a>分配大于page的内存</h2><p>我们首先看allocateRun是如何操作的<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div></pre></td><td class="code"><pre><div class="line"> private long allocateRun(int normCapacity) &#123;//64k</div><div class="line">     //算出当前大小的内存需要在那一层完成分配</div><div class="line">    int d = maxOrder - (log2(normCapacity) - pageShifts);</div><div class="line">    int id = allocateNode(d);</div><div class="line">    if (id &lt; 0) &#123;</div><div class="line">        return id;</div><div class="line">    &#125;</div><div class="line">    freeBytes -= runLength(id);</div><div class="line">    return id;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<ol>
+<li>首先计算出在二叉树哪层分配内存, 比如申请32k的内存, 那么d = maxOrder - (log2(normCapacity) - pageShifts) = 11 - (log2(32k) - 13) = 9, 说明只能在该二叉树第9层找到合适的节点。 为啥减13, 因为默认pag为8k, log2(8k)=13。</li>
+<li>开始进入二叉树对应的d层中通过allocateNode查找哪个节点还没有分配出去:<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div></pre></td><td class="code"><pre><div class="line">private int allocateNode(int d) &#123;</div><div class="line">    int id = 1;</div><div class="line">    int initial = - (1 &lt;&lt; d); // has last d bits = 0 and rest all = 1</div><div class="line">    byte val = value(id);</div><div class="line">    //若第一层的深度不够，那么该chunkend不够分配</div><div class="line">    if (val &gt; d) &#123; // unusable</div><div class="line">        return -1;</div><div class="line">    &#125;</div><div class="line">    // id &amp; initial == 1 &lt;&lt; d for all ids at depth d, for &lt; d it is 0</div><div class="line">    while (val &lt; d || (id &amp; initial) == 0) &#123;</div><div class="line">        id &lt;&lt;= 1;</div><div class="line">        val = value(id);</div><div class="line">        if (val &gt; d) &#123;</div><div class="line">            id ^= 1;</div><div class="line">            val = value(id);</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line">    byte value = value(id);</div><div class="line">    assert value == d &amp;&amp; (id &amp; initial) == 1 &lt;&lt; d :</div><div class="line">    String.format(&quot;val = %d, id &amp; initial = %d, d = %d&quot;, value, id &amp; initial, d);</div><div class="line">    setValue(id, unusable); // mark as unusable</div><div class="line">    updateParentsAlloc(id);</div><div class="line">    return id; //返回的是查找到的那个节点的下标</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+</li>
+</ol>
+<p>主要做了如下工作:</p>
+<ol>
+<li>从根节点开始遍历, 首先检查第1层的层号, 若大于申请的层号, 那么该节点不够申请的大小, 直接退出。(<code>若不退出的话, 那就意味该二叉树一定可以找到大小为d层号的节点</code>, 并且在该节点的下标一定&gt;=2^d)</li>
+<li>若当前节点层数<d, 或者当前节点的下标="" <="" 2^d,="" 那么继续下一层左孩子节点查找,="" 直到找到某一个节点的层数="=目前层数d," 则完成查找。若发现该节点剩余大小不够分配,="" 则在兄弟节点继续查找。="" 如下图,="" 当查找层号为11的节点,="" 找到符合下标id="">=x 2^11的节点 &amp;&amp; 层号 == 11的节点 , 只能在下标为2049的那个节点。<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/PoolChunke_allocation_select.png" height="300" width="350"><br>其中 (id &amp; initial) == 0) 等价于id &lt;2^d, 作用: 若当前节点的下标&lt; 2^s, 则会继续在当前节点的孩子节点查找。</d,></li>
+<li>将成功找到的那个节点层号标为不可分配unusable, 意味着已经分配出去了。</li>
+<li>更新该节点的所有祖父父节点层号:<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div></pre></td><td class="code"><pre><div class="line">private void updateParentsAlloc(int id) &#123;</div><div class="line">     while (id &gt; 1) &#123;  //开始更新父类节点的值</div><div class="line">         int parentId = id &gt;&gt;&gt; 1;</div><div class="line">         byte val1 = value(id);</div><div class="line">         byte val2 = value(id ^ 1);  //获取相邻节点的值</div><div class="line">         byte val = val1 &lt; val2 ? val1 : val2;</div><div class="line">         setValue(parentId, val);</div><div class="line">         id = parentId;</div><div class="line">     &#125;</div><div class="line"> &#125;</div></pre></td></tr></table></figure>
+</li>
+</ol>
+<p>父节点的层号选取两个子节点层号最小的那个层号, 表示该父节点能分配的最大内存。</p>
+<h2 id="分配小于page的内存"><a href="#分配小于page的内存" class="headerlink" title="分配小于page的内存"></a>分配小于page的内存</h2><p>我们来看是如何分配小于8k的内存。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div></pre></td><td class="code"><pre><div class="line">private long allocateSubpage(int normCapacity) &#123;</div><div class="line">    // Obtain the head of the PoolSubPage pool that is owned by the PoolArena and synchronize on it.</div><div class="line">    // This is need as we may add it back and so alter the linked-list structure.</div><div class="line">    PoolSubpage&lt;T&gt; head = arena.findSubpagePoolHead(normCapacity);  //// 找到arena中对应阶级的subpage头节点，不存数据的头结点</div><div class="line">    synchronized (head) &#123;</div><div class="line">        int d = maxOrder; // subpages are only be allocated from pages i.e., leaves   subpage只能从叶子节点开始找起</div><div class="line">        int id = allocateNode(d); //只在叶子节点找到一个为8k的节点，肯定可以找到一个节点</div><div class="line">        if (id &lt; 0) &#123;</div><div class="line">            return id;</div><div class="line">        &#125;</div><div class="line"></div><div class="line">        final PoolSubpage&lt;T&gt;[] subpages = this.subpages;</div><div class="line">        final int pageSize = this.pageSize;</div><div class="line"></div><div class="line">        freeBytes -= pageSize;//（就是一个16M的空间）</div><div class="line"></div><div class="line">        int subpageIdx = subpageIdx(id);  //第几个PoolSubpage（叶子节点）</div><div class="line">        PoolSubpage&lt;T&gt; subpage = subpages[subpageIdx];</div><div class="line">        if (subpage == null) &#123;  //说明这个PoolSubpagte还没有分配出去</div><div class="line">            subpage = new PoolSubpage&lt;T&gt;(head, this, id, runOffset(id), pageSize, normCapacity);</div><div class="line">            subpages[subpageIdx] = subpage;</div><div class="line">        &#125; else &#123;</div><div class="line">            subpage.init(head, normCapacity);</div><div class="line">        &#125;</div><div class="line">        return subpage.allocate();</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>主要做了如下事情:</p>
+<ul>
+<li>我们需要知道, 小于8k的内存分配都是在叶子节点里面分配的, 首先先从二叉树中查找层号为11(叶子节点)的可用节点。</li>
+<li>查看该节点是第几个叶子节点: subpageIdx。</li>
+<li>获取该叶子节点对应的PoolSubpage, subpage为null的可能为: PoolSubpage释放时, 并没有从subpages中取出, 该PoolSubpage还存放在subpages的数组里, 可参考<a href="https://kkewwei.github.io/elasticsearch_learning/2018/07/22/Netty-PoolSubpage%E5%8E%9F%E7%90%86%E6%8E%A2%E7%A9%B6/">Netty-PoolSubpage原理探究</a> free()函数, 至于从PoolSubpage中分配内存的过程放在<a href="https://kkewwei.github.io/elasticsearch_learning/2018/07/22/Netty-PoolSubpage%E5%8E%9F%E7%90%86%E6%8E%A2%E7%A9%B6/">Netty-PoolSubpage原理探究</a>中详细描述。</li>
+</ul>
+<h2 id="释放内存"><a href="#释放内存" class="headerlink" title="释放内存"></a>释放内存</h2><p>上面讲的在allocate中申请内存时, 返回的是一个handle , 该释放内存时的参数也是该handle。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div></pre></td><td class="code"><pre><div class="line">void free(long handle) &#123;</div><div class="line">    int memoryMapIdx = memoryMapIdx(handle);</div><div class="line">    int bitmapIdx = bitmapIdx(handle);</div><div class="line"></div><div class="line">    if (bitmapIdx != 0) &#123; // free a subpage</div><div class="line">        PoolSubpage&lt;T&gt; subpage = subpages[subpageIdx(memoryMapIdx)];</div><div class="line">        assert subpage != null &amp;&amp; subpage.doNotDestroy;</div><div class="line"></div><div class="line">        // Obtain the head of the PoolSubPage pool that is owned by the PoolArena and synchronize on it.</div><div class="line">        // This is need as we may add it back and so alter the linked-list structure.</div><div class="line">        PoolSubpage&lt;T&gt; head = arena.findSubpagePoolHead(subpage.elemSize);</div><div class="line">        synchronized (head) &#123;</div><div class="line">            if (subpage.free(head, bitmapIdx &amp; 0x3FFFFFFF)) &#123;</div><div class="line">                return;</div><div class="line">            &#125;</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line">    freeBytes += runLength(memoryMapIdx);</div><div class="line">    setValue(memoryMapIdx, depth(memoryMapIdx));</div><div class="line">    updateParentsFree(memoryMapIdx);</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>做了如下事情:</p>
+<ul>
+<li>首先通过handle获取属于哪个page: memoryMapIdx、属于PoolSubpage里面哪个子内存块:bitmapIdx。<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div></pre></td><td class="code"><pre><div class="line">private static int memoryMapIdx(long handle) &#123; //低32位</div><div class="line">    return (int) handle;</div><div class="line">&#125;</div><div class="line">////高32放着一个PoolSubpage里面哪段的哪个，低32位放着哪个叶子节点</div><div class="line">private static int bitmapIdx(long handle) &#123; //高32位</div><div class="line">    return (int) (handle &gt;&gt;&gt; Integer.SIZE);</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+</li>
+</ul>
+<p>handlee低32位字段即为memoryMapIdx, 高32为字段即为bitmapIdx。</p>
+<ul>
+<li>判是PoolSubpage的子块bitmapIdx不为0, 那么一定是小于8K的内存释放, 请参考<a href="https://kkewwei.github.io/elasticsearch_learning/2018/07/22/Netty-PoolSubpage%E5%8E%9F%E7%90%86%E6%8E%A2%E7%A9%B6/">Netty-PoolSubpage原理探究</a>toHandle函数</li>
+<li>若是PoolSubpage的子块bitmapIdx为0 , 那么一定是大于8K的内存释放, 释放时修改该节点祖辈的层号, 修改该chunk的大小。</li>
+</ul>
+<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>Netty PoolChunk讲完了, 主要理解二叉树的构建, 当分配大于8K的内存时, 怎么从二叉树中查找合适的节点, 怎么释放该二叉树上的节点块就可以了。 若分配小于8K的内存块, 主要是在子节点内部分配, 将放在<a href="https://kkewwei.github.io/elasticsearch_learning/2018/07/22/Netty-PoolSubpage%E5%8E%9F%E7%90%86%E6%8E%A2%E7%A9%B6/">Netty-PoolSubpage原理探究</a>详细探究。</p>
+
+      
+
+      
+        <div class="page-reward">
+          <a href="javascript:;" class="page-reward-btn tooltip-top">
+            <div class="tooltip tooltip-east">
+            <span class="tooltip-item">
+              赏
+            </span>
+            <span class="tooltip-content">
+              <span class="tooltip-text">
+                <span class="tooltip-inner">
+                  <p class="reward-p"><i class="icon icon-quo-left"></i>谢谢阅读<i class="icon icon-quo-right"></i></p>
+                  <div class="reward-box">
+                    
+                    
+                  </div>
+                </span>
+              </span>
+            </span>
+          </div>
+          </a>
+        </div>
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/elasticsearch_learning/categories/Netty//" class="article-tag-list-link color1">Netty</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+
+      
+        
+<div class="share-btn share-icons tooltip-left">
+  <div class="tooltip tooltip-east">
+    <span class="tooltip-item">
+      <a href="javascript:;" class="share-sns share-outer">
+        <i class="icon icon-share"></i>
+      </a>
+    </span>
+    <span class="tooltip-content">
+      <div class="share-wrap">
+        <div class="share-icons">
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="icon icon-weibo"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="icon icon-weixin"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="icon icon-qq"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="icon icon-douban"></i>
+          </a>
+          <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a>
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="icon icon-facebook"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="icon icon-twitter"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="icon icon-google"></i>
+          </a>
+        </div>
+      </div>
+    </span>
+  </div>
+</div>
+
+<div class="page-modal wx-share js-wx-box">
+    <a class="close js-modal-close" href="javascript:;"><i class="icon icon-close"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//pan.baidu.com/share/qrcode?url=https://kkewwei.github.io/elasticsearch_learning/2018/07/20/Netty-PoolChunk原理探究/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div class="mask js-mask"></div>
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+  
+<nav id="article-nav">
+  
+    <a href="/elasticsearch_learning/2018/07/22/Netty-PoolSubpage原理探究/" id="article-nav-newer" class="article-nav-link-wrap">
+      <i class="icon-circle-left"></i>
+      <div class="article-nav-title">
+        
+          Netty-PoolSubpage原理探究
+        
+      </div>
+    </a>
+  
+  
+    <a href="/elasticsearch_learning/2018/07/14/Netty-PoolThreadCache源码探究/" id="article-nav-older" class="article-nav-link-wrap">
+      <div class="article-nav-title">Netty PoolThreadCache原理探究</div>
+      <i class="icon-circle-right"></i>
+    </a>
+  
+</nav>
+
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+        <div class="toc-container tooltip-left">
+            <i class="icon-font icon-category"></i>
+            <div class="tooltip tooltip-east">
+                <span class="tooltip-item">
+                </span>
+                <span class="tooltip-content">
+                    <div class="toc-article">
+                    <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#PoolChunk分配内存"><span class="toc-number">1.</span> <span class="toc-text">PoolChunk分配内存</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#分配大于page的内存"><span class="toc-number">1.1.</span> <span class="toc-text">分配大于page的内存</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#分配小于page的内存"><span class="toc-number">1.2.</span> <span class="toc-text">分配小于page的内存</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#释放内存"><span class="toc-number">1.3.</span> <span class="toc-text">释放内存</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#总结"><span class="toc-number">2.</span> <span class="toc-text">总结</span></a></li></ol>
+                    </div>
+                </span>
+            </div>
+        </div>
+        
+    </div>
+</aside>
+
+
+
+  
+
+  
+
+  
+
+  
+
+  
+  <div id="gitment-ctn"></div>
+<link rel="stylesheet" href="//imsun.github.io/gitment/style/default.css">
+<script src="//www.wenjunjiang.win/js/gitment.js "></script>
+<script>
+var gitment = new Gitment({
+  id: "Netty PoolChunk原理探究",
+  owner: 'kkewwei',
+  repo: 'comments',
+  oauth: {
+    client_id: '9391e497d6b288887f33',
+    client_secret: 'db733731bff4ee2811d9530b1ac4cfc6767e8183',
+  },
+})
+gitment.render('gitment-ctn')
+</script>
+
+  
+
+
           </div>
         </div>
       </div>
@@ -291,23 +580,19 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">Lucene、ByteBlockPool</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">LockSupport</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">Lucene、StoredField</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">Lucene、termVector、tvd、tvm、倒排索引</a>
+                <a href="javascript:void(0)" class="js-tag color1">Lucene、ByteBlockPool</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">Lucene、词典、tim、tip、doc、pos、fst、倒排索引</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">Lucene、termVector、tvd、tvm、倒排索引</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -319,11 +604,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">Cycler</a>
+                <a href="javascript:void(0)" class="js-tag color4">Lucene、StoredField</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">Cycler</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -347,11 +636,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
+                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
+                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
               </li>
              
               <li class="article-tag-list-item">

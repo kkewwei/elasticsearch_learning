@@ -148,7 +148,250 @@
             <canvas data-colors="#eaeaea" data-sectionHeight="100" data-contentId="js-content" id="myCanvas1" class="anm-canvas"></canvas>
           </div>
           <div id="js-content" class="content-ll">
-            
+            <article id="post-Netty-Http通信解码源码阅读" class="article article-type-post " itemscope itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 class="article-title" itemprop="name">
+      Netty Http通信源码一(解码)分析
+    </h1>
+  
+
+        
+        <a href="/elasticsearch_learning/2018/04/16/Netty-Http通信解码源码阅读/" class="archive-article-date">
+  	<time datetime="2018-04-15T16:06:17.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2018-04-16</time>
+</a>
+        
+         
+      <span class="archive-article-date">
+              阅读量 <span id="busuanzi_value_page_pv"></span>
+      </span>
+      
+      </header>
+    
+
+    <!-- 目录内容 -->
+    
+    <!-- 目录内容结束 -->
+
+    <div class="article-entry" itemprop="articleBody">
+      
+        <p>首先给出一个http server pipiLine里面的处理器的组成结构的示例:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div></pre></td><td class="code"><pre><div class="line">@Override</div><div class="line">protected void initChannel(Channel ch) throws Exception &#123;</div><div class="line">    final HttpRequestDecoder decoder = new HttpRequestDecoder(4096, 8192, 8192);</div><div class="line">    decoder.setCumulator(ByteToMessageDecoder.COMPOSITE_CUMULATOR);  //默认是另一个</div><div class="line">    ch.pipeline().addLast(&quot;decoder&quot;, decoder);</div><div class="line">    ch.pipeline().addLast(&quot;encoder&quot;, new HttpResponseEncoder());</div><div class="line">    final HttpObjectAggregator aggregator = new HttpObjectAggregator(Math.toIntExact(transport.maxContentLength.getBytes()));</div><div class="line">    ch.pipeline().addLast(&quot;aggregator&quot;, aggregator);  //包的聚合</div><div class="line">    ch.pipeline().addLast(&quot;encoder_compress&quot;, new HttpContentCompressor(transport.compressionLevel));</div><div class="line">    ch.pipeline().addLast(&quot;pipelining&quot;, new HttpPipeliningHandler(transport.logger, transport.pipeliningMaxEvents));</div><div class="line">    ch.pipeline().addLast(&quot;handler&quot;, requestHandler);</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>其中只有HttpRequestDecoder属于ByteToMessageDecoder类型, 主要作用是从byte中拼接处每一个帧, 其余处理器大部分是根据自定义的语义对这个帧转化, 本文将以示例中的重要的handler为处理器, 以POST请求解析过程为串分析下去。<br>http处理方式是每次将缓冲池放满(默认65536个), 然后将65536个字符按照虚拟的chunk分片(默认一个HttpChunk 8192个字符),通过handler, 最后在HttpObjectAggregator聚合, 然后发向后面。<br>这里有一个问题:<br><code>为什么不将65536个字符一下发送到最终handler, 而需要先分解成虚拟的chunked, 一个一个发送到后面再聚合起来?</code><br>服务器端数据真正接收到客户端网络的数据是在NioSocketChannel里面的NioByteUnsafe(NioSocketChannelUnsafe父类)里面的read()里面。</p>
+<h1 id="HttpObjectDecoder和HttpRequestDecoder"><a href="#HttpObjectDecoder和HttpRequestDecoder" class="headerlink" title="HttpObjectDecoder和HttpRequestDecoder"></a>HttpObjectDecoder和HttpRequestDecoder</h1><p>首先需要知道, Rquest请求由FullHttpRequest构成, 主要分为两部分:</p>
+<ul>
+<li>HttpRequest: 主要存放inital, head等。</li>
+<li>HttpContent: 传输的数据部分<br>HttpRequestDecoder类继承自HttpObjectDecoder, 主要实现了decode函数, 主要负责把数据流解析成<code>HttpRequest</code>,实际就是将<code>ChannelBuffer</code>转变为多个<code>HttpChunk</code>对象。<br>HttpObjectDecoder继承自ByteToMessageDecoder类, 这个类是不是很熟悉, 详见<a href="https://kkewwei.github.io/elasticsearch_learning/2018/03/25/Netty%E9%80%9A%E4%BF%A1%E7%BC%96%E8%A7%A3%E7%A0%81%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB/">Netty通信编解码源码解读</a>。<br>HttpObjectDecoder主要根据当前保存的状态位currentState(不要被定义的状态位吓到, 根据名称就能大致了解其作用)来决定即将完成的动作, 默认初始值为:State.SKIP_CONTROL_CHARS。<br>decode函数实现如下:<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div><div class="line">61</div><div class="line">62</div><div class="line">63</div><div class="line">64</div><div class="line">65</div><div class="line">66</div><div class="line">67</div><div class="line">68</div><div class="line">69</div><div class="line">70</div><div class="line">71</div><div class="line">72</div><div class="line">73</div><div class="line">74</div><div class="line">75</div><div class="line">76</div><div class="line">77</div><div class="line">78</div><div class="line">79</div><div class="line">80</div><div class="line">81</div><div class="line">82</div><div class="line">83</div><div class="line">84</div><div class="line">85</div><div class="line">86</div><div class="line">87</div><div class="line">88</div><div class="line">89</div><div class="line">90</div><div class="line">91</div><div class="line">92</div><div class="line">93</div><div class="line">94</div><div class="line">95</div><div class="line">96</div><div class="line">97</div><div class="line">98</div><div class="line">99</div><div class="line">100</div><div class="line">101</div><div class="line">102</div><div class="line">103</div><div class="line">104</div><div class="line">105</div><div class="line">106</div><div class="line">107</div><div class="line">108</div><div class="line">109</div><div class="line">110</div><div class="line">111</div><div class="line">112</div><div class="line">113</div><div class="line">114</div><div class="line">115</div><div class="line">116</div><div class="line">117</div><div class="line">118</div><div class="line">119</div><div class="line">120</div><div class="line">121</div><div class="line">122</div><div class="line">123</div><div class="line">124</div><div class="line">125</div><div class="line">126</div><div class="line">127</div><div class="line">128</div><div class="line">129</div><div class="line">130</div><div class="line">131</div><div class="line">132</div><div class="line">133</div><div class="line">134</div><div class="line">135</div><div class="line">136</div><div class="line">137</div><div class="line">138</div><div class="line">139</div><div class="line">140</div><div class="line">141</div><div class="line">142</div><div class="line">143</div><div class="line">144</div><div class="line">145</div><div class="line">146</div><div class="line">147</div><div class="line">148</div><div class="line">149</div><div class="line">150</div><div class="line">151</div><div class="line">152</div><div class="line">153</div><div class="line">154</div><div class="line">155</div><div class="line">156</div><div class="line">157</div><div class="line">158</div><div class="line">159</div><div class="line">160</div><div class="line">161</div><div class="line">162</div><div class="line">163</div><div class="line">164</div><div class="line">165</div><div class="line">166</div><div class="line">167</div><div class="line">168</div><div class="line">169</div><div class="line">170</div><div class="line">171</div><div class="line">172</div><div class="line">173</div><div class="line">174</div><div class="line">175</div><div class="line">176</div><div class="line">177</div><div class="line">178</div><div class="line">179</div><div class="line">180</div><div class="line">181</div><div class="line">182</div><div class="line">183</div><div class="line">184</div><div class="line">185</div><div class="line">186</div></pre></td><td class="code"><pre><div class="line">protected void decode(ChannelHandlerContext ctx, ByteBuf buffer, List&lt;Object&gt; out) throws Exception &#123;</div><div class="line">        if (resetRequested) &#123;</div><div class="line">            resetNow();</div><div class="line">        &#125;</div><div class="line"></div><div class="line">        switch (currentState) &#123; //没有break</div><div class="line">        case SKIP_CONTROL_CHARS: &#123; //skip_control_chars</div><div class="line">            if (!skipControlCharacters(buffer)) &#123;</div><div class="line">                return;</div><div class="line">            &#125;</div><div class="line">            currentState = State.READ_INITIAL;   //read_initail</div><div class="line">        &#125;</div><div class="line">        case READ_INITIAL: try &#123;  //read_initial   请求换行符(line)  比如解析出来GET /_cat/indices HTTP/1.1</div><div class="line">            AppendableCharSequence line = lineParser.parse(buffer); //lineParser: LineParser继承自HeaderParser，调用的还是HeaderParser.parse</div><div class="line">            if (line == null) &#123;</div><div class="line">                return;</div><div class="line">            &#125;</div><div class="line">            String[] initialLine = splitInitialLine(line); //&#123;Method, URL, HTTPVersion</div><div class="line">            if (initialLine.length &lt; 3) &#123; //无效的请求， 忽略。</div><div class="line">                // Invalid initial line - ignore.</div><div class="line">                currentState = State.SKIP_CONTROL_CHARS;  //skip_control_chars</div><div class="line">                return;</div><div class="line">            &#125;</div><div class="line">            message = createMessage(initialLine);  //DefaultHttpRequest</div><div class="line">            currentState = State.READ_HEADER;  //read_header</div><div class="line">            // fall-through</div><div class="line">        &#125; catch (Exception e) &#123;</div><div class="line">            out.add(invalidMessage(buffer, e));</div><div class="line">            return;</div><div class="line">        &#125;</div><div class="line">        case READ_HEADER: try &#123;    //read_header</div><div class="line">            State nextState = readHeaders(buffer); //读取完header部分，同时根据header部分修改了nextState的值，告诉了读取content的方式</div><div class="line">            if (nextState == null) &#123;</div><div class="line">                return;</div><div class="line">            &#125;</div><div class="line">            currentState = nextState;</div><div class="line">            switch (nextState) &#123;</div><div class="line">            case SKIP_CONTROL_CHARS:   //skip_control_char</div><div class="line">                out.add(message);</div><div class="line">                out.add(LastHttpContent.EMPTY_LAST_CONTENT);  //empty_last_content</div><div class="line">                resetNow();</div><div class="line">                return;</div><div class="line">            case READ_CHUNK_SIZE: //read_chunk_size</div><div class="line">                if (!chunkedSupported) &#123;</div><div class="line">                    throw new IllegalArgumentException(&quot;Chunked messages not supported&quot;);</div><div class="line">                &#125;</div><div class="line">                // Chunked encoding - generate HttpMessage first.  HttpChunks will follow.</div><div class="line">                out.add(message);</div><div class="line">                return;</div><div class="line">            default:  //或者读取变量类型长度或者定长</div><div class="line">                long contentLength = contentLength();//没有长度相关变量就是-1</div><div class="line">                if (contentLength == 0 || contentLength == -1 &amp;&amp; isDecodingRequest()) &#123;</div><div class="line">                    out.add(message);</div><div class="line">                    out.add(LastHttpContent.EMPTY_LAST_CONTENT);  //enpty_last_content</div><div class="line">                    resetNow();</div><div class="line">                    return;</div><div class="line">                &#125;</div><div class="line">                assert nextState == State.READ_FIXED_LENGTH_CONTENT ||  //read_fixed_length_content</div><div class="line">                        nextState == State.READ_VARIABLE_LENGTH_CONTENT; //read_variable_length_content</div><div class="line">                out.add(message); //目前message=DefaultHttpRequest, 放进去了line和header部分</div><div class="line">                if (nextState == State.READ_FIXED_LENGTH_CONTENT) &#123;  //read_fixed_lengt_content</div><div class="line">                    // chunkSize will be decreased as the READ_FIXED_LENGTH_CONTENT state reads data chunk by chunk.</div><div class="line">                    chunkSize = contentLength; // 注意这两个直接赋值一样</div><div class="line">                &#125;</div><div class="line">                // We return here, this forces decode to be called again where we will decode the content</div><div class="line">                return;</div><div class="line">            &#125;</div><div class="line">        &#125; catch (Exception e) &#123;</div><div class="line">            out.add(invalidMessage(buffer, e));</div><div class="line">            return;</div><div class="line">        &#125;</div><div class="line">        case READ_VARIABLE_LENGTH_CONTENT: &#123;  //read_variable_length_content</div><div class="line">            // Keep reading data as a chunk until the end of connection is reached.</div><div class="line">            int toRead = Math.min(buffer.readableBytes(), maxChunkSize);</div><div class="line">            if (toRead &gt; 0) &#123;</div><div class="line">                ByteBuf content = buffer.readRetainedSlice(toRead);</div><div class="line">                out.add(new DefaultHttpContent(content));</div><div class="line">            &#125;</div><div class="line">            return;</div><div class="line">        &#125;</div><div class="line">        case READ_FIXED_LENGTH_CONTENT: &#123;  //read_fixed_length_content</div><div class="line">            int readLimit = buffer.readableBytes();</div><div class="line">            // Check if the buffer is readable first as we use the readable byte count</div><div class="line">            // to create the HttpChunk. This is needed as otherwise we may end up with</div><div class="line">            // create a HttpChunk instance that contains an empty buffer and so is</div><div class="line">            // handled like it is the last HttpChunk.</div><div class="line">            //</div><div class="line">            // See https://github.com/netty/netty/issues/433</div><div class="line">            if (readLimit == 0) &#123;</div><div class="line">                return;</div><div class="line">            &#125;</div><div class="line">            int toRead = Math.min(readLimit, maxChunkSize);</div><div class="line">            if (toRead &gt; chunkSize) &#123;</div><div class="line">                toRead = (int) chunkSize;</div><div class="line">            &#125;</div><div class="line">            ByteBuf content = buffer.readRetainedSlice(toRead);  //buffer = PooledUnsafeDirectByteBuf, 实际会跑到AbstractByteBuf.readRetainedSlice()里面</div><div class="line">            chunkSize -= toRead; //content = PooledSlicedByteBuf</div><div class="line">            if (chunkSize == 0) &#123;  //要是定长的话，就直接content就是DefaultLastHttpContent，</div><div class="line">                // Read all content.</div><div class="line">                out.add(new DefaultLastHttpContent(content, validateHeaders));</div><div class="line">                resetNow(); //解析完了就该返回了</div><div class="line">            &#125; else &#123;</div><div class="line">                out.add(new DefaultHttpContent(content));</div><div class="line">            &#125;</div><div class="line">            return;</div><div class="line">        &#125;</div><div class="line">        /**</div><div class="line">         * everything else after this point takes care of reading chunked content. basically, read chunk size,</div><div class="line">         * read chunk, read and ignore the CRLF and repeat until 0</div><div class="line">         */</div><div class="line">        case READ_CHUNK_SIZE: try &#123;//read_chunk_size</div><div class="line">            AppendableCharSequence line = lineParser.parse(buffer);</div><div class="line">            if (line == null) &#123;</div><div class="line">                return;</div><div class="line">            &#125;</div><div class="line">            int chunkSize = getChunkSize(line.toString());</div><div class="line">            this.chunkSize = chunkSize;</div><div class="line">            if (chunkSize == 0) &#123;</div><div class="line">                currentState = State.READ_CHUNK_FOOTER;//read_chunk_footer</div><div class="line">                return;</div><div class="line">            &#125;</div><div class="line">            currentState = State.READ_CHUNKED_CONTENT;//read_chunked_content</div><div class="line">            // fall-through</div><div class="line">        &#125; catch (Exception e) &#123;</div><div class="line">            out.add(invalidChunk(buffer, e));</div><div class="line">            return;</div><div class="line">        &#125;</div><div class="line">        case READ_CHUNKED_CONTENT: &#123; //read_chunked_content</div><div class="line">            assert chunkSize &lt;= Integer.MAX_VALUE;</div><div class="line">            int toRead = Math.min((int) chunkSize, maxChunkSize);</div><div class="line">            toRead = Math.min(toRead, buffer.readableBytes());</div><div class="line">            if (toRead == 0) &#123;</div><div class="line">                return;</div><div class="line">            &#125;</div><div class="line">            HttpContent chunk = new DefaultHttpContent(buffer.readRetainedSlice(toRead));</div><div class="line">            chunkSize -= toRead;</div><div class="line">            out.add(chunk);</div><div class="line">            if (chunkSize != 0) &#123;</div><div class="line">                return;</div><div class="line">            &#125;</div><div class="line">            currentState = State.READ_CHUNK_DELIMITER;//read_chunked_delimiter</div><div class="line">            // fall-through</div><div class="line">        &#125;</div><div class="line">        case READ_CHUNK_DELIMITER: &#123;//read_chunked_delimiter</div><div class="line">            final int wIdx = buffer.writerIndex();</div><div class="line">            int rIdx = buffer.readerIndex();</div><div class="line">            while (wIdx &gt; rIdx) &#123;</div><div class="line">                byte next = buffer.getByte(rIdx++);</div><div class="line">                if (next == HttpConstants.LF) &#123;</div><div class="line">                    currentState = State.READ_CHUNK_SIZE;//read_chunked_size</div><div class="line">                    break;</div><div class="line">                &#125;</div><div class="line">            &#125;</div><div class="line">            buffer.readerIndex(rIdx);</div><div class="line">            return;</div><div class="line">        &#125;</div><div class="line">        case READ_CHUNK_FOOTER: try &#123;//read_chunked_foooter</div><div class="line">            LastHttpContent trailer = readTrailingHeaders(buffer);</div><div class="line">            if (trailer == null) &#123;</div><div class="line">                return;</div><div class="line">            &#125;</div><div class="line">            out.add(trailer);</div><div class="line">            resetNow();</div><div class="line">            return;</div><div class="line">        &#125; catch (Exception e) &#123;</div><div class="line">            out.add(invalidChunk(buffer, e));</div><div class="line">            return;</div><div class="line">        &#125;</div><div class="line">        case BAD_MESSAGE: &#123;  //bad_message</div><div class="line">            // Keep discarding until disconnection.</div><div class="line">            buffer.skipBytes(buffer.readableBytes());</div><div class="line">            break;</div><div class="line">        &#125;</div><div class="line">        case UPGRADED: &#123;//upgraded</div><div class="line">            int readableBytes = buffer.readableBytes();</div><div class="line">            if (readableBytes &gt; 0) &#123;</div><div class="line">                // Keep on consuming as otherwise we may trigger an DecoderException,</div><div class="line">                // other handler will replace this codec with the upgraded protocol codec to</div><div class="line">                // take the traffic over at some point then.</div><div class="line">                // See https://github.com/netty/netty/issues/2173</div><div class="line">                out.add(buffer.readBytes(readableBytes));</div><div class="line">            &#125;</div><div class="line">            break;</div><div class="line">        &#125;</div><div class="line">        &#125;</div><div class="line">    &#125;</div></pre></td></tr></table></figure>
+</li>
+</ul>
+<p>注意这里的case并没有break, decode主要做了如下逻辑:<br>1)  首先检查byte, 要跳过最开始的控制符或者空格, 部分控制符就是ascii编码为31之前的字符。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div></pre></td><td class="code"><pre><div class="line">private static boolean skipControlCharacters(ByteBuf buffer) &#123;</div><div class="line">        boolean skiped = false;</div><div class="line">        final int wIdx = buffer.writerIndex();</div><div class="line">        int rIdx = buffer.readerIndex();</div><div class="line">        while (wIdx &gt; rIdx) &#123;</div><div class="line">            int c = buffer.getUnsignedByte(rIdx++);</div><div class="line">            if (!Character.isISOControl(c) &amp;&amp; !Character.isWhitespace(c)) &#123;//0～31及127(共33个)是控制字符或通信专用字符（其余为可显示字符），如控制符：LF（换行）、CR（回车）、FF（换页）、DEL（删除）、BS（退格)、BEL（响铃）等</div><div class="line">                rIdx--;</div><div class="line">                skiped = true;</div><div class="line">                break;</div><div class="line">            &#125;</div><div class="line">        &#125;</div><div class="line">        buffer.readerIndex(rIdx);</div><div class="line">        return skiped;</div><div class="line">    &#125;</div></pre></td></tr></table></figure></p>
+<p>首先读取当前字母, 若发现符合要求, 再复位当前读指针。 并将动作设置为READ_INITIAL, 表示接下来将要读取initial部分。<br>2) 读取INITIAL部分<br>从当前节点开始读取字符,直到读取分割符号为HttpConstants.LF(换行符), 该部分将解析出如下信息:<code>GET /_cat/indices HTTP/1.1</code>, 创建对象:DefaultHttpRequest, 其中<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line">httpVersion: HTTP/1.1</div><div class="line">method: GET</div><div class="line">uri: /_cat/indices</div></pre></td></tr></table></figure></p>
+<p>这个DefaultHttpRequest在HttpObjectDecoder中生成, 作为最终的这个请求的头部分。然后将状态位置为READ_HEADER, 表示即将读取header部分。<br>3) 读取Headers部分<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div></pre></td><td class="code"><pre><div class="line">private State readHeaders(ByteBuf buffer) &#123;</div><div class="line">        final HttpMessage message = this.message;  //DefaultHttpRequest</div><div class="line">        final HttpHeaders headers = message.headers();  //headers = DefaultHttpHeaders</div><div class="line">        AppendableCharSequence line = headerParser.parse(buffer);//不停地解析header， 下面是个do()while&#123;&#125;为循环</div><div class="line">        if (line == null) &#123;</div><div class="line">            return null;</div><div class="line">        &#125;</div><div class="line">        if (line.length() &gt; 0) &#123;</div><div class="line">            do &#123; //这是个while循环，以换行符来进行分割</div><div class="line">                char firstChar = line.charAt(0);</div><div class="line">                if (name != null &amp;&amp; (firstChar == &apos; &apos; || firstChar == &apos;\t&apos;)) &#123;</div><div class="line">                    String trimmedLine = line.toString().trim();</div><div class="line">                    String valueStr = String.valueOf(value);</div><div class="line">                    value = valueStr + &apos; &apos; + trimmedLine;</div><div class="line">                &#125; else &#123;</div><div class="line">                    if (name != null) &#123;</div><div class="line">                        headers.add(name, value);</div><div class="line">                    &#125;</div><div class="line">                    splitHeader(line);</div><div class="line">                &#125;</div><div class="line">                line = headerParser.parse(buffer);   //</div><div class="line">                if (line == null) &#123;</div><div class="line">                    return null;</div><div class="line">                &#125;</div><div class="line">            &#125; while (line.length() &gt; 0);</div><div class="line">        &#125;</div><div class="line"></div><div class="line">        // Add the last header.</div><div class="line">        if (name != null) &#123;   //解析出最后一个header</div><div class="line">            headers.add(name, value);</div><div class="line">        &#125;</div><div class="line">        // reset name and value fields</div><div class="line">        name = null;</div><div class="line">        value = null;</div><div class="line"></div><div class="line">        State nextState;</div><div class="line"></div><div class="line">        if (isContentAlwaysEmpty(message)) &#123;  //header是否为空</div><div class="line">            HttpUtil.setTransferEncodingChunked(message, false);</div><div class="line">            nextState = State.SKIP_CONTROL_CHARS;  // 哪里有问题，又是重头开始</div><div class="line">        &#125; else if (HttpUtil.isTransferEncodingChunked(message)) &#123; // 是否包含 transfer-encoding: chunked</div><div class="line">            nextState = State.READ_CHUNK_SIZE;</div><div class="line">        &#125; else if (contentLength() &gt;= 0) &#123;   //Content-Length: 80</div><div class="line">            nextState = State.READ_FIXED_LENGTH_CONTENT;  //下一个读取Content值</div><div class="line">        &#125; else &#123; //没有Content-Length和chunked相关的，就是读取变量类型长度</div><div class="line">            nextState = State.READ_VARIABLE_LENGTH_CONTENT;</div><div class="line">        &#125;</div><div class="line">        return nextState;</div><div class="line">        &#125;</div></pre></td></tr></table></figure></p>
+<p>主要做的事:</p>
+<ul>
+<li>读取header部分和读取inital部分一样, 也是根据HttpConstants.LF(换行符)循环读取每一行, 并且解读出key-value出来, 获取到所有的header内容, 同时也放入DefaultHttpRequest中, header内容示例如下:<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div></pre></td><td class="code"><pre><div class="line">&quot;Accept&quot; -&gt; &quot;*/*&quot;</div><div class="line">&quot;User-Agent&quot; -&gt; &quot;curl/7/43/0&quot;</div><div class="line">&quot;Host&quot; -&gt; &quot;127.0.0.1:9200&quot;</div><div class="line">&quot;Content-Length&quot; -&gt; &quot;66735&quot;</div><div class="line">&quot;Content-Encoding&quot; -&gt; &quot;gzip&quot;</div><div class="line">&quot;Content-Type&quot; -&gt; &quot;application/x-www-form-urlencoded&quot;</div><div class="line">&quot;Expect&quot; -&gt; &quot;100-continue&quot;</div><div class="line">&quot;null&quot; -&gt; &quot;null&quot;</div></pre></td></tr></table></figure>
+</li>
+</ul>
+<p>我们需要了解一个参数:Expect: 100-continue</p>
+<blockquote>
+<p><a href="https://blog.csdn.net/MitKey/article/details/52042537" target="_blank" rel="external">参考</a>100-continue 是用于客户端在发送 post 数据给服务器时，征询服务器情况，看服务器是否处理 post 的数据，如果不处理，客户端则不上传 post 是数据，反之则上传。在实际应用中，通过 post 上传大数据时，才会使用到 100-continue 协议。</p><p>客户端策略:<br>如果客户端有 post 数据要上传，可以考虑使用 100-continue 协议。在请求头中加入 {“Expect”:”100-continue”}<br>如果没有 post 数据，不能使用 100-continue 协议，因为这会让服务端造成误解。<br>并不是所有的 Server 都会正确实现 100-continue 协议，如果 Client 发送 Expect:100-continue 消息后，在 timeout 时间内无响应，Client 需要立马上传 post 数据。<br>有些 Server 会错误实现 100-continue 协议，在不需要此协议时返回 100，此时客户端应该忽略。</p><p>服务端策略:<br>正确情况下，收到请求后，返回 100 或错误码。<br>如果在发送 100-continue 前收到了 post 数据（客户端提前发送 post 数据），则不发送 100 响应码(略去)。</p>
+</blockquote>
+<p>这个参数也不是必须有的, 当content部分长度超过, 客户端才会向服务器端发送这个参数。 在terminal下面通过curl发送包含数据请求, 当数据部分长度&gt;=1025时, 客户端发送的header里面才会有这个参数。</p>
+<ul>
+<li>如上因为header中包含Content-Length, 说明接下来需要读取定长为66735的一个帧。<br>这里会设置状态为READ_FIXED_LENGTH_CONTENT<br>4)  读取内容<br>因为header读取完成之后, 将nextState设置成了READ_FIXED_LENGTH_CONTENT, 那么会连续接收并读取chunkSize长度的byte。这里有个设置, 我们设置了maxChunkSize, 意味着每次读取的chunked的长度必须<math.min(readablelength, maxchunksize),="" 每读取maxchunksize长度的值就向后传递,="" 同时修改chunksize的值。读取第二个chunked的动作在messagetomessagedecoder中发出(该content的readablebytes="">0)。<br>这里对于maxChunkSize的限制不甚理解, 既然已经读取到readableLength长度的值, 为啥还需要再次分割每个chunked为maxChunkSize。<h1 id="HttpObjectAggregator和-MessageAggregator"><a href="#HttpObjectAggregator和-MessageAggregator" class="headerlink" title="HttpObjectAggregator和 MessageAggregator"></a>HttpObjectAggregator和 MessageAggregator</h1>HttpObjectAggregator主要是将HttpRequest和HttpContent合并成FullHttpRequest, 继承自MessageAggregator。<br>MessageAggregator实现了decode()函数, 继承了MessageToMessageDecoder(很熟悉), 主要实现如下:<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div><div class="line">61</div><div class="line">62</div><div class="line">63</div><div class="line">64</div><div class="line">65</div><div class="line">66</div><div class="line">67</div><div class="line">68</div><div class="line">69</div><div class="line">70</div><div class="line">71</div><div class="line">72</div><div class="line">73</div><div class="line">74</div><div class="line">75</div><div class="line">76</div><div class="line">77</div><div class="line">78</div><div class="line">79</div><div class="line">80</div><div class="line">81</div><div class="line">82</div><div class="line">83</div><div class="line">84</div><div class="line">85</div><div class="line">86</div><div class="line">87</div><div class="line">88</div><div class="line">89</div><div class="line">90</div><div class="line">91</div><div class="line">92</div><div class="line">93</div><div class="line">94</div><div class="line">95</div><div class="line">96</div><div class="line">97</div><div class="line">98</div><div class="line">99</div><div class="line">100</div><div class="line">101</div><div class="line">102</div><div class="line">103</div><div class="line">104</div><div class="line">105</div><div class="line">106</div><div class="line">107</div><div class="line">108</div><div class="line">109</div><div class="line">110</div><div class="line">111</div><div class="line">112</div><div class="line">113</div><div class="line">114</div><div class="line">115</div><div class="line">116</div></pre></td><td class="code"><pre><div class="line">protected void decode(final ChannelHandlerContext ctx, I msg, List&lt;Object&gt; out) throws Exception &#123;</div><div class="line">    if (isStartMessage(msg)) &#123;//会跑到HttpObjectAggregator里面，只要是HttpMessage类型就行</div><div class="line">        handlingOversizedMessage = false;</div><div class="line">        if (currentMessage != null) &#123;</div><div class="line">            currentMessage.release();</div><div class="line">            currentMessage = null;</div><div class="line">            throw new MessageAggregationException();</div><div class="line">        &#125;</div><div class="line">        @SuppressWarnings(&quot;unchecked&quot;)</div><div class="line">        S m = (S) msg; //DefaultHttpRequest</div><div class="line">        // Send the continue response if necessary (e.g. &apos;Expect: 100-continue&apos; header)</div><div class="line">        // Check before content length. Failing an expectation may result in a different response being sent.</div><div class="line">        Object continueResponse = newContinueResponse(m, maxContentLength, ctx.pipeline());//跑到HttpObjectAggregator里面，第一次返回DefaultFullHttpResponse</div><div class="line">        if (continueResponse != null) &#123; //向客户端返回100-continue, 告诉客户端可以发送content了</div><div class="line">            // Cache the write listener for reuse.</div><div class="line">            ChannelFutureListener listener = continueResponseWriteListener;</div><div class="line">            if (listener == null) &#123;</div><div class="line">                continueResponseWriteListener = listener = new ChannelFutureListener() &#123;</div><div class="line">                    @Override</div><div class="line">                    public void operationComplete(ChannelFuture future) throws Exception &#123;</div><div class="line">                        if (!future.isSuccess()) &#123;</div><div class="line">                            ctx.fireExceptionCaught(future.cause());</div><div class="line">                        &#125;</div><div class="line">                    &#125;</div><div class="line">                &#125;;</div><div class="line">            &#125;</div><div class="line">            // Make sure to call this before writing, otherwise reference counts may be invalid.</div><div class="line">            boolean closeAfterWrite = closeAfterContinueResponse(continueResponse);</div><div class="line">            handlingOversizedMessage = ignoreContentAfterContinueResponse(continueResponse);</div><div class="line"></div><div class="line">            final ChannelFuture future = ctx.writeAndFlush(continueResponse).addListener(listener);</div><div class="line"></div><div class="line">            if (closeAfterWrite) &#123;</div><div class="line">                future.addListener(ChannelFutureListener.CLOSE);</div><div class="line">                return;</div><div class="line">            &#125;</div><div class="line">            if (handlingOversizedMessage) &#123;</div><div class="line">                return;</div><div class="line">            &#125;</div><div class="line">        &#125; else if (isContentLengthInvalid(m, maxContentLength)) &#123; //检查length是否有效，</div><div class="line">            // if content length is set, preemptively close if it&apos;s too large</div><div class="line">            invokeHandleOversizedMessage(ctx, m);</div><div class="line">            return;</div><div class="line">        &#125;</div><div class="line"></div><div class="line">        if (m instanceof DecoderResultProvider &amp;&amp; !((DecoderResultProvider) m).decoderResult().isSuccess()) &#123;</div><div class="line">            O aggregated;</div><div class="line">            if (m instanceof ByteBufHolder &amp;&amp; ((ByteBufHolder) m).content().isReadable()) &#123;</div><div class="line">                aggregated = beginAggregation(m, ((ByteBufHolder) m).content().retain());</div><div class="line">            &#125; else &#123;</div><div class="line">                aggregated = beginAggregation(m, EMPTY_BUFFER);</div><div class="line">            &#125;</div><div class="line">            finishAggregation(aggregated);</div><div class="line">            out.add(aggregated);</div><div class="line">            return;</div><div class="line">        &#125;</div><div class="line">         //同时生成好Compent</div><div class="line">        // A streamed message - initialize the cumulative buffer, and wait for incoming chunks.</div><div class="line">        CompositeByteBuf content = ctx.alloc().compositeBuffer(maxCumulationBufferComponents);//只有start类型数值才能生成CompositeByteBuf，后面内容部分只管向里面添加即可</div><div class="line">        if (m instanceof ByteBufHolder) &#123;</div><div class="line">            appendPartialContent(content, ((ByteBufHolder) m).content());</div><div class="line">        &#125;</div><div class="line">        currentMessage = beginAggregation(m, content); //currentMessage = AggregatedFullHttpRequest</div><div class="line">    &#125; else if (isContentMessage(msg)) &#123; //解析内容部分</div><div class="line">        if (currentMessage == null) &#123;</div><div class="line">            // it is possible that a TooLongFrameException was already thrown but we can still discard data</div><div class="line">            // until the begging of the next request/response.</div><div class="line">            return;</div><div class="line">        &#125;</div><div class="line"></div><div class="line">        // Merge the received chunk into the content of the current message.</div><div class="line">        CompositeByteBuf content = (CompositeByteBuf) currentMessage.content();</div><div class="line"></div><div class="line">        @SuppressWarnings(&quot;unchecked&quot;)</div><div class="line">        final C m = (C) msg; //可能是DefaultLastHttpContent</div><div class="line">        // Handle oversized message.</div><div class="line">        if (content.readableBytes() &gt; maxContentLength - m.content().readableBytes()) &#123;</div><div class="line">            // By convention, full message type extends first message type.</div><div class="line">            @SuppressWarnings(&quot;unchecked&quot;)</div><div class="line">            S s = (S) currentMessage;</div><div class="line">            invokeHandleOversizedMessage(ctx, s);</div><div class="line">            return;</div><div class="line">        &#125;</div><div class="line">        // Append the content of the chunk.</div><div class="line">        appendPartialContent(content, m.content()); //把产生的数据添加到末尾</div><div class="line">        //</div><div class="line">        // Give the subtypes a chance to merge additional information such as trailing headers.</div><div class="line">        aggregate(currentMessage, m);  //HttpObjectAggregator.aggregate()    currentMessage=AggregatedFullHttpRequest</div><div class="line"></div><div class="line">        final boolean last;</div><div class="line">        if (m instanceof DecoderResultProvider) &#123;</div><div class="line">            DecoderResult decoderResult = ((DecoderResultProvider) m).decoderResult();</div><div class="line">            if (!decoderResult.isSuccess()) &#123;</div><div class="line">                if (currentMessage instanceof DecoderResultProvider) &#123;</div><div class="line">                    ((DecoderResultProvider) currentMessage).setDecoderResult(</div><div class="line">                            DecoderResult.failure(decoderResult.cause()));</div><div class="line">                &#125;</div><div class="line">                last = true;</div><div class="line">            &#125; else &#123;</div><div class="line">                last = isLastContentMessage(m);</div><div class="line">            &#125;</div><div class="line">        &#125; else &#123;</div><div class="line">            last = isLastContentMessage(m);</div><div class="line">        &#125;</div><div class="line"></div><div class="line">        if (last) &#123;  //如果Content是最后一个，那么就开始组合了，向out添加结果后就可以继续发送，否则就直接退出了，</div><div class="line">            finishAggregation(currentMessage);</div><div class="line"></div><div class="line">            // All done</div><div class="line">            out.add(currentMessage); //把结果放进来意味着继续向下一个处理器发送，否则就直接接收下一个chunked。</div><div class="line">            currentMessage = null;</div><div class="line">        &#125;</div><div class="line">    &#125; else &#123;</div><div class="line">        throw new MessageAggregationException();</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+</math.min(readablelength,></li>
+</ul>
+<p>decode函数主要检查该解析请求是否是HttpRequest或者HttpContent, 否则直接返回异常。<br>1) 若请求是HttpRequest<br>说明该部分是request最开始的那一部分。</p>
+<ul>
+<li>首先检查是否请求中是否包含Expect: 100-continue(在newContinueResponse中检查): 若包含有, 服务器需要向客户端发送可以发送content的response, response中content为空; 反之, 说明不用向客户端发送continue的回复。</li>
+<li>生成CompositeByteBuf, 准备存放即将到来的HttpChunk; 生成AggregatedFullHttpRequest, 将CompositeByteBuf和DefaultHttpRequest包含其中。<br>需要简单介绍下CompositeByteBuf, 通过名字也可以看出, 他是一个复合型的ByteBuf, 它并不是真实的, 它主要由属性<code>List&lt;Component&gt; components</code>构成, 每新来一个ByteBuf, 都会添加到components中。 CompositeByteBuf也有自己的writerIndex和readIndex, 表示整个CompositeByteBuf最大可读和最大可写偏移量。</li>
+</ul>
+<p>2) 若请求是HttpContent部分</p>
+<ul>
+<li>将content添加进CompositeByteBuf中<br>通过appendPartialContent()添加, conponent添加进CompositeByteBuf的过程如下:<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div></pre></td><td class="code"><pre><div class="line"> private int addComponent0(boolean increaseWriterIndex, int cIndex, ByteBuf buffer) &#123;</div><div class="line">        .....</div><div class="line">        if (cIndex == components.size()) &#123;</div><div class="line">            wasAdded = components.add(c);</div><div class="line">            if (cIndex == 0) &#123;</div><div class="line">                c.endOffset = readableBytes;</div><div class="line">            &#125; else &#123;</div><div class="line">                Component prev = components.get(cIndex - 1);</div><div class="line">                c.offset = prev.endOffset;</div><div class="line">                c.endOffset = c.offset + readableBytes;</div><div class="line">            &#125;</div><div class="line">        &#125;</div><div class="line">        .....</div><div class="line">        if (increaseWriterIndex) &#123;</div><div class="line">            writerIndex(writerIndex() + buffer.readableBytes());</div><div class="line">        &#125;</div><div class="line">        return cIndex;</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+</li>
+</ul>
+<p>每个Component结构如下:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line">ByteBuf buf;  //该Component实际存储</div><div class="line">final int length;</div><div class="line">int offset; 标记该Component占CompositeByte所有Component byte的起始偏移位置。</div><div class="line">int endOffset;  //标记该Component占CompositeByte所有Component byte的最终偏移位置。</div></pre></td></tr></table></figure></p>
+<p>在添加的时候, curr.offset = pre.endOffset,curr.endOffset = pre.offset+ readLength, 这样每个Component offset和endOffset指针首位相连。</p>
+<ul>
+<li>等待所有的content发送过来</li>
+</ul>
+<ol>
+<li>轮训等待所有的部分content发送过来, 封装成Component放进CompositeByte中。</li>
+<li>直到检测到content为最后一个content(类型为LastHttpContent), 则将CompositeByte放入out中继续向里面传递。</li>
+</ol>
+<p>至此,一个完整地AggregatedFullHttpRequest已经解析出来了,组成如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/DefaultLastHttpContent.png"></p>
+<h1 id="附"><a href="#附" class="headerlink" title="附"></a>附</h1><p>如何将Composite转换为一个连续的堆内buf呢?<br>通过Unpooled.copiedBuffer(request.content())方法即可。</p>
+
+      
+
+      
+        <div class="page-reward">
+          <a href="javascript:;" class="page-reward-btn tooltip-top">
+            <div class="tooltip tooltip-east">
+            <span class="tooltip-item">
+              赏
+            </span>
+            <span class="tooltip-content">
+              <span class="tooltip-text">
+                <span class="tooltip-inner">
+                  <p class="reward-p"><i class="icon icon-quo-left"></i>谢谢阅读<i class="icon icon-quo-right"></i></p>
+                  <div class="reward-box">
+                    
+                    
+                  </div>
+                </span>
+              </span>
+            </span>
+          </div>
+          </a>
+        </div>
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/elasticsearch_learning/categories/Netty//" class="article-tag-list-link color1">Netty</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+
+      
+        
+<div class="share-btn share-icons tooltip-left">
+  <div class="tooltip tooltip-east">
+    <span class="tooltip-item">
+      <a href="javascript:;" class="share-sns share-outer">
+        <i class="icon icon-share"></i>
+      </a>
+    </span>
+    <span class="tooltip-content">
+      <div class="share-wrap">
+        <div class="share-icons">
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="icon icon-weibo"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="icon icon-weixin"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="icon icon-qq"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="icon icon-douban"></i>
+          </a>
+          <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a>
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="icon icon-facebook"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="icon icon-twitter"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="icon icon-google"></i>
+          </a>
+        </div>
+      </div>
+    </span>
+  </div>
+</div>
+
+<div class="page-modal wx-share js-wx-box">
+    <a class="close js-modal-close" href="javascript:;"><i class="icon icon-close"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//pan.baidu.com/share/qrcode?url=https://kkewwei.github.io/elasticsearch_learning/2018/04/16/Netty-Http通信解码源码阅读/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div class="mask js-mask"></div>
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+  
+<nav id="article-nav">
+  
+    <a href="/elasticsearch_learning/2018/05/04/Netty-Http通信编码源码阅读/" id="article-nav-newer" class="article-nav-link-wrap">
+      <i class="icon-circle-left"></i>
+      <div class="article-nav-title">
+        
+          Netty Http通信源码二(编码)分析
+        
+      </div>
+    </a>
+  
+  
+    <a href="/elasticsearch_learning/2018/04/01/TCP三次握手及四次分手抓包分析/" id="article-nav-older" class="article-nav-link-wrap">
+      <div class="article-nav-title">TCP三次握手及四次分手抓包分析</div>
+      <i class="icon-circle-right"></i>
+    </a>
+  
+</nav>
+
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+  
+
+  
+
+  
+
+  
+
+  
+  <div id="gitment-ctn"></div>
+<link rel="stylesheet" href="//imsun.github.io/gitment/style/default.css">
+<script src="//www.wenjunjiang.win/js/gitment.js "></script>
+<script>
+var gitment = new Gitment({
+  id: "Netty Http通信源码一(解码)分析",
+  owner: 'kkewwei',
+  repo: 'comments',
+  oauth: {
+    client_id: '9391e497d6b288887f33',
+    client_secret: 'db733731bff4ee2811d9530b1ac4cfc6767e8183',
+  },
+})
+gitment.render('gitment-ctn')
+</script>
+
+  
+
+
           </div>
         </div>
       </div>
@@ -289,23 +532,19 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">Lucene、ByteBlockPool</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">LockSupport</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">Lucene、StoredField</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">Lucene、termVector、tvd、tvm、倒排索引</a>
+                <a href="javascript:void(0)" class="js-tag color1">Lucene、ByteBlockPool</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">Lucene、词典、tim、tip、doc、pos、fst、倒排索引</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">Lucene、termVector、tvd、tvm、倒排索引</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -317,11 +556,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">Cycler</a>
+                <a href="javascript:void(0)" class="js-tag color4">Lucene、StoredField</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">Cycler</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -345,11 +588,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
+                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
+                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
               </li>
              
               <li class="article-tag-list-item">

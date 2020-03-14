@@ -146,7 +146,289 @@
             <canvas data-colors="#eaeaea" data-sectionHeight="100" data-contentId="js-content" id="myCanvas1" class="anm-canvas"></canvas>
           </div>
           <div id="js-content" class="content-ll">
-            
+            <article id="post-ES原理-下线节点时分片并发rebalance的思考" class="article article-type-post " itemscope itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 class="article-title" itemprop="name">
+      ES原理-下线节点时分片并发rebalance的思考
+    </h1>
+  
+
+        
+        <a href="/elasticsearch_learning/2019/06/16/ES原理-下线节点时分片并发rebalance的思考/" class="archive-article-date">
+  	<time datetime="2019-06-16T14:29:49.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2019-06-16</time>
+</a>
+        
+         
+      <span class="archive-article-date">
+              阅读量 <span id="busuanzi_value_page_pv"></span>
+      </span>
+      
+      </header>
+    
+
+    <!-- 目录内容 -->
+    
+      <p class="show-toc-btn" id="show-toc-btn" onclick="showToc();" style="display:none">
+        <span class="btn-bg"></span>
+        <span class="btn-text">文章导航</span>
+      </p>
+	    <div id="toc-article" class="toc-article">
+	      <span id="toc-close" class="toc-close" title="隐藏导航" onclick="showBtn();">×</span>
+		      <strong class="toc-title">文章目录</strong>
+        <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#现象"><span class="toc-number">1.</span> <span class="toc-text">现象</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#现象1"><span class="toc-number">1.1.</span> <span class="toc-text">现象1</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#现象2"><span class="toc-number">1.2.</span> <span class="toc-text">现象2</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#源码查看"><span class="toc-number">2.</span> <span class="toc-text">源码查看</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#move分片"><span class="toc-number">2.1.</span> <span class="toc-text">move分片</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#均衡分片"><span class="toc-number">2.2.</span> <span class="toc-text">均衡分片</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#总结"><span class="toc-number">3.</span> <span class="toc-text">总结</span></a></li></ol>
+         </div>
+   <script type="text/javascript">
+	function showToc(){
+		var toc_article = document.getElementById("toc-article");
+		var show_toc_btn = document.getElementById("show-toc-btn");
+		toc_article.setAttribute("style","display:block");
+		show_toc_btn.setAttribute("style","display:none");
+		};
+	function showBtn(){
+		var toc_article = document.getElementById("toc-article");
+		var show_toc_btn = document.getElementById("show-toc-btn");
+		toc_article.setAttribute("style","display:none");
+		show_toc_btn.setAttribute("style","display:block");
+		};
+   </script>
+      
+    <!-- 目录内容结束 -->
+
+    <div class="article-entry" itemprop="articleBody">
+      
+        <h1 id="现象"><a href="#现象" class="headerlink" title="现象"></a>现象</h1><h2 id="现象1"><a href="#现象1" class="headerlink" title="现象1"></a>现象1</h2><p>最近在下线ES5.6.8集群节点时候, 发现了一个很奇怪的现象, 我先把cluster参数给贴出来看下:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div></pre></td><td class="code"><pre><div class="line">PUT _cluster/settings</div><div class="line">&#123;</div><div class="line">    &quot;transient&quot;: &#123;</div><div class="line">        &quot;cluster&quot;: &#123;</div><div class="line">         &quot;routing&quot;: &#123;</div><div class="line">            &quot;rebalance&quot;: &#123;</div><div class="line">               &quot;enable&quot;: &quot;all&quot;</div><div class="line">            &#125;,</div><div class="line">            &quot;allocation&quot;: &#123;</div><div class="line">               &quot;allow_rebalance&quot;: &quot;always&quot;,</div><div class="line">               &quot;cluster_concurrent_rebalance&quot;: &quot;1&quot;,</div><div class="line">               &quot;node_concurrent_recoveries&quot;: &quot;1&quot;,</div><div class="line">               &quot;node_initial_primaries_recoveries&quot;: &quot;1&quot;,</div><div class="line">               &quot;enable&quot;: &quot;all&quot;</div><div class="line">            &#125;</div><div class="line">         &#125;</div><div class="line">      &#125;</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>然后我通过如下命令下线4个节点:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div></pre></td><td class="code"><pre><div class="line">PUT _cluster/settings</div><div class="line">&#123;</div><div class="line">    &quot;transient&quot;: &#123;</div><div class="line">         &quot;cluster.routing.allocation.exclude._ip&quot;: &quot;ip1,ip2,ip3,ip4&quot;</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>发现此时集群上这4个节点分别有一个分片开始进行move, what for? 按我们的理解, move操作的并发应该被我们通过参数<code>cluster_concurrent_rebalance</code>控制为1, 可是为啥为4。好像这个下线节点时候shard的并发与下线节点个数一致, 而不是受我们控制。</p>
+<h2 id="现象2"><a href="#现象2" class="headerlink" title="现象2"></a>现象2</h2><p>首先向集群发送如下命令:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div></pre></td><td class="code"><pre><div class="line">PUT _cluster/settings</div><div class="line">&#123;</div><div class="line">    &quot;transient&quot;: &#123;</div><div class="line">        &quot;cluster&quot;: &#123;</div><div class="line">         &quot;routing&quot;: &#123;</div><div class="line">            &quot;rebalance&quot;: &#123;</div><div class="line">               &quot;enable&quot;: &quot;all&quot;</div><div class="line">            &#125;,</div><div class="line">            &quot;allocation&quot;: &#123;</div><div class="line">               &quot;allow_rebalance&quot;: &quot;always&quot;,</div><div class="line">               &quot;cluster_concurrent_rebalance&quot;: &quot;0&quot;,</div><div class="line">               &quot;node_concurrent_recoveries&quot;: &quot;0&quot;,</div><div class="line">               &quot;node_initial_primaries_recoveries&quot;: &quot;0&quot;,</div><div class="line">               &quot;enable&quot;: &quot;all&quot;</div><div class="line">            &#125;</div><div class="line">         &#125;</div><div class="line">      &#125;</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>然后我通过如下命令下线4个节点:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div></pre></td><td class="code"><pre><div class="line">PUT _cluster/settings</div><div class="line">&#123;</div><div class="line">    &quot;transient&quot;: &#123;</div><div class="line">         &quot;cluster.routing.allocation.exclude._ip&quot;: &quot;ip1&quot;</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>集群突然有144个分片处于move中，按道理node_concurrent_recoveries=0后， 集群将不会再有分片move。实际原因是参数<code>cluster.routing.allocation.node_concurrent_incoming_recoveries</code>和<code>cluster.routing.allocation.node_concurrent_outgoing_recoveries</code>的初始化可以由<code>cluster.routing.allocation.node_concurrent_recoveries</code>赋值， 但是之后对<code>cluster.routing.allocation.node_concurrent_recoveries</code>的修改，将不会影响incoming和outgoing的取值， 此时这两个参数任然是50。所以就产生了<code>node_concurrent_recoveries=0</code>、集群还有较大的move.</p>
+<h1 id="源码查看"><a href="#源码查看" class="headerlink" title="源码查看"></a>源码查看</h1><p>带着上面的疑问, 试图从代码中找到原因, 我们知道, 任何集群元数据变动都会跳到BalancedShardsAllocator.allocate():<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div></pre></td><td class="code"><pre><div class="line">public void allocate(RoutingAllocation allocation) &#123;</div><div class="line">    if (allocation.routingNodes().size() == 0) &#123;</div><div class="line">        /* with no nodes this is pointless */</div><div class="line">        return;</div><div class="line">    &#125;</div><div class="line">    final Balancer balancer = new Balancer(logger, allocation, weightFunction, threshold);</div><div class="line">    balancer.allocateUnassigned();</div><div class="line">    balancer.moveShards();</div><div class="line">    balancer.balance();</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>这里操作都是依据分片分配到各个节点的打分为依据来操作, 主要分为三步: 分配unassigned分片, move分片, 均衡分片。 在开始的现象, 明显不是第一步, 只可能是move分片、或者均衡分片。</p>
+<h2 id="move分片"><a href="#move分片" class="headerlink" title="move分片"></a>move分片</h2><p>我们首先进入move分片看下能否解释现象:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div></pre></td><td class="code"><pre><div class="line">public void moveShards() &#123;</div><div class="line">    // Iterate over the started shards interleaving between nodes, and check if they can remain. In the presence of throttling</div><div class="line">    // shard movements, the goal of this iteration order is to achieve a fairer movement of shards from the nodes that are</div><div class="line">    // offloading the shards.</div><div class="line">    //实际上，每次moveShards只会从每个node中选择一个shard迁移</div><div class="line">    for (Iterator&lt;ShardRouting&gt; it = allocation.routingNodes().nodeInterleavedShardIterator(); it.hasNext(); ) &#123;</div><div class="line">        ShardRouting shardRouting = it.next();</div><div class="line">        final MoveDecision moveDecision = decideMove(shardRouting);</div><div class="line">        if (moveDecision.isDecisionTaken() &amp;&amp; moveDecision.forceMove()) &#123;</div><div class="line">            final ModelNode sourceNode = nodes.get(shardRouting.currentNodeId());</div><div class="line">            final ModelNode targetNode = nodes.get(moveDecision.getTargetNode().getId());</div><div class="line">            sourceNode.removeShard(shardRouting);</div><div class="line">            Tuple&lt;ShardRouting, ShardRouting&gt; relocatingShards = routingNodes.relocateShard(shardRouting, targetNode.getNodeId(),</div><div class="line">                allocation.clusterInfo().getShardSize(shardRouting, ShardRouting.UNAVAILABLE_EXPECTED_SHARD_SIZE), allocation.changes());</div><div class="line">            targetNode.addShard(relocatingShards.v2());</div><div class="line">            if (logger.isTraceEnabled()) &#123;</div><div class="line">                logger.trace(&quot;Moved shard [&#123;&#125;] to node [&#123;&#125;]&quot;, shardRouting, targetNode.getRoutingNode());</div><div class="line">            &#125;</div><div class="line">        &#125; else if (moveDecision.isDecisionTaken() &amp;&amp; moveDecision.canRemain() == false) &#123;</div><div class="line">            logger.trace(&quot;[&#123;&#125;][&#123;&#125;] can&apos;t move&quot;, shardRouting.index(), shardRouting.id());</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>这里我们需要注意一个事实: 这里轮训所有分片是有顺序的, 依次从每个节点上选择一个分片判断, 首先第一轮: 选择第一个节点上的第一个分片, 然后第二个节点上的第一个分片…, 最后一个节点的第一个分片, 再开始第二轮: 第一个节点上第二个分片……。<br>然后再进入decideMove看下具体的move的逻辑:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div><div class="line">61</div><div class="line">62</div><div class="line">63</div></pre></td><td class="code"><pre><div class="line">/**</div><div class="line"> * Makes a decision on whether to move a started shard to another node.  The following rules apply</div><div class="line"> * to the &#123;@link MoveDecision&#125; return object:</div><div class="line"> *   1. If the shard is not started, no decision will be taken and &#123;@link MoveDecision#isDecisionTaken()&#125; will return false.</div><div class="line"> *   2. If the shard is allowed to remain on its current node, no attempt will be made to move the shard and</div><div class="line"> *      &#123;@link MoveDecision#canRemainDecision&#125; will have a decision type of YES.  All other fields in the object will be null.</div><div class="line"> *   3. If the shard is not allowed to remain on its current node, then &#123;@link MoveDecision#getAllocationDecision()&#125; will be</div><div class="line"> *      populated with the decision of moving to another node.  If &#123;@link MoveDecision#forceMove()&#125; ()&#125; returns &#123;@code true&#125;, then</div><div class="line"> *      &#123;@link MoveDecision#targetNode&#125; will return a non-null value, otherwise the assignedNodeId will be null.</div><div class="line"> *   4. If the method is invoked in explain mode (e.g. from the cluster allocation explain APIs), then</div><div class="line"> *      &#123;@link MoveDecision#nodeDecisions&#125; will have a non-null value.</div><div class="line"> */</div><div class="line">public MoveDecision decideMove(final ShardRouting shardRouting) &#123;</div><div class="line">    if (shardRouting.started() == false) &#123;</div><div class="line">        // we can only move started shards</div><div class="line">        return MoveDecision.NOT_TAKEN;</div><div class="line">    &#125;</div><div class="line">    final boolean explain = allocation.debugDecision();</div><div class="line">    final ModelNode sourceNode = nodes.get(shardRouting.currentNodeId());</div><div class="line">    assert sourceNode != null &amp;&amp; sourceNode.containsShard(shardRouting);</div><div class="line">    RoutingNode routingNode = sourceNode.getRoutingNode();</div><div class="line">    Decision canRemain = allocation.deciders().canRemain(shardRouting, routingNode, allocation);  //确定该节点是否还能存储在当前节点上</div><div class="line">    if (canRemain.type() != Decision.Type.NO) &#123;</div><div class="line">        return MoveDecision.stay(canRemain);</div><div class="line">    &#125;</div><div class="line">    sorter.reset(shardRouting.getIndexName());</div><div class="line">    /*</div><div class="line">     * the sorter holds the minimum weight node first for the shards index.</div><div class="line">     * We now walk through the nodes until we find a node to allocate the shard.</div><div class="line">     * This is not guaranteed to be balanced after this operation we still try best effort to</div><div class="line">     * allocate on the minimal eligible node.</div><div class="line">     */</div><div class="line">    Type bestDecision = Type.NO;</div><div class="line">    RoutingNode targetNode = null;</div><div class="line">    final List&lt;NodeAllocationResult&gt; nodeExplanationMap = explain ? new ArrayList&lt;&gt;() : null;</div><div class="line">    int weightRanking = 0;</div><div class="line">    for (ModelNode currentNode : sorter.modelNodes) &#123;</div><div class="line">        if (currentNode != sourceNode) &#123;</div><div class="line">            RoutingNode target = currentNode.getRoutingNode();</div><div class="line">            // don&apos;t use canRebalance as we want hard filtering rules to apply. See #17698</div><div class="line">            // 查看当前分片</div><div class="line">            Decision allocationDecision = allocation.deciders().canAllocate(shardRouting, target, allocation);</div><div class="line">            if (explain) &#123;</div><div class="line">                nodeExplanationMap.add(new NodeAllocationResult(</div><div class="line">                    currentNode.getRoutingNode().node(), allocationDecision, ++weightRanking));</div><div class="line">            &#125;</div><div class="line">            // TODO maybe we can respect throttling here too?</div><div class="line">            if (allocationDecision.type().higherThan(bestDecision)) &#123;</div><div class="line">                bestDecision = allocationDecision.type();</div><div class="line">                if (bestDecision == Type.YES) &#123;</div><div class="line">                    targetNode = target;</div><div class="line">                    if (explain == false) &#123;</div><div class="line">                        // we are not in explain mode and already have a YES decision on the best weighted node,</div><div class="line">                        // no need to continue iterating</div><div class="line">                        break;</div><div class="line">                    &#125;</div><div class="line">                &#125;</div><div class="line">            &#125;</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line">    return MoveDecision.cannotRemain(canRemain, AllocationDecision.fromDecisionType(bestDecision),</div><div class="line">        targetNode != null ? targetNode.node() : null, nodeExplanationMap);</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>该函数主要做了如下逻辑:</p>
+<ul>
+<li>若该分片不处于Started, 那么将不进行move。</li>
+<li>首先通过canRemain检查该分片是否还可以继续存留在该节点上, 主要由以下几个因素决定:</li>
+</ul>
+<ol>
+<li>awareness(机房)</li>
+<li>磁盘空间</li>
+<li>ip排除(就是本次修改的参数)</li>
+<li>每个节点上最多分配个数(total_shards_per_node)。<br>很显然, 本次过程中ip排除了,那么该分片不能再待在本节点上了。</li>
+</ol>
+<ul>
+<li>那么在所有节点上找一个节点, 该分片可以迁移上去。找的依据是canAllocate, canAllocate决定因素并没有包含cluster_concurrent_rebalance, 但是增加了node_concurrent_outgoing_recoveries、node_concurrent_incoming_recoveries。这两个参数的含义是: 决定分片是否可以分配到某个节点上的依据是该节点上正在迁入/迁出的分片是否达到阈值, 若没有达到阈值, 就可以分配。<br><code>重点:</code> 这就解释了为啥通过调整_ip时, 为啥不能通过cluster_concurrent_rebalance控制rebalance的并发了, ip调整时并发是通过迁入/迁出并发控制的, 也就是我们最开始观察到的现象, 正因为我们设置了node_concurrent_recoveries, 导致每个分片上迁出并发只能是1, 那么设置exclude.ip为4个时, 我们在前端看到有4个分片正处于rebalance。这里完全都没想过使用cluster_concurrent_rebalance来控制迁移并发的。这里不用cluster_concurrent_rebalance, 官方也给出了<a href="https://github.com/elastic/elasticsearch/pull/17698" target="_blank" rel="external">原因</a>:<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line">#14259 added a check to honor rebalancing policies (i.e., rebalance only on green state) when moving shards due to changes in allocation filtering rules. The rebalancing policy is there to make sure that we don&apos;t try to even out the number of shards per node when we are still missing shards. However, it should not interfere with explicit user commands (allocation filtering) or things like the disk threshold wanting to move shards because of a node hitting the high water mark.</div><div class="line">#14259 was done to address #14057 where people reported that using allocation filtering caused many shards to be moved at once. This is however a none issue - with 1.7 (where the issue was reported) and 2.x, we protect recovery source nodes by limitting the number of concurrent data streams they can open (i.e., we can have many recoveries, but they will be throttled). In 5.0 we came up with a simpler and more understandable approach where we have a hard limit on the number of outgoing recoveries per node (on top of the incoming recoveries we already had).</div></pre></td></tr></table></figure>
+</li>
+</ul>
+<p>大致就是说, rebalance策略主要是为了解决的是: 当我们未对全局分片有足够了解的时候(当全局分片并未处于完全均衡的时候), 我们并不会去干扰每个节点的分片个数。当然, rebalance更不应该去干扰显示的用户命令比如分片排除, 或者达到磁盘阈值这样的情况。这里并发是通过Incoming/OutComing这样的并发去控制的。原因清楚了吧。</p>
+<ul>
+<li>找到一个可以迁移到分片后, 然后通过routingNodes.relocateShard修改relocatingShards值, 这个值就是我们在前端看到的正在rebalance的个数。</li>
+</ul>
+<h2 id="均衡分片"><a href="#均衡分片" class="headerlink" title="均衡分片"></a>均衡分片</h2><p>既然现象是由move分片来解释了, 那么我们也来了解均衡分片大致做了那些事情呢?</p>
+<ul>
+<li>通过allocation.deciders().canRebalance(allocation).type() 首先检查是否可以进行rebalance。通过ClusterRebalanceType来控制:</li>
+</ul>
+<ol>
+<li>若设置为ALWAYS, 那么是可以进行rebalance的。</li>
+<li>若设置为INDICES_PRIMARIES_ACTIVE, 那么当只有所有主分片处于active的时候才可以进行rebalance的。</li>
+<li>若设置为INDICES_ALL_ACTIVE, 那么是禁止rebalance的。</li>
+</ol>
+<ul>
+<li>若可以进行rebalance, 然后进入balanceByWeights()。<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div><div class="line">61</div><div class="line">62</div><div class="line">63</div><div class="line">64</div><div class="line">65</div><div class="line">66</div><div class="line">67</div><div class="line">68</div><div class="line">69</div><div class="line">70</div><div class="line">71</div><div class="line">72</div><div class="line">73</div><div class="line">74</div><div class="line">75</div><div class="line">76</div><div class="line">77</div><div class="line">78</div><div class="line">79</div><div class="line">80</div><div class="line">81</div><div class="line">82</div><div class="line">83</div><div class="line">84</div><div class="line">85</div><div class="line">86</div><div class="line">87</div><div class="line">88</div><div class="line">89</div><div class="line">90</div><div class="line">91</div><div class="line">92</div><div class="line">93</div><div class="line">94</div><div class="line">95</div><div class="line">96</div><div class="line">97</div><div class="line">98</div><div class="line">99</div><div class="line">100</div><div class="line">101</div><div class="line">102</div><div class="line">103</div></pre></td><td class="code"><pre><div class="line">private void balanceByWeights() &#123;</div><div class="line">    final AllocationDeciders deciders = allocation.deciders();</div><div class="line">    final ModelNode[] modelNodes = sorter.modelNodes;</div><div class="line">    final float[] weights = sorter.weights;</div><div class="line">    //轮训所有索引</div><div class="line">    for (String index : buildWeightOrderedIndices()) &#123;</div><div class="line">        IndexMetaData indexMetaData = metaData.index(index);</div><div class="line">        // find nodes that have a shard of this index or where shards of this index are allowed to be allocated to,</div><div class="line">        // move these nodes to the front of modelNodes so that we can only balance based on these nodes</div><div class="line">        // 首先选择与该索引有关的节点, 这些节点, 那么该索引有分配在上面分配, 要么该索引可以分配到该节点上。默认情况下, 除了exclude外, 所有节点都是相关的。</div><div class="line">        int relevantNodes = 0;</div><div class="line">        for (int i = 0; i &lt; modelNodes.length; i++) &#123;</div><div class="line">            ModelNode modelNode = modelNodes[i];</div><div class="line">            if (modelNode.getIndex(index) != null</div><div class="line">                || deciders.canAllocate(indexMetaData, modelNode.getRoutingNode(), allocation).type() != Type.NO) &#123;</div><div class="line">                // swap nodes at position i and relevantNodes</div><div class="line">                modelNodes[i] = modelNodes[relevantNodes];</div><div class="line">                modelNodes[relevantNodes] = modelNode;</div><div class="line">                relevantNodes++;</div><div class="line">            &#125;</div><div class="line">        &#125;</div><div class="line">        // 若相关节点少于2个,就没有rebalance的必要了</div><div class="line">        if (relevantNodes &lt; 2) &#123;</div><div class="line">            continue;</div><div class="line">        &#125;</div><div class="line">        // 对相关节点与该索引之间进行打分, 分值从最小到最大进行排序(分值越大说明分配越不合理)</div><div class="line">        sorter.reset(index, 0, relevantNodes);</div><div class="line">        int lowIdx = 0;</div><div class="line">        int highIdx = relevantNodes - 1;</div><div class="line">        while (true) &#123;</div><div class="line">            final ModelNode minNode = modelNodes[lowIdx];</div><div class="line">            final ModelNode maxNode = modelNodes[highIdx];</div><div class="line">            advance_range:</div><div class="line">            // 假如最大分值的节点, 该索引有分片存在</div><div class="line">            if (maxNode.numShards(index) &gt; 0) &#123;</div><div class="line">                //计算最大和最小分值差大于阈值</div><div class="line">                final float delta = absDelta(weights[lowIdx], weights[highIdx]);</div><div class="line">                //若差值小于阈值1</div><div class="line">                if (lessThan(delta, threshold)) &#123;</div><div class="line"></div><div class="line">                    if (lowIdx &gt; 0 &amp;&amp; highIdx-1 &gt; 0 // is there a chance for a higher delta?</div><div class="line">                        &amp;&amp; (absDelta(weights[0], weights[highIdx-1]) &gt; threshold) // check if we need to break at all</div><div class="line">                        ) &#123;  //low和high差距大于阈值，那么还是可以继续找的</div><div class="line">                        /* This is a special case if allocations from the &quot;heaviest&quot; to the &quot;lighter&quot; nodes is not possible</div><div class="line">                         * due to some allocation decider restrictions like zone awareness. if one zone has for instance</div><div class="line">                         * less nodes than another zone. so one zone is horribly overloaded from a balanced perspective but we</div><div class="line">                         * can&apos;t move to the &quot;lighter&quot; shards since otherwise the zone would go over capacity.</div><div class="line">                         *</div><div class="line">                         * This break jumps straight to the condition below were we start moving from the high index towards</div><div class="line">                         * the low index to shrink the window we are considering for balance from the other direction.</div><div class="line">                         * (check shrinking the window from MAX to MIN)</div><div class="line">                         * See #3580</div><div class="line">                         */</div><div class="line">                        break advance_range;</div><div class="line">                    &#125;</div><div class="line">                    if (logger.isTraceEnabled()) &#123;</div><div class="line">                        logger.trace(&quot;Stop balancing index [&#123;&#125;]  min_node [&#123;&#125;] weight: [&#123;&#125;]  max_node [&#123;&#125;] weight: [&#123;&#125;]  delta: [&#123;&#125;]&quot;,</div><div class="line">                                index, maxNode.getNodeId(), weights[highIdx], minNode.getNodeId(), weights[lowIdx], delta);</div><div class="line">                    &#125;</div><div class="line">                    break; //low和high差距小于阈值，那么完全不用找了。直接退出当前索引的rebalance，进行下一个索引的rebalance</div><div class="line">                &#125;</div><div class="line">                if (logger.isTraceEnabled()) &#123;</div><div class="line">                    logger.trace(&quot;Balancing from node [&#123;&#125;] weight: [&#123;&#125;] to node [&#123;&#125;] weight: [&#123;&#125;]  delta: [&#123;&#125;]&quot;,</div><div class="line">                            maxNode.getNodeId(), weights[highIdx], minNode.getNodeId(), weights[lowIdx], delta);</div><div class="line">                &#125;</div><div class="line">                /* pass the delta to the replication function to prevent relocations that only swap the weights of the two nodes.</div><div class="line">                 * a relocation must bring us closer to the balance if we only achieve the same delta the relocation is useless */</div><div class="line">                if (tryRelocateShard(minNode, maxNode, index, delta)) &#123;</div><div class="line">                    /*</div><div class="line">                     * TODO we could be a bit smarter here, we don&apos;t need to fully sort necessarily</div><div class="line">                     * we could just find the place to insert linearly but the win might be minor</div><div class="line">                     * compared to the added complexity</div><div class="line">                     */</div><div class="line">                    weights[lowIdx] = sorter.weight(modelNodes[lowIdx]);</div><div class="line">                    weights[highIdx] = sorter.weight(modelNodes[highIdx]);</div><div class="line">                    sorter.sort(0, relevantNodes);</div><div class="line">                    lowIdx = 0;</div><div class="line">                    highIdx = relevantNodes - 1;</div><div class="line">                    // 再继续查找当前索引在别的节点上是都有更合适的分配。</div><div class="line">                    continue;</div><div class="line">                &#125;</div><div class="line">            &#125;</div><div class="line">            // 若没有分配, 则开始low+1 进行第二轮重新开始。</div><div class="line">            //第一轮：首先第一轮从high不变， low每次增加1，向higt靠近，直到low和high一样， 第二轮：然后high--， 继续low向higt靠近；再第三轮，这样实际循环次数是(high-low)(high-low)/2, 很像一个倒着的乘法表</div><div class="line">            if (lowIdx &lt; highIdx - 1) &#123;</div><div class="line">                /* Shrinking the window from MIN to MAX</div><div class="line">                 * we can&apos;t move from any shard from the min node lets move on to the next node</div><div class="line">                 * and see if the threshold still holds. We either don&apos;t have any shard of this</div><div class="line">                 * index on this node of allocation deciders prevent any relocation.*/</div><div class="line">                lowIdx++;</div><div class="line">            &#125; else if (lowIdx &gt; 0) &#123;</div><div class="line">                /* Shrinking the window from MAX to MIN</div><div class="line">                 * now we go max to min since obviously we can&apos;t move anything to the max node</div><div class="line">                 * lets pick the next highest */</div><div class="line">                lowIdx = 0;</div><div class="line">                highIdx--;</div><div class="line">            &#125; else &#123;</div><div class="line">                /* we are done here, we either can&apos;t relocate anymore or we are balanced */</div><div class="line">                break;</div><div class="line">            &#125;</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+</li>
+</ul>
+<p>rebalance时, 以index来循环, 大概逻辑就是:</p>
+<ol>
+<li>针对每个索引在每个节点上分配进行一个打分。打分依据是(该索引是否在所有节点是否分配均衡&amp;&amp;所有shard是否在所有节点分配均衡), 分支越低, 说明分配越合理。</li>
+<li>从分值高低差的阈值来判断是否需要rebalance。阈值为1。</li>
+</ol>
+<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>若仅仅增加节点, 那么就是rebalance操作, 此时cluster_concurrent_rebalance是生效的。 若做了exclude操作, 那么就变成了move操作, 此时node_concurrent_recoveries就该生效了。 move, rebalance, allocation等操作都是由多个决策器一起决定如何分配的, 只要合理使用各种决策器, 那么分片分配就能被我们合理的掌握了。</p>
+
+      
+
+      
+        <div class="page-reward">
+          <a href="javascript:;" class="page-reward-btn tooltip-top">
+            <div class="tooltip tooltip-east">
+            <span class="tooltip-item">
+              赏
+            </span>
+            <span class="tooltip-content">
+              <span class="tooltip-text">
+                <span class="tooltip-inner">
+                  <p class="reward-p"><i class="icon icon-quo-left"></i>谢谢阅读<i class="icon icon-quo-right"></i></p>
+                  <div class="reward-box">
+                    
+                    
+                  </div>
+                </span>
+              </span>
+            </span>
+          </div>
+          </a>
+        </div>
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/elasticsearch_learning/categories/Elasticsearch//" class="article-tag-list-link color4">Elasticsearch</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+
+      
+        
+<div class="share-btn share-icons tooltip-left">
+  <div class="tooltip tooltip-east">
+    <span class="tooltip-item">
+      <a href="javascript:;" class="share-sns share-outer">
+        <i class="icon icon-share"></i>
+      </a>
+    </span>
+    <span class="tooltip-content">
+      <div class="share-wrap">
+        <div class="share-icons">
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="icon icon-weibo"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="icon icon-weixin"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="icon icon-qq"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="icon icon-douban"></i>
+          </a>
+          <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a>
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="icon icon-facebook"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="icon icon-twitter"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="icon icon-google"></i>
+          </a>
+        </div>
+      </div>
+    </span>
+  </div>
+</div>
+
+<div class="page-modal wx-share js-wx-box">
+    <a class="close js-modal-close" href="javascript:;"><i class="icon icon-close"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//pan.baidu.com/share/qrcode?url=https://kkewwei.github.io/elasticsearch_learning/2019/06/16/ES原理-下线节点时分片并发rebalance的思考/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div class="mask js-mask"></div>
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+  
+<nav id="article-nav">
+  
+    <a href="/elasticsearch_learning/2019/09/01/Linux网络通信管道的关闭分析/" id="article-nav-newer" class="article-nav-link-wrap">
+      <i class="icon-circle-left"></i>
+      <div class="article-nav-title">
+        
+          Linux网络通信管道的关闭分析
+        
+      </div>
+    </a>
+  
+  
+    <a href="/elasticsearch_learning/2019/06/08/Flink原理-Container启动命令内存参数分析/" id="article-nav-older" class="article-nav-link-wrap">
+      <div class="article-nav-title">Flink原理-Container启动命令内存参数分析</div>
+      <i class="icon-circle-right"></i>
+    </a>
+  
+</nav>
+
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+        <div class="toc-container tooltip-left">
+            <i class="icon-font icon-category"></i>
+            <div class="tooltip tooltip-east">
+                <span class="tooltip-item">
+                </span>
+                <span class="tooltip-content">
+                    <div class="toc-article">
+                    <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#现象"><span class="toc-number">1.</span> <span class="toc-text">现象</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#现象1"><span class="toc-number">1.1.</span> <span class="toc-text">现象1</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#现象2"><span class="toc-number">1.2.</span> <span class="toc-text">现象2</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#源码查看"><span class="toc-number">2.</span> <span class="toc-text">源码查看</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#move分片"><span class="toc-number">2.1.</span> <span class="toc-text">move分片</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#均衡分片"><span class="toc-number">2.2.</span> <span class="toc-text">均衡分片</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#总结"><span class="toc-number">3.</span> <span class="toc-text">总结</span></a></li></ol>
+                    </div>
+                </span>
+            </div>
+        </div>
+        
+    </div>
+</aside>
+
+
+
+  
+
+  
+
+  
+
+  
+
+  
+  <div id="gitment-ctn"></div>
+<link rel="stylesheet" href="//imsun.github.io/gitment/style/default.css">
+<script src="//www.wenjunjiang.win/js/gitment.js "></script>
+<script>
+var gitment = new Gitment({
+  id: "ES原理-下线节点时分片并发rebalance的思考",
+  owner: 'kkewwei',
+  repo: 'comments',
+  oauth: {
+    client_id: '9391e497d6b288887f33',
+    client_secret: 'db733731bff4ee2811d9530b1ac4cfc6767e8183',
+  },
+})
+gitment.render('gitment-ctn')
+</script>
+
+  
+
+
           </div>
         </div>
       </div>
@@ -287,23 +569,19 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">Lucene、ByteBlockPool</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">LockSupport</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">Lucene、StoredField</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">Lucene、termVector、tvd、tvm、倒排索引</a>
+                <a href="javascript:void(0)" class="js-tag color1">Lucene、ByteBlockPool</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">Lucene、词典、tim、tip、doc、pos、fst、倒排索引</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">Lucene、termVector、tvd、tvm、倒排索引</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -315,11 +593,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">Cycler</a>
+                <a href="javascript:void(0)" class="js-tag color4">Lucene、StoredField</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">Cycler</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -343,11 +625,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
+                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
+                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
               </li>
              
               <li class="article-tag-list-item">

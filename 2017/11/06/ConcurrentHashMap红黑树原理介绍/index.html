@@ -155,7 +155,260 @@
             <canvas data-colors="#eaeaea" data-sectionHeight="100" data-contentId="js-content" id="myCanvas1" class="anm-canvas"></canvas>
           </div>
           <div id="js-content" class="content-ll">
-            
+            <article id="post-ConcurrentHashMap红黑树原理介绍" class="article article-type-post " itemscope itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 class="article-title" itemprop="name">
+      ConcurrentHashMap红黑树原理介绍
+    </h1>
+  
+
+        
+        <a href="/elasticsearch_learning/2017/11/06/ConcurrentHashMap红黑树原理介绍/" class="archive-article-date">
+  	<time datetime="2017-11-06T09:48:34.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-11-06</time>
+</a>
+        
+         
+      <span class="archive-article-date">
+              阅读量 <span id="busuanzi_value_page_pv"></span>
+      </span>
+      
+      </header>
+    
+
+    <!-- 目录内容 -->
+    
+      <p class="show-toc-btn" id="show-toc-btn" onclick="showToc();" style="display:none">
+        <span class="btn-bg"></span>
+        <span class="btn-text">文章导航</span>
+      </p>
+	    <div id="toc-article" class="toc-article">
+	      <span id="toc-close" class="toc-close" title="隐藏导航" onclick="showBtn();">×</span>
+		      <strong class="toc-title">文章目录</strong>
+        <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#红黑树介绍"><span class="toc-number">1.</span> <span class="toc-text">红黑树介绍</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#链表转化为红黑树"><span class="toc-number">1.1.</span> <span class="toc-text">链表转化为红黑树</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#红黑树插入后平衡balanceInsertion"><span class="toc-number">1.2.</span> <span class="toc-text">红黑树插入后平衡balanceInsertion</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#红黑树删除后平衡balanceInsertion"><span class="toc-number">1.3.</span> <span class="toc-text">红黑树删除后平衡balanceInsertion</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#总结"><span class="toc-number">2.</span> <span class="toc-text">总结</span></a></li></ol>
+         </div>
+   <script type="text/javascript">
+	function showToc(){
+		var toc_article = document.getElementById("toc-article");
+		var show_toc_btn = document.getElementById("show-toc-btn");
+		toc_article.setAttribute("style","display:block");
+		show_toc_btn.setAttribute("style","display:none");
+		};
+	function showBtn(){
+		var toc_article = document.getElementById("toc-article");
+		var show_toc_btn = document.getElementById("show-toc-btn");
+		toc_article.setAttribute("style","display:none");
+		show_toc_btn.setAttribute("style","display:block");
+		};
+   </script>
+      
+    <!-- 目录内容结束 -->
+
+    <div class="article-entry" itemprop="articleBody">
+      
+        <p>为了加快ConcurrentHashMap查找数据的速度, 若链表长度过长, 会将链表转化为红黑树, 本文主要讲解相关知识。</p>
+<h1 id="红黑树介绍"><a href="#红黑树介绍" class="headerlink" title="红黑树介绍"></a>红黑树介绍</h1><p>一棵二叉查找树如果满足下面的红黑性质, 则为一棵红黑树:<br>1）每个节点或者是黑的，或者是红的。<br>2）根节点是黑的。<br>3）每个叶子节点（NIL）是黑的。 [注意：这里叶子节点，是指为空(NIL或NULL)的叶子节点！]<br>4）如果一个节点是红的，则它的两个儿子都是黑的。<br>5）对每个节点, 从该节点到其子孙节点的所有路径上包含相同数目的黑节点。<br>红黑树示例如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/ConcurrentHashMap3.png" height="300" width="350"></p>
+<h2 id="链表转化为红黑树"><a href="#链表转化为红黑树" class="headerlink" title="链表转化为红黑树"></a>链表转化为红黑树</h2><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div></pre></td><td class="code"><pre><div class="line">TreeBin(TreeNode&lt;K,V&gt; b) &#123;</div><div class="line">    super(TREEBIN, null, null, null);</div><div class="line">    this.first = b;</div><div class="line">    //设置前置节点</div><div class="line">    TreeNode&lt;K,V&gt; r = null;</div><div class="line">    for (TreeNode&lt;K,V&gt; x = b, next; x != null; x = next) &#123;</div><div class="line">        next = (TreeNode&lt;K,V&gt;)x.next;</div><div class="line">        x.left = x.right = null;</div><div class="line">        //初始化节点</div><div class="line">        if (r == null) &#123;</div><div class="line">            x.parent = null;</div><div class="line">            x.red = false;</div><div class="line">            r = x;</div><div class="line">        &#125;</div><div class="line">        else &#123;</div><div class="line">            K k = x.key;</div><div class="line">            int h = x.hash;</div><div class="line">            Class&lt;?&gt; kc = null;</div><div class="line">            //从根节点开始找到合适的地方存放</div><div class="line">            for (TreeNode&lt;K,V&gt; p = r;;) &#123;</div><div class="line">                int dir, ph;</div><div class="line">                K pk = p.key;</div><div class="line">                //左边</div><div class="line">                if ((ph = p.hash) &gt; h)</div><div class="line">                    dir = -1;</div><div class="line">                //右边</div><div class="line">                else if (ph &lt; h)</div><div class="line">                    dir = 1;</div><div class="line">                else if ((kc == null &amp;&amp; //继续比较，类名接口名、hash值等方面来比较</div><div class="line">                          (kc = comparableClassFor(k)) == null) ||</div><div class="line">                         (dir = compareComparables(kc, k, pk)) == 0)</div><div class="line">                    dir = tieBreakOrder(k, pk);</div><div class="line">                    TreeNode&lt;K,V&gt; xp = p;</div><div class="line">                if ((p = (dir &lt;= 0) ? p.left : p.right) == null) &#123; //判断是否找到头了，</div><div class="line">                    x.parent = xp;</div><div class="line">                    if (dir &lt;= 0)</div><div class="line">                        xp.left = x;</div><div class="line">                    else</div><div class="line">                        xp.right = x;</div><div class="line">                    //开始调整</div><div class="line">                    r = balanceInsertion(r, x);</div><div class="line">                    break;</div><div class="line">                &#125;</div><div class="line">            &#125;</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line">    this.root = r;</div><div class="line">    assert checkInvariants(root);</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>主要做了如下事情:</p>
+<ul>
+<li>初始化TreeBin节点, 设置其hash=TREEBIN(-2)</li>
+<li>设置first结点, 这个节点就是链表的头, 根据这个头, 可以遍历整个红黑树。</li>
+<li>根据first开始遍历红黑树, 针对每个节点hash值, 插入红黑树中合适的位置, 然后调整该二叉树以满足红黑色的要求(balanceInsertion)。<h2 id="红黑树插入后平衡balanceInsertion"><a href="#红黑树插入后平衡balanceInsertion" class="headerlink" title="红黑树插入后平衡balanceInsertion"></a>红黑树插入后平衡balanceInsertion</h2>插入的节点为红色, 而可能导致红黑树出现红色的节点子节点还是红色, 违反4)条, 以下是调整过程:<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div></pre></td><td class="code"><pre><div class="line">static &lt;K,V&gt; TreeNode&lt;K,V&gt; balanceInsertion(TreeNode&lt;K,V&gt; root, TreeNode&lt;K,V&gt; x) &#123;</div><div class="line">    x.red = true;//首先赋值头为red</div><div class="line">    for (TreeNode&lt;K,V&gt; xp, xpp, xppl, xppr;;) &#123;</div><div class="line">        if ((xp = x.parent) == null) &#123; //如果插入的是头结点</div><div class="line">            x.red = false; //那么可以直接退出</div><div class="line">            return x;</div><div class="line">        &#125;</div><div class="line">        else if (!xp.red || (xpp = xp.parent) == null) //xp是插入的x的par</div><div class="line">            //只有两层，x是红色不改变黑节点高度，只有par是red才需要调整（两个red不能相连）</div><div class="line">            return root;</div><div class="line">        if (xp == (xppl = xpp.left)) &#123; //父节点是左孩子</div><div class="line">            if ((xppr = xpp.right) != null &amp;&amp; xppr.red) &#123; //叔叔节点是红色的</div><div class="line">                xppr.red = false;</div><div class="line">                xp.red = false;</div><div class="line">                xpp.red = true;</div><div class="line">                x = xpp; //x节点上移到祖父节点</div><div class="line">            &#125;</div><div class="line">            else &#123;</div><div class="line">                //叔叔节点是黑色节点，x是右节点，那么移动到左边</div><div class="line">                if (x == xp.right) &#123;</div><div class="line">                    //x变成xp的位置，结构没变，只是x指向变了</div><div class="line">                    root = rotateLeft(root, x = xp);</div><div class="line">                    xpp = (xp = x.parent) == null ? null : xp.parent;</div><div class="line">                &#125;</div><div class="line">                if (xp != null) &#123; //叔叔是黑色节点，x是左节点</div><div class="line">                    xp.red = false;</div><div class="line">                    if (xpp != null) &#123; //那么右旋就行了</div><div class="line">                        xpp.red = true;</div><div class="line">                        root = rotateRight(root, xpp);</div><div class="line">                    &#125;</div><div class="line">                &#125;</div><div class="line">            &#125;</div><div class="line">        &#125;</div><div class="line">        else &#123;</div><div class="line">           ...</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+</li>
+</ul>
+<p>首先设置插入的节点为红色, 若插入节点的父节点是黑色的,那么没有打破红黑树的原则, 可以不用调整直接退出, 当且仅当父节点是红色时候才需要调整, 这里主要讨论插入节点的父节点是祖父节点左孩子(又孩子一样)的情况, 分三种情况进行调整:<br>case1. 叔叔C是红色的<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/ConcurrentHashMap5.png" height="250" width="400"><br>调整: 父节点B与叔叔节点C变黑, 祖父节点A变红, 调整节点上移到祖父节点A<br>case2. 叔叔C是黑色的, 插入节点X是右孩子<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/ConcurrentHashMap6.png" height="250" width="400"><br>调整: 父节点B右旋, 将调整节点指向曾经的自己D, 变成case3的情况<br>case3. 叔叔C是黑色的, 插入节点X是左孩子<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/ConcurrentHashMap7.png" height="250" width="400"><br>调整: 祖父节点A右旋, 父节点B变黑, 祖父节A点变红, 调整完成, 退出函数。</p>
+<h2 id="红黑树删除后平衡balanceInsertion"><a href="#红黑树删除后平衡balanceInsertion" class="headerlink" title="红黑树删除后平衡balanceInsertion"></a>红黑树删除后平衡balanceInsertion</h2><p>红黑树删除分为两步:</p>
+<ul>
+<li>二叉树正常删除数据。红黑树在删除节点时, 若该节点做孩子或者右孩子最多只存在一个, 那么删除的就是本身节点; 若左右孩子同时存在, 那么结构上实际删除的节点将是<code>该节点的中序遍历的后继节点</code>, 然后再将实际删除的那个节点数据来置换理论上被删除的那个节点的数据, 所以:实际被删除的那个节点两个孩子不可能同时存在。</li>
+<li>删除节点后的调整。 删除后, 若删除的是黑色节点, 导致从该节点到其子孙节点的所有路径上包含相同不同数目的黑节点, 将违反第5)条。 以下是调整过程:<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div><div class="line">61</div><div class="line">62</div><div class="line">63</div></pre></td><td class="code"><pre><div class="line">//x点代表了一次删除的那个黑色</div><div class="line">static &lt;K,V&gt; TreeNode&lt;K,V&gt; balanceDeletion(TreeNode&lt;K,V&gt; root, TreeNode&lt;K,V&gt; x) &#123;</div><div class="line">    for (TreeNode&lt;K,V&gt; xp, xpl, xpr;;)  &#123;</div><div class="line">        if (x == null || x == root)</div><div class="line">            return root;</div><div class="line">        else if ((xp = x.parent) == null) &#123;</div><div class="line">            x.red = false;</div><div class="line">            return x;</div><div class="line">        &#125;</div><div class="line">         //红色的，那么直接将红色变成黑色</div><div class="line">        else if (x.red) &#123;</div><div class="line">            x.red = false;</div><div class="line">            return root;</div><div class="line">        &#125;</div><div class="line">        //开始分两种情况，都是一样的， x是左兄弟</div><div class="line">        else if ((xpl = xp.left) == x) &#123;</div><div class="line">         //第一种情况：有兄弟是红色的，先将兄弟变成红色的</div><div class="line">            if ((xpr = xp.right) != null &amp;&amp; xpr.red) &#123;</div><div class="line">                xpr.red = false;</div><div class="line">                xp.red = true;</div><div class="line">                root = rotateLeft(root, xp);</div><div class="line">                xpr = (xp = x.parent) == null ? null : xp.right;</div><div class="line">            &#125;</div><div class="line">            if (xpr == null)//若有兄弟不存在，可以向上移动一个节点</div><div class="line">                x = xp;</div><div class="line">            else &#123; //那么右兄弟为黑色的</div><div class="line">                TreeNode&lt;K,V&gt; sl = xpr.left, sr = xpr.right;</div><div class="line">                if ((sr == null || !sr.red) &amp;&amp;</div><div class="line">                 //右兄弟的两个孩子若存在，那么是黑色的</div><div class="line">                    (sl == null || !sl.red)) &#123;</div><div class="line">                    //右兄弟将提取一个黑色，和本节点一起组成一个复黑色给父亲节点</div><div class="line">                    xpr.red = true;</div><div class="line">                    x = xp;</div><div class="line">                &#125;</div><div class="line">                else &#123; //右兄弟为黑色</div><div class="line">                    //并且右兄弟的右孩子为若存在，是黑色。反过来说，左孩子一定存在，并且为红色</div><div class="line">                    if (sr == null || !sr.red) &#123;</div><div class="line">                        if (sl != null)//这里判断没有意义，一定是red</div><div class="line">                            sl.red = false;</div><div class="line">                        xpr.red = true;</div><div class="line">                        root = rotateRight(root, xpr);//右旋</div><div class="line">                        xpr = (xp = x.parent) == null ? //更新指向xpr和xp的指针</div><div class="line">                            null : xp.right;</div><div class="line">                    &#125;</div><div class="line">                    //右兄弟为黑色，右兄弟的右孩子一定为red</div><div class="line">                    if (xpr != null) &#123;</div><div class="line">                        xpr.red = (xp == null) ? false : xp.red;</div><div class="line">                        if ((sr = xpr.right) != null)</div><div class="line">                            sr.red = false;</div><div class="line">                    &#125;</div><div class="line">                    if (xp != null) &#123;</div><div class="line">                        xp.red = false;</div><div class="line">                        root = rotateLeft(root, xp);</div><div class="line">                    &#125;</div><div class="line">                    x = root;//那么旋转结束</div><div class="line">                &#125;</div><div class="line">            &#125;</div><div class="line">        &#125;</div><div class="line">        else &#123; // symmetric</div><div class="line">           ...</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+</li>
+</ul>
+<p>若删除了红节点, 那么对二叉树没有任何影响, 调整的都是删除节点是黑色的情况; 若删除节点的父节点是红色的,直接变成黑的就over, 这里仅仅讨论删除节点的父节点是左孩子(右孩子类似)的情况.<br>这里的x需要看成双重黑色, 平衡的目的是将这个双重黑色分摊到别的节点, 变成单黑色, 调整节点迁移到父节点<br>case1: 兄弟是红色的<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/ConcurrentHashMap12.png" height="350" width="400"><br>调整: 情况1: 若无右兄弟, 则将调整节点上移到父节点A; 若有右兄弟C, 对父节点A左旋, 父节点A变成红色, 兄弟节点C变成黑色<br>case2: 兄弟是黑色的, 兄弟的两个孩子(存在2个、1个、或者0个)没有一个是红色的<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/ConcurrentHashMap13.png" height="250" width="400"><br>调整: 将兄弟节点C变成红色, 调整节点上移到父节点C。<br>case3: 兄弟是黑色的, 兄弟的左孩子是红色。<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/ConcurrentHashMap14.png" height="250" width="400"><br>调整: 右旋兄弟节点C, 兄弟节点左孩子变成黑色, 兄弟节点C变成红色, 变成case4。<br>case3: 兄弟是黑色的, 兄弟的右孩子是红色。<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/ConcurrentHashMap15.png" height="250" width="400"><br>调整: 左旋父节点A, 将父节点A的颜色给兄弟节点, 父节点A变成黑色, 调整完成, 退出函数。</p>
+<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>红黑树重点是定义, 每次插入节点或者删除节点都会破坏红黑树的性能, 然后再通过调整修复这些性质就好了。</p>
+
+      
+
+      
+        <div class="page-reward">
+          <a href="javascript:;" class="page-reward-btn tooltip-top">
+            <div class="tooltip tooltip-east">
+            <span class="tooltip-item">
+              赏
+            </span>
+            <span class="tooltip-content">
+              <span class="tooltip-text">
+                <span class="tooltip-inner">
+                  <p class="reward-p"><i class="icon icon-quo-left"></i>谢谢阅读<i class="icon icon-quo-right"></i></p>
+                  <div class="reward-box">
+                    
+                    
+                  </div>
+                </span>
+              </span>
+            </span>
+          </div>
+          </a>
+        </div>
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/elasticsearch_learning/categories/Java学习//" class="article-tag-list-link color2">Java学习</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+
+      
+        
+<div class="share-btn share-icons tooltip-left">
+  <div class="tooltip tooltip-east">
+    <span class="tooltip-item">
+      <a href="javascript:;" class="share-sns share-outer">
+        <i class="icon icon-share"></i>
+      </a>
+    </span>
+    <span class="tooltip-content">
+      <div class="share-wrap">
+        <div class="share-icons">
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="icon icon-weibo"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="icon icon-weixin"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="icon icon-qq"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="icon icon-douban"></i>
+          </a>
+          <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a>
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="icon icon-facebook"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="icon icon-twitter"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="icon icon-google"></i>
+          </a>
+        </div>
+      </div>
+    </span>
+  </div>
+</div>
+
+<div class="page-modal wx-share js-wx-box">
+    <a class="close js-modal-close" href="javascript:;"><i class="icon icon-close"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//pan.baidu.com/share/qrcode?url=https://kkewwei.github.io/elasticsearch_learning/2017/11/06/ConcurrentHashMap红黑树原理介绍/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div class="mask js-mask"></div>
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+  
+<nav id="article-nav">
+  
+    <a href="/elasticsearch_learning/2017/11/14/ConcurrentHashMap扩容过程介绍/" id="article-nav-newer" class="article-nav-link-wrap">
+      <i class="icon-circle-left"></i>
+      <div class="article-nav-title">
+        
+          ConcurrentHashMap扩容源码介绍
+        
+      </div>
+    </a>
+  
+  
+    <a href="/elasticsearch_learning/2017/11/05/ConcurrentHashMap-put过程介绍/" id="article-nav-older" class="article-nav-link-wrap">
+      <div class="article-nav-title">ConcurrentHashMap Put源码介绍</div>
+      <i class="icon-circle-right"></i>
+    </a>
+  
+</nav>
+
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+        <div class="toc-container tooltip-left">
+            <i class="icon-font icon-category"></i>
+            <div class="tooltip tooltip-east">
+                <span class="tooltip-item">
+                </span>
+                <span class="tooltip-content">
+                    <div class="toc-article">
+                    <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#红黑树介绍"><span class="toc-number">1.</span> <span class="toc-text">红黑树介绍</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#链表转化为红黑树"><span class="toc-number">1.1.</span> <span class="toc-text">链表转化为红黑树</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#红黑树插入后平衡balanceInsertion"><span class="toc-number">1.2.</span> <span class="toc-text">红黑树插入后平衡balanceInsertion</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#红黑树删除后平衡balanceInsertion"><span class="toc-number">1.3.</span> <span class="toc-text">红黑树删除后平衡balanceInsertion</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#总结"><span class="toc-number">2.</span> <span class="toc-text">总结</span></a></li></ol>
+                    </div>
+                </span>
+            </div>
+        </div>
+        
+    </div>
+</aside>
+
+
+
+  
+
+  
+
+  
+
+  
+
+  
+  <div id="gitment-ctn"></div>
+<link rel="stylesheet" href="//imsun.github.io/gitment/style/default.css">
+<script src="//www.wenjunjiang.win/js/gitment.js "></script>
+<script>
+var gitment = new Gitment({
+  id: "ConcurrentHashMap红黑树原理介绍",
+  owner: 'kkewwei',
+  repo: 'comments',
+  oauth: {
+    client_id: '9391e497d6b288887f33',
+    client_secret: 'db733731bff4ee2811d9530b1ac4cfc6767e8183',
+  },
+})
+gitment.render('gitment-ctn')
+</script>
+
+  
+
+
           </div>
         </div>
       </div>
@@ -296,23 +549,19 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">Lucene、ByteBlockPool</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">LockSupport</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">Lucene、StoredField</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">Lucene、termVector、tvd、tvm、倒排索引</a>
+                <a href="javascript:void(0)" class="js-tag color1">Lucene、ByteBlockPool</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">Lucene、词典、tim、tip、doc、pos、fst、倒排索引</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">Lucene、termVector、tvd、tvm、倒排索引</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -324,11 +573,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">Cycler</a>
+                <a href="javascript:void(0)" class="js-tag color4">Lucene、StoredField</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">Cycler</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -352,11 +605,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
+                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
+                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
               </li>
              
               <li class="article-tag-list-item">

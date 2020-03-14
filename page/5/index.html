@@ -147,19 +147,1111 @@
           <div id="js-content" class="content-ll">
             
   
+    <article id="post-Java-NIO-write-read过程分析" class="article article-type-post  article-index" itemscope itemprop="blogPost">
+  <div class="article-inner">
     
+      <header class="article-header">
+        
   
-    
+    <h1 itemprop="name">
+      <a class="article-title" href="/elasticsearch_learning/2017/04/10/Java-NIO-write-read过程分析/">Java NIO Write过程分析</a>
+    </h1>
   
+
+        
+        <a href="/elasticsearch_learning/2017/04/10/Java-NIO-write-read过程分析/" class="archive-article-date">
+  	<time datetime="2017-04-10T15:35:58.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-04-10</time>
+</a>
+        
+         
+      </header>
     
+
+    <!-- 目录内容 -->
+    
+    <!-- 目录内容结束 -->
+
+    <div class="article-entry" itemprop="articleBody">
+      
+        <p>在<a href="https://kkewwei.github.io/elasticsearch_learning/2017/04/10/JAVA-NIO%E5%8E%9F%E7%90%861/#JAVA-NIO%E7%9A%84%E5%9F%BA%E6%9C%AC%E4%BD%BF%E7%94%A8">JAVA NIO通信分析</a>中, 说明了客户端与服务器端是如何建立连接的, 那么本文将在上文的基础上, 了解服务器端是如何根据建立的连接进行写和读的。由于读写流程基本一致, 这里只分析如何进行写入的。</p>
+<h1 id="write"><a href="#write" class="headerlink" title="write"></a>write</h1><p>服务器端调用了<code>SocketChannel.write(ByteBuffer.wrap( msg.getBytes()));</code>, 此时开启了写的流程:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div></pre></td><td class="code"><pre><div class="line">public int write(ByteBuffer buf) throws IOException &#123; \</div><div class="line">      if (buf == null)</div><div class="line">          throw new NullPointerException();</div><div class="line">      // 可以看到, 管道只要有一个在写, 那么久不让别的线程使用了</div><div class="line">      synchronized (writeLock) &#123;</div><div class="line">          // SocketChannelImp state=ST_CONNECTED</div><div class="line">          ensureWriteOpen();</div><div class="line">          int n = 0;</div><div class="line">          try &#123;</div><div class="line">              begin();</div><div class="line">              synchronized (stateLock) &#123;</div><div class="line">                  if (!isOpen())</div><div class="line">                      return 0;</div><div class="line">                  writerThread = NativeThread.current();</div><div class="line">              &#125;</div><div class="line">              for (;;) &#123;</div><div class="line">                  n = IOUtil.write(fd, buf, -1, nd); // 成功的话，就是写入成功的size</div><div class="line">                  // 如果发现退出时因为中断原因, 并且管道还正常打开的话, 那么就继续写入。</div><div class="line">                  if ((n == IOStatus.INTERRUPTED) &amp;&amp; isOpen())</div><div class="line">                      continue;</div><div class="line">                  // 这里对IOS_UNAVAILABLE/EOF进行了识别, 若异常为IOS_UNAVAILABLE/EOF, 则没有问题, 但是还是直接退出了。</div><div class="line">                  //返回的是成功写入的条数, -1 代表写入到文件末尾了, -2代表写入缓存满了/没有可以读取的了</div><div class="line">                  return IOStatus.normalize(n);</div><div class="line">              &#125;</div><div class="line">          &#125; finally &#123;</div><div class="line">              writerCleanup();</div><div class="line">              end(n &gt; 0 || (n == IOStatus.UNAVAILABLE));</div><div class="line">              synchronized (stateLock) &#123;</div><div class="line">                  if ((n &lt;= 0) &amp;&amp; (!isOutputOpen))</div><div class="line">                      throw new AsynchronousCloseException();</div><div class="line">              &#125;</div><div class="line">              assert IOStatus.check(n);</div><div class="line">          &#125;</div><div class="line">      &#125;</div><div class="line">  &#125;</div></pre></td></tr></table></figure></p>
+<p>这里主要做了如下工作:</p>
+<ol>
+<li>调用begin, 向当前线程的blocker属性赋值, 以便在写入时, 能影响中断信号。</li>
+<li>循环调用IOUtil.write向套接字写入数据, 返回的n表示当前写入的byte大小<br>3.当写入完成后, 调用writerCleanup清理现场。比如将writerThread置位, 代表没有线程写入了, 检查是否有必要进行将管道置为失败
+        
+          <a class="article-more-a" href="/elasticsearch_learning/2017/04/10/Java-NIO-write-read过程分析/#more">more >></a>
+        
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color2">NIO, write, read</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/elasticsearch_learning/categories/Java-NIO及网络通信//" class="article-tag-list-link color4">Java NIO及网络通信</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/elasticsearch_learning/2017/04/10/Java-NIO-write-read过程分析/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
   
+    <article id="post-JAVA-NIO原理1" class="article article-type-post  article-index" itemscope itemprop="blogPost">
+  <div class="article-inner">
     
+      <header class="article-header">
+        
   
-    
+    <h1 itemprop="name">
+      <a class="article-title" href="/elasticsearch_learning/2017/04/10/JAVA-NIO原理1/">JAVA NIO通信分析</a>
+    </h1>
   
+
+        
+        <a href="/elasticsearch_learning/2017/04/10/JAVA-NIO原理1/" class="archive-article-date">
+  	<time datetime="2017-04-10T02:54:35.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-04-10</time>
+</a>
+        
+         
+      </header>
     
+
+    <!-- 目录内容 -->
+    
+    <!-- 目录内容结束 -->
+
+    <div class="article-entry" itemprop="articleBody">
+      
+        <p>JAVA NIO作为Java网络通信模块最基本的单元, 而在实践中, 我们都会接触到网络通信, 搞懂JAVA NIO, 对我们排查问题起到事半功倍的效果。 本文将带你进入JAVA NIO函数及底层本地函数的世界。</p>
+<h1 id="JAVA-NIO的基本使用"><a href="#JAVA-NIO的基本使用" class="headerlink" title="JAVA NIO的基本使用"></a>JAVA NIO的基本使用</h1><p>我们仍然以一个网上的典型示例入手:</p>
+<h2 id="java版实现"><a href="#java版实现" class="headerlink" title="java版实现"></a>java版实现</h2><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div></pre></td><td class="code"><pre><div class="line">import java.io.IOException;</div><div class="line">import java.net.InetSocketAddress;</div><div class="line">import java.net.SocketOptions;</div><div class="line">import java.nio.ByteBuffer;</div><div class="line">import java.nio.channels.SelectionKey;</div><div class="line">import java.nio.channels.Selector;</div><div class="line">import java.nio.channels.ServerSocketChannel;</div><div class="line">import java.nio.channels.SocketChannel;</div><div class="line">import java.util.Iterator;</div><div class="line">public class NIOServer &#123;</div><div class="line">    static Selector selector;  // 选择器</div><div class="line">    public static void main(String[] args) throws Exception</div><div class="line">    &#123;</div><div class="line">        //打开一个通道</div><div class="line">        ServerSocketChannel serverSocketChannel = ServerSocketChannel.open();</div><div class="line">        serverSocketChannel.socket().setSoTimeout(10000);</div><div class="line">        serverSocketChannel.socket().setReuseAddress(true);</div><div class="line">        //通道设置非阻塞</div><div class="line">        serverSocketChannel.configureBlocking(false);</div><div class="line">        //绑定端口号, 100表示该端口可以支持的最大连接数</div><div class="line">        serverSocketChannel.bind(new InetSocketAddress(&quot;localhost&quot;, 8080, 100));</div><div class="line">        //注册</div><div class="line">        selector = Selector.open(); // KQueueSelectorImpl</div><div class="line">        serverSocketChannel.register(selector, SelectionKey.OP_ACCEPT);</div><div class="line">        while (true)</div><div class="line">        &#123;</div><div class="line">            selector.select();</div><div class="line">            Iterator&lt;SelectionKey&gt; ite = selector.selectedKeys().iterator();</div><div class="line">            while (ite.hasNext())</div><div class="line">            &#123;</div><div class="line">                SelectionKey key = ite.next();</div><div class="line">                if (key.isAcceptable())</div><div class="line">                &#123;</div><div class="line">                    SocketChannel channel = serverSocketChannel.accept();</div><div class="line">                    //SocketChannelImp，返回的是一个已完成三次三次握手的链接</div><div class="line">                    channel.configureBlocking(false);</div><div class="line">                    channel.register(selector, SelectionKey.OP_READ);</div><div class="line">                &#125;</div><div class="line">                else if (key.isReadable())</div><div class="line">                &#123;</div><div class="line">                    SocketChannel channel = (SocketChannel) key.channel();</div><div class="line">                    ByteBuffer buffer = ByteBuffer.allocate(256);</div><div class="line">                    int i = channel.read(buffer);</div><div class="line">                    if (i != -1)</div><div class="line">                    &#123;</div><div class="line">                        String msg = new String(buffer.array()).trim();</div><div class="line">                        System.out.println(&quot;NIO server received message =  &quot; + msg);</div><div class="line">                        channel.write(ByteBuffer.wrap( msg.getBytes()));</div><div class="line">                    &#125; else</div><div class="line">                    &#123;</div><div class="line">                        channel.close();</div><div class="line">                    &#125;</div><div class="line">                &#125;</div><div class="line">                ite.remove();</div><div class="line">            &#125;</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>客户端代码如下:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div></pre></td><td class="code"><pre><div class="line">import java.io.IOException;</div><div class="line">import java.net.InetSocketAddress;</div><div class="line">import java.nio.ByteBuffer;</div><div class="line">import java.nio.channels.SocketChannel;</div><div class="line">public class NioClient</div><div class="line">&#123;</div><div class="line">    /**</div><div class="line">     * 通道</div><div class="line">     */</div><div class="line">    SocketChannel channel;</div><div class="line">    public void initClient(String host, int port) throws IOException</div><div class="line">    &#123;</div><div class="line">        //构造socket连接</div><div class="line">        InetSocketAddress servAddr = new InetSocketAddress(host, port);</div><div class="line">        //打开连接</div><div class="line">        this.channel = SocketChannel.open(servAddr);</div><div class="line">    &#125;</div><div class="line">    public void sendAndRecv(String words) throws IOException</div><div class="line">    &#123;</div><div class="line">        byte[] msg = new String(words).getBytes();</div><div class="line">        ByteBuffer buffer = ByteBuffer.wrap(msg);</div><div class="line">        System.out.println(&quot;Client sending: &quot; + words);</div><div class="line">        channel.write(buffer);</div><div class="line">        buffer.clear();</div><div class="line">        channel.read(buffer);</div><div class="line">        System.out.println(&quot;Client received: &quot; + new String(buffer.array()).trim());</div><div class="line">        channel.close();</div><div class="line">    &#125;</div><div class="line">    public static void main(String[] args) throws IOException</div><div class="line">    &#123;</div><div class="line">        NioClient client = new NioClient();</div><div class="line">        client.initClient(&quot;localhost&quot;, 8080);</div><div class="line">        client.sendAndRecv(&quot;I am a client&quot;);</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>其实Java NIO封装了linux网络通信的接口, java 通过调用本地函数间接调用linux网络通信接口, 我们也给出linux是如何实现通信的。</p>
+<h2 id="C-实现"><a href="#C-实现" class="headerlink" title="C++实现"></a>C++实现</h2><p>Server 实现如下:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div></pre></td><td class="code"><pre><div class="line">#include &lt;stdio.h&gt;</div><div class="line">#include &lt;string.h&gt;</div><div class="line">#include &lt;stdlib.h&gt;</div><div class="line">#include &lt;unistd.h&gt;</div><div class="line">#include &lt;arpa/inet.h&gt;</div><div class="line">#include &lt;sys/socket.h&gt;</div><div class="line">#include &lt;sys/fcntl.h&gt;</div><div class="line">#include &lt;netinet/in.h&gt;</div><div class="line">#include &lt;errno.h&gt;</div><div class="line">int main()&#123;</div><div class="line">    //创建套接字</div><div class="line">    int serv_sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);</div><div class="line">    //将套接字和IP、端口绑定</div><div class="line">    struct sockaddr_in serv_addr;</div><div class="line">    memset(&amp;serv_addr, 0, sizeof(serv_addr));  //每个字节都用0填充</div><div class="line">    serv_addr.sin_family = AF_INET;  //使用IPv4地址</div><div class="line">    serv_addr.sin_addr.s_addr = inet_addr(&quot;127.0.0.1&quot;);  //具体的IP地址</div><div class="line">    serv_addr.sin_port = htons(1234);  //端口</div><div class="line">    bind(serv_sock, (struct sockaddr*)&amp;serv_addr, sizeof(serv_addr));</div><div class="line">    // 可执行各种描述符控制操作</div><div class="line">    // int flags = fcntl(serv_sock, F_GETFL);</div><div class="line">    // int newflags = (flags | O_NONBLOCK);</div><div class="line">    // fcntl(serv_sock, F_SETFL, newflags);</div><div class="line">    //进入监听状态，等待用户发起请求</div><div class="line">    listen(serv_sock, 20);</div><div class="line">    //接收客户端请求</div><div class="line">    struct sockaddr_in clnt_addr;</div><div class="line">    socklen_t clnt_addr_size = sizeof(clnt_addr);</div><div class="line">    // 可能被阻塞, 等待用户连接</div><div class="line">    int clnt_sock = accept(serv_sock, (struct sockaddr*)&amp;clnt_addr, &amp;clnt_addr_size);</div><div class="line">    if (clnt_sock &lt; 0) &#123; // 有异常退出</div><div class="line">        if (errno == EAGAIN)</div><div class="line">            return -10;</div><div class="line">        if (errno == EINTR)</div><div class="line">            return -9;</div><div class="line">        return -8;</div><div class="line">    &#125;</div><div class="line">    // Get client IP:Port and Server IP:Port.</div><div class="line">    // struct sockaddr_in c, s;</div><div class="line">    // socklen_t cLen = sizeof(c);</div><div class="line">    // socklen_t sLen = sizeof(s);</div><div class="line">    // getsockname(clnt_sock, (struct sockaddr*) &amp;s, &amp;sLen); // ! use clnt_sock here.</div><div class="line">    // getpeername(clnt_sock, (struct sockaddr*) &amp;c, &amp;cLen); // ! use clnt_sock here.</div><div class="line">    // printf(&quot;Client: %s:%d\nServer: %s:%d\n&quot;, inet_ntoa(c.sin_addr), ntohs(c.sin_port), inet_ntoa(s.sin_addr), ntohs(s.sin_port));</div><div class="line">    //向客户端发送数据</div><div class="line">    char str[] = &quot;http://c.biancheng.net/socket/&quot;;</div><div class="line">    int j = write(clnt_sock, str, sizeof(str));</div><div class="line">    //关闭套接字</div><div class="line">    close(clnt_sock);</div><div class="line">    close(serv_sock);</div><div class="line">    printf(&quot;connetc over&quot;);</div><div class="line">    return 0;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>Client 实现如下:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div></pre></td><td class="code"><pre><div class="line">#include &lt;stdio.h&gt;</div><div class="line">#include &lt;string.h&gt;</div><div class="line">#include &lt;stdlib.h&gt;</div><div class="line">#include &lt;unistd.h&gt;</div><div class="line">#include &lt;arpa/inet.h&gt;</div><div class="line">#include &lt;sys/socket.h&gt;</div><div class="line">int main()&#123;</div><div class="line">    //创建套接字</div><div class="line">    int sock = socket(AF_INET, SOCK_STREAM, 0);</div><div class="line">    //向服务器（特定的IP和端口）发起请求</div><div class="line">    struct sockaddr_in serv_addr;</div><div class="line">    memset(&amp;serv_addr, 0, sizeof(serv_addr));  //每个字节都用0填充</div><div class="line">    serv_addr.sin_family = AF_INET;  //使用IPv4地址</div><div class="line">    serv_addr.sin_addr.s_addr = inet_addr(&quot;127.0.0.1&quot;);  //具体的IP地址</div><div class="line">    serv_addr.sin_port = htons(1234);  //端口</div><div class="line">    connect(sock, (struct sockaddr*)&amp;serv_addr, sizeof(serv_addr));</div><div class="line">    //读取服务器传回的数据</div><div class="line">    char buffer[40];</div><div class="line">    read(sock, buffer, sizeof(buffer)-1);</div><div class="line">    socklen_t  sa_len = sizeof(serv_addr);</div><div class="line">    printf(&quot;Message form server: %s\n&quot;, buffer);</div><div class="line">    //关闭套接字</div><div class="line">    close(sock);</div><div class="line">    return 0;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>建立通信过程是一样的, 大致如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/nio.png" height="300" width="400"><br>本文将围绕server端每一个步骤结合java本地实现进行详细介绍。</p>
+<h1 id="产生IO复用选择器"><a href="#产生IO复用选择器" class="headerlink" title="产生IO复用选择器"></a>产生IO复用选择器</h1><p>服务器端第一步就是调用ServerSocketChannel.open()函数, 首先产生IO复路选择器提供者:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div></pre></td><td class="code"><pre><div class="line">public static SelectorProvider provider() &#123;</div><div class="line">    synchronized (lock) &#123;</div><div class="line">        if (provider != null)</div><div class="line">            return provider; // 确保只有一个被初始化</div><div class="line">        return AccessController.doPrivileged(</div><div class="line">            new PrivilegedAction&lt;SelectorProvider&gt;() &#123;</div><div class="line">                public SelectorProvider run() &#123;</div><div class="line">                        // 从参数中查找是否有指定的</div><div class="line">                        if (loadProviderFromProperty())</div><div class="line">                            return provider;</div><div class="line">                        // 从jar中的目录META-INF/services配置文件中找java.nio.channels.spi.SelectorProvider=class指定的类</div><div class="line">                        if (loadProviderAsService())</div><div class="line">                            return provider;</div><div class="line">                        // 那么就是用默认的实现KQueueSelectorProvider</div><div class="line">                        provider = sun.nio.ch.DefaultSelectorProvider.create();</div><div class="line">                        return provider;</div><div class="line">                    &#125;</div><div class="line">                &#125;);</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>选择这个provider过程如下:</p>
+<ol>
+<li>查找是否通过参数制定了那个provider, 可以通过-Djava.nio.channels.spi.SelectorProvider制定</li>
+<li>继续在jar中的目录META-INF/services中查找<br>3.使用默认实现KQueueSelectorProvider, 之后会产生KQueueSelectorImpl类, 作为复路选择器的实现类, 之后会详细讲解。</li>
+</ol>
+<h1 id="设置非阻塞"><a href="#设置非阻塞" class="headerlink" title="设置非阻塞"></a>设置非阻塞</h1><p>套接字默认为阻塞的, 当发出一个不能完成的套接字调用时, 进程将阻塞, 可能阻塞的调用分为以下四个方面(参考《UNIX网络编程卷1: 套接字联网API》:</p>
+<ol>
+<li>输入操作, 比如read, readv, recv, recvfrom, recvmsg5个函数, 对一个TCP套接字调用这些函数时, 而且该套接字的接收缓存区没有数据可读取, 该线程将睡眠, 直到有一些数据到达, 既然TCP是字节流协议, 该进程的唤醒就是只要有一些数据到达, 这些数据既可能是单个字节, 也可能是一个完整地TCP分节中的数据, 如果想要等到某个固定树木的数据可读为止, 那么可以调用readn函数, 或者指定MSG_WAITALL标志。<br>&#160; &#160; &#160; &#160;既然UDP是数据报协议, 如果一个阻塞的UDP套接字为空, 对它调用的进程将被投入睡眠, 直到有UDP数据报到达。对于非阻塞的套接字, 如果一个操作不能被满足(对于TCP套接字至少有一个字节可读, 对于UDP至少有一个完整地数据报可读))。</li>
+<li>输出操作, 包括write, writev, send, sendto和sendmsg共5个函数, 对于一个TCP套接字,内核将从应用程序的缓冲区到该套接字的发送缓冲区复制数据。对于阻塞的套接字, 如果其发送缓冲区没有空间, 该进程将被阻塞, 直到有空间为止。<br>&#160; &#160; &#160; &#160;对于非阻塞TCP套接字, 如果其发送缓冲区根本没有空间, 输出函数调用将立即返回一个EWOULDBLOCK错误, 如果其发送缓冲区有一些空间, 返回值将是内核能够㢟到该缓冲区中的字节数, 这个字节数也成为不足计数。UDP套接字不存在真正的发送缓冲区, 内核只是复制应用程序进程数据,并把它沿协议栈向下传递, 渐次冠以UDP首部和IP首部, 因此对于一个阻塞的UDP套接字, 输出函数将不会因为与TCP套接字一样的原因而阻塞, 不顾有可能因为其他的原因阻塞。</li>
+<li>接受外来连接(服务器端), 即accept函数, 如果对一个阻塞的套接字调用accept函数, 并且尚无新的连接到达, 该线程将阻塞。<br>&#160; &#160; &#160; &#160;如果对一个非阻塞的套接字调用accpet函数, 并且尚无新的连接到大, accept将立即返回一个AWOULDBLOCK错误。</li>
+<li>发起外来连接(客户端), 即调用TCP的connect函数。(connect同样可用于UDP, 不过它不能使一个真正的连接建立起来, 它只是是内核保存对端的IP和端口号)。TCP连接的建立涉及一个三次握手过程, 而且connect函数一直要等到客户端收到对于自己的SYN的ACK为止才返回。 这意味着TCP的每一个connect总会阻塞其调用进程至少一个到服务器的RTT时间。<br>在代码里面, 我们可以通过<code>channel.configureBlocking(false)</code>设置管道的非阻塞。在JAVA NIO中, 若我们对ServerSocketChannelImp和SocketChannelImp不设置非阻塞, 那么程序将检查不通过。</li>
+</ol>
+<h1 id="open"><a href="#open" class="headerlink" title="open"></a>open</h1><p>有了复路选择器提供者之后, 就该产生ServerSocketChannelImpl了, 任何与client建立建立都是由它完成的, 我们看下初始化做了什么工作<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div></pre></td><td class="code"><pre><div class="line">ServerSocketChannelImpl(SelectorProvider sp) throws IOException &#123;</div><div class="line">    super(sp);</div><div class="line">    this.fd =  Net.serverSocket(true);</div><div class="line">    this.fdVal = IOUtil.fdVal(fd);</div><div class="line">    this.state = ST_INUSE;  // 只有三个状态，未使用，正使用，被kill</div><div class="line">&#125;</div><div class="line">static FileDescriptor serverSocket(boolean var0) &#123;</div><div class="line">    return IOUtil.newFD(socket0(isIPv6Available(), var0, true, fastLoopback));</div><div class="line">&#125;</div><div class="line">public static FileDescriptor newFD(int i) &#123;</div><div class="line">    FileDescriptor fd = new FileDescriptor();</div><div class="line">    setfdVal(fd, i);</div><div class="line">    return fd;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>可以看到初始化主要做了如下工作:</p>
+<ol>
+<li>通过调用java nio Java_sun_nio_ch_Net_socket0 获取文件描述符fd(int类型)</li>
+<li>产生FileDescriptor对象fd, 然后调用nio函数setfdVal, 对这个赋值, 将数字类型的fd放入FileDescriptor的类中。</li>
+<li>通过nio IOUtil.fdVal获取FileDescriptor中的fd属性值, 保存在ServerSocketChannelImpl的fdVal中</li>
+<li>设置ServerSocketChannelImpl的状态为ST_INUSE 正使用状态。<br>FileDescriptor里面的fd作为java与底层c++沟通的桥梁。 从FileDescriptor中获取fd ,也是通过java nio饶了一圈, 而不是直接从java FileDescriptor, 原因是FileDescriptor fd属性被设置成了private(保证fd的安全性)<br>我们接下来看java nio Java_sun_nio_ch_Net_socket0是如何实现的:<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div></pre></td><td class="code"><pre><div class="line">// 网络协议相关参数https://linux.die.net/man/2/socket</div><div class="line">JNIEXPORT int JNICALL</div><div class="line">Java_sun_nio_ch_Net_socket0(JNIEnv *env, jclass cl, jboolean preferIPv6,</div><div class="line">                            jboolean stream, jboolean reuse)</div><div class="line">&#123;</div><div class="line">    int fd;</div><div class="line">     //通信协议, 默认都是SOCK_STREAM, 代表是TCP协议, 而SOCK_DGRAM表示UDP协议</div><div class="line">    int type = (stream ? SOCK_STREAM : SOCK_DGRAM);</div><div class="line">#ifdef AF_INET6</div><div class="line">    int domain = (ipv6_available() &amp;&amp; preferIPv6) ? AF_INET6 : AF_INET; //前面是ipv6, 后面代表ipv4</div><div class="line">#else</div><div class="line">    # AF_INET代表协议是ipv4, 默认都是ipv4</div><div class="line">    int domain = AF_INET;</div><div class="line">#endif</div><div class="line">    // 第三个参数protocol执行通信用的协议, 0意味着使用默认的, 获得网络通信的fd</div><div class="line">    fd = socket(domain, type, 0);</div><div class="line">    // 它返回的就是socket file descriptor</div><div class="line">    if (fd &lt; 0) &#123;</div><div class="line">        return handleSocketError(env, errno);</div><div class="line">    &#125;</div><div class="line">    ......</div><div class="line"></div><div class="line">    if (reuse) &#123; // 如果是地址复用地址, 那么就设置参数</div><div class="line">        int arg = 1;</div><div class="line">        if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, (char*)&amp;arg,</div><div class="line">                       sizeof(arg)) &lt; 0) &#123;</div><div class="line">            JNU_ThrowByNameWithLastError(env,</div><div class="line">                                         JNU_JAVANETPKG &quot;SocketException&quot;,</div><div class="line">                                         &quot;Unable to set SO_REUSEADDR&quot;);</div><div class="line">            close(fd);</div><div class="line">            return -1;</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line"></div><div class="line">......</div><div class="line">    // 默认返回的是fd, 若出错, 那么返回值 &lt; 0</div><div class="line">    return fd;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+</li>
+</ol>
+<p>可以看到本地函数实现也是比较简单的。此时我们获得了ServerSocketChannelImpl, 里面都linux socket通信的fd, 保存在了FileDescriptor中</p>
+<h1 id="bind和listen"><a href="#bind和listen" class="headerlink" title="bind和listen"></a>bind和listen</h1><p>在java中, ServerSocketChannelImpl.bin()操作实际上调用了本地函数bind和listen, 我们看下具体做了哪些事情。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div></pre></td><td class="code"><pre><div class="line">public ServerSocketChannel bind(SocketAddress local, int backlog) throws IOException &#123;</div><div class="line">    synchronized (lock) &#123;</div><div class="line">        //首先检查ServerSocketChannelImpl是否被关闭</div><div class="line">        if (!isOpen())</div><div class="line">            throw new ClosedChannelException();</div><div class="line">        // 只要localAddress不为null, 就算被绑定了</div><div class="line">        if (isBound())</div><div class="line">            throw new AlreadyBoundException();</div><div class="line">        InetSocketAddress isa = (local == null) ? new InetSocketAddress(0) :</div><div class="line">            Net.checkAddress(local);</div><div class="line">        SecurityManager sm = System.getSecurityManager();</div><div class="line">        if (sm != null)</div><div class="line">            sm.checkListen(isa.getPort());</div><div class="line">        NetHooks.beforeTcpBind(fd, isa.getAddress(), isa.getPort());</div><div class="line">        Net.bind(fd, isa.getAddress(), isa.getPort());</div><div class="line">        Net.listen(fd, backlog &lt; 1 ? 50 : backlog);</div><div class="line">        synchronized (stateLock) &#123; //这对将地址绑定到端口上</div><div class="line">            localAddress = Net.localAddress(fd); // 从底层引擎层获取服务器地址与主机，顺便检测是否一定开启了监听</div><div class="line">        &#125; // 可以看下http://www.samirchen.com/get-client-server-ip-port/</div><div class="line">    &#125;// 在bind以后就可以调用getsockname来获取IP和Port，虽然这没有什么太多的意义</div><div class="line">    return this;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>可以看到, 该函数主要就是调用了本地函数Net.bind() 和Net.listen()函数, 其中前者用户端口绑定, 后者监听该端口。我们分别看下两个本地函数做了什么:</p>
+<h2 id="Net-bind"><a href="#Net-bind" class="headerlink" title="Net.bind"></a>Net.bind</h2><p>Net.bind调用jvm的<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div></pre></td><td class="code"><pre><div class="line">JNIEXPORT void JNICALL // fdo 文件对象java/io/FileDescriptor   iao：地址localhost/127.0.0.1</div><div class="line">Java_sun_nio_ch_Net_bind0(JNIEnv *env, jclass clazz, jobject fdo, jboolean preferIPv6,</div><div class="line">                          jboolean useExclBind, jobject iao, int port)</div><div class="line">&#123;</div><div class="line">    SOCKADDR sa;</div><div class="line">    int sa_len = SOCKADDR_LEN;</div><div class="line">    int rv = 0;</div><div class="line">    //将java的InetAddress转换为c的struct socketAddr</div><div class="line">    if (NET_InetAddressToSockaddr(env, iao, port, (struct sockaddr *)&amp;sa, &amp;sa_len, preferIPv6) != 0) &#123;</div><div class="line">      return;</div><div class="line">    &#125;</div><div class="line">   //调用bind方法:int bind(int sockfd, struct sockaddr* addr, socklen_t addrlen)套接字是用户程序与内核交互信息的枢纽，它自身没有网络协议地址和端口号等信息,在进行网络通信的时候，必须把一个套接字与一个地址相关联。很多时候内核会我们自动绑定一个地址，然而有时用户可能需要自己来完成这个绑定的过程，以满足实际应用的需要；</div><div class="line">   //最典型的情况是一个服务器进程需要绑定一个众所周知的地址或端口以等待客户来连接。对于客户端，很多时候并不需要调用bind方法，而是由内核自动绑定；性能测试的时候为了在一台机器上发起海量连接端口的限制，会在一个机器上配置多个ip地址，建立连接时，绑定ip</div><div class="line">    rv = NET_Bind(fdval(env, fdo), (struct sockaddr *)&amp;sa, sa_len);</div><div class="line">    if (rv != 0) &#123; //绑定失败</div><div class="line">        handleSocketError(env, errno);</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>可以看到, Java_sun_nio_ch_Net_bind0首先将InetAddress转变为linux支持的sockaddr地址, 其次获取FileDescriptor中保存的fd, 最后通过bind(fd)绑定本地端口</p>
+<h2 id="Net-listen"><a href="#Net-listen" class="headerlink" title="Net.listen()"></a>Net.listen()</h2><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div></pre></td><td class="code"><pre><div class="line">JNIEXPORT void JNICALL</div><div class="line">Java_sun_nio_ch_Net_listen(JNIEnv *env, jclass cl, jobject fdo, jint backlog)</div><div class="line">&#123;  //首先获取文件描述符兑现的fd值</div><div class="line">    if (listen(fdval(env, fdo), backlog) &lt; 0)</div><div class="line">        handleSocketError(env, errno);</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>而在listen本地函数中, 我们需要了解一个参数backlog, 表示监听该端口, 可支持的最大的连接数, 在netty的NetUtil.java中, 会去读取服务器端/proc/sys/net/core/somaxconn文件该值。然后再去调用linux的listen函数去监听该端口</p>
+<h1 id="产生Selector"><a href="#产生Selector" class="headerlink" title="产生Selector"></a>产生Selector</h1><p>Select主要处理IO复用, 能够监听多个多个链路的IO事件, 目前针对Java服务器的非阻塞编程基本都是基于epoll的：EPollSelectorImpl， mac上测试时是KQueueSelectorImpl, 我们就以后者为例讲解。<br>我们看下KQueueSelectorImpl成员变量:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div></pre></td><td class="code"><pre><div class="line">class KQueueSelectorImpl</div><div class="line">    extends SelectorImpl</div><div class="line">&#123;</div><div class="line">    // File descriptors used for interrupt</div><div class="line">    //将从select中唤醒使用的</div><div class="line">    protected int fd0;</div><div class="line">    protected int fd1;</div><div class="line"></div><div class="line">    // The kqueue manipulator</div><div class="line">    // KQueueSelectorImpl是上层逻辑，真正偏底层交道的还是KQueueArrayWrapper(比如封装32/64位),</div><div class="line">    KQueueArrayWrapper kqueueWrapper;</div><div class="line"></div><div class="line">    // Count of registered descriptors (including interrupt)</div><div class="line">    // 多少注册的描述符</div><div class="line">    private int totalChannels;</div><div class="line"></div><div class="line">    // Map from a file descriptor to an entry containing the selection key</div><div class="line">    // 存放的是管道FD对应着SelectionKey.OP_ACCEPT 产生的SelectionKeyImpl</div><div class="line">    private HashMap&lt;Integer,MapEntry&gt; fdMap;</div><div class="line"></div><div class="line">    // True if this Selector has been closed</div><div class="line">    private boolean closed = false;</div><div class="line"></div><div class="line">    // Lock for interrupt triggering and clearing</div><div class="line">    private Object interruptLock = new Object();</div><div class="line">    // 中断已触发标志</div><div class="line">    private boolean interruptTriggered = false;</div><div class="line"></div><div class="line">    // used by updateSelectedKeys to handle cases where the same file</div><div class="line">    // descriptor is polled by more than one filter</div><div class="line">    private long updateCount;</div><div class="line"></div><div class="line">    // Used to map file descriptors to a selection key and &quot;update count&quot;</div><div class="line">    // (see updateSelectedKeys for usage).</div><div class="line">    private static class MapEntry &#123;</div><div class="line">        SelectionKeyImpl ski;</div><div class="line">        long updateCount;</div><div class="line">        MapEntry(SelectionKeyImpl ski) &#123;</div><div class="line">            this.ski = ski;</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    /**</div><div class="line">     * Package private constructor called by factory method in</div><div class="line">     * the abstract superclass Selector.</div><div class="line">     */</div><div class="line">    KQueueSelectorImpl(SelectorProvider sp) &#123;</div><div class="line">        super(sp);  //IOUtil.makePipe作用可参考：https://cloud.tencent.com/developer/article/1007497</div><div class="line">         // 开启管道，每个进程各自有不同的用户地址空间，任何一个进程的全局变量在另一个进程中都看不到，所以进程之间要交换数据必须通过内核，在内核中开辟一块缓冲区，进程1把数据从用户空间拷到内核缓冲区，进程2再从内核缓冲区把数据读走，内核提供的这种机制称为进程间通信（IPC，InterProcess Communication）</div><div class="line">        long fds = IOUtil.makePipe(false);</div><div class="line">        //读端</div><div class="line">        fd0 = (int)(fds &gt;&gt;&gt; 32);</div><div class="line">         //写段</div><div class="line">        fd1 = (int)fds;</div><div class="line">        kqueueWrapper = new KQueueArrayWrapper();</div><div class="line">        kqueueWrapper.initInterrupt(fd0, fd1);</div><div class="line">        fdMap = new HashMap&lt;&gt;();</div><div class="line">        totalChannels = 1;</div><div class="line">    &#125;</div></pre></td></tr></table></figure></p>
+<ul>
+<li>IO多路复用KQueueArrayWrapper<br>我们首先看IO多路复用底层实现的KQueueArrayWrapper的工作原理:<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div></pre></td><td class="code"><pre><div class="line">static &#123;</div><div class="line">     IOUtil.load();  //  啥都不做</div><div class="line">     initStructSizes();  // 会在native中对字段进行初始化</div><div class="line">     String datamodel = java.security.AccessController.doPrivileged(</div><div class="line">         new sun.security.action.GetPropertyAction(&quot;sun.arch.data.model&quot;)</div><div class="line">     );</div><div class="line">     is64bit = datamodel.equals(&quot;64&quot;);</div><div class="line"> &#125;</div><div class="line"> KQueueArrayWrapper() &#123;</div><div class="line">     int allocationSize = SIZEOF_KEVENT * NUM_KEVENTS;</div><div class="line">     keventArray = new AllocatedNativeObject(allocationSize, true);</div><div class="line">     // keventArrayAddress保存着该内存块物理地址</div><div class="line">     keventArrayAddress = keventArray.address();</div><div class="line">     // Java_sun_nio_ch_KQueueArrayWrapper_init  这里回去通过kqueue()初始化一个句柄, 获得IO复路监听者</div><div class="line">     kq = init();</div><div class="line"> &#125;</div></pre></td></tr></table></figure>
+</li>
+</ul>
+<p>在linux层面, 每个被监听/响应的事件都是由一个kevent构成, 构成结构如下:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div></pre></td><td class="code"><pre><div class="line">struct kevent &#123;</div><div class="line">	uintptr_t	ident;		/* identifier for this event  比如该事件关联的文件描述符*/*/</div><div class="line">	int16_t		filter;		/* filter for event   可以指定监听类型，如EVFILT_READ，EVFILT_WRITE，EVFILT_TIMER等 */</div><div class="line">	uint16_t	flags;		/* general flags 可以指定事件操作类型，比如EV_ADD，EV_ENABLE， EV_DELETE等 */</div><div class="line">	uint32_t	fflags;		/* filter-specific flags */</div><div class="line">	intptr_t	data;		/* filter-specific data */</div><div class="line">	void		*udata;		/* opaque user data identifier 可以携带的任意数据地址 */</div><div class="line">&#125;;</div></pre></td></tr></table></figure></p>
+<p>可以看出这里只支持NUM_KEVENTS(windows上200个, mac上128个)感兴趣的事件, 感兴趣的事件将存放在AllocatedNativeObject中, 内部通过<code>unsafe.allocateMemory(size + ps)</code>方式直接分配内存及管理, 然后通过initStructSizes对AllocatedNativeObject内存块尽心管理, 比如要获取监听的第i个事件的文件描述符:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div></pre></td><td class="code"><pre><div class="line">int getDescriptor(int index) &#123;</div><div class="line">    int offset = SIZEOF_KEVENT*index + FD_OFFSET;</div><div class="line">    /* The ident field is 8 bytes in 64-bit world, however the API wants us</div><div class="line">     * to return an int. Hence read the 8 bytes but return as an int.</div><div class="line">     */</div><div class="line">    if (is64bit) &#123;</div><div class="line">      long fd = keventArray.getLong(offset);  // 返回监听列表的第几个监听对象</div><div class="line">      assert fd &lt;= Integer.MAX_VALUE;</div><div class="line">      return (int) fd;</div><div class="line">    &#125; else &#123;</div><div class="line">      return keventArray.getInt(offset);</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>首先获取AllocatedNativeObject Array中第index个赶兴趣的响应地址, 然后再通过调用keventArray.getInt(offset)本地函数直接获取该内存地址的值。<br>我们也需要知道<code>kq = init();</code>, 它作为IO复用, java与linux关联起来的核心fd, 该函数会去调用底层<code>int kq = kqueue()</code>, 我们先对多路复用进行一个简单的描述吧:<br><code>kueue是在UNIX上比较高效的IO复用技术。所谓的IO复用，就是同时等待多个文件描述符就绪，以系统调用的形式提供。如果所有文件描述符都没有就绪的话，该系统调用阻塞，否则调用返回，允许用户进行后续的操作。常见的IO复用技术有select, poll, epoll以及kqueue等等。其中epoll为Linux独占，而kqueue则在许多UNIX系统上存在，包括OS X（好吧，现在叫macOS了。。）</code>(<a href="https://www.cppentry.com/bencandy.php?fid=104&id=138645" target="_blank" rel="external">参考</a>)<br>简单来说, 我们可以向kqueue注册多个感兴趣的事件, 比如读写。然后调用kevent()等待, 当输入流/输出流就绪时, 就会返回。 这里我们还要理解的地点就是, 只要一次注册, kqueue()每次返回时, 都对检查之前注册的事件。 除非使用如下命令显示取消对事件的继续关注:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">EV_SET(&amp;changes[1], fd, EVFILT_WRITE, EV_DELETE, 0, 0, 0);</div></pre></td></tr></table></figure></p>
+<p>若对这些参数感兴趣, 可以参考《UNIX网络编程1: 套接字联网API》第14章的高级轮询技术</p>
+<ul>
+<li>fd0和fd1<br>我们接下来看下属性fd0和fd1, 调用<code>IOUtil.makePipe(false);</code>产生, 实际调用了linux pipe()来完成的。<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div></pre></td><td class="code"><pre><div class="line">JNIEXPORT jlong JNICALL   // blocking传递过来为false</div><div class="line">Java_sun_nio_ch_IOUtil_makePipe(JNIEnv *env, jobject this, jboolean blocking)</div><div class="line">&#123;</div><div class="line">    int fd[2];</div><div class="line">    // 可参考：https://cloud.tencent.com/developer/article/1007497</div><div class="line">    if (pipe(fd) &lt; 0) &#123;</div><div class="line">        JNU_ThrowIOExceptionWithLastError(env, &quot;Pipe failed&quot;);</div><div class="line">        return 0;</div><div class="line">    &#125;</div><div class="line">    if (blocking == JNI_FALSE) &#123;</div><div class="line">        if ((configureBlocking(fd[0], JNI_FALSE) &lt; 0)</div><div class="line">            || (configureBlocking(fd[1], JNI_FALSE) &lt; 0)) &#123;</div><div class="line">            JNU_ThrowIOExceptionWithLastError(env, &quot;Configure blocking failed&quot;);</div><div class="line">            close(fd[0]);</div><div class="line">            close(fd[1]);</div><div class="line">            return 0;</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line">    return ((jlong) fd[0] &lt;&lt; 32) | (jlong) fd[1];</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+</li>
+</ul>
+<p>我们调用linux的pipe(fd)函数时, 会在内核中开辟一块缓冲区（称为管道）用于通信，它有一个读端一个写端，然后通过fd参数传出给用户程序两个文件描述符，fd[0]指向管道的读端，fd[1]指向管道的写端（很好记，就像0是标准输入1是标准输出一样）。所以管道在用户程序看起来就像一个打开的文件，通过read(fd[0]);或者write(fd[1]);向这个文件读写数据其实是在读写内核缓冲区。pipe函数调用成功返回0，调用失败返回-1。为啥要生成fd[2]呢, 是为了调用selector.wakeup()将程序从selector.select()中唤醒, 我们接下来看下<code>kqueueWrapper.initInterrupt(fd0, fd1)</code>实现就更清楚了。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div></pre></td><td class="code"><pre><div class="line">void initInterrupt(int fd0, int fd1) &#123;</div><div class="line">    outgoingInterruptFD = fd1;</div><div class="line">    incomingInterruptFD = fd0;</div><div class="line">     // 这里还去注册一下， 主要是为了别的线程使用wakeup唤醒该线程，针对fd0注册一个读感兴趣</div><div class="line">    register0(kq, fd0, 1, 0);</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>知道了kqueue的原理, 我们就好理解唤醒原理了selector.wakeup()原理了, 只要有感兴趣的发生, 就会唤醒, 那我们不妨专门为唤醒产生一对fd, 将读端注册到kqueue中, 当需要唤醒时, 我们就仅仅向写端写一个字符就可以唤醒了。我们看下selector.wakeup是不是就这样实现的:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div></pre></td><td class="code"><pre><div class="line">public Selector wakeup() &#123;</div><div class="line">    synchronized (interruptLock) &#123;</div><div class="line">        if (!interruptTriggered) &#123;  // 只能被唤醒一次</div><div class="line">            kqueueWrapper.interrupt();</div><div class="line">            interruptTriggered = true;</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line">    return this;</div><div class="line">&#125;</div><div class="line">void interrupt() &#123;</div><div class="line">    interrupt(outgoingInterruptFD);</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>outgoingInterruptFD保存着写段的地址, 看下interrupt本地函数实现:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div></pre></td><td class="code"><pre><div class="line">JNIEXPORT void JNICALL</div><div class="line">Java_sun_nio_ch_KQueueArrayWrapper_interrupt(JNIEnv *env, jclass cls, jint fd)</div><div class="line">&#123;   //wakeup唤醒select的方法</div><div class="line">    char c = 1;</div><div class="line">    if (1 != write(fd, &amp;c, 1)) &#123;</div><div class="line">        JNU_ThrowIOExceptionWithLastError(env, &quot;KQueueArrayWrapper: interrupt failed&quot;);</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>可以看到, 果然是向写端的fd中写入了一个字符。</p>
+<h1 id="register"><a href="#register" class="headerlink" title="register"></a>register</h1><p>接着我们需要向selector注册感兴趣的事件SelectionKey.OP_ACCEPT了, 可以看下是怎么实现的:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div></pre></td><td class="code"><pre><div class="line">public final SelectionKey register(Selector sel, int ops,</div><div class="line">                                   Object att)</div><div class="line">    throws ClosedChannelException</div><div class="line">&#123;</div><div class="line">    synchronized (regLock) &#123;</div><div class="line">        if (!isOpen())</div><div class="line">            throw new ClosedChannelException();</div><div class="line">        if ((ops &amp; ~validOps()) != 0)</div><div class="line">            throw new IllegalArgumentException();</div><div class="line">        if (blocking)</div><div class="line">            throw new IllegalBlockingModeException();</div><div class="line">        //</div><div class="line">        SelectionKey k = findKey(sel);</div><div class="line">        if (k != null) &#123;</div><div class="line">            k.interestOps(ops);</div><div class="line">            k.attach(att);</div><div class="line">        &#125;</div><div class="line">        if (k == null) &#123;</div><div class="line">            // New registration</div><div class="line">            synchronized (keyLock) &#123;</div><div class="line">                if (!isOpen())</div><div class="line">                    throw new ClosedChannelException();</div><div class="line">                k = ((AbstractSelector)sel).register(this, ops, att);</div><div class="line">                addKey(k);</div><div class="line">            &#125;</div><div class="line">        &#125;</div><div class="line">        return k;</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>register函数主要做了如下事情:</p>
+<ol>
+<li>首先检测ServerSocketChannelImpl并没有被关闭。</li>
+<li>检查ServerSocketChannelImpl是非阻塞的。<br>这里可能有个疑问, 假如我们向kqueue()的套接字注册了OP_READ事件, 这里再次向其注册OP_WRITE事件, 那么此时对同一个管道向Selector注册了两个事件。而这里注册OP_WRITE时调用findKey找到了第一次注册的SelectionKey, 然后再覆盖感兴趣的事件, 不就把OP_READ注册信息给覆盖了吗? 答案是真的覆盖了, 并且在向kqueue注册第二个事件时会将第一个事件给取消了。先晒一段selector.select()里面的代码:<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line">// 可以看到var2.events与Net.POLLIN和Net.POLLOUT相与, write或者read只能有一个为1。</div><div class="line">this.register0(this.kq, var3.getFDVal(), var2.events &amp; Net.POLLIN, var2.events &amp; Net.POLLOUT);</div></pre></td></tr></table></figure>
+</li>
+</ol>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div></pre></td><td class="code"><pre><div class="line">JNIEXPORT void JNICALL</div><div class="line">Java_sun_nio_ch_KQueueArrayWrapper_register0(JNIEnv *env, jobject this,</div><div class="line">                                             jint kq, jint fd, jint r, jint w)</div><div class="line">&#123;</div><div class="line">    struct kevent changes[2];</div><div class="line">    struct kevent errors[2];</div><div class="line">    struct timespec dontBlock = &#123;0, 0&#125;;</div><div class="line">    // 注册监听事件， 这里可以看出，要么只能是读，要么只能是写，只能选择一样。选择其中一样，那么另外一样只能取消关注。</div><div class="line">    // if (r) then &#123; register for read &#125; else &#123; unregister for read &#125;</div><div class="line">    // if (w) then &#123; register for write &#125; else &#123; unregister for write &#125;</div><div class="line">    // Ignore errors - they&apos;re probably complaints about deleting non-</div><div class="line">    //   added filters - but provide an error array anyway because</div><div class="line">    //   kqueue behaves erratically if some of its registrations fail.</div><div class="line">    EV_SET(&amp;changes[0], fd, EVFILT_READ,  r ? EV_ADD : EV_DELETE, 0, 0, 0);</div><div class="line">    EV_SET(&amp;changes[1], fd, EVFILT_WRITE, w ? EV_ADD : EV_DELETE, 0, 0, 0);</div><div class="line">    kevent(kq, changes, 2, errors, 2, &amp;dontBlock);</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>之后也会在selector.select()介绍。<br>&#160; &#160; &#160; &#160;我们还是看下向KQueueSelectorImpl.register()做了哪些事情吧<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div></pre></td><td class="code"><pre><div class="line">protected final SelectionKey SelectorImpl.register(AbstractSelectableChannel ch, int ops, Object attachment) &#123;</div><div class="line">    // 产生一个SelectionKeyImpl, 存放当前管道ServerSocketChannelImp和KQueueSelectorImpl</div><div class="line">    SelectionKeyImpl k = new SelectionKeyImpl((SelChImpl)ch, this);</div><div class="line">    k.attach(attachment);</div><div class="line">    synchronized (publicKeys) &#123;</div><div class="line">        implRegister(k);</div><div class="line">    &#125;</div><div class="line">    // 注册感兴趣的事, 会将ServerSocketChannelImpl及感兴趣的事注册到KQueueArrayWrapper.updateList, 会将对ServerSocketChannelImpl的OP_ACCEPT事件转变为了OP_READ</div><div class="line">    k.interestOps(ops);</div><div class="line">    return k;</div><div class="line">&#125;</div><div class="line">protected void implRegister(SelectionKeyImpl ski) &#123;</div><div class="line">    if (closed)</div><div class="line">        throw new ClosedSelectorException();</div><div class="line">    int fd = IOUtil.fdVal(ski.channel.getFD());</div><div class="line">    // 向fdMap中保存管道对应的fd及SelectionKeyImpl对应关系</div><div class="line">    fdMap.put(Integer.valueOf(fd), new MapEntry(ski));</div><div class="line">    totalChannels++;</div><div class="line">    keys.add(ski);</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>&#160; &#160; &#160; &#160;可以看到, 主要是向KQueueSelectorImpl注册了此次的SelectionKeyImpl。这里也是可以看到, 对于一个管道(ServerSocketChannelImp或者SocketChannelImp), 只能在KQueueSelectorImpl注册一个事件。3. 检查目前是否该管道是否在selector上面已经注册了, 若注册了, 那么修改关注的事件。否则就调用register去KQueueSelectorImpl中注册这个事件。这里还有一个细节需要注意下, 在k.interestOps中, kevent只有read/write等几种事件类型, 并没有Accept事件, 所以会将ACCEPT事件转变为READ事件。</p>
+<h2 id="select"><a href="#select" class="headerlink" title="select"></a>select</h2><p>然后就开始真正向kqueue注册感兴趣的事件了:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div></pre></td><td class="code"><pre><div class="line">protected int KQueueSelectorImpl.doSelect(long timeout) throws IOException &#123;</div><div class="line">    int entries = 0;</div><div class="line">    //首先将那些取消的key从keys数组中去掉</div><div class="line">    processDeregisterQueue();</div><div class="line">    try &#123;</div><div class="line">        begin();</div><div class="line">        entries = kqueueWrapper.poll(timeout);</div><div class="line">    &#125; finally &#123;</div><div class="line">        end();</div><div class="line">    &#125;</div><div class="line">    processDeregisterQueue();</div><div class="line">    return updateSelectedKeys(entries);</div><div class="line">&#125;</div><div class="line">// timeout是从selector.select()这里传递过来的，默认为-1，代表永久阻塞</div><div class="line">int poll(long timeout) &#123;</div><div class="line">    updateRegistrations();</div><div class="line">    int updated = kevent0(kq, keventArrayAddress, NUM_KEVENTS, timeout);</div><div class="line">    // 有时间变化的个数</div><div class="line">    return updated;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>这里主要做了两件事情:</p>
+<ol>
+<li>调用begin()向当前线程的的blocker赋值interruptor, 以便当调用kqueue()被阻塞时, 被别的线程唤醒。</li>
+<li>调用updateRegistrations向从KQueueArrayWrapper.updateList中获取新的感兴趣的事并注册</li>
+<li>然后调用kevent0()阻塞等待感兴趣的事情发生。</li>
+<li>当从kqueueWrapper.poll返回后, 就不再需要被唤醒了, 则调用end()清空该线程的blocker属性。</li>
+<li>然后通过updateSelectedKeys去一一识别感兴趣的事件到底是那几个管道的, 以便后续根据不同的响应做出不动的动作。<br>&#160; &#160; &#160; &#160;我们首先看下如何调用begin()实现了可以被别的线程唤醒的功能:<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div></pre></td><td class="code"><pre><div class="line">protected final void begin() &#123;</div><div class="line">    if (interruptor == null) &#123;</div><div class="line">        interruptor = new Interruptible() &#123;</div><div class="line">                public void interrupt(Thread ignore) &#123;</div><div class="line">                    AbstractSelector.this.wakeup();</div><div class="line">                &#125;&#125;;</div><div class="line">    &#125;</div><div class="line">    // 对线程blocker属性进行赋值</div><div class="line">    AbstractInterruptibleChannel.blockedOn(interruptor);</div><div class="line">    Thread me = Thread.currentThread();</div><div class="line">    if (me.isInterrupted()) // 检测是否有中断信号</div><div class="line">        interruptor.interrupt(me);</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+</li>
+</ol>
+<p>&#160; &#160; &#160; &#160;可以看到, 底层还是通过selector.wakeup()实现唤醒功能(前面已经介绍了)。同时调用AbstractInterruptibleChannel.blockedOn初始化blocker。初始化这个对象有什么用呢? 我们首先需要明白别的线程调用thread.interrupt()做了哪些事情。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div></pre></td><td class="code"><pre><div class="line">public void interrupt() &#123;</div><div class="line">    if (this != Thread.currentThread())            checkAccess();</div><div class="line"></div><div class="line">    synchronized (blockerLock) &#123;</div><div class="line">        Interruptible b = blocker;</div><div class="line">        if (b != null) &#123;</div><div class="line">            interrupt0();           // Just to set the interrupt flag</div><div class="line">            b.interrupt(this);</div><div class="line">            return;</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line">    interrupt0();</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>&#160; &#160; &#160; &#160;这些是不是很明白了, 若当前线程被阻塞了, 别的线程调用thread.interrupt()后, 会去检查线程的blocker, 若不为空, 就会调用blocker.interrupt(this), 我们这里会调用selector.wakeup()实现了将线程从kevent0()唤醒的功能。这里顺便多提一句, interrupt0底层是通过Parker.unpark()唤醒的线程<a href="https://kkewwei.github.io/elasticsearch_learning/2018/11/10/LockSupport%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB/#Parker-unpark">参考</a><br>&#160; &#160; &#160; &#160;我们再继续看下updateRegistrations()是如何向kqueue注册感兴趣的事件的。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div></pre></td><td class="code"><pre><div class="line">void updateRegistrations() &#123;</div><div class="line">    LinkedList var1 = this.updateList;</div><div class="line">    synchronized(this.updateList) &#123;</div><div class="line">        KQueueArrayWrapper.Update var2 = null;</div><div class="line"></div><div class="line">        while((var2 = (KQueueArrayWrapper.Update)this.updateList.poll()) != null) &#123;</div><div class="line">            SelChImpl var3 = var2.channel;</div><div class="line">            if(var3.isOpen()) &#123;</div><div class="line">                // read和write只能选择一个。</div><div class="line">                this.register0(this.kq, var3.getFDVal(), var2.events &amp; Net.POLLIN, var2.events &amp; Net.POLLOUT);</div><div class="line">            &#125;</div><div class="line">        &#125;</div><div class="line"></div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>可以看到, 这里会取出updateList中所有的事件, 然后通过调用this.register0来进行注册, 之前也进行了讲解, register0具有排他性, 只能在对某个端口注册对或者写的事件。<br>&#160; &#160; &#160; &#160;我们再看kqueue0到底做了哪些事情:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div></pre></td><td class="code"><pre><div class="line">JNIEXPORT jint JNICALL</div><div class="line">Java_sun_nio_ch_KQueueArrayWrapper_kevent0(JNIEnv *env, jobject this, jint kq,</div><div class="line">                                           jlong kevAddr, jint kevCount, //就绪的kevent</div><div class="line">                                           jlong timeout) &#123;</div><div class="line">    struct kevent *kevs = (struct kevent *)jlong_to_ptr(kevAddr);</div><div class="line">    struct timespec ts;</div><div class="line">    struct timespec *tsp;</div><div class="line">    int result;</div><div class="line">    // Java timeout is in milliseconds. Convert to struct timespec.</div><div class="line">    // Java timeout == -1 : wait forever : timespec timeout of NULL 永久阻塞</div><div class="line">    // Java timeout == 0  : return immediately : timespec timeout of zero  立刻返回</div><div class="line">    if (timeout &gt;= 0) &#123;</div><div class="line">        ts.tv_sec = timeout / 1000;</div><div class="line">        ts.tv_nsec = (timeout % 1000) * 1000000; //nanosec = 1 million millisec</div><div class="line">        tsp = &amp;ts;</div><div class="line">    &#125; else &#123;</div><div class="line">        tsp = NULL;</div><div class="line">    &#125;</div><div class="line">    //kevs： kevent函数用于返回已经就绪的事件列表</div><div class="line">    result = kevent(kq, NULL, 0, kevs, kevCount, tsp);</div><div class="line">    if (result &lt; 0) &#123;</div><div class="line">        if (errno == EINTR) &#123;</div><div class="line">            // ignore EINTR, pretend nothing was selected</div><div class="line">            result = 0;</div><div class="line">        &#125; else &#123;</div><div class="line">            JNU_ThrowIOExceptionWithLastError(env, &quot;KQueueArrayWrapper: kqueue failed&quot;);</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line">    return result;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>可以看到两点重要信息:</p>
+<ol>
+<li>java传递感兴趣的直接内存地址kevAddr, 然后kqueue0本地函数, kevent <em>kevs = (struct kevent </em>)jlong_to_ptr(kevAddr)来控制感兴趣的地址。</li>
+<li>本地函数调用kevent, 检查是否有感兴趣的事件发生。若至少有一个感兴趣的事件发生, 事件本身放在kevs中, result返回的是发生的事件个数。<br>&#160; &#160; &#160; &#160; 最后我们看下updateSelectedKeys是如何对响应事件是属于哪个管道的。<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div></pre></td><td class="code"><pre><div class="line">private int updateSelectedKeys(int entries)</div><div class="line">    throws IOException</div><div class="line">&#123;</div><div class="line">    int numKeysUpdated = 0;</div><div class="line">    boolean interrupted = false;</div><div class="line">    // A file descriptor may be registered with kqueue with more than one</div><div class="line">    // filter and so there may be more than one event for a fd. The update</div><div class="line">    // count in the MapEntry tracks when the fd was last updated and this</div><div class="line">    // ensures that the ready ops are updated rather than replaced by a</div><div class="line">    // second or subsequent event.</div><div class="line">    updateCount++;</div><div class="line">    for (int i = 0; i &lt; entries; i++) &#123;</div><div class="line">        // 获取的第i个触发时间的文件fd</div><div class="line">        int nextFD = kqueueWrapper.getDescriptor(i);</div><div class="line">        if (nextFD == fd0) &#123;</div><div class="line">            interrupted = true; // 说明是被别人打断的</div><div class="line">        &#125; else &#123;</div><div class="line">            MapEntry me = fdMap.get(Integer.valueOf(nextFD));</div><div class="line">            // entry is null in the case of an interrupt</div><div class="line">            if (me != null) &#123;</div><div class="line">                 // 获取事件类型，比如是连接，读、写？若是ready，被转变成了1</div><div class="line">                int rOps = kqueueWrapper.getReventOps(i);</div><div class="line">                SelectionKeyImpl ski = me.ski;</div><div class="line">                if (selectedKeys.contains(ski)) &#123; //在最外层遍历后一定要把key从selectedKeys中取掉</div><div class="line">                    // first time this file descriptor has been encountered on this</div><div class="line">                    // update?</div><div class="line">                    if (me.updateCount != updateCount) &#123;</div><div class="line">                        if (ski.channel.translateAndSetReadyOps(rOps, ski)) &#123;</div><div class="line">                            numKeysUpdated++;</div><div class="line">                            me.updateCount = updateCount;</div><div class="line">                        &#125;</div><div class="line">                    &#125; else &#123;</div><div class="line">                        // ready ops have already been set on this update</div><div class="line">                        ski.channel.translateAndUpdateReadyOps(rOps, ski);</div><div class="line">                    &#125;</div><div class="line">                &#125; else &#123;</div><div class="line">                    ski.channel.translateAndSetReadyOps(rOps, ski); //</div><div class="line">                     // 若就绪事件和感兴趣事件是一样的，那就完成了</div><div class="line">                    if ((ski.nioReadyOps() &amp; ski.nioInterestOps()) != 0) &#123;</div><div class="line">                        selectedKeys.add(ski);</div><div class="line">                        numKeysUpdated++;</div><div class="line">                        me.updateCount = updateCount;</div><div class="line">                    &#125;</div><div class="line">                &#125;</div><div class="line">            &#125;</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line">    if (interrupted) &#123;</div><div class="line">        // Clear the wakeup pipe</div><div class="line">        synchronized (interruptLock) &#123;</div><div class="line">            IOUtil.drain(fd0);</div><div class="line">            interruptTriggered = false;</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line">    return numKeysUpdated;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+</li>
+</ol>
+<p>这里会遍历所有的响应时间, 对每个事件作出如下判断, 首先根据kqueueWrapper.getDescriptor(i)获取响应时间的fd:</p>
+<ol>
+<li>判断该df是否是专为唤醒设计的fd, 若是的话, 标记interrupted。</li>
+<li>若是正常管道的fd, 那么首先调用kqueueWrapper.getReventOps(i);获取监听的类型, 1 为read, 4 为write。 然后调用translateAndSetReadyOps来转变到真正的事件类型(之前提到accept在向kqueue注册的时候, 以read 注册的, 所以这里需要将响应事件进行解析)。<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div></pre></td><td class="code"><pre><div class="line">public boolean translateReadyOps(int ops, int initialOps,</div><div class="line">                                 SelectionKeyImpl sk) &#123;</div><div class="line">    int intOps = sk.nioInterestOps(); // Do this just once, it synchronizes</div><div class="line">    int oldOps = sk.nioReadyOps();</div><div class="line">    int newOps = initialOps;</div><div class="line">    // POLLNVAL表示文件描述符的值是无效的。 它通常表示程序中有错误，但是如果您关闭了文件描述符，并且从那以后可能重用了描述符，则您可以依赖poll返回POLLNVAL</div><div class="line">    if ((ops &amp; PollArrayWrapper.POLLNVAL) != 0) &#123;</div><div class="line">        // This should only happen if this channel is pre-closed while a</div><div class="line">        // selection operation is in progress</div><div class="line">        // ## Throw an error if this channel has not been pre-closed</div><div class="line">        return false;</div><div class="line">    &#125;</div><div class="line">    // 类似于来自select错误事件。 它表示read或write调用会返回错误状态（例如I / O错误）。 这不包括通过其errorfds掩码select信号但是通过POLLPRI poll信号的带外数据。</div><div class="line">    if ((ops &amp; (PollArrayWrapper.POLLERR</div><div class="line">                // 基本上意味着连接的另一端已经关闭了连接的结束。 POSIX将其描述为该设备已断开连接。 这个事件POLLOUT是互斥的。 如果发生挂断，则流永远不可写入。</div><div class="line">                || PollArrayWrapper.POLLHUP)) != 0) &#123;</div><div class="line">        newOps = intOps;</div><div class="line">        sk.nioReadyOps(newOps);</div><div class="line">        return (newOps &amp; ~oldOps) != 0;</div><div class="line">    &#125;</div><div class="line">    // 这里判断是否是OP_ACCEPT事件, 若是的话, 还需要将read解析成accept事件</div><div class="line">    if (((ops &amp; PollArrayWrapper.POLLIN) != 0) &amp;&amp;</div><div class="line">        ((intOps &amp; SelectionKey.OP_ACCEPT) != 0))</div><div class="line">            newOps |= SelectionKey.OP_ACCEPT;</div><div class="line"></div><div class="line">    sk.nioReadyOps(newOps);</div><div class="line">    return (newOps &amp; ~oldOps) != 0;</div></pre></td></tr></table></figure>
+</li>
+</ol>
+<p>可以看到这里有将部分POLLIN事件解析成了SelectionKey.OP_ACCEPT。</p>
+<h1 id="accept"><a href="#accept" class="headerlink" title="accept"></a>accept</h1><p>我们已经从kevent0()阻塞中返回了, 那么代表是否响应发生, 解析后的响应事件都放在了SelectorImpl.selectedKeys中。 当我们判断是个请求连接的响应事件时, 我们就会调用ServerSocketChannel.accept()以便和这个请求建立连接。连接操作会做如下事情:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div></pre></td><td class="code"><pre><div class="line">public SocketChannel accept() throws IOException &#123;</div><div class="line">    synchronized (lock) &#123;</div><div class="line">        //检查ServerSocketChannelImpl处于open状态</div><div class="line">        if (!isOpen())</div><div class="line">            throw new ClosedChannelException();</div><div class="line">        //</div><div class="line">        if (!isBound())</div><div class="line">            throw new NotYetBoundException();</div><div class="line">        SocketChannel sc = null;</div><div class="line">        int n = 0;</div><div class="line">        FileDescriptor newfd = new FileDescriptor();</div><div class="line">        InetSocketAddress[] isaa = new InetSocketAddress[1];</div><div class="line">        try &#123;</div><div class="line">            begin();</div><div class="line">            if (!isOpen())</div><div class="line">                return null;</div><div class="line">            thread = NativeThread.current();</div><div class="line">            for (;;) &#123;</div><div class="line">                n = accept0(this.fd, newfd, isaa); // 成功了就会返回1</div><div class="line">                if ((n == IOStatus.INTERRUPTED) &amp;&amp; isOpen())</div><div class="line">                    continue;</div><div class="line">                break;</div><div class="line">            &#125;</div><div class="line">        &#125; finally &#123;</div><div class="line">            thread = 0;</div><div class="line">            end(n &gt; 0);</div><div class="line">            assert IOStatus.check(n);</div><div class="line">        &#125;</div><div class="line">        if (n &lt; 1)  //有问题，失败了</div><div class="line">            return null;</div><div class="line">        IOUtil.configureBlocking(newfd, true); // 设置非阻塞</div><div class="line">        InetSocketAddress isa = isaa[0];  // 存放的对方主机的地址</div><div class="line">        sc = new SocketChannelImpl(provider(), newfd, isa);</div><div class="line">        SecurityManager sm = System.getSecurityManager();</div><div class="line">        if (sm != null) &#123;</div><div class="line">            try &#123;</div><div class="line">                sm.checkAccept(isa.getAddress().getHostAddress(),</div><div class="line">                               isa.getPort());</div><div class="line">            &#125; catch (SecurityException x) &#123;</div><div class="line">                sc.close();</div><div class="line">                throw x;</div><div class="line">            &#125;</div><div class="line">        &#125;</div><div class="line">        return sc;</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>accept操作做了如下事情:</p>
+<ol>
+<li>调用begin()以便支持当调用accept0时被阻塞时, 可以被别的线程唤醒。</li>
+<li>循环调用accept0, 直到成功获取和client建立连接的套接字。成功返回的标志就是n=1。</li>
+<li>调用IOUtil.configureBlocking(newfd, true)将该套接字设置成默认true。</li>
+<li>建立SocketChannelImpl对象, 并绑定和client保持连接的套接字newfd。</li>
+</ol>
+<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>JAVA NIO底层函数实现基本都是靠网络套接字实现的, 服务器端建立连接主要分为以下几个步骤: 建立ServersocketChannel, 绑定端口, 建立Selector, 注册感兴趣的事件, 开始监听端口, 调用select()等待建立连接的响应事件, 和client建立连接。</p>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color4">NIO</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/elasticsearch_learning/categories/Java-NIO及网络通信//" class="article-tag-list-link color4">Java NIO及网络通信</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/elasticsearch_learning/2017/04/10/JAVA-NIO原理1/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
   
+    <article id="post-maven插件学习" class="article article-type-post  article-index" itemscope itemprop="blogPost">
+  <div class="article-inner">
     
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/elasticsearch_learning/2017/04/05/maven插件学习/">maven插件学习</a>
+    </h1>
+  
+
+        
+        <a href="/elasticsearch_learning/2017/04/05/maven插件学习/" class="archive-article-date">
+  	<time datetime="2017-04-05T05:32:36.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-04-05</time>
+</a>
+        
+         
+      </header>
+    
+
+    <!-- 目录内容 -->
+    
+    <!-- 目录内容结束 -->
+
+    <div class="article-entry" itemprop="articleBody">
+      
+        <p>maven有三个生命周期:clean, default, site。 clean主要的目的是为了清理上次构建产生的文件, default主要是为了构建项目, site主要了为了搭建和发布项目web站点, 比如项目信心, 以便团队之间更好地交流。我们一般主要关注default声明周期, 这里会大致介绍下常用的phase:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">属性</th>
+<th style="text-align:left">介绍</th>
+<th style="text-align:left">默认绑定插件</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left">validate</td>
+<td style="text-align:left">验证项目是正确的</td>
+<td style="text-align:left"></td>
+</tr>
+<tr>
+<td style="text-align:left">process-sources</td>
+<td style="text-align:left">将resources从主函数代码里面拷贝到输出文件夹中, 一般是target里面.</td>
+<td style="text-align:left">maven-resources-plugin</td>
+</tr>
+<tr>
+<td style="text-align:left">compile</td>
+<td style="text-align:left">对java进行编译产生class文件</td>
+<td style="text-align:left">maven-compiler-plugin</td>
+</tr>
+<tr>
+<td style="text-align:left">process-test-sources</td>
+<td style="text-align:left">将测试resources从测试函数代码里面拷贝到输出文件夹中.</td>
+<td style="text-align:left">maven-resources-plugin</td>
+</tr>
+<tr>
+<td style="text-align:left">test-compile</td>
+<td style="text-align:left">对测试环境java进行编译产生class文件</td>
+<td style="text-align:left">maven-compiler-plugin</td>
+</tr>
+<tr>
+<td style="text-align:left">test</td>
+<td style="text-align:left">对项目里面的单元测试进行测试, 测试代码不会被打包部署</td>
+<td style="text-align:left">maven-surefire-plugin</td>
+</tr>
+<tr>
+<td style="text-align:left">package</td>
+<td style="text-align:left">将编译的class打包成jar包</td>
+<td style="text-align:left">maven-jar-plugin</td>
+</tr>
+<tr>
+<td style="text-align:left">install</td>
+<td style="text-align:left">打包后将jar放入本地仓库.m2中</td>
+<td style="text-align:left">maven-install-plugin</td>
+</tr>
+<tr>
+<td style="text-align:left">deploy</td>
+<td style="text-align:left">打包后将jar放入远程仓库中</td>
+<td style="text-align:left">maven-install-plugin</td>
+</tr>
+</tbody>
+</table>
+<p>本文将主要主要对打包方式进行讲解。</p>
+<h2 id="打包方式"><a href="#打包方式" class="headerlink" title="打包方式"></a>打包方式</h2><p>而打包的方式主要分为四种:默认jar打包、shade打包、assembly打包、source打包</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">属性</th>
+<th style="text-align:left">介绍</th>
+<th style="text-align:left">默认绑定插件</th>
+<th style="text-align:left">查看使用参数</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left">jar</td>
+<td style="text-align:left">仅仅将class文件打进包中, 不包含依赖的jar包, 不是可执行jar包, 缺少依赖的jar class</td>
+<td style="text-align:left">maven-jar-plugin</td>
+<td style="text-align:left">mvn jar:help</td>
+</tr>
+<tr>
+<td style="text-align:left">shade</td>
+<td style="text-align:left">在jar的基础上, 将class的依赖也打包进来</td>
+<td style="text-align:left">maven-shade-plugin</td>
+<td style="text-align:left">mvn shade:help</td>
+</tr>
+<tr>
+<td style="text-align:left">assembly</td>
+<td style="text-align:left">当前节点所拥有的线程</td>
+<td style="text-align:left">maven-assembly-plugin</td>
+<td style="text-align:left">mvn assembly:help</td>
+</tr>
+<tr>
+<td style="text-align:left">source</td>
+<td style="text-align:left">把当前源码打进包</td>
+<td style="text-align:left">maven-source-plugin</td>
+<td style="text-align:left">mvn source:help</td>
+</tr>
+</tbody>
+</table>
+<p>针对每种goal具体使用, 还可以使用类似命令查看: <code>mvn shade:help -Ddetail=true -Dgoal=&lt;goal-name&gt;</code></p>
+<h2 id="shade打包"><a href="#shade打包" class="headerlink" title="shade打包"></a>shade打包</h2><p>shade打包主要是将依赖全部放入jar文件中, 以便可以直接成为可执行的jar包, 这里将以一个示例进行讲解:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div></pre></td><td class="code"><pre><div class="line">&lt;plugin&gt;</div><div class="line">    &lt;groupId&gt;org.apache.maven.plugins&lt;/groupId&gt;</div><div class="line">    &lt;artifactId&gt;maven-shade-plugin&lt;/artifactId&gt;</div><div class="line">    &lt;version&gt;2.4.3&lt;/version&gt;</div><div class="line">    &lt;configuration&gt;</div><div class="line">        &lt;!-- put your configurations here --&gt;</div><div class="line">    &lt;/configuration&gt;</div><div class="line">    &lt;executions&gt;</div><div class="line">        &lt;execution&gt;</div><div class="line">            &lt;phase&gt;package&lt;/phase&gt;</div><div class="line">            &lt;goals&gt;</div><div class="line">                &lt;goal&gt;shade&lt;/goal&gt;</div><div class="line">            &lt;/goals&gt;</div><div class="line">            &lt;configuration&gt;</div><div class="line">                &lt;finalName&gt;$&#123;project.artifactId&#125;-$&#123;project.version&#125;-with-dependencies&lt;/finalName&gt;</div><div class="line">                &lt;transformers&gt;</div><div class="line">                    &lt;transformer implementation=&quot;org.apache.maven.plugins.shade.resource.ManifestResourceTransformer&quot;&gt;</div><div class="line">                        &lt;mainClass&gt;MyQueryMojo&lt;/mainClass&gt;</div><div class="line">                        &lt;manifestEntries&gt;</div><div class="line">                            &lt;ha&gt;s&lt;/ha&gt;</div><div class="line">                        &lt;/manifestEntries&gt;</div><div class="line">                    &lt;/transformer&gt;</div><div class="line">                &lt;/transformers&gt;</div><div class="line">            &lt;/configuration&gt;</div><div class="line">        &lt;/execution&gt;</div><div class="line">    &lt;/executions&gt;</div><div class="line">&lt;/plugin&gt;</div></pre></td></tr></table></figure></p>
+<p>可以看到, 我们定义了引入的plugin shade的版本号。接下来我们将对每个标签进行详细说明:<br>1 configuration:配置信息, 我们可以对所有executions定义一个默认的配置信息, 当然在具体的execution定义执行计划, 是可以覆盖这里的默认配置的。<br>2 execution: 相当于一个执行计划, 都放在executions里面。</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">配置</th>
+<th style="text-align:left">介绍</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left">phase</td>
+<td style="text-align:left">我们需要定义这个执行计划在生命阶段执行, 默认是在package阶段执行。</td>
+</tr>
+<tr>
+<td style="text-align:left">goals</td>
+<td style="text-align:left">执行目标, 我们可以通过mvn shade:help可以该阶段的所有目标, 默认为shade。</td>
+</tr>
+<tr>
+<td style="text-align:left">configuration</td>
+<td style="text-align:left">对打包可以配置一些参数</td>
+</tr>
+</tbody>
+</table>
+<p>在configuration中, 我们可以通过finalName定义产生的jar名称, 通过transformer可以将某些artifactId按照某种方式进行整合到jar中, 我们以常用的示例进行介绍ManifestResourceTransformer, ManifestResourceTransformer允许我们向打包文件里面的MANIFEST.MF添加配置属性, 属性元素都要放在manifestEntries里面, mainClass除外, 可以放在外层。mvn还提供许多针对资源进行整合的Transformer, 详情可参考<a href="http://maven.apache.org/plugins/maven-shade-plugin/examples/resource-transformers.html#" target="_blank" rel="external">官方文档</a>。<br>同时在configuration中还可以配置别的参数, 比如outputDirectory定义了jar存放位置。 include/exclude: 可以从某个jar包中排除某些类给排除掉。 所有参数可以<a href="http://maven.apache.org/plugins/maven-shade-plugin/shade-mojo.html" target="_blank" rel="external">参考</a>;.</p>
+<h2 id="assembly打包"><a href="#assembly打包" class="headerlink" title="assembly打包"></a>assembly打包</h2><p>Maven Assembly Plugin 和 Shade Plugin 都可以用来在构建单一 Jar 包时，将所有 Dependency 打入这个最终生成的 Jar 中去。但是两者在具体的行为上有所不同：Assembly 插件不仅会将 Dependency 中的 Class 文件打入最终的 Jar 包，还会将 Dependency 中的资源文件，诸如 properties 文件打入最终的 Jar 包。当项目和其 Dependency 中有同名的资源文件是，就会发生冲突，项目中的同名文件便不会加入到最终的 Jar 包中。如果这个文件是一个关键的配置文件，便会导致问题。而 Shade Plugin 不存在这样的问题。(<a href="https://ssailyang.iteye.com/blog/1745589" target="_blank" rel="external">参考</a>)</p>
+<h2 id="自定义插件"><a href="#自定义插件" class="headerlink" title="自定义插件"></a>自定义插件</h2><p>我们还可以自定义插件, 具体可参考文档:<br><a href="https://www.cnblogs.com/oscar1987121/p/10959083.html" target="_blank" rel="external">https://www.cnblogs.com/oscar1987121/p/10959083.html</a><br><a href="http://maven.apache.org/plugins/maven-shade-plugin/examples/use-shader-other-impl.html" target="_blank" rel="external">http://maven.apache.org/plugins/maven-shade-plugin/examples/use-shader-other-impl.html</a></p>
+<h2 id="使用经验"><a href="#使用经验" class="headerlink" title="使用经验"></a>使用经验</h2><p>1.若在项目app0使用shade/assembly打包后产生jar1, 则第三方依赖将会全部转成class文件, 比如fastJson, fastJson的版本号将在这里全部被抹掉。若别的项目app1引用app0 jar1包。 那么在app1中, 通过maven dependency将看不到fastJason版本号,也只能看到fastJson的class文件。<br>比如我们在app0配置的pom.xml如下:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div></pre></td><td class="code"><pre><div class="line">&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;?&gt;</div><div class="line">&lt;project xmlns=&quot;http://maven.apache.org/POM/4.0.0&quot;</div><div class="line">         xmlns:xsi=&quot;http://www.w3.org/2001/XMLSchema-instance&quot;</div><div class="line">         xsi:schemaLocation=&quot;http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd&quot;&gt;</div><div class="line">    &lt;modelVersion&gt;4.0.0&lt;/modelVersion&gt;</div><div class="line">    &lt;groupId&gt;dep1&lt;/groupId&gt;</div><div class="line">    &lt;artifactId&gt;dep1&lt;/artifactId&gt;</div><div class="line">    &lt;version&gt;1.0.3-SNAPSHOT&lt;/version&gt;</div><div class="line">    &lt;dependencies&gt;</div><div class="line">        &lt;dependency&gt;</div><div class="line">            &lt;groupId&gt;com.alibaba&lt;/groupId&gt;</div><div class="line">            &lt;artifactId&gt;fastjson&lt;/artifactId&gt;</div><div class="line">            &lt;version&gt;1.1.43&lt;/version&gt;</div><div class="line">        &lt;/dependency&gt;</div><div class="line">    &lt;/dependencies&gt;</div><div class="line">    &lt;build&gt;</div><div class="line">        &lt;plugins&gt;</div><div class="line">            &lt;plugin&gt;</div><div class="line">                &lt;groupId&gt;org.apache.maven.plugins&lt;/groupId&gt;</div><div class="line">                &lt;artifactId&gt;maven-shade-plugin&lt;/artifactId&gt;</div><div class="line">                &lt;version&gt;2.4.1&lt;/version&gt;</div><div class="line">                &lt;executions&gt;</div><div class="line">                    &lt;execution&gt;</div><div class="line">                        &lt;id&gt;ds&lt;/id&gt;</div><div class="line">                        &lt;phase&gt;package&lt;/phase&gt;</div><div class="line">                        &lt;goals&gt;</div><div class="line">                            &lt;goal&gt;shade&lt;/goal&gt;</div><div class="line">                        &lt;/goals&gt;</div><div class="line">                    &lt;/execution&gt;</div><div class="line">                &lt;/executions&gt;</div><div class="line">            &lt;/plugin&gt;</div><div class="line">        &lt;/plugins&gt;</div><div class="line">    &lt;/build&gt;</div><div class="line">&lt;/project&gt;</div></pre></td></tr></table></figure></p>
+<p>但是我们在app1中看到的app0的配置文件却是这样的<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div></pre></td><td class="code"><pre><div class="line">&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;?&gt;</div><div class="line">&lt;project xmlns=&quot;http://maven.apache.org/POM/4.0.0&quot; xmlns:xsi=&quot;http://www.w3.org/2001/XMLSchema-instance&quot; xsi:schemaLocation=&quot;http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd&quot;&gt;</div><div class="line">  &lt;modelVersion&gt;4.0.0&lt;/modelVersion&gt;</div><div class="line">  &lt;groupId&gt;dep1&lt;/groupId&gt;</div><div class="line">  &lt;artifactId&gt;dep1&lt;/artifactId&gt;</div><div class="line">  &lt;version&gt;1.0.3-SNAPSHOT&lt;/version&gt;</div><div class="line">  &lt;build&gt;</div><div class="line">    &lt;plugins&gt;</div><div class="line">      &lt;plugin&gt;</div><div class="line">        &lt;artifactId&gt;maven-shade-plugin&lt;/artifactId&gt;</div><div class="line">        &lt;version&gt;2.4.1&lt;/version&gt;</div><div class="line">        &lt;executions&gt;</div><div class="line">          &lt;execution&gt;</div><div class="line">            &lt;id&gt;ds&lt;/id&gt;</div><div class="line">            &lt;phase&gt;package&lt;/phase&gt;</div><div class="line">            &lt;goals&gt;</div><div class="line">              &lt;goal&gt;shade&lt;/goal&gt;</div><div class="line">            &lt;/goals&gt;</div><div class="line">          &lt;/execution&gt;</div><div class="line">        &lt;/executions&gt;</div><div class="line">      &lt;/plugin&gt;</div><div class="line">    &lt;/plugins&gt;</div><div class="line">  &lt;/build&gt;</div><div class="line">&lt;/project&gt;</div></pre></td></tr></table></figure></p>
+<p>我们通过mvn dependency:tree也完全看不到fastJson的版本号, 可以看到, app1里面看到app0的配置文件里面全部没有了fastJson的信息了(但是实际引入的fastJson版本, 其实在jar包内META-INF/maven/com.alibaba/fastjson路径里面的pom.xml可以看到)。<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/mvn_shade1.png" height="200" width="400"><br>这样的话, 尽管jar包有冲突, 比如下图的那个冲突, java选择的那个版本是dep1后面的那个fastJson, 尽管下面那个fastJson路径更短(shade打包方式, 使fastJson相关class全部打到dep1里面了, 索引路径更短, 而且dep1先声明的)。<br>2.通过默认jar方式, 打包内容将不会被包含第三方依赖。那么还是可以看到app0里面引入的fastJons版本信息。<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/mvn_shade2.png" height="200" width="550"><br>3.若出现jar包冲突的话, 那么选取最短路径上的jar, 同时会覆盖被冲突的包。<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/mvn_shade3.png" height="200" width="400"><br>比如这里将会选择下面那个fastJson版本。</p>
+<h2 id="在mvn中查看第三方依赖"><a href="#在mvn中查看第三方依赖" class="headerlink" title="在mvn中查看第三方依赖"></a>在mvn中查看第三方依赖</h2><ol>
+<li>通过mvn dependency:tree/list查看</li>
+<li>在Intellij IDea的右边-&gt; Maven Projects右键 -&gt; show Dependencies可查看。</li>
+</ol>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color4">maven, 插件, 打包</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/elasticsearch_learning/categories/工具学习//" class="article-tag-list-link color5">工具学习</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/elasticsearch_learning/2017/04/05/maven插件学习/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
+    <article id="post-git-基本命令学习心得" class="article article-type-post  article-index" itemscope itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/elasticsearch_learning/2017/03/08/git-基本命令学习心得/">git 基本命令学习心得-1</a>
+    </h1>
+  
+
+        
+        <a href="/elasticsearch_learning/2017/03/08/git-基本命令学习心得/" class="archive-article-date">
+  	<time datetime="2017-03-08T04:46:57.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-03-08</time>
+</a>
+        
+         
+      </header>
+    
+
+    <!-- 目录内容 -->
+    
+    <!-- 目录内容结束 -->
+
+    <div class="article-entry" itemprop="articleBody">
+      
+        <p>一般在公共分支上操作,不能修改分支的提交记录, 但是可以使用cherry-pick, revert这样的可以使用, 而rebase, reset这样的命令一般在私有分支上才可用。</p>
+<h1 id="rebase"><a href="#rebase" class="headerlink" title="rebase"></a>rebase</h1><p>git rebase是用来更改提交的基, 通过重新在当前分支提交一连串的commit来实现的, 比如dev分支从master A提交产生的, 在master分支又进行了B、C、D提交, 在dev分支进行了E、F、G提交, 此时为了保证D能够合并到master最新的D提交上, 那么就使用rebase。<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/git_rebase3.png" height="300" width="550"><br><code>git:(dev) git rebase master</code>, 此时处于G(最新提交)操作。变基是以共同祖先节点开始变的, 执行后就像放电影一样, 会将E、F、G的所有内容顺序与D合并。比如基于D与E合并后变成D’, 基于D’与F合并变成F’, 基于F’和G合并变成G’。箭头代表着基于哪些commit进行了merge。 完成rebase操作后, 提交链路被就改了。<br>用法:1.git rebase master 2. 通过vim解决冲突, 3.使用git add .保存 4.git rebase –continue继续解决下一个冲突<br>注意: 并没有要求修改comment, commit不变</p>
+<h2 id="半路rebase"><a href="#半路rebase" class="headerlink" title="半路rebase"></a>半路rebase</h2><p>以上示例是我们在dev分支的最新提交H上进行rebase的, 假如我们不在最新G上操作, 而是在F上进行rebase操作, 会出现什么结果呢?<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/git_rebase2.png" height="300" width="550"><br>可以看到dev分支没有任何变化, 而是将EF提交分别与D提交合并, 使EF部分变基到master分支上。</p>
+<h2 id="rebase-i-参数"><a href="#rebase-i-参数" class="headerlink" title="rebase -i 参数"></a>rebase -i 参数</h2><p>-i参数使rebase将于用户交互的形式完成merge, 根据这个参数, 用户可以完成多次提交顺序的复制、删除、编辑commit、修改提交顺序等一系列操作。<br><code>git:(dev): git rebase -i master</code>之后, 将弹出这样的界面:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/git_rebase5.png" height="350" width="450"></p>
+<p>红框1说明dev分支从master分支产生之后, 进行了三次提交, 这三次提交会和master最新的提交分别顺序进行合并。 红框1里面每行分为三部分:</p>
+<ul>
+<li>操作action</li>
+<li>commit hash值</li>
+<li>commit commit<br>其中action介绍在红框2中, 主要分为这几种类型:<br>1) p pick = use commit: 提交这次commit, 分别修改每次提交的comment内容。<br>git rebase -i master这种和别的分支进行rebase, 所有提交的comment是可以修改成功的。<br>git rebase -i HEAD~3 这种和本身历史提交进行rebase, 也提示需要修改comment, 但是最终没有生效。<br>2) r, reword = use commit, but edit the commit message: 提交这次commit, 同时修改这次comment的内容<br>git rebase -i HEAD~3 这种和本身历史提交进行rebase, 也提示需要修改comment, 同时修改这次comment的内容, 可以成功, 仅仅当前一次提交。(与说明相符)<br>git rebase -i master这种和别的分支进行rebase, 修改comment是可以修改成功的。 但是总是发生某些提交丢失的情况, 一般禁止使用。<br>3) e, edit = use commit, but stop for amending<br>git rebase -i master: 和p参数没啥区别, 能修改所有提交的comment<br>git rebase -i HEAD~3 : 可以停下来让你修改当前comment, 直到你调用–continue才能继续<br>4) s, squash = use commit, but meld into previous commit: 提交这次commit, 将本次提交和上次的提交合并(提交内容和提交comment都合并进去),使看起来是一次提交。<br>执行以下命令:<code>git:(dev): git rebase -i HEAD~3</code>, 并且修改action如下:<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line">pick 159f932 d1</div><div class="line">squash 4279e75 d2</div><div class="line">pick 116755e d3</div></pre></td></tr></table></figure>
+</li>
+</ul>
+<p><img src="https://kkewwei.github.io/elasticsearch_learning/img/git_rebase6.png" height="350" width="450"><br>git log展示如上, 可以看出第一个和第二次的提交合并了, 所有的提交comment都修改了。<br>git rebase -i master也能和描述也是一致的。<br>5) f, fixup = like “squash”, but discard this commit’s log message: 和squash效果一样, 和之前提交的commit会合并到一起, 本次提交的comment会直接丢弃。<br>git rebase -i master: 可以一起修改前缀的comment(也可以将#去掉,同一个comment分两行显示两个comment), 后续的提交还可以修改comment。<br>git rebase -i HEAD~3 : 这次提交的coment直接丢弃, 所有提交都不给改的机会。<br>6) x, exec = run command (the rest of the line) using shell :执行shell命令, 可以忽略使用<br>7) d, drop = remove commit 直接丢弃这次提交(包括提交内容与comment)</p>
+<h2 id="i参数控制复制、删除、重置提交顺序等"><a href="#i参数控制复制、删除、重置提交顺序等" class="headerlink" title="i参数控制复制、删除、重置提交顺序等"></a>i参数控制复制、删除、重置提交顺序等</h2><p>rebase -i参数可以通过重复上面的提交记录操作这些操作, 比如:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line">pick 159f932 d1</div><div class="line">squash 4279e75 d2</div><div class="line">pick 116755e d3</div><div class="line">pick 159f932 d1</div></pre></td></tr></table></figure></p>
+<p>该提交将重复提交第一次提交, 提交结果如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/git_rebase7.png" height="350" width="450"><br>本地rebase之后再向远程推送, 可能会冲突, 这时确定没有人在基于那个分支分发的话, 可以通过git push –force origin mybranch分支。 master一般不允许直接这么弄</p>
+<h1 id="cherry-pick"><a href="#cherry-pick" class="headerlink" title="cherry-pick"></a>cherry-pick</h1><p>cherry-pick主要是将一个分支单独的提交变化合并到另外一个分支上, 以下图为例, 当前处于master的D提交上, 想让dev分支上的G提交改变合并到当前master分支上, 那么就执行:<br><code>git:(master D提交): git cherry-pick G</code>, 提交完成后, G提交出的变化代码就会和master分支D处全部代码合并, 产生提交D’。注意,这里虽然合并了, 但是并没有改变分支提交记录, 图中用虚线表达着从提交历史上看, D’和G毫无关联。<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/git_rebase10.png" height="350" width="450"><br>cherry-pick在提取G提交的变化时, 能将变化抽取出来的, 就将变化提取出来, 能合并就合并。变化合并到D时, 有冲突就解决冲突。<br>cherry-pick与rebase使用上的区别:<br>rebase: 修改提交历史, 改变的是整个分支的提交基, 将每次提交都与另外一个分支提交一一合并。<br>cherry-pick: 不会修改提交历史,仅仅产生一个新的提交。像挑选樱桃一样, 可以某个分支某次提交与另一个分支提交代码合并。<br>-m 参数<br>git cherry-pick G -m 1/2等<br>git show –pretty=raw xszdsdsdds<br><a href="https://stackoverflow.com/questions/12626754/git-cherry-pick-syntax-and-merge-branches/12628579#12628579" target="_blank" rel="external">https://stackoverflow.com/questions/12626754/git-cherry-pick-syntax-and-merge-branches/12628579#12628579</a></p>
+<h1 id="revert"><a href="#revert" class="headerlink" title="revert"></a>revert</h1><p>revert的含义是撤销(丢弃)某次提交, 下图为例, 比如想撤销G提交: <code>git:(master D提交): git revert G</code>, 实际就是丢弃G的提交, 具体实现是将G提交变化从当前提交D中去掉, 然后产生新的提交D’。<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/git_revert1.png" height="350" width="450"><br>同cherry-pick一样, 并不改变历史提交记录, 仅仅将D和F(G的父提交)合并, 产生的新提交D’与G提交没有任何关系。<br>比如<code>git:(master D提交): git revert HEAD</code>, 撤销最近一次提交(也就提交D提交), 可能要产生冲突, 解决冲突后通过git add、git revert –continue来完成此次操作。</p>
+<h1 id="checkout"><a href="#checkout" class="headerlink" title="checkout"></a>checkout</h1><p>checkout主要是从<code>对象库中(仓库)</code>拿出一个提交, 然后放在工作目录中, HEAD会指向当前提交(前提是工作区、暂存区、本地仓库一致, 否则会冲突); 附带功能是从<code>暂存区(索引)</code>中检出文件来重置工作区的文件, 使用示例如下:</p>
+<ul>
+<li>git:(master D提交): git checkout G<br>将当前分支切换到G提交上面去, 此时工作区、暂存区、本地仓库代码将一致</li>
+<li>git:(master D提交): git checkout – file1<br>用<code>暂存区</code>的文件file1来重置<code>工作区</code>的file1, 而不是从本地代码仓库来恢复。</li>
+<li>git:(master D提交): git checkout G – file1<br>用G提交的代码<code>暂存区</code>的文件file1来重置<code>工作区</code>的file1。<br>checkout不会去修改提交记录, 仅仅是修改了HEAD。</li>
+</ul>
+<h1 id="reset"><a href="#reset" class="headerlink" title="reset"></a>reset</h1><p>reset主要是将仓库中的某次提交拿出来, 然后放回到暂存区、工作目录中, HEAD, master会指向当前提交, 提交历史会被改变。</p>
+<ul>
+<li>在切换到某一次提交时, 可使用 三个参数:<br>—soft: 仅仅是将当前master、HEAD指针指向commit3<br>—mixed: 在—soft的基础上, 用commit3的提交来重置暂存区。(默认)<br>—hard: 在—hard的集群上, 用commit3的提交来重置暂存区、工作区。<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/git_reset.png" height="250" width="700"></li>
+<li>git:(master D提交): git reset HEAD file1<br>用<code>本地代码仓库</code>的文件file1来重置<code>暂存区</code>(索引)的file1。</li>
+</ul>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color2">git, rebase, cherry-pick, reset, checkout</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/elasticsearch_learning/categories/工具学习//" class="article-tag-list-link color5">工具学习</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/elasticsearch_learning/2017/03/08/git-基本命令学习心得/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
+    <article id="post-gdb调试java基本用法" class="article article-type-post  article-index" itemscope itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/elasticsearch_learning/2016/12/20/gdb调试java基本用法/">gdb调试java基本用法</a>
+    </h1>
+  
+
+        
+        <a href="/elasticsearch_learning/2016/12/20/gdb调试java基本用法/" class="archive-article-date">
+  	<time datetime="2016-12-20T07:56:11.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2016-12-20</time>
+</a>
+        
+         
+      </header>
+    
+
+    <!-- 目录内容 -->
+    
+    <!-- 目录内容结束 -->
+
+    <div class="article-entry" itemprop="articleBody">
+      
+        <p>jvm进程崩溃时, 可以产生coredump文件, 该dump文件记录了崩溃时cpu、jvm当前线程、当前内存的使用情况, 学会分析该coredump对于我们排查问题十分重要, 本文将主要讲解如何通过gdb分析该coredump文件。</p>
+<h2 id="coredump产生"><a href="#coredump产生" class="headerlink" title="coredump产生"></a>coredump产生</h2><p>第一步检查系统是否允许产生coredump文件<br>操作系统默认禁止coredump文件的产生, 可以通过<code>ulimit -c</code>查看是否允许产生coredump文件, 若显示为0, 则禁止线程崩溃时产生该core文件, 可以通过<code>echo &quot;ulimit  -c unlimited&quot; &gt;&gt; /etc/profile</code>. 我们也可以通过cat /pro/$pid/limits 查看设置情况<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div></pre></td><td class="code"><pre><div class="line">Limit                     Soft Limit           Hard Limit           Units</div><div class="line">Max cpu time              unlimited            unlimited            seconds</div><div class="line">Max file size             unlimited            unlimited            bytes</div><div class="line">Max data size             unlimited            unlimited            bytes</div><div class="line">Max stack size            8388608              unlimited            bytes</div><div class="line">Max core file size        unlimited            unlimited            bytes</div><div class="line">Max resident set          unlimited            unlimited            bytes</div><div class="line">Max processes             23262                23262                processes</div><div class="line">Max open files            4096                 4096                 files</div><div class="line">Max locked memory         65536                65536                bytes</div><div class="line">Max address space         unlimited            unlimited            bytes</div><div class="line">Max file locks            unlimited            unlimited            locks</div><div class="line">Max pending signals       23262                23262                signals</div><div class="line">Max msgqueue size         819200               819200               bytes</div><div class="line">Max nice priority         0                    0</div><div class="line">Max realtime priority     0                    0</div><div class="line">Max realtime timeout      unlimited            unlimited            us</div></pre></td></tr></table></figure></p>
+<p>可以看到Max core file size设置为unlimited, 是运行产生core 文件的。<br>第二步, 通过kill -6 pid 向进程发送abort信号产生core文件(默认文件名称)。</p>
+<h2 id="gdb基本使用"><a href="#gdb基本使用" class="headerlink" title="gdb基本使用"></a>gdb基本使用</h2><table>
+<thead>
+<tr>
+<th style="text-align:left">命令</th>
+<th style="text-align:left">简写</th>
+<th style="text-align:left">说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left">list</td>
+<td style="text-align:left">l</td>
+<td style="text-align:left">显示多行源代码</td>
+</tr>
+<tr>
+<td style="text-align:left">break</td>
+<td style="text-align:left">b</td>
+<td style="text-align:left">设置断点,程序运行到断点的位置会停下来</td>
+</tr>
+<tr>
+<td style="text-align:left">info</td>
+<td style="text-align:left">i</td>
+<td style="text-align:left">描述程序的状态</td>
+</tr>
+<tr>
+<td style="text-align:left">run</td>
+<td style="text-align:left"></td>
+<td style="text-align:left">r</td>
+<td>开始运行程序</td>
+</tr>
+<tr>
+<td style="text-align:left">display</td>
+<td style="text-align:left">disp</td>
+<td style="text-align:left">跟踪查看某个变量,每次停下来都显示它的值</td>
+</tr>
+<tr>
+<td style="text-align:left">step</td>
+<td style="text-align:left">s</td>
+<td style="text-align:left">执行下一条语句,如果该语句为函数调用,则进入函数执行其中的第一条语句</td>
+</tr>
+<tr>
+<td style="text-align:left">next</td>
+<td style="text-align:left">n</td>
+<td style="text-align:left">执行下一条语句,如果该语句为函数调用,不会进入函数内部执行(即不会一步步地调试函数内部语句)</td>
+</tr>
+<tr>
+<td style="text-align:left">print</td>
+<td style="text-align:left">p</td>
+<td style="text-align:left">打印内部变量值</td>
+</tr>
+<tr>
+<td style="text-align:left">continue</td>
+<td style="text-align:left">c</td>
+<td style="text-align:left">继续程序的运行,直到遇到下一个断点</td>
+</tr>
+<tr>
+<td style="text-align:left">set var name=v</td>
+<td style="text-align:left"></td>
+<td style="text-align:left">设置变量的值</td>
+</tr>
+<tr>
+<td style="text-align:left">start</td>
+<td style="text-align:left">st</td>
+<td style="text-align:left">开始执行程序,在main函数的第一条语句前面停下来</td>
+</tr>
+<tr>
+<td style="text-align:left">file</td>
+<td style="text-align:left"></td>
+<td style="text-align:left">装入需要调试的程序</td>
+</tr>
+<tr>
+<td style="text-align:left">kill</td>
+<td style="text-align:left">k</td>
+<td style="text-align:left">终止正在调试的程序</td>
+</tr>
+<tr>
+<td style="text-align:left">watch</td>
+<td style="text-align:left"></td>
+<td style="text-align:left">监视变量值的变化</td>
+</tr>
+<tr>
+<td style="text-align:left">backtrace</td>
+<td style="text-align:left">bt</td>
+<td style="text-align:left">产看函数调用信息(堆栈)</td>
+</tr>
+<tr>
+<td style="text-align:left">frame</td>
+<td style="text-align:left">f</td>
+<td style="text-align:left">查看栈帧, 比如打印当前线程栈第5行详细信息: f 5</td>
+</tr>
+<tr>
+<td style="text-align:left">quit</td>
+<td style="text-align:left">q</td>
+<td style="text-align:left">退出GDB环境</td>
+</tr>
+</tbody>
+</table>
+<p>(参考<a href="https://blog.csdn.net/zdy0_2004/article/details/80102076" target="_blank" rel="external">gdb调试的基本使用</a>)</p>
+<h2 id="分析coredump文件"><a href="#分析coredump文件" class="headerlink" title="分析coredump文件"></a>分析coredump文件</h2><ul>
+<li>gdb java core<br>调用如上命令加载core文件(这里的core指的是core文件名称)。</li>
+</ul>
+<ol>
+<li>执行<code>info threads</code>, 其实可以通过<code>info</code>查看需要详细数据<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div></pre></td><td class="code"><pre><div class="line">#0  0xb776b424 in __kernel_vsyscall ()</div><div class="line">(gdb) info threads</div><div class="line">  Id   Target Id         Frame</div><div class="line">  12   Thread 0xb6a84b40 (LWP 5553) 0xb776b424 in __kernel_vsyscall ()</div><div class="line">  11   Thread 0xad2ffb40 (LWP 5563) 0xb776b424 in __kernel_vsyscall ()</div><div class="line">  10   Thread 0xad350b40 (LWP 5562) 0xb776b424 in __kernel_vsyscall ()</div><div class="line">  9    Thread 0xad3d1b40 (LWP 5561) 0xb776b424 in __kernel_vsyscall ()</div><div class="line">  8    Thread 0xad422b40 (LWP 5560) 0xb776b424 in __kernel_vsyscall ()</div><div class="line">  7    Thread 0xad473b40 (LWP 5559) 0xb776b424 in __kernel_vsyscall ()</div><div class="line">  6    Thread 0xad6c4b40 (LWP 5558) 0xb776b424 in __kernel_vsyscall ()</div><div class="line">  5    Thread 0xad715b40 (LWP 5557) 0xb776b424 in __kernel_vsyscall ()</div><div class="line">  4    Thread 0xad796b40 (LWP 5556) 0xb776b424 in __kernel_vsyscall ()</div><div class="line">  3    Thread 0xadee6b40 (LWP 5555) 0xb776b424 in __kernel_vsyscall ()</div><div class="line">  2    Thread 0xb4817b40 (LWP 5554) 0xb776b424 in __kernel_vsyscall ()</div><div class="line">* 1    Thread 0xb756f700 (LWP 5552) 0xb776b424 in __kernel_vsyscall ()</div><div class="line">(gdb)</div></pre></td></tr></table></figure>
+</li>
+</ol>
+<p>这里将展示目前已知的所有线程, *开头的代表当前处于调试的线程。这里可以通过输入info可以查看所有的命令。 切换当前调试线程可以通过<code>thread ID</code>方式, id取值上图第一列。其实我们查看每个线程在干什么, 也可以直接使用<code>pstack pid</code>即可</p>
+<ol>
+<li><p>假如想查看id为1的线程当前栈调用情况, 那么执行继续<code>bt</code></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div></pre></td><td class="code"><pre><div class="line">#0  0xb776b424 in __kernel_vsyscall ()</div><div class="line">(gdb) bt</div><div class="line">#0  0xb776b424 in __kernel_vsyscall ()</div><div class="line">#1  0xb7742178 in pthread_join (threadid=3064482624, thread_return=0xbfb1b944) at pthread_join.c:92</div><div class="line">#2  0xb772eeda in ContinueInNewThread0 () from /home/kewei/Downloads/work_soft/jdk1.8.0_121/bin/../lib/i386/jli/libjli.so</div><div class="line">#3  0xb772a266 in ContinueInNewThread () from /home/kewei/Downloads/work_soft/jdk1.8.0_121/bin/../lib/i386/jli/libjli.so</div><div class="line">#4  0xb772edab in JVMInit () from /home/kewei/Downloads/work_soft/jdk1.8.0_121/bin/../lib/i386/jli/libjli.so</div><div class="line">#5  0xb772d149 in JLI_Launch () from /home/kewei/Downloads/work_soft/jdk1.8.0_121/bin/../lib/i386/jli/libjli.so</div><div class="line">#6  0x0804858d in main ()</div></pre></td></tr></table></figure>
+</li>
+<li><p>查看每个register值: <code>info registers</code>(简写<code>i r</code>)</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div></pre></td><td class="code"><pre><div class="line">        0xfffffe00	-512</div><div class="line">ecx            0x0	0</div><div class="line">edx            0x25d5	9685</div><div class="line">ebx            0xb6a5dba8	-1230644312</div><div class="line">esp            0xbfd1a6e0	0xbfd1a6e0</div><div class="line">ebp            0xb6a5db40	0xb6a5db40</div><div class="line">esi            0x0	0</div><div class="line">edi            0xb772c000	-1217216512</div><div class="line">eip            0xb7744424	0xb7744424 &lt;__kernel_vsyscall+16&gt;</div><div class="line">eflags         0x246	[ PF ZF IF ]</div><div class="line">......</div></pre></td></tr></table></figure>
+</li>
+</ol>
+<p>左边是寄存器名称, 中间是寄存器地址, 右边是寄存器值, 可以通过<code>print $ecx</code>验证寄存器值</p>
+<ul>
+<li>查看反汇编语言<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div></pre></td><td class="code"><pre><div class="line">(gdb) disassemble</div><div class="line">Dump of assembler code for function __kernel_vsyscall:</div><div class="line">   0xb7744414 &lt;+0&gt;:	push   %ecx</div><div class="line">   0xb7744415 &lt;+1&gt;:	push   %edx</div><div class="line">   0xb7744416 &lt;+2&gt;:	push   %ebp</div><div class="line">   0xb7744417 &lt;+3&gt;:	mov    %esp,%ebp</div><div class="line">   0xb7744419 &lt;+5&gt;:	sysenter</div><div class="line">   0xb774441b &lt;+7&gt;:	nop</div><div class="line">   0xb774441c &lt;+8&gt;:	nop</div><div class="line">   0xb774441d &lt;+9&gt;:	nop</div><div class="line">   0xb774441e &lt;+10&gt;:	nop</div><div class="line">   0xb774441f &lt;+11&gt;:	nop</div><div class="line">   0xb7744420 &lt;+12&gt;:	nop</div><div class="line">   0xb7744421 &lt;+13&gt;:	nop</div><div class="line">   0xb7744422 &lt;+14&gt;:	int    $0x80</div><div class="line">=&gt; 0xb7744424 &lt;+16&gt;:	pop    %ebp</div><div class="line">   0xb7744425 &lt;+17&gt;:	pop    %edx</div><div class="line">   0xb7744426 &lt;+18&gt;:	pop    %ecx</div><div class="line">   0xb7744427 &lt;+19&gt;:	ret</div><div class="line">End of assembler dump.</div></pre></td></tr></table></figure>
+</li>
+</ul>
+<p>也可以反汇编一个函数<code>disass func_name</code>, 如下:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div></pre></td><td class="code"><pre><div class="line">(gdb) disass main</div><div class="line">Dump of assembler code for function main:</div><div class="line">   0x0000000000400620 &lt;+0&gt;:	push   %rbp</div><div class="line">   0x0000000000400621 &lt;+1&gt;:	mov    %rsp,%rbp</div><div class="line">   0x0000000000400624 &lt;+4&gt;:	sub    $0x40,%rsp</div><div class="line">   0x0000000000400628 &lt;+8&gt;:	mov    0x200271(%rip),%rdx        # 0x6008a0 &lt;const_launcher&gt;</div><div class="line">   0x000000000040062f &lt;+15&gt;:	test   %rdx,%rdx</div><div class="line">   0x0000000000400632 &lt;+18&gt;:	je     0x4006a0 &lt;main+128&gt;</div><div class="line">   0x0000000000400634 &lt;+20&gt;:	mov    0x20026d(%rip),%rax        # 0x6008a8 &lt;const_progname&gt;</div><div class="line">   0x000000000040063b &lt;+27&gt;:	test   %rax,%rax</div><div class="line">   0x000000000040063e &lt;+30&gt;:	je     0x4006b0 &lt;main+144&gt;</div><div class="line">   0x0000000000400640 &lt;+32&gt;:	mov    %rax,0x10(%rsp)</div></pre></td></tr></table></figure></p>
+<ul>
+<li>查看当前线程情况<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div></pre></td><td class="code"><pre><div class="line">xxxxxx@slave1:~$jstack /home/kewei/Downloads/work_soft/jdk1.8.0_121/bin/java core</div><div class="line">Attaching to core core from executable /home/kewei/Downloads/work_soft/jdk1.8.0_121/bin/java, please wait...</div><div class="line">Debugger attached successfully.</div><div class="line">Client compiler detected.</div><div class="line">JVM version is 25.121-b13</div><div class="line">Deadlock Detection:</div><div class="line"></div><div class="line">No deadlocks found.</div><div class="line"></div><div class="line">Thread 9692: (state = BLOCKED)</div><div class="line"></div><div class="line"></div><div class="line">Thread 9691: (state = BLOCKED)</div><div class="line"></div><div class="line"></div><div class="line">Thread 9690: (state = BLOCKED)</div><div class="line"> - java.lang.Object.wait(long) @bci=0 (Interpreted frame)</div><div class="line"> - java.lang.ref.ReferenceQueue.remove(long) @bci=59, line=143 (Interpreted frame)</div><div class="line"> - java.lang.ref.ReferenceQueue.remove() @bci=2, line=164 (Interpreted frame)</div><div class="line"> - java.lang.ref.Finalizer$FinalizerThread.run() @bci=36, line=209 (Interpreted frame)</div><div class="line">......</div></pre></td></tr></table></figure>
+</li>
+</ul>
+<p>注意java命令的路径不能省略, 否则会报如下异常:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line">Attaching to core core from executable java, please wait...</div><div class="line">Error attaching to core file: cannot open binary file</div><div class="line">sun.jvm.hotspot.debugger.DebuggerException: cannot open binary file</div><div class="line">	at sun.jvm.hotspot.debugger.linux.LinuxDebuggerLocal.attach0(Native Method)</div></pre></td></tr></table></figure></p>
+<ul>
+<li><p>查看当前内存使用</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div></pre></td><td class="code"><pre><div class="line">xxxxx@slave1:~$ jmap /home/kewei/Downloads/work_soft/jdk1.8.0_121/bin/java core</div><div class="line">Attaching to core core from executable /home/kewei/Downloads/work_soft/jdk1.8.0_121/bin/java, please wait...</div><div class="line">Debugger attached successfully.</div><div class="line">Client compiler detected.</div><div class="line">JVM version is 25.121-b13</div><div class="line">0x08048000	5K	/home/kewei/Downloads/work_soft/jdk1.8.0_121/bin/java</div><div class="line">0xb7713000	127K	/lib/i386-linux-gnu/libpthread.so.0</div><div class="line">0xb76fd000	93K	/home/kewei/Downloads/work_soft/jdk1.8.0_121/bin/../lib/i386/jli/libjli.so</div><div class="line">0xb76f8000	13K	/lib/i386-linux-gnu/libdl.so.2</div><div class="line">0xb7549000	1717K	/lib/i386-linux-gnu/libc.so.6</div><div class="line">0xb7745000	131K	/lib/ld-linux.so.2</div><div class="line">0xb6aa4000	8162K	/home/kewei/Downloads/work_soft/jdk1.8.0_121/jre/lib/i386/client/libjvm.so</div><div class="line">0xb6a5e000	273K	/lib/i386-linux-gnu/libm.so.6</div><div class="line">0xb6a04000	29K	/lib/i386-linux-gnu/librt.so.1</div><div class="line">0xb7736000	54K	/home/kewei/Downloads/work_soft/jdk1.8.0_121/jre/lib/i386/libverify.so</div><div class="line">0xb68db000	187K	/home/kewei/Downloads/work_soft/jdk1.8.0_121/jre/lib/i386/libjava.so</div><div class="line">0xb68bf000	29K	/lib/i386-linux-gnu/libnss_compat.so.2</div><div class="line">0xb68a6000	89K	/lib/i386-linux-gnu/libnsl.so.1</div><div class="line">0xb689a000	41K	/lib/i386-linux-gnu/libnss_nis.so.2</div><div class="line">0xb688d000	45K	/lib/i386-linux-gnu/libnss_files.so.2</div><div class="line">0xb6873000	114K	/home/kewei/Downloads/work_soft/jdk1.8.0_121/jre/lib/i386/libzip.so</div></pre></td></tr></table></figure>
+</li>
+<li><p>通过core文件产生heapdump文件<br><code>xxxxx@slave1:~$ jmap -dump:format=b,file=dump.hprof $JAVA_HOME/bin/java core</code></p>
+</li>
+</ul>
+<h1 id="dump内存区域"><a href="#dump内存区域" class="headerlink" title="dump内存区域"></a>dump内存区域</h1><h1 id="参考"><a href="#参考" class="headerlink" title="参考"></a>参考</h1><p><a href="https://blog.csdn.net/zdy0_2004/article/details/80102076" target="_blank" rel="external">https://blog.csdn.net/zdy0_2004/article/details/80102076</a><br><a href="https://www.cnblogs.com/xuxm2007/archive/2011/04/01/2002162.html" target="_blank" rel="external">https://www.cnblogs.com/xuxm2007/archive/2011/04/01/2002162.html</a></p>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color3">随笔</a>
+        		</li>
+      		 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color4">gdb</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/elasticsearch_learning/categories/工具学习//" class="article-tag-list-link color5">工具学习</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/elasticsearch_learning/2016/12/20/gdb调试java基本用法/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
+    <article id="post-jvm内存泄露排查工具" class="article article-type-post  article-index" itemscope itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/elasticsearch_learning/2016/12/15/jvm内存泄露排查工具/">jvm内存泄露排查工具</a>
+    </h1>
+  
+
+        
+        <a href="/elasticsearch_learning/2016/12/15/jvm内存泄露排查工具/" class="archive-article-date">
+  	<time datetime="2016-12-15T13:12:10.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2016-12-15</time>
+</a>
+        
+         
+      </header>
+    
+
+    <!-- 目录内容 -->
+    
+    <!-- 目录内容结束 -->
+
+    <div class="article-entry" itemprop="articleBody">
+      
+        <p>本文介绍几个不常用的内存泄露排查工具:perftools、pmap、jcmd。</p>
+<h2 id="perftools"><a href="#perftools" class="headerlink" title="perftools"></a>perftools</h2><p>perftools是一款比较好的分析堆外内存泄漏的工具, 原理: 通过使用自己实现的libtcmalloc.so来替换原有的内存分配函数, 来达到监控内存分配的目的</p>
+<h4 id="安装"><a href="#安装" class="headerlink" title="安装"></a>安装</h4><p>perftools安装需要依赖:libunwind, 首先安装libunwind:</p>
+<ul>
+<li>wget <a href="https://github.com/libunwind/libunwind/releases/download/v1.2.1/libunwind-1.2.1.tar.gz" target="_blank" rel="external">https://github.com/libunwind/libunwind/releases/download/v1.2.1/libunwind-1.2.1.tar.gz</a></li>
+<li>tar -xvf libunwind-1.2.1.tar.gz</li>
+<li>cd libunwind-1.2.1</li>
+<li>./configure  –prefix=/home/target/libunwind</li>
+<li>make</li>
+<li>make install<br>其次安装perftools:</li>
+<li>wget <a href="https://github.com/gperftools/gperftools/releases/download/gperftools-2.6.1/gperftools-2.6.1.tar.gz" target="_blank" rel="external">https://github.com/gperftools/gperftools/releases/download/gperftools-2.6.1/gperftools-2.6.1.tar.gz</a></li>
+<li>tar -xvf gperftools-2.6.1.tar.gz</li>
+<li>cd gperftools-2.6.1</li>
+<li>./configure –prefix=/home/target/gperftools</li>
+<li>make (安装时候, 可能会报g++: command not found, 切换到root: yum -y install gcc+ gcc-c++, 需要再次执行上一步, 否则会报异常)</li>
+<li>make install<br>我们还需要设置一些环境变量:<br>export LD_PRELOAD=/home/target/gperftools/lib/libtcmalloc.so<br>目的：在程序启动时自动链接libtcmalloc.so<br>export HEAPPROFILE=/you_directory/heap.hprof<br>目的: 内存才能监控将产生很多.heap, 设置文件存放位置<br>export HEAP_PROFILE_ALLOCATION_INTERVAL=10000000<br>目的: 内存使用多少, 会产生一个.heap文件。 默认每使用1G, 产生一个.bin文件。</li>
+</ul>
+<h4 id="使用"><a href="#使用" class="headerlink" title="使用"></a>使用</h4><ul>
+<li>直接启动jvm进程, perftools会监控内存使用<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/jvm_memory_leak.png" height="250" width="850"></li>
+<li>查看产生的heap.hprof.0001.heap文件<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/jvm_memory_leak1.png" height="450" width="850"><br>其中对每列的介绍如下:<br>The first column contains the direct memory use in MB(当前函数目前使用的直接内存大小).<br>The fourth column contains memory use by the procedure and all of its callees(当前函数及其调用者使用的直接内存).<br>The second and fifth columns are just percentage representations of the numbers in the first and fifth columns.<br>The third column is a cumulative sum of the second column (i.e., the kth entry in the third column is the sum of the first k entries in the second column.)(目前占用的总堆外内存大小)</li>
+</ul>
+<h2 id="jcmd"><a href="#jcmd" class="headerlink" title="jcmd"></a>jcmd</h2><p>jcm是一个多功能工具, 功能如下:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div></pre></td><td class="code"><pre><div class="line">$user@host: /usr/local/java18/bin/jcmd 25266 help</div><div class="line">25266:</div><div class="line">The following commands are available:</div><div class="line">JFR.stop</div><div class="line">JFR.start</div><div class="line">JFR.dump</div><div class="line">JFR.check</div><div class="line">VM.native_memory</div><div class="line">VM.check_commercial_features</div><div class="line">VM.unlock_commercial_features</div><div class="line">ManagementAgent.stop</div><div class="line">ManagementAgent.start_local</div><div class="line">ManagementAgent.start</div><div class="line">GC.rotate_log</div><div class="line">Thread.print         // 与jstack功能相同</div><div class="line">GC.class_stats</div><div class="line">GC.class_histogram    // 与jmap -histo功能相同</div><div class="line">GC.heap_dump         //与jmap -dump功能相同</div><div class="line">GC.run_finalization</div><div class="line">GC.run</div><div class="line">VM.uptime</div><div class="line">VM.flags                   //查看更完整的启动命令, 包括默认的参数, 比如垃圾回收器</div><div class="line">VM.system_properties      //查看系统参数</div><div class="line">VM.command_line          //查看启动命令</div><div class="line">VM.version</div><div class="line">help</div></pre></td></tr></table></figure></p>
+<p>我们将着重介绍VM.native_memory, 该参数可以支持我们追踪堆内内存的申请。 不过我们必须在进程启动时添加-XX:NativeMemoryTracking=detail参数才可用。 开启该参数将导致jvm进程5-10%性能损耗。<br>其参数如下:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">参数</th>
+<th style="text-align:left">介绍</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left">summary</td>
+<td style="text-align:left">汇总的内存展示</td>
+</tr>
+<tr>
+<td style="text-align:left">detail</td>
+<td style="text-align:left">详细的内存展示, 不仅包括summary, 还包括每个内存块地址及具体分配者</td>
+</tr>
+<tr>
+<td style="text-align:left">baseline</td>
+<td style="text-align:left">当前线程拥有的内存块作为基准线, 与调用detail.diff summary.diff时刻的线程比较得出增量情况</td>
+</tr>
+<tr>
+<td style="text-align:left">detail.diff</td>
+<td style="text-align:left">内存增量的详情</td>
+</tr>
+<tr>
+<td style="text-align:left">summary.diff</td>
+<td style="text-align:left">内存增量的汇总情况</td>
+</tr>
+</tbody>
+</table>
+<p>VM.native_memory显示的内存包含<code>堆内内存、Code区域、通过unsafe.allocateMemory(DirectByteBuffer实际也是由前者产生)，但是不包含其他Native Code（C代码）申请的堆外内存</code>。</p>
+<h4 id="VM-native-memory"><a href="#VM-native-memory" class="headerlink" title="VM.native_memory"></a>VM.native_memory</h4><p>用法: jcmd pid VM.native_memory detail<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div><div class="line">61</div><div class="line">62</div><div class="line">63</div><div class="line">64</div><div class="line">65</div><div class="line">66</div><div class="line">67</div><div class="line">68</div><div class="line">69</div><div class="line">70</div><div class="line">71</div><div class="line">72</div><div class="line">73</div><div class="line">74</div><div class="line">75</div><div class="line">76</div><div class="line">77</div><div class="line">78</div><div class="line">79</div><div class="line">80</div><div class="line">81</div><div class="line">82</div><div class="line">83</div><div class="line">84</div><div class="line">85</div><div class="line">86</div><div class="line">87</div><div class="line">88</div><div class="line">89</div><div class="line">90</div><div class="line">91</div><div class="line">92</div><div class="line">93</div><div class="line">94</div><div class="line">95</div><div class="line">96</div><div class="line">97</div><div class="line">98</div><div class="line">99</div><div class="line">100</div></pre></td><td class="code"><pre><div class="line">44387:</div><div class="line">Native Memory Tracking:</div><div class="line">Total: reserved=1653891KB, committed=355703KB</div><div class="line">                  //同启动参数一致</div><div class="line">-                 Java Heap (reserved=102400KB, committed=102400KB)</div><div class="line">                            (mmap: reserved=102400KB, committed=102400KB)</div><div class="line">                   //类需要的内存</div><div class="line">-                 Class (reserved=1091740KB, committed=39836KB)</div><div class="line">                            (classes #426)</div><div class="line">                            (malloc=34972KB #267)</div><div class="line">                            (mmap: reserved=1056768KB, committed=4864KB)</div><div class="line">                  //thread #57，表示57个线程，分配的总内存有57807KB，平均一个线程是1MB。</div><div class="line">-                  Thread (reserved=57807KB, committed=57807KB)</div><div class="line">                            (thread #57)</div><div class="line">                            (stack: reserved=57568KB, committed=57568KB)</div><div class="line">                            (malloc=173KB #315)</div><div class="line">                            (arena=66KB #112)</div><div class="line">                   //JIT的代码缓存</div><div class="line">-                  Code (reserved=249648KB, committed=3560KB)</div><div class="line">                            (malloc=48KB #336)</div><div class="line">                            (mmap: reserved=249600KB, committed=3512KB)</div><div class="line">                   //GC需要的内存</div><div class="line">-                  GC (reserved=43020KB, committed=42824KB)</div><div class="line">                            (malloc=39208KB #204)</div><div class="line">                            (mmap: reserved=3812KB, committed=3616KB)</div><div class="line">                   //供编译器自身操作使用的</div><div class="line">-                  Compiler (reserved=135KB, committed=135KB)</div><div class="line">                            (malloc=4KB #41)</div><div class="line">                            (arena=131KB #3)</div><div class="line">                   //</div><div class="line">-                  Internal (reserved=107397KB, committed=107397KB)</div><div class="line">                            (malloc=107365KB #1972)</div><div class="line">                            (mmap: reserved=32KB, committed=32KB)</div><div class="line">                   //保留字符串（Interned String）的引用与符号表引用</div><div class="line">-                    Symbol (reserved=1374KB, committed=1374KB)</div><div class="line">                            (malloc=918KB #92)</div><div class="line">                            (arena=456KB #1)</div><div class="line">     //NMT本身也需要内存</div><div class="line">-    Native Memory Tracking (reserved=185KB, committed=185KB)</div><div class="line">                            (malloc=107KB #1646)</div><div class="line">                            (tracking overhead=78KB)</div><div class="line"></div><div class="line">-               Arena Chunk (reserved=186KB, committed=186KB)</div><div class="line">                            (malloc=186KB)</div><div class="line"></div><div class="line">Virtual memory map:</div><div class="line">//JVM heap内存大小100M, 地址范围0x00000000f9c00000-0x0000000100000000, 由ParallelScavengeHeap::initialize来申请的内存块</div><div class="line">[0x00000000f9c00000 - 0x0000000100000000] reserved 102400KB for Java Heap from</div><div class="line">    //下面这个怀疑是该函数在内存中的地址</div><div class="line">    [0x00007ff092b43bd2] ReservedSpace::initialize(unsigned long, unsigned long, bool, char*, unsigned long, bool)+0xc2</div><div class="line">    [0x00007ff092b4452e] ReservedHeapSpace::ReservedHeapSpace(unsigned long, unsigned long, bool, char*)+0x6e</div><div class="line">    [0x00007ff092b1249b] Universe::reserve_heap(unsigned long, unsigned long)+0x8b</div><div class="line">    [0x00007ff0929cc5c4] ParallelScavengeHeap::initialize()+0x84</div><div class="line"></div><div class="line">        [0x00000000ffe80000 - 0x0000000100000000] committed 1536KB from</div><div class="line">            [0x00007ff092a16ac3] PSVirtualSpace::expand_by(unsigned long)+0x53</div><div class="line">            [0x00007ff092a17a85] PSYoungGen::initialize_virtual_space(ReservedSpace, unsigned long)+0x75</div><div class="line">            [0x00007ff092a183ee] PSYoungGen::initialize(ReservedSpace, unsigned long)+0x3e</div><div class="line">            [0x00007ff09236fc85] AdjoiningGenerations::AdjoiningGenerations(ReservedSpace, GenerationSizer*, unsigned long)+0x345</div><div class="line"></div><div class="line">        [0x00000000f9c00000 - 0x00000000ffe80000] committed 100864KB from</div><div class="line">            [0x00007ff092a16ac3] PSVirtualSpace::expand_by(unsigned long)+0x53</div><div class="line">            [0x00007ff092a06b77] PSOldGen::initialize(ReservedSpace, unsigned long, char const*, int)+0xb7</div><div class="line">            [0x00007ff09236fcda] AdjoiningGenerations::AdjoiningGenerations(ReservedSpace, GenerationSizer*, unsigned long)+0x39a</div><div class="line">            [0x00007ff0929cc716] ParallelScavengeHeap::initialize()+0x1d6</div><div class="line">    ......</div><div class="line">[0x00007ff093b40000 - 0x00007ff093c41000] reserved and committed 1028KB for Thread Stack from</div><div class="line">    [0x00007ff092af4fd6] Threads::create_vm(JavaVMInitArgs*, bool*)+0x1e6</div><div class="line">    [0x00007ff09275e244] JNI_CreateJavaVM+0x74</div><div class="line">    [0x00007ff09360245e] JavaMain+0x9e</div><div class="line"></div><div class="line">[0x00007ff093c49000 - 0x00007ff093c4b000] reserved 8KB for GC from</div><div class="line">    [0x00007ff092b43d66] ReservedSpace::initialize(unsigned long, unsigned long, bool, char*, unsigned long, bool)+0x256</div><div class="line">    [0x00007ff092b43e0b] ReservedSpace::ReservedSpace(unsigned long, unsigned long, bool, char*, unsigned long)+0x1b</div><div class="line">    [0x00007ff092a0a1c2] ParallelCompactData::create_vspace(unsigned long, unsigned long)+0x92</div><div class="line">    [0x00007ff092a0c718] PSParallelCompact::initialize()+0x178</div><div class="line"></div><div class="line">        [0x00007ff093c49000 - 0x00007ff093c4b000] committed 8KB from</div><div class="line">            [0x00007ff092a16ac3] PSVirtualSpace::expand_by(unsigned long)+0x53</div><div class="line">            [0x00007ff092a0a274] ParallelCompactData::create_vspace(unsigned long, unsigned long)+0x144</div><div class="line">            [0x00007ff092a0c718] PSParallelCompact::initialize()+0x178</div><div class="line">            [0x00007ff0929cc8c5] ParallelScavengeHeap::initialize()+0x385</div><div class="line">Details:</div><div class="line"></div><div class="line">[0x00007ff092b1ad2b] Unsafe_AllocateMemory+0x1db</div><div class="line">[0x00007ff07d015994]</div><div class="line">                             //展示了DirectByteBuffer内存申请情况, 供92个内存块, 总共占用94MB大小</div><div class="line">                             (malloc=94208KB #92)</div><div class="line"></div><div class="line">[0x00007ff0923cca65] ArrayAllocator&lt;unsigned long, (MemoryType)7&gt;::allocate(unsigned long)+0x175</div><div class="line">[0x00007ff092a0092f] ParCompactionManager::initialize(ParMarkBitMap*)+0x28f</div><div class="line">[0x00007ff092a0a105] PSParallelCompact::post_initialize()+0xb5</div><div class="line">[0x00007ff0929cc535] ParallelScavengeHeap::post_initialize()+0x25</div><div class="line">                             (malloc=34816KB #34)</div><div class="line"></div><div class="line">[0x00007ff092a11d45] ArrayAllocator&lt;StarTask, (MemoryType)1&gt;::allocate(unsigned long)+0x175</div><div class="line">[0x00007ff092a10160] PSPromotionManager::PSPromotionManager()+0x1f0</div><div class="line">[0x00007ff092a106ad] PSPromotionManager::initialize()+0x13d</div><div class="line">[0x00007ff092b11f43] universe_post_init()+0x883</div><div class="line">                             (malloc=34816KB #34)</div></pre></td></tr></table></figure></p>
+<p>至于每个内存块存放的详情, 可以在pmap里查看。可见, 我们可以根据detail可以了解每块内存是由谁申请的。</p>
+<h4 id="内存增量diff"><a href="#内存增量diff" class="headerlink" title="内存增量diff"></a>内存增量diff</h4><p>执行顺序:</p>
+<ul>
+<li>/usr/local/java18/bin/jcmd 8202 VM.native_memory baseline 作为内存基准</li>
+<li>/usr/local/java18/bin/jcmd 8202 VM.native_memory detail.diff 根据内存基准来比较增量<br>结果如下:<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div></pre></td><td class="code"><pre><div class="line">Native Memory Tracking:</div><div class="line">Total: reserved=1617492KB +13331KB, committed=319304KB +13331KB</div><div class="line">-                 Java Heap (reserved=102400KB, committed=102400KB)</div><div class="line">                            (mmap: reserved=102400KB, committed=102400KB)</div><div class="line">                          ......</div><div class="line">                 Internal (reserved=70999KB +13312KB, committed=70999KB +13312KB)</div><div class="line">                            (malloc=70967KB +13312KB #1914 +13)</div><div class="line">                            (mmap: reserved=32KB, committed=32KB)</div><div class="line"></div><div class="line">-                    Symbol (reserved=1374KB, committed=1374KB)</div><div class="line">                            (malloc=918KB #92)</div><div class="line">                            (arena=456KB #1)</div><div class="line"></div><div class="line">-    Native Memory Tracking (reserved=183KB +19KB, committed=183KB +19KB)</div><div class="line">                            (malloc=106KB +15KB #1628 +212)</div><div class="line">                            (tracking overhead=77KB +4KB)</div><div class="line"></div><div class="line">-               Arena Chunk (reserved=186KB, committed=186KB)</div><div class="line">                            (malloc=186KB)</div><div class="line"></div><div class="line">[0x00007f5c46ed7d2b] Unsafe_AllocateMemory+0x1db</div><div class="line">[0x00007f5c31015994]</div><div class="line">                             (malloc=35840KB +13312KB #35 +13)</div><div class="line"></div><div class="line">[0x00007f5c46cc4883] MemBaseline::aggregate_virtual_memory_allocation_sites()+0x173</div><div class="line">[0x00007f5c46cc4b08] MemBaseline::baseline_allocation_sites()+0x1d8</div><div class="line">[0x00007f5c46cc5185] MemBaseline::baseline(bool)+0x635</div><div class="line">[0x00007f5c46d34188] NMTDCmd::execute(DCmdSource, Thread*)+0x178</div><div class="line">                             (malloc=1KB +1KB #17 +17)</div></pre></td></tr></table></figure>
+</li>
+</ul>
+<p>如上图, 可以轻易发现Unsafe_AllocateMemory diff期间,增加了13次内存分配, 新增了13MB内存申请。</p>
+<h2 id="pmap"><a href="#pmap" class="headerlink" title="pmap"></a>pmap</h2><p>pmap可以查看进程使用的内存分布, 包括所有堆内和堆外内存。<br>使用: pmap -x 9752 | sort -n -r -k 2, 并不需要root或者别的参数就可以执行, 查看进程的内存映射信息<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div></pre></td><td class="code"><pre><div class="line">mapped: 5341520K    writeable/private: 308668K    shared: 3836K</div><div class="line">Address           Kbytes       Mode   Offset Device  Mapping</div><div class="line">0000000100080000 1048064       0       0 -----    [ anon ]</div><div class="line">00007fb789360000  242304       0       0 -----    [ anon ]</div><div class="line">00000000f9c00000  102912   23776   23776 rw---    [ anon ]</div><div class="line">00007fb6a216c000   96848      44       0 r----  locale-archive</div><div class="line">00007fb784021000   65404       0       0 -----    [ anon ]</div><div class="line">00007fb780021000   65404       0       0 -----    [ anon ]</div><div class="line">00007fb77c021000   65404       0       0 -----    [ anon ]</div><div class="line">00007fb778021000   65404       0       0 -----    [ anon ]</div><div class="line">00007fb774021000   65404       0       0 -----    [ anon ]</div><div class="line">00007fb770021000   65404       0       0 -----    [ anon ]</div><div class="line">00007fb76c021000   65404       0       0 -----    [ anon ]</div><div class="line">00007fb768021000   65404       0       0 -----    [ anon ]</div><div class="line">00007fb764021000   65404       0       0 -----    [ anon ]</div><div class="line">00007fb760021000   65404       0       0 -----    [ anon ]</div><div class="line">00007fb75c021000   65404       0       0 -----    [ anon ]</div><div class="line">00007fb758021000   65404       0       0 -----    [ anon ]</div><div class="line">00007fb750021000   65404       0       0 -----    [ anon ]</div><div class="line">00007fb74c021000   65404       0       0 -----    [ anon ]</div><div class="line">00007fb748021000   65404       0       0 -----    [ anon ]</div><div class="line">00007fb740021000   65404       0       0 -----    [ anon ]</div><div class="line">00007fb738021000   65404       0       0 -----    [ anon ]</div><div class="line">00007fb730021000   65404       0       0 -----    [ anon ]</div><div class="line">00007fb728021000   65404       0       0 -----    [ anon ]</div><div class="line">00007fb720021000   65404       0       0 -----    [ anon ]</div><div class="line">00007fb718021000   65404       0       0 -----    [ anon ]</div><div class="line">00007fb710021000   65404       0       0 -----    [ anon ]</div><div class="line">00007fb708021000   65404       0       0 -----    [ anon ]</div><div class="line">00007fb700021000   65404       0       0 -----    [ anon ]</div><div class="line">00007fb7a1802000    2048       0       0 -----  libpthread-2.12.so</div><div class="line">00007fb7a15ea000    2048       0       0 -----  libjli.so</div></pre></td></tr></table></figure></p>
+<p>Address:  start address of map  映像起始地址, 就是真实内存地址<br>Kbytes:  size of map in kilobytes  映像大小<br>RSS:  resident set size in kilobytes  驻留集大小<br>Dirty:  dirty pages (both shared and private) in kilobytes  脏页大小<br>Mode:  permissions on map 映像权限: r=read, w=write, x=execute, s=shared, p=private (copy on write)<br>Mapping:  file backing the map , or ‘[ anon ]’ for allocated memory, or ‘[ stack ]’ for the program stack.  映像支持文件,[anon]为已分配内存 [stack]为程序堆栈<br>Offset:  offset into the file  文件偏移<br>Device:  device name (major:minor)  设备名<br>第一行的值:</p>
+<ul>
+<li>mapped 表示该进程映射的虚拟地址空间大小，也就是该进程预先分配的虚拟内存大小，即ps出的vsz</li>
+<li>writeable/private  表示进程所占用的私有地址空间大小，也就是该进程实际使用的内存大小</li>
+<li>shared 表示进程和其他进程共享的内存大小<br>根据此处的address和NMT可判断出该内存块属于哪个空间的。我们可以通过如下方式检查是否存在内存泄露<br><code>while true; do pmap -d  3066 | tail -1; sleep 1; done</code><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div></pre></td><td class="code"><pre><div class="line">mapped: 5411424K    writeable/private: 378492K    shared: 3836K</div><div class="line">mapped: 5412452K    writeable/private: 379520K    shared: 3836K</div><div class="line">mapped: 5413480K    writeable/private: 380548K    shared: 3836K</div><div class="line">mapped: 5414508K    writeable/private: 381576K    shared: 3836K</div><div class="line">mapped: 5415536K    writeable/private: 382604K    shared: 3836K</div></pre></td></tr></table></figure>
+</li>
+</ul>
+<h1 id="参考"><a href="#参考" class="headerlink" title="参考"></a>参考</h1><p><a href="http://goog-perftools.sourceforge.net/doc/heap_profiler.html" target="_blank" rel="external">http://goog-perftools.sourceforge.net/doc/heap_profiler.html</a><br><a href="https://docs.oracle.com/javase/8/docs/technotes/guides/troubleshoot/tooldescr007.html" target="_blank" rel="external">https://docs.oracle.com/javase/8/docs/technotes/guides/troubleshoot/tooldescr007.html</a><br><a href="https://www.cnblogs.com/duanxz/archive/2012/08/09/2630284.html" target="_blank" rel="external">https://www.cnblogs.com/duanxz/archive/2012/08/09/2630284.html</a><br><a href="https://tech.meituan.com/2019/01/03/spring-boot-native-memory-leak.html" target="_blank" rel="external">https://tech.meituan.com/2019/01/03/spring-boot-native-memory-leak.html</a><br><a href="https://www.cnblogs.com/sidesky/p/10009241.html" target="_blank" rel="external">https://www.cnblogs.com/sidesky/p/10009241.html</a><br><a href="https://yq.aliyun.com/articles/227924" target="_blank" rel="external">https://yq.aliyun.com/articles/227924</a><br><a href="https://www.cnblogs.com/ggjucheng/p/3348439.html" target="_blank" rel="external">https://www.cnblogs.com/ggjucheng/p/3348439.html</a></p>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">perftools、jcmd、pmap</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/elasticsearch_learning/categories/工具学习//" class="article-tag-list-link color5">工具学习</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/elasticsearch_learning/2016/12/15/jvm内存泄露排查工具/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
+    <article id="post-Java线程知识小结" class="article article-type-post  article-index" itemscope itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/elasticsearch_learning/2016/10/27/Java线程知识小结/">Java 线程知识小结(-)</a>
+    </h1>
+  
+
+        
+        <a href="/elasticsearch_learning/2016/10/27/Java线程知识小结/" class="archive-article-date">
+  	<time datetime="2016-10-27T06:18:30.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2016-10-27</time>
+</a>
+        
+         
+      </header>
+    
+
+    <!-- 目录内容 -->
+    
+    <!-- 目录内容结束 -->
+
+    <div class="article-entry" itemprop="articleBody">
+      
+        <h1 id="wait-notify-notifyAll"><a href="#wait-notify-notifyAll" class="headerlink" title="wait/notify/notifyAll:"></a>wait/notify/notifyAll:</h1><p>wait/notify用于线程通信的等待/通知模型, 这两个函数被定义在java.lang.Object类中, 被声明为final函数, 不可复写。使用时, 线程A调用object.wait(), 释放cpu进入等待; 线程B调用object.notify()来唤醒A线程。以下是基本的用法:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div></pre></td><td class="code"><pre><div class="line">public static Object lock = new Object();</div><div class="line"></div><div class="line">public void run()&#123;//线程A</div><div class="line">        try &#123;</div><div class="line">            synchronized (lock) &#123;</div><div class="line">                lock.wait(); //进入睡眠进行等待</div><div class="line">                ...</div><div class="line">            &#125;</div><div class="line"></div><div class="line">        &#125; catch (Exception e) &#123;</div><div class="line">            ...</div><div class="line">        &#125;</div><div class="line">&#125;</div><div class="line"></div><div class="line">public void run()&#123;//线程B</div><div class="line">        try &#123;</div><div class="line">            synchronized (lock) &#123;</div><div class="line">                lock.notify(); //唤醒A线程</div><div class="line">                ...</div><div class="line">            &#125;</div><div class="line"></div><div class="line">        &#125; catch (Exception e) &#123;</div><div class="line">            ...</div><div class="line">        &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>线程执行状态如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/wait_notify.png" height="300" width="800"><br>需要注意一下几点:</p>
+<ul>
+<li>wait/notify两个操作都必须要和synchronized(lock)配合使用, 这里可以这么理解: 每个object都拥有一个WatiQueue等待队列, 存放着调用lock.lock()被阻塞的线程, 每次向这个等待队列添加或者删除线程时, 为了保证对该队列操作的互斥性, 使用synchronized来达到目的;</li>
+<li>线程B调用lock.notify()后, 线程A并不能立刻从lock.wait()中醒来, 此时只是<code>线程B把线程A从lock对象的WatiQueue中移动到了SynchrozizedQueue中</code>, 线程A的状态由wait变化为blocked</li>
+<li>线程B完全执行完 synchronized(lock){}块后, 线程A才能继续执行。也就是说A从wait()返回的前提是获取到了锁。</li>
+<li>若线程A与B之间调用顺序不能反了, 若B先执行的话, 那么A将永远不能被唤醒。与LockSupport(park/unpark)相比很大的区别<br>notify的作用只是唤醒一个object.wait()状态的线程, 唤醒哪个线程, 与线程优先级等有关 notifyAll的作用是唤醒全部object.wait()的线程。</li>
+</ul>
+<h1 id="Join"><a href="#Join" class="headerlink" title="Join"></a>Join</h1><p>join函数的作用是等别的线程退出后再继续执行, 基本使用如下:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line">Thread thread = new Thread(new a2());</div><div class="line">thread.start();</div><div class="line">thread.join();</div></pre></td></tr></table></figure></p>
+<p>当前线程调用thread.join()之后, 便会等待thread执行完再继续执行, join函数代码如下:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div></pre></td><td class="code"><pre><div class="line"> public final synchronized void join(long millis) throws InterruptedException &#123;</div><div class="line">    long base = System.currentTimeMillis();</div><div class="line">    long now = 0;</div><div class="line">    if (millis &lt; 0) &#123;</div><div class="line">        throw new IllegalArgumentException(&quot;timeout value is negative&quot;);</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    if (millis == 0) &#123;//没有设置超时时间</div><div class="line">        while (isAlive()) &#123;</div><div class="line">            wait(0);</div><div class="line">        &#125;</div><div class="line">    &#125; else &#123;//超时等待的话</div><div class="line">        while (isAlive()) &#123; //循环检查</div><div class="line">            long delay = millis - now;</div><div class="line">            if (delay &lt;= 0) &#123; //超时时间到了之后退出</div><div class="line">                break;</div><div class="line">            &#125;</div><div class="line">            wait(delay);</div><div class="line">            now = System.currentTimeMillis() - base;</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>实际底层依靠的是wait(delay)函数 + 循环来达到等待的效果, 当wait等待时, cpu释放了资源, 则join()等待过程也是释放了cpu。</p>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/elasticsearch_learning/categories/Java学习//" class="article-tag-list-link color2">Java学习</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/elasticsearch_learning/2016/10/27/Java线程知识小结/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
   
   
     <nav id="page-nav">
@@ -308,23 +1400,19 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">Lucene、ByteBlockPool</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">LockSupport</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">Lucene、StoredField</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">Lucene、termVector、tvd、tvm、倒排索引</a>
+                <a href="javascript:void(0)" class="js-tag color1">Lucene、ByteBlockPool</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">Lucene、词典、tim、tip、doc、pos、fst、倒排索引</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">Lucene、termVector、tvd、tvm、倒排索引</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -336,11 +1424,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">Cycler</a>
+                <a href="javascript:void(0)" class="js-tag color4">Lucene、StoredField</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">Cycler</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -364,11 +1456,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
+                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
+                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
               </li>
              
               <li class="article-tag-list-item">

@@ -149,7 +149,346 @@
             <canvas data-colors="#eaeaea" data-sectionHeight="100" data-contentId="js-content" id="myCanvas1" class="anm-canvas"></canvas>
           </div>
           <div id="js-content" class="content-ll">
-            
+            <article id="post-NioEventLoop篇" class="article article-type-post " itemscope itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 class="article-title" itemprop="name">
+      NioEventLoop篇
+    </h1>
+  
+
+        
+        <a href="/elasticsearch_learning/2018/01/22/NioEventLoop篇/" class="archive-article-date">
+  	<time datetime="2018-01-22T00:53:40.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2018-01-22</time>
+</a>
+        
+         
+      <span class="archive-article-date">
+              阅读量 <span id="busuanzi_value_page_pv"></span>
+      </span>
+      
+      </header>
+    
+
+    <!-- 目录内容 -->
+    
+      <p class="show-toc-btn" id="show-toc-btn" onclick="showToc();" style="display:none">
+        <span class="btn-bg"></span>
+        <span class="btn-text">文章导航</span>
+      </p>
+	    <div id="toc-article" class="toc-article">
+	      <span id="toc-close" class="toc-close" title="隐藏导航" onclick="showBtn();">×</span>
+		      <strong class="toc-title">文章目录</strong>
+        <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#介绍"><span class="toc-number">1.</span> <span class="toc-text">介绍</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#startThread"><span class="toc-number">1.1.</span> <span class="toc-text">startThread</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#NioEventLoop"><span class="toc-number">2.</span> <span class="toc-text">NioEventLoop</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#IO任务执行processSelectedKeysPlain"><span class="toc-number">2.1.</span> <span class="toc-text">IO任务执行processSelectedKeysPlain</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#SelectionKey-OP-ACCEPT部分"><span class="toc-number">2.1.1.</span> <span class="toc-text">SelectionKey.OP_ACCEPT部分</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#SelectionKey-OP-READ"><span class="toc-number">2.1.2.</span> <span class="toc-text">SelectionKey.OP_READ</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#执行非IO-Task"><span class="toc-number">2.2.</span> <span class="toc-text">执行非IO Task.</span></a></li></ol></li></ol>
+         </div>
+   <script type="text/javascript">
+	function showToc(){
+		var toc_article = document.getElementById("toc-article");
+		var show_toc_btn = document.getElementById("show-toc-btn");
+		toc_article.setAttribute("style","display:block");
+		show_toc_btn.setAttribute("style","display:none");
+		};
+	function showBtn(){
+		var toc_article = document.getElementById("toc-article");
+		var show_toc_btn = document.getElementById("show-toc-btn");
+		toc_article.setAttribute("style","display:none");
+		show_toc_btn.setAttribute("style","display:block");
+		};
+   </script>
+      
+    <!-- 目录内容结束 -->
+
+    <div class="article-entry" itemprop="articleBody">
+      
+        <h1 id="介绍"><a href="#介绍" class="headerlink" title="介绍"></a>介绍</h1><p>在ServerBootstrap初始篇初始篇中说过, 每个NioEventLoop里面, 都拥有属性thread, 用来执行对应channel产生的所有task, 该thread最早在register的时候被生成, 首先调用如下代码:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line">ch.eventLoop().execute(new Runnable() &#123;</div><div class="line">        @Override</div><div class="line">        public void run() &#123;...&#125;</div><div class="line">&#125;);</div></pre></td></tr></table></figure></p>
+<p>调用NioEventLoop.execute(), 然后进入到SingleThreadEventExecutor.execute(NioEventLoop的父类), 执行如下代码:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div></pre></td><td class="code"><pre><div class="line">public void execute(Runnable task) &#123;</div><div class="line">       boolean inEventLoop = inEventLoop();</div><div class="line">       if (inEventLoop) &#123;</div><div class="line">           addTask(task);</div><div class="line">       &#125; else &#123;</div><div class="line">           startThread();</div><div class="line">           addTask(task);</div><div class="line">           if (isShutdown() &amp;&amp; removeTask(task)) &#123;</div><div class="line">               reject();</div><div class="line">           &#125;</div><div class="line">       &#125;</div><div class="line">       if (!addTaskWakesUp &amp;&amp; wakesUpForTask(task)) &#123;</div><div class="line">           wakeup(inEventLoop);</div><div class="line">       &#125;</div><div class="line">   &#125;</div></pre></td></tr></table></figure></p>
+<p>首先判断NioEventLoop里面的那个线程是否启动, 若是的话, 就将当前task放进任务队列; 否则说明NioEventLoop里面执行task的那个唯一线程还没有启动, 调用startThread来启动。</p>
+<h2 id="startThread"><a href="#startThread" class="headerlink" title="startThread"></a>startThread</h2><p>startThread用来启动NioEventLoop里面的执行线程,代码如下:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div></pre></td><td class="code"><pre><div class="line">executor.execute(new Runnable() &#123; //就是一个执行器，ThreadPerTaskExecutor。只要想，可以一直启动</div><div class="line">          @Override</div><div class="line">          public void run() &#123;</div><div class="line">              thread = Thread.currentThread(); //获取当前这个线程</div><div class="line">              if (interrupted) &#123;</div><div class="line">                  thread.interrupt();</div><div class="line">              &#125;</div><div class="line">              boolean success = false;</div><div class="line">              updateLastExecutionTime();</div><div class="line">              try &#123;</div><div class="line">                  SingleThreadEventExecutor.this.run(); //调用NioEventLoop里面run,进行无限循环</div><div class="line">                  success = true;</div><div class="line">              &#125; catch (Throwable t) &#123;</div><div class="line">              &#125;</div></pre></td></tr></table></figure></p>
+<p>executor实际是ThreadPerTaskExecutor, execute将跑到ThreadPerTaskExecutor.execute():<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line">@Override</div><div class="line">   public void execute(Runnable command) &#123;</div><div class="line">       threadFactory.newThread(command).start();</div><div class="line">   &#125;</div></pre></td></tr></table></figure></p>
+<p>这里真正唤醒了线程new Runnable()后, 这个线程就是NioEventLoop线程的核心部分, 该线程生命周期很长, 即使执行发生异常, 也不会主动退出。<br>因为NioEventLoop对应的线程比较重要, 弄清楚如何启动该线程对我们了解很有帮助, 我们来捋一捋这个过程,下图是涉及到的类及函数<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/NioEventLoop1.png" height="300" width="450"></p>
+<ol>
+<li>首先eventLoop.execute(), 主函数返回。</li>
+<li>进入了SingleThreadEventExecutor.execute(), 首先检查thread变量是否为null, 若为空并且检查state状态为not_started, 代表没有启动, 则调用executor.execute()</li>
+<li>调用executor.execute()后, 产生线程并启动, 线程的run()如上所示, 会对thread赋值, 然后调用NioEventLoop.run()开始死循环执行。</li>
+</ol>
+<h1 id="NioEventLoop"><a href="#NioEventLoop" class="headerlink" title="NioEventLoop"></a>NioEventLoop</h1><p>NioEventLoop作为Netty多线程的重要类, 我们可以将其看成一个只有一个线程的线程池<br>task分为两类任务: 非IO型和IO型, 它们的执行时间比例由ioRatio参数控制, 默认50%,非IO型执行时间 = IO型执行时间。</p>
+<ul>
+<li>非IO型: 本进程内, 别的线程发送的请求, 比如将新的Context(hanlder)添加到Pipieline中等等(代码见文章开头<code>ch.eventLoop().execute</code>)</li>
+<li>IO型: Accetp、Write、read等从远程节点发送过来的请求。</li>
+</ul>
+<p>为了更好地理解代码, 我们需要大致了解selector.wakeup()的作用:</p>
+<ul>
+<li>若当前线程有由于调用selector.select()/selector.select(time)阻塞的, 那么当调用selector.wakeup()后会被立刻唤醒。</li>
+<li>若当前没有线程因为selector.select()/selector.select(time)而阻塞的函数, 当调用selector.wakeup()后, 会对下次调用selector.select()/selector.select(time)/selector.selectNow()立刻返回, 而不会被阻塞。</li>
+</ul>
+<p>NioEventLoop.run()作为执行所有task执行任务的核心, 主要处理逻辑如下:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div><div class="line">61</div><div class="line">62</div><div class="line">63</div><div class="line">64</div><div class="line">65</div><div class="line">66</div><div class="line">67</div><div class="line">68</div><div class="line">69</div><div class="line">70</div><div class="line">71</div><div class="line">72</div><div class="line">73</div><div class="line">74</div><div class="line">75</div><div class="line">76</div><div class="line">77</div><div class="line">78</div><div class="line">79</div></pre></td><td class="code"><pre><div class="line">@Override</div><div class="line">  protected void run() &#123;</div><div class="line">      for (;;) &#123;</div><div class="line">          try &#123;</div><div class="line">              switch (selectStrategy.calculateStrategy(selectNowSupplier, hahasTaskssTasks())) &#123;</div><div class="line">                  case SelectStrategy.CONTINUE:</div><div class="line">                      continue;</div><div class="line">                  case SelectStrategy.SELECT:</div><div class="line">                      select(wakenUp.getAndSet(false));</div><div class="line">                      // &apos;wakenUp.compareAndSet(false, true)&apos; is always evaluated</div><div class="line">                      // before calling &apos;selector.wakeup()&apos; to reduce the wake-up</div><div class="line">                      // overhead. (Selector.wakeup() is an expensive operation.)</div><div class="line">                      //</div><div class="line">                      // However, there is a race condition in this approach.</div><div class="line">                      // The race condition is triggered when &apos;wakenUp&apos; is set to</div><div class="line">                      // true too early.</div><div class="line">                      //</div><div class="line">                      // &apos;wakenUp&apos; is set to true too early if:</div><div class="line">                      // 1) Selector is waken up between &apos;wakenUp.set(false)&apos; and</div><div class="line">                      //    &apos;selector.select(...)&apos;. (BAD)</div><div class="line">                      // 2) Selector is waken up between &apos;selector.select(...)&apos; and</div><div class="line">                      //    &apos;if (wakenUp.get()) &#123; ... &#125;&apos;. (OK)</div><div class="line">                      //</div><div class="line">                      // In the first case, &apos;wakenUp&apos; is set to true and the</div><div class="line">                      // following &apos;selector.select(...)&apos; will wake up immediately.</div><div class="line">                      // Until &apos;wakenUp&apos; is set to false again in the next round,</div><div class="line">                      // &apos;wakenUp.compareAndSet(false, true)&apos; will fail, and therefore</div><div class="line">                      // any attempt to wake up the Selector will fail, too, causing</div><div class="line">                      // the following &apos;selector.select(...)&apos; call to block</div><div class="line">                      // unnecessarily.</div><div class="line">                      //</div><div class="line">                      // To fix this problem, we wake up the selector again if wakenUp</div><div class="line">                      // is true immediately after selector.select(...).</div><div class="line">                      // It is inefficient in that it wakes up the selector for both</div><div class="line">                      // the first case (BAD - wake-up required) and the second case</div><div class="line">                      // (OK - no wake-up required).</div><div class="line"></div><div class="line">                      if (wakenUp.get()) &#123;</div><div class="line">                          selector.wakeup();</div><div class="line">                      &#125;</div><div class="line">                  default:</div><div class="line">                      // fallthrough</div><div class="line">              &#125;</div><div class="line">              cancelledKeys = 0;</div><div class="line">              needsToSelectAgain = false;</div><div class="line">              final int ioRatio = this.ioRatio;</div><div class="line">              if (ioRatio == 100) &#123;</div><div class="line">                  try &#123;</div><div class="line">                      processSelectedKeys();</div><div class="line">                  &#125; finally &#123;</div><div class="line">                      // Ensure we always run tasks.</div><div class="line">                      runAllTasks();</div><div class="line">                  &#125;</div><div class="line">              &#125; else &#123;</div><div class="line">                  final long ioStartTime = System.nanoTime();</div><div class="line">                  try &#123;</div><div class="line">                      processSelectedKeys();</div><div class="line">                  &#125; finally &#123;</div><div class="line">                      // Ensure we always run tasks.</div><div class="line">                      final long ioTime = System.nanoTime() - ioStartTime;</div><div class="line">                      runAllTasks(ioTime * (100 - ioRatio) / ioRatio);</div><div class="line">                  &#125;</div><div class="line">              &#125;</div><div class="line">          &#125; catch (Throwable t) &#123;</div><div class="line">              handleLoopException(t);</div><div class="line">          &#125;</div><div class="line">          // Always handle shutdown even if the loop processing threw an exception.</div><div class="line">          try &#123;</div><div class="line">              if (isShuttingDown()) &#123;</div><div class="line">                  closeAll();</div><div class="line">                  if (confirmShutdown()) &#123;</div><div class="line">                      return;</div><div class="line">                  &#125;</div><div class="line">              &#125;</div><div class="line">          &#125; catch (Throwable t) &#123;</div><div class="line">              handleLoopException(t);</div><div class="line">          &#125;</div><div class="line">      &#125;</div><div class="line">  &#125;</div></pre></td></tr></table></figure>
+<p>selector.wakeup()是一个非常耗时的操作, 需要通过wakenUp变量标记在合适的时候调用selector.wakeup()来唤醒selector.select(), 当需要唤醒时, 标记为true, 就调用调用selector.wakeup()<br>NioEventLoop.run()部分的逻辑还是比较清楚:<br>(1) 检查是否累计有task:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line">@Override</div><div class="line">    public int calculateStrategy(IntSupplier selectSupplier, boolean hasTasks) throws Exception &#123;</div><div class="line">        return hasTasks ? selectSupplier.get() : SelectStrategy.SELECT; //若当前没有非IO类型task时，需要</div><div class="line">    &#125;</div></pre></td></tr></table></figure></p>
+<p>进入selectStrategy.calculateStrategy(), 如果没有非IO task, 那么直接跳掉SelectStrategy.SELECT, 开始select; 若有task, 则立刻去执行task:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div></pre></td><td class="code"><pre><div class="line">int selectNow() throws IOException &#123;//相当于复写了NIO的select函数</div><div class="line">        try &#123;</div><div class="line">            return selector.selectNow(); //返回的0, 直接跳出switch循环</div><div class="line">        &#125; finally &#123;</div><div class="line">            // restore wakeup state if needed</div><div class="line">            if (wakenUp.get()) &#123;</div><div class="line">                selector.wakeup();</div><div class="line">            &#125;</div><div class="line">        &#125;</div><div class="line">    &#125;</div></pre></td></tr></table></figure></p>
+<p>若wakenUp置为true, 顺便执行selector.wakeup()使selector处于唤醒状态。<br>(2) 若有task, 进入select(wakenUp.getAndSet(false))进行等待。<br>wakenUp标志为false, 意味着新的一轮刚开始。NioEventLoop.select()与Selector.select()有异曲同工之处, 都是等待task出现, 主要代码如下:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div></pre></td><td class="code"><pre><div class="line">private void select(boolean oldWakenUp) throws IOException &#123;</div><div class="line">        Selector selector = this.selector;</div><div class="line">        try &#123;</div><div class="line">            int selectCnt = 0;</div><div class="line">            long currentTimeNanos = System.nanoTime();</div><div class="line">            long selectDeadLineNanos = currentTimeNanos + delayNanos(currentTimeNanos); //第一个任务执行执行的时间，绝对时间</div><div class="line">            for (;;) &#123;  //timeoutMillis下次等待需要的时间</div><div class="line">                long timeoutMillis = (selectDeadLineNanos - currentTimeNanos + 500000L) / 1000000L;//如果延迟任务队列中第一个任务开始执行的时间距离现在已经过了1ms,则小于0   1ms = 1000, 000ns</div><div class="line">                if (timeoutMillis &lt;= 0) &#123;//距离第一个执行计划开始时间已经过了（1ms）</div><div class="line">                    if (selectCnt == 0) &#123; //selectCnt 用来记录selector.select方法的执行次数和标识是否执行过selector.selectNow()</div><div class="line">                        selector.selectNow();</div><div class="line">                        selectCnt = 1;</div><div class="line">                    &#125;</div><div class="line">                    break;</div><div class="line">                &#125;</div><div class="line">                // If a task was submitted when wakenUp value was true, the task didn&apos;t get a chance to call</div><div class="line">                // Selector#wakeup. So we need to check task queue again before executing select operation.</div><div class="line">                // If we don&apos;t, the task might be pended until select operation was timed out.</div><div class="line">                // It might be pended until idle timeout if IdleStateHandler existed in pipeline.</div><div class="line">                if (hasTasks() &amp;&amp; wakenUp.compareAndSet(false, true)) &#123;</div><div class="line">                    selector.selectNow();</div><div class="line">                    selectCnt = 1;</div><div class="line">                    break;</div><div class="line">                &#125;</div><div class="line">                int selectedKeys = selector.select(timeoutMillis);</div><div class="line">                selectCnt ++;</div><div class="line">                //如果已经存在ready的selectionKey，或者selector被唤醒，或者taskQueue不为空，或则scheduledTaskQueue不为空，则退出循环</div><div class="line">                if (selectedKeys != 0 || oldWakenUp || wakenUp.get() || hasTasks() || hasScheduledTasks()) &#123;</div><div class="line">                    // - Selected something,</div><div class="line">                    // - waken up by user, or</div><div class="line">                    // - the task queue has a pending task.</div><div class="line">                    // - a scheduled task is ready for processing</div><div class="line">                    break;</div><div class="line">                &#125;</div><div class="line">                long time = System.nanoTime();//selector.select(timeoutMillis);</div><div class="line">                if (time - TimeUnit.MILLISECONDS.toNanos(timeoutMillis) &gt;= currentTimeNanos) &#123;</div><div class="line">                    // timeoutMillis elapsed without anything selected.</div><div class="line">                    selectCnt = 1;</div><div class="line">                &#125; else if (SELECTOR_AUTO_REBUILD_THRESHOLD &gt; 0 &amp;&amp;</div><div class="line">                        selectCnt &gt;= SELECTOR_AUTO_REBUILD_THRESHOLD) &#123;//在某个周期内如果连续N次空轮询，则说明触发了JDK NIO的epoll死循环bug。</div><div class="line">                    // The selector returned prematurely many times in a row.</div><div class="line">                    // Rebuild the selector to work around the problem.</div><div class="line">                    rebuildSelector();</div><div class="line">                    selector = this.selector;</div><div class="line">                    // Select again to populate selectedKeys.</div><div class="line">                    selector.selectNow();</div><div class="line">                    selectCnt = 1;</div><div class="line">                    break;</div><div class="line">                &#125;</div><div class="line">                currentTimeNanos = time;</div><div class="line">            &#125;</div><div class="line"></div><div class="line">        &#125; catch (CancelledKeyException e) &#123;</div><div class="line">        &#125;</div><div class="line">    &#125;</div></pre></td></tr></table></figure></p>
+<p>可以看出代码做了如下事情:<br>2.1 从schedule task中取出顶点task的截止执行时间(最早开始执行那个scedule task), 若没有task的话, 超时时间取值1s。截止时间 = 此刻+超时<br>如果当前时间 &gt; 截止时间 + 0.5ms的话,就立刻退出执行task。<br>2.2 检查当前是否有task排队。若有而且wakenUp为false, 则置位wakeup, 并唤醒selector, 并立刻退出。</p>
+<ul>
+<li>此时已经有task, 那么需要开始执行具体放入task, 如果不检查的话, 则进入selector.select(timeoutMillis)阻塞直到超时, 但这是没有必要的。</li>
+<li><p>若wakenUp为true, 代表着什么含义? 表示当前有别的线程唤醒了selector, 并向队列中放入了task, 那么执行selector.select(timeoutMillis)时会立刻返回。<br>别的线程向队列中添加task见(SingleThreadEventExecutor.execute(NioEventLoop的父类)部分), 其中唤醒selector的代码如下:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div></pre></td><td class="code"><pre><div class="line">protected void wakeup(boolean inEventLoop) &#123; //inEventLoop说的是NioEventLoop还没有启动</div><div class="line">        if (!inEventLoop &amp;&amp; wakenUp.compareAndSet(false, true)) &#123;</div><div class="line">            selector.wakeup();</div><div class="line">        &#125;</div><div class="line">    &#125;</div></pre></td></tr></table></figure>
+<p>当且此时wakenUp为false才唤醒, 意味着什么呢? 此时还没有task添加过, 只用在这一轮switch第一个来的task的时候需要唤醒, 当再有任务来的时候, 没必要再次执行耗时的selector.wakeup()。<br>2.3 执行selector.select(timeoutMillis)</p>
+</li>
+<li>若selector并没有唤醒(selector.wakeup()还在生效), 说明并没有task来, 并不需要唤醒。</li>
+<li>若若selector处于唤醒状态, 则说明此轮循环中有来的task, 需要立刻执行task。</li>
+<li>若阻塞了一段时间, 有task来, 别的线程执行了wakeup(boolean inEventLoop)函数, 阻塞也会立刻返回。</li>
+</ul>
+<p>2.4 检查是否需要跳出循环:</p>
+<ul>
+<li>有IO task了</li>
+<li>上一轮的oldWakenUp仍然置为着, 说明因为上一轮走完, selector仍然处于唤醒状态, 需要这个唤醒作用清空。</li>
+<li>此轮有task处于penging.</li>
+<li>有schedule task截止时间已经到了。<br>select(boolean oldWakenUp)主要判断逻辑基本已经完成了, 为啥后面还有那么多代码? 主要是为了解决可能触发epool cpu100%的bug。这个bug的意思是selector.select(timeoutMillis)并不会超时阻塞timeoutMillis, 就算此时没有任何关注的事件发生, 它会立刻返回。<br>这样的话, 这个函数也就失去了意义, 如果不加控制的话, 这里的for循环会无限制下去而没有意义。 解决的方法就是selector, 具体处理函数rebuildSelector0如下:<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div></pre></td><td class="code"><pre><div class="line">ivate void rebuildSelector0() &#123;</div><div class="line">        newSelectorTuple = openSelector();//打开一个新的Selector</div><div class="line">        // Register all channels to the new Selector.</div><div class="line">        int nChannels = 0;</div><div class="line">        for (SelectionKey key: oldSelector.keys()) &#123;////SelectionKey无效或者已经注册上了则跳过</div><div class="line">            Object a = key.attachment();</div><div class="line">            try &#123;</div><div class="line">                if (!key.isValid() || key.channel().keyFor(newSelectorTuple.unwrappedSelector) != null) &#123;</div><div class="line">                    continue;</div><div class="line">                &#125;</div><div class="line">                int interestOps = key.interestOps();</div><div class="line">                key.cancel();//取消SelectionKey</div><div class="line">                SelectionKey newKey = key.channel().register(newSelectorTuple.unwrappedSelector, interestOps, a);</div><div class="line">            &#125;</div><div class="line">        &#125;</div><div class="line">        selector = newSelectorTuple.selector;//用新的Selector替换老的Selector</div><div class="line">        unwrappedSelector = newSelectorTuple.unwrappedSelector;</div></pre></td></tr></table></figure>
+</li>
+</ul>
+<p>主要过程就是新建一个selector, 并且将原来selector等待时间都迁移过来。<br>如何判断是否触发了epool cpu100%的bug? 则是通过执行selector.select()函数的次数selectCnt来判断, 若当前循环次数超过<code>SELECTOR_AUTO_REBUILD_THRESHOLD</code>则说明触发了, 默认为512次。</p>
+<p>select(wakenUp.getAndSet(false))完成后,会有这段代码<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line">if (wakenUp.get()) &#123;</div><div class="line">        selector.wakeup(); //下次</div><div class="line"> &#125;</div></pre></td></tr></table></figure></p>
+<p>参考提示, 始终是想不明白这里代码的作用, 并且认为是多余的,作者的本意是为了当wakenUp为true时, selector始终处于醒着的状态, 同时在不合适的时候被阻塞。我们来反推这里代码的不合理。<br>假设task来了, 而selector.selector()却被阻塞没有返回, 而改代码前面存在这样的检查:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div></pre></td><td class="code"><pre><div class="line">if (hasTasks() &amp;&amp; wakenUp.compareAndSet(false, true)) &#123;</div><div class="line">                    selector.selectNow();</div><div class="line">                    selectCnt = 1;</div><div class="line">                    break;</div><div class="line">                &#125;</div></pre></td></tr></table></figure></p>
+<p>那么wakenUp只能为true, 并且selector处于阻塞状态。 而在该函数新一轮调用开始, wakenUp刚被置为为false, 从false -&gt; 变为true, 不可能是同个函数中的下面的代码执行导致的(若执行了会立刻退出)<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div></pre></td><td class="code"><pre><div class="line">if (hasTasks() &amp;&amp; wakenUp.compareAndSet(false, true)) &#123;//若果当前有task，并且是可以叫醒的，则中断selector.select</div><div class="line">               selector.selectNow();//selectNow()返回，否则会耽误任务执行</div><div class="line">               selectCnt = 1;   //</div><div class="line">               break;</div><div class="line">           &#125;</div></pre></td></tr></table></figure></p>
+<p>只可能是task来了, 同时执行了wakenUp.compareAndSet(false, true)代码 ,那么一定会执行selector.wakeup()部分, 那么selector.selector()一定会立刻返回。。<br>所以说, 那部分代码是没有没有意义的。</p>
+<p>(3) 开始执行IO task和非IO task<br>前面也提到了, 两种任务执行的时间是成比例的, 非IO任务执行的时间 由IO任务执行的时间*比例。</p>
+<h2 id="IO任务执行processSelectedKeysPlain"><a href="#IO任务执行processSelectedKeysPlain" class="headerlink" title="IO任务执行processSelectedKeysPlain"></a>IO任务执行processSelectedKeysPlain</h2><p>processSelectedKeysPlain根据selector.selectedKeys()获取到所有的IO事件,然后轮训每一个事件,对于每个事件主要处理逻辑processSelectedKey如下:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div></pre></td><td class="code"><pre><div class="line">final AbstractNioChannel.NioUnsafe unsafe = ch.unsafe();</div><div class="line">eventLoop = ch.eventLoop();</div><div class="line">try &#123;</div><div class="line">    int readyOps = k.readyOps();</div><div class="line">    if ((readyOps &amp; SelectionKey.OP_CONNECT) != 0) &#123;</div><div class="line">        int ops = k.interestOps();</div><div class="line">        ops &amp;= ~SelectionKey.OP_CONNECT;</div><div class="line">        k.interestOps(ops);</div><div class="line">        unsafe.finishConnect();</div><div class="line">    &#125;</div><div class="line">    if ((readyOps &amp; SelectionKey.OP_WRITE) != 0) &#123; //如果是写</div><div class="line">        ch.unsafe().forceFlush();</div><div class="line">    &#125;</div><div class="line">    if ((readyOps &amp; (SelectionKey.OP_READ | SelectionKey.OP_ACCEPT)) != 0 || readyOps == 0) &#123;</div><div class="line">        unsafe.read(); //这里很重要，NioMessageUnsafe</div><div class="line">    &#125;</div><div class="line">&#125; catch (CancelledKeyException ignored) &#123;</div><div class="line">    unsafe.close(unsafe.voidPromise());</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>这里主要逻辑是判断当前IO task的类型, 然后分别处理, 我们重点分析Accept 和read两种类型的task(这两部分的处理都抽象成read()函数)</p>
+<h3 id="SelectionKey-OP-ACCEPT部分"><a href="#SelectionKey-OP-ACCEPT部分" class="headerlink" title="SelectionKey.OP_ACCEPT部分"></a>SelectionKey.OP_ACCEPT部分</h3><p> 此时实际从unsafe.read()进入的代码如下(NioMessageUnsafe.read()里面<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div></pre></td><td class="code"><pre><div class="line">assert eventLoop().inEventLoop();</div><div class="line">final ChannelConfig config = config(); //NioServerSocketChannelConf</div><div class="line">final ChannelPipeline pipeline = pipeline();//DefaultChannelPipeline</div><div class="line">final RecvByteBufAllocator.Handle allocHandle = unsafe().recvBufAllocHandle();</div><div class="line">allocHandle.reset(config);</div><div class="line"></div><div class="line">boolean closed = false;</div><div class="line">Throwable exception = null;</div><div class="line">try &#123;</div><div class="line">    try &#123;</div><div class="line">        do &#123; //                        // 此处会调用到NioServerSocketChannel中的doReadMessages方法</div><div class="line">            int localRead = doReadMessages(readBuf);//将会产生一个NioSocketChannel建立C-S连接</div><div class="line">            if (localRead == 0) &#123;</div><div class="line">                break;</div><div class="line">            &#125;</div><div class="line">            if (localRead &lt; 0) &#123;</div><div class="line">                closed = true;</div><div class="line">                break;</div><div class="line">            &#125;</div><div class="line"></div><div class="line">            allocHandle.incMessagesRead(localRead);</div><div class="line">        &#125; while (allocHandle.continueReading()); //当前连接是否该继续</div><div class="line">    &#125; catch (Throwable t) &#123;</div><div class="line">        exception = t;</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    int size = readBuf.size();</div><div class="line">    for (int i = 0; i &lt; size; i ++) &#123;</div><div class="line">        readPending = false;//// 对每个连接调用pipeline的fireChannelRead</div><div class="line">        pipeline.fireChannelRead(readBuf.get(i));//回调到DefaultChannelPipeline里面</div><div class="line">    &#125;</div><div class="line">    readBuf.clear(); //// 清理获取到的数据，下次继续使用该buf</div><div class="line">    allocHandle.readComplete();</div><div class="line">    pipeline.fireChannelReadComplete();</div><div class="line"></div><div class="line">    if (exception != null) &#123;</div><div class="line">        closed = closeOnReadError(exception);</div><div class="line"></div><div class="line">        pipeline.fireExceptionCaught(exception);</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    if (closed) &#123;</div><div class="line">        inputShutdown = true;</div><div class="line">        if (isOpen()) &#123;</div><div class="line">            close(voidPromise());</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line">&#125; finally &#123;</div><div class="line">    // Check if there is a readPending which was not processed yet.</div><div class="line">    // This could be for two reasons:</div><div class="line">    // * The user called Channel.read() or ChannelHandlerContext.read() in channelRead(...) method</div><div class="line">    // * The user called Channel.read() or ChannelHandlerContext.read() in channelReadComplete(...) method</div><div class="line">    //</div><div class="line">    // See https://github.com/netty/netty/issues/2254</div><div class="line">    if (!readPending &amp;&amp; !config.isAutoRead()) &#123;</div><div class="line">        removeReadOp();</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<ol>
+<li>循环遍历所有的accept请求, doReadMessages对每个请求做具体的具体,实现类在NioServerSocketChannel.doReadMessages中:<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div></pre></td><td class="code"><pre><div class="line"> SocketChannel ch = SocketUtils.accept(javaChannel()); //接受连接请求，产生一个SocketChannelImpl，</div><div class="line">try &#123;</div><div class="line">    if (ch != null) &#123;</div><div class="line">        buf.add(new NioSocketChannel(this, ch)); //这里就是新产生的NioSocketChannel,ch=SocketChannel</div><div class="line">        return 1;</div><div class="line">    &#125;</div><div class="line">&#125; catch (Throwable t) &#123;</div><div class="line">&#125;</div><div class="line"></div><div class="line">return 0;</div></pre></td></tr></table></figure>
+</li>
+</ol>
+<p>同时遍历的时候设置了当前此轮循环处理的请求,不能超过maxMessagesPerRead,默认16个<br>SocketUtils.accept产生的SocketChannel是不是在NIO中很常见的方法, 产生具体的SocketChannelImp连接, 将该链接包装成NioSocketChannel, 然后放在readBuf中。<br>NioSocketChannel初始化, 默认监听的事件为SelectionKey.OP_READ, 同时自动拥有如下属性:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line"> this.parent = parent; //NioServerSocketChannel</div><div class="line">id = newId();// 分配一个全局唯一的id，默认为MAC+进程id+自增的序列号+时间戳相关的数值+随机值</div><div class="line">unsafe = newUnsafe(); // 初始化Unsafe, NioSocketChannel对应的是NioSocketChannelUnsafe</div><div class="line">pipeline = newChannelPipeline();//// 初始化pipeline, pipiline里面默认只拥有head和tail上下文事件,。</div></pre></td></tr></table></figure></p>
+<p>2.对产生的每个NioSocketChannel进行初始化, 使其设置为监听事件为SelectionKey.OP_READ。<br>初始化的时候, 首先调用NioServerSocketChannel的pipieline.fireChannelRead(), 开始遍历pipeLine上每个Context, 调用每个Context上面的channelRead()函数, 从HeadContext开始:<br> <figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line">public final ChannelPipeline fireChannelRead(Object msg) &#123; //msg是新建立的SocketChannel</div><div class="line">        AbstractChannelHandlerContext.invokeChannelRead(head, msg); //fireChannelRead方法只是简单的往后传递事件，最终目的是向链中添加了</div><div class="line">        return this;</div><div class="line">    &#125;</div></pre></td></tr></table></figure></p>
+<p>读每个Context上面执行channelRead()都以下面函数为开头, 注意该函数是以<code>static</code>注释的。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div></pre></td><td class="code"><pre><div class="line"> static void invokeChannelRead(final AbstractChannelHandlerContext next, Object msg) &#123; ////msg是新建立的NioSocketChannel</div><div class="line">        final Object m = next.pipeline.touch(ObjectUtil.checkNotNull(msg, &quot;msg&quot;), next); //pipe是同一个，</div><div class="line">        EventExecutor executor = next.executor(); //executor = NioEventLoop， 因为</div><div class="line">        if (executor.inEventLoop()) &#123; //本线程是否是EventLoop线程</div><div class="line">            next.invokeChannelRead(m); //DefaultChannelHandlerContext， 即为下面这个类</div><div class="line">        &#125; else &#123;</div><div class="line">            executor.execute(new Runnable() &#123;</div><div class="line">                @Override</div><div class="line">                public void run() &#123;</div><div class="line">                    next.invokeChannelRead(m);</div><div class="line">                &#125;</div><div class="line">            &#125;);</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line">`</div></pre></td></tr></table></figure></p>
+<p>2.1 会以根据HeadContext开始讲起:</p>
+<ul>
+<li><p>首先根据HeadContext, 找到对应的executor: 没若有, 找到对应HeadContext拥有的pipeLine, 返回该pipeLine的executor, 也就是NioServerSocketChannel的NioEventLoop。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div></pre></td><td class="code"><pre><div class="line">public EventExecutor executor() &#123;  //若为空，就返回该pipLine拥有的chanel的executor， 即NioEventLoop</div><div class="line">       if (executor == null) &#123;</div><div class="line">           return channel().eventLoop();</div><div class="line">       &#125; else &#123;</div><div class="line">           return executor;</div><div class="line">       &#125;</div><div class="line">   &#125;</div></pre></td></tr></table></figure>
+</li>
+<li><p>确定该线程即是NioEventLoop里面的执行线程, 然后调用该head的invokeChannelRead(), 但是head的invokeChannelRead()并不做任何事,仅仅是找到下一个拥有in属性的Context(即DefaultChannelHandlerContext, 即拥有handler为ServerBootstrapAcceptor)  ,然后向下传递invokeChannelRead, 会从头开始执行前面介绍的<code>static void invokeChannelRead</code><br>static void invokeChannelRead</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div></pre></td><td class="code"><pre><div class="line">private AbstractChannelHandlerContext findContextInbound() &#123; //从Head当前位置找，直到向后找到一个inbound的，就退出</div><div class="line">       AbstractChannelHandlerContext ctx = this;</div><div class="line">       do &#123;</div><div class="line">           ctx = ctx.next;//直接找下一个</div><div class="line">       &#125; while (!ctx.inbound);</div><div class="line">       return ctx;</div><div class="line">   &#125;</div></pre></td></tr></table></figure>
+</li>
+</ul>
+<p>到第二个Context, 其中会执行<code>((ChannelInboundHandler) handler()).channelRead(this, msg)</code>, 即ServerBootstrapAcceptor.channelRead(), 如下所示:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div></pre></td><td class="code"><pre><div class="line">public void channelRead(ChannelHandlerContext ctx, Object msg) &#123;</div><div class="line">           final Channel child = (Channel) msg; //// child = NioSocketChannel</div><div class="line">           child.pipeline().addLast(childHandler);</div><div class="line">           setChannelOptions(child, childOptions, logger);</div><div class="line">           for (Entry&lt;AttributeKey&lt;?&gt;, Object&gt; e: childAttrs) &#123;</div><div class="line">               child.attr((AttributeKey&lt;Object&gt;) e.getKey()).set(e.getValue());</div><div class="line">           &#125;</div><div class="line">           try &#123;  // 将连接注册到childGroup中（也就是我们常说的workGroup)，注册完成如果发现注册失败则关闭此链接</div><div class="line">               childGroup.register(child).addListener(new ChannelFutureListener() &#123;   ///这里使用的是childGroup</div><div class="line">                   @Override</div><div class="line">                   public void operationComplete(ChannelFuture future) throws Exception &#123;</div><div class="line">                       if (!future.isSuccess()) &#123; //如果有连接完成，但是失败的情况下</div><div class="line">                           forceClose(child, future.cause());</div><div class="line">                       &#125;</div><div class="line">                   &#125;</div><div class="line">               &#125;);</div><div class="line">           &#125; catch (Throwable t) &#123;</div><div class="line">           &#125;</div></pre></td></tr></table></figure></p>
+<p>主要做的事:</p>
+<ul>
+<li>其中第三行的childHandler是在外层向ServerBootstrap添加的自定义处理链(比如b.childHandler(new HelloServerInitializer()))里面的handler。 此时该channel的PipeLine链上共有三个Context, 分别是HeadContext, HelloServerInitializer, TailContext.</li>
+<li>从childGroup里面轮训选择一个NioEventLoop, 将这个NioSocketchannel绑定到该NioEventLoop上面。</li>
+<li>当注册完成后, 会执行这个ChannelFutureListener, 基本什么都不会做。</li>
+</ul>
+<p>其中第二步骤, 注册的代码在<code>ServerBootStrap初始篇</code>中已经展示, 为了讲解方便在此再次罗列:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div></pre></td><td class="code"><pre><div class="line"> boolean firstRegistration = neverRegistered;</div><div class="line">doRegister(); // AbstractNioChannel,// 真正的注册方法，只是将channel.regester注册到对应EventLoop的selector中</div><div class="line">neverRegistered = false;</div><div class="line">registered = true;// register状态设置为true，</div><div class="line"></div><div class="line">// Ensure we call handlerAdded(...) before we actually notify the promise. This is needed as the</div><div class="line">// user may already fire events through the pipeline in the ChannelFutureListener.</div><div class="line">pipeline.invokeHandlerAddedIfNeeded();</div><div class="line"></div><div class="line">safeSetSuccess(promise); //设置安全后，会去主动调用operationComplete()，会触发channel状态修改从0-&gt;accept</div><div class="line">pipeline.fireChannelRegistered();//// NioServerSocketChannel管道已经注册到EventLoops上了触发channelRegistered事件，</div><div class="line">// Only fire a channelActive if the channel has never been registered. This prevents firing</div><div class="line">// multiple channel actives if the channel is deregistered and re-registered.</div><div class="line">if (isActive()) &#123;  //将回到NioServerSocketChannel.isActive()中,   // 第一次注册时触发fireChannelActive事件，防止deregister后再次register触发多次fireChannelActive调用</div><div class="line">    if (firstRegistration) &#123;</div><div class="line">        pipeline.fireChannelActive();//// 这里和前面的ServerSocketChannel分析一样,最终会触发unsafe.beginRead()</div><div class="line">    &#125; else if (config().isAutoRead()) &#123;</div><div class="line">        // This channel was registered before and autoRead() is set. This means we need to begin read</div><div class="line">        // again so that we process inbound data.</div><div class="line">        //</div><div class="line">        // See https://github.com/netty/netty/issues/4805</div><div class="line">        beginRead();</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>其中需要注意的是:</p>
+<ul>
+<li>invokeHandlerAddedIfNeeded()会执行handlerAdded任务, 具体会执行到我们自定的编解码模板, 也就是HelloServerInitializer里面通过initChannel添加的channel, 接着会执行remove(ctx), 将HelloServerInitializer对应的Context从PipeLine中去掉, 此时队列中拥有的context如下:<br>HeadContext-&gt; EncoderContext-&gt;DecoderContext-&gt;SelfCustemHanderContext-&gt;TailContext.</li>
+<li>会进入到pipeline.fireChannelActive(),  如同前面讲述的会对每个Context执行channelActive()一样, 这里也会对每个Context执行channelActive(), 其中HeadContext.channelActive()需要提一下:<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div></pre></td><td class="code"><pre><div class="line">public void channelActive(ChannelHandlerContext ctx) throws Exception &#123;</div><div class="line">           ctx.fireChannelActive();</div><div class="line"></div><div class="line">           readIfIsAutoRead(); //最终修改的是NioServerSocketChannel的可读属性</div><div class="line">       &#125;</div></pre></td></tr></table></figure>
+</li>
+</ul>
+<p>ctx.fireChannelActive()调用的所有Context并不会做什么时, 但是该HeadContext.readIfIsAutoRead()需要我们值得注意下, 会从TailContext向前执行context.read(), 直达HeadContext.read需要我们注意下, 会执行doReadBegin<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div></pre></td><td class="code"><pre><div class="line">@Override</div><div class="line">    protected void doBeginRead() throws Exception &#123;</div><div class="line">        // Channel.read() or ChannelHandlerContext.read() was called</div><div class="line">        final SelectionKey selectionKey = this.selectionKey;</div><div class="line">        if (!selectionKey.isValid()) &#123;</div><div class="line">            return;</div><div class="line">        &#125;</div><div class="line"></div><div class="line">        readPending = true;</div><div class="line"></div><div class="line">        final int interestOps = selectionKey.interestOps();</div><div class="line">        if ((interestOps &amp; readInterestOp) == 0) &#123; //将设置可接受</div><div class="line">            selectionKey.interestOps(interestOps | readInterestOp);</div><div class="line">        &#125;</div><div class="line">    &#125;</div></pre></td></tr></table></figure></p>
+<p>每个NioSocketChannel初始话的时候, readInterestOp被赋值为SelectionKey.OP_READ, 此时直接也将selectionKey赋值为可读。 基本初始化新建立的NioSocketChannel完成了。</p>
+<h3 id="SelectionKey-OP-READ"><a href="#SelectionKey-OP-READ" class="headerlink" title="SelectionKey.OP_READ"></a>SelectionKey.OP_READ</h3><p> 此时实际从unsafe.read()进入的代码如下(NioByteUnsafe.read()里面, 该模块涉及到自定义的编解码模块, 将在<code>Netty通信编解码源码解读</code>讲解。</p>
+<h2 id="执行非IO-Task"><a href="#执行非IO-Task" class="headerlink" title="执行非IO Task."></a>执行非IO Task.</h2><p>进入runAllTasks函数执行非IO task, timeoutNanos指的当前执行task最多使用的时间, 过程如下:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div></pre></td><td class="code"><pre><div class="line">protected boolean runAllTasks(long timeoutNanos) &#123;//处理非I/O任务。</div><div class="line">        fetchFromScheduledTaskQueue();</div><div class="line">        Runnable task = pollTask();//从</div><div class="line">        if (task == null) &#123;</div><div class="line">            afterRunningAllTasks();  //SingleThreadEventLoop.afterRunningAllTasks()</div><div class="line">            return false;</div><div class="line">        &#125;</div><div class="line">        //截止时间=ScheduledFutureTask当前相对时间+ 超时</div><div class="line">        final long deadline = ScheduledFutureTask.nanoTime() + timeoutNanos;</div><div class="line">        long runTasks = 0;</div><div class="line">        long lastExecutionTime;</div><div class="line">        for (;;) &#123;</div><div class="line">            safeExecute(task);  //顺序执行所有task</div><div class="line"></div><div class="line">            runTasks ++;</div><div class="line"></div><div class="line">            // Check timeout every 64 tasks because nanoTime() is relatively expensive.</div><div class="line">            // XXX: Hard-coded value - will make it configurable if it is really a problem.</div><div class="line">            if ((runTasks &amp; 0x3F) == 0) &#123;  //当64个task后</div><div class="line">                lastExecutionTime = ScheduledFutureTask.nanoTime();</div><div class="line">                if (lastExecutionTime &gt;= deadline) &#123;//当前时间超过截止时间，那么就退出</div><div class="line">                    break;</div><div class="line">                &#125;</div><div class="line">            &#125;</div><div class="line"></div><div class="line">            task = pollTask();</div><div class="line">            if (task == null) &#123;</div><div class="line">                lastExecutionTime = ScheduledFutureTask.nanoTime();</div><div class="line">                break;</div><div class="line">            &#125;</div><div class="line">        &#125;</div><div class="line"></div><div class="line">        afterRunningAllTasks();</div><div class="line">        this.lastExecutionTime = lastExecutionTime;</div><div class="line">        return true;</div><div class="line">    &#125;</div></pre></td></tr></table></figure></p>
+<p>主要做了如下几件事:</p>
+<ul>
+<li>从schedule队列取出任务向taskQueue中存放, 是一个有size&lt;=16的、根据截至时间有优先级的阻塞队列。</li>
+<li>从taskQueue中取出最早执行的那个task, 开始执行, 每当执行64个task退出一次,处理IO task.</li>
+</ul>
+<p>NioEventLoop核心函数及 OP_READ、OP_ACCEPT等基本讲完了。</p>
+
+      
+
+      
+        <div class="page-reward">
+          <a href="javascript:;" class="page-reward-btn tooltip-top">
+            <div class="tooltip tooltip-east">
+            <span class="tooltip-item">
+              赏
+            </span>
+            <span class="tooltip-content">
+              <span class="tooltip-text">
+                <span class="tooltip-inner">
+                  <p class="reward-p"><i class="icon icon-quo-left"></i>谢谢阅读<i class="icon icon-quo-right"></i></p>
+                  <div class="reward-box">
+                    
+                    
+                  </div>
+                </span>
+              </span>
+            </span>
+          </div>
+          </a>
+        </div>
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color3">NioEventLoop</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/elasticsearch_learning/categories/Netty//" class="article-tag-list-link color1">Netty</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+
+      
+        
+<div class="share-btn share-icons tooltip-left">
+  <div class="tooltip tooltip-east">
+    <span class="tooltip-item">
+      <a href="javascript:;" class="share-sns share-outer">
+        <i class="icon icon-share"></i>
+      </a>
+    </span>
+    <span class="tooltip-content">
+      <div class="share-wrap">
+        <div class="share-icons">
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="icon icon-weibo"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="icon icon-weixin"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="icon icon-qq"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="icon icon-douban"></i>
+          </a>
+          <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a>
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="icon icon-facebook"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="icon icon-twitter"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="icon icon-google"></i>
+          </a>
+        </div>
+      </div>
+    </span>
+  </div>
+</div>
+
+<div class="page-modal wx-share js-wx-box">
+    <a class="close js-modal-close" href="javascript:;"><i class="icon icon-close"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//pan.baidu.com/share/qrcode?url=https://kkewwei.github.io/elasticsearch_learning/2018/01/22/NioEventLoop篇/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div class="mask js-mask"></div>
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+  
+<nav id="article-nav">
+  
+    <a href="/elasticsearch_learning/2018/03/25/Netty通信编解码源码解读/" id="article-nav-newer" class="article-nav-link-wrap">
+      <i class="icon-circle-left"></i>
+      <div class="article-nav-title">
+        
+          Netty Thrift方式通信编解码源码解读
+        
+      </div>
+    </a>
+  
+  
+    <a href="/elasticsearch_learning/2018/01/14/ServerBootstrap初始篇/" id="article-nav-older" class="article-nav-link-wrap">
+      <div class="article-nav-title">ServerBootstrap初始篇</div>
+      <i class="icon-circle-right"></i>
+    </a>
+  
+</nav>
+
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+        <div class="toc-container tooltip-left">
+            <i class="icon-font icon-category"></i>
+            <div class="tooltip tooltip-east">
+                <span class="tooltip-item">
+                </span>
+                <span class="tooltip-content">
+                    <div class="toc-article">
+                    <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#介绍"><span class="toc-number">1.</span> <span class="toc-text">介绍</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#startThread"><span class="toc-number">1.1.</span> <span class="toc-text">startThread</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#NioEventLoop"><span class="toc-number">2.</span> <span class="toc-text">NioEventLoop</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#IO任务执行processSelectedKeysPlain"><span class="toc-number">2.1.</span> <span class="toc-text">IO任务执行processSelectedKeysPlain</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#SelectionKey-OP-ACCEPT部分"><span class="toc-number">2.1.1.</span> <span class="toc-text">SelectionKey.OP_ACCEPT部分</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#SelectionKey-OP-READ"><span class="toc-number">2.1.2.</span> <span class="toc-text">SelectionKey.OP_READ</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#执行非IO-Task"><span class="toc-number">2.2.</span> <span class="toc-text">执行非IO Task.</span></a></li></ol></li></ol>
+                    </div>
+                </span>
+            </div>
+        </div>
+        
+    </div>
+</aside>
+
+
+
+  
+
+  
+
+  
+
+  
+
+  
+  <div id="gitment-ctn"></div>
+<link rel="stylesheet" href="//imsun.github.io/gitment/style/default.css">
+<script src="//www.wenjunjiang.win/js/gitment.js "></script>
+<script>
+var gitment = new Gitment({
+  id: "NioEventLoop篇",
+  owner: 'kkewwei',
+  repo: 'comments',
+  oauth: {
+    client_id: '9391e497d6b288887f33',
+    client_secret: 'db733731bff4ee2811d9530b1ac4cfc6767e8183',
+  },
+})
+gitment.render('gitment-ctn')
+</script>
+
+  
+
+
           </div>
         </div>
       </div>
@@ -290,23 +629,19 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">Lucene、ByteBlockPool</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">LockSupport</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">Lucene、StoredField</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">Lucene、termVector、tvd、tvm、倒排索引</a>
+                <a href="javascript:void(0)" class="js-tag color1">Lucene、ByteBlockPool</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">Lucene、词典、tim、tip、doc、pos、fst、倒排索引</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">Lucene、termVector、tvd、tvm、倒排索引</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -318,11 +653,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">Cycler</a>
+                <a href="javascript:void(0)" class="js-tag color4">Lucene、StoredField</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">Cycler</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -346,11 +685,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
+                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
+                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
               </li>
              
               <li class="article-tag-list-item">
