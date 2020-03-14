@@ -9,16 +9,16 @@
   <title>ES原理-下线节点时分片并发rebalance的思考 | Hexo</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
   <meta name="google-site-verification" content="sCUXxLczmZVJ1Fkt5jSJGE9xPpdVD25hYciudlUUVNQ" />
-  <meta name="description" content="现象最近在下线ES5.6.8集群节点时候, 发现了一个很奇怪的现象, 我先把cluster参数给贴出来看下:12345678910111213141516171819PUT _cluster/settings&amp;#123;    &amp;quot;transient&amp;quot;: &amp;#123;        &amp;quot;cluster&amp;quot;: &amp;#123;         &amp;quot;routing">
+  <meta name="description" content="现象现象1最近在下线ES5.6.8集群节点时候, 发现了一个很奇怪的现象, 我先把cluster参数给贴出来看下:12345678910111213141516171819PUT _cluster/settings&amp;#123;    &amp;quot;transient&amp;quot;: &amp;#123;        &amp;quot;cluster&amp;quot;: &amp;#123;         &amp;quot;rout">
 <meta property="og:type" content="article">
 <meta property="og:title" content="ES原理-下线节点时分片并发rebalance的思考">
 <meta property="og:url" content="https://kkewwei.github.io/elasticsearch_learning/2019/06/16/ES原理-下线节点时分片并发rebalance的思考/index.html">
 <meta property="og:site_name" content="Hexo">
-<meta property="og:description" content="现象最近在下线ES5.6.8集群节点时候, 发现了一个很奇怪的现象, 我先把cluster参数给贴出来看下:12345678910111213141516171819PUT _cluster/settings&amp;#123;    &amp;quot;transient&amp;quot;: &amp;#123;        &amp;quot;cluster&amp;quot;: &amp;#123;         &amp;quot;routing">
-<meta property="og:updated_time" content="2019-09-01T11:18:18.000Z">
+<meta property="og:description" content="现象现象1最近在下线ES5.6.8集群节点时候, 发现了一个很奇怪的现象, 我先把cluster参数给贴出来看下:12345678910111213141516171819PUT _cluster/settings&amp;#123;    &amp;quot;transient&amp;quot;: &amp;#123;        &amp;quot;cluster&amp;quot;: &amp;#123;         &amp;quot;rout">
+<meta property="og:updated_time" content="2020-03-12T05:59:16.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="ES原理-下线节点时分片并发rebalance的思考">
-<meta name="twitter:description" content="现象最近在下线ES5.6.8集群节点时候, 发现了一个很奇怪的现象, 我先把cluster参数给贴出来看下:12345678910111213141516171819PUT _cluster/settings&amp;#123;    &amp;quot;transient&amp;quot;: &amp;#123;        &amp;quot;cluster&amp;quot;: &amp;#123;         &amp;quot;routing">
+<meta name="twitter:description" content="现象现象1最近在下线ES5.6.8集群节点时候, 发现了一个很奇怪的现象, 我先把cluster参数给贴出来看下:12345678910111213141516171819PUT _cluster/settings&amp;#123;    &amp;quot;transient&amp;quot;: &amp;#123;        &amp;quot;cluster&amp;quot;: &amp;#123;         &amp;quot;rout">
   
     <link rel="alternative" href="/atom.xml" title="Hexo" type="application/atom+xml">
   
@@ -42,57 +42,39 @@
   <div id="container" q-class="show:isCtnShow">
     <canvas id="anm-canvas" class="anm-canvas"></canvas>
     <div class="left-col" q-class="show:isShow">
-      
-<div class="overlay" style="background: #4d4d4d"></div>
+      <% var defaultBg = '#4d4d4d'; %>
+<div class="overlay" style="background: <%= theme.style && theme.style.header ? theme.style.header : defaultBg %>"></div>
 <div class="intrude-less">
 	<header id="header" class="inner">
-		<a href="/" class="profilepic">
-      <img src="https://kkewwei.github.io/elasticsearch_learning/img/myself.png" class="js-avatar">
+		<a href="<%=theme.root%>" class="profilepic">
+			<img src="<%=theme.avatar%>" class="js-avatar">
 		</a>
 		<hgroup>
-		  <h1 class="header-author"><a href="/">jianguo</a></h1>
+		  <h1 class="header-author"><a href="<%=theme.root%>"><%=theme.author%></a></h1>
 		</hgroup>
-		
-		<p class="header-subtitle">往事随风</p>
-		
+		<% if (theme.subtitle){ %>
+		<p class="header-subtitle"><%=theme.subtitle%></p>
+		<%}%>
 
 		<nav class="header-menu">
 			<ul>
-			
-				<li><a href="/elasticsearch_learning/">主页</a></li>
-	        
-				<li><a href="/elasticsearch_learning/tags/随笔/">随笔</a></li>
-	        
-				<li><a href="/elasticsearch_learning/categories">分类</a></li>
-	        
+			<% for (var i in theme.menu){ %>
+				<li><a href="<%- url_for(theme.menu[i]) %>"><%= i %></a></li>
+	        <%}%>
 			</ul>
 		</nav>
 		<nav class="header-smart-menu">
-    		
-    			
-    			<a q-on="click: openSlider(e, 'innerArchive')" href="javascript:void(0)">所有文章</a>
-    			
-            
-    			
-    			<a q-on="click: openSlider(e, 'friends')" href="javascript:void(0)">友链</a>
-    			
-            
-    			
-    			<a q-on="click: openSlider(e, 'aboutme')" href="javascript:void(0)">关于我</a>
-    			
-            
+    		<% for (var i in theme.smart_menu){ %>
+    			<% if(theme.smart_menu[i]){ %>
+    			<a q-on="click: openSlider(e, '<%-i%>')" href="javascript:void(0)"><%= theme.smart_menu[i] %></a>
+    			<% } %>
+            <%}%>
 		</nav>
 		<nav class="header-nav">
 			<div class="social">
-				
-					<a class="github" target="_blank" href="#" title="github"><i class="icon-github"></i></a>
-		        
-					<a class="weibo" target="_blank" href="#" title="weibo"><i class="icon-weibo"></i></a>
-		        
-					<a class="rss" target="_blank" href="#" title="rss"><i class="icon-rss"></i></a>
-		        
-					<a class="zhihu" target="_blank" href="#" title="zhihu"><i class="icon-zhihu"></i></a>
-		        
+				<% for (var i in theme.subnav){ %>
+					<a class="<%= i %>" target="_blank" href="<%- url_for(theme.subnav[i]) %>" title="<%= i %>"><i class="icon-<%= i %>"></i></a>
+		        <%}%>
 			</div>
 		</nav>
 	</header>
@@ -192,7 +174,7 @@
 	    <div id="toc-article" class="toc-article">
 	      <span id="toc-close" class="toc-close" title="隐藏导航" onclick="showBtn();">×</span>
 		      <strong class="toc-title">文章目录</strong>
-        <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#现象"><span class="toc-number">1.</span> <span class="toc-text">现象</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#源码查看"><span class="toc-number">2.</span> <span class="toc-text">源码查看</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#move分片"><span class="toc-number">2.1.</span> <span class="toc-text">move分片</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#均衡分片"><span class="toc-number">2.2.</span> <span class="toc-text">均衡分片</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#总结"><span class="toc-number">3.</span> <span class="toc-text">总结</span></a></li></ol>
+        <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#现象"><span class="toc-number">1.</span> <span class="toc-text">现象</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#现象1"><span class="toc-number">1.1.</span> <span class="toc-text">现象1</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#现象2"><span class="toc-number">1.2.</span> <span class="toc-text">现象2</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#源码查看"><span class="toc-number">2.</span> <span class="toc-text">源码查看</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#move分片"><span class="toc-number">2.1.</span> <span class="toc-text">move分片</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#均衡分片"><span class="toc-number">2.2.</span> <span class="toc-text">均衡分片</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#总结"><span class="toc-number">3.</span> <span class="toc-text">总结</span></a></li></ol>
          </div>
    <script type="text/javascript">
 	function showToc(){
@@ -213,9 +195,12 @@
 
     <div class="article-entry" itemprop="articleBody">
       
-        <h1 id="现象"><a href="#现象" class="headerlink" title="现象"></a>现象</h1><p>最近在下线ES5.6.8集群节点时候, 发现了一个很奇怪的现象, 我先把cluster参数给贴出来看下:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div></pre></td><td class="code"><pre><div class="line">PUT _cluster/settings</div><div class="line">&#123;</div><div class="line">    &quot;transient&quot;: &#123;</div><div class="line">        &quot;cluster&quot;: &#123;</div><div class="line">         &quot;routing&quot;: &#123;</div><div class="line">            &quot;rebalance&quot;: &#123;</div><div class="line">               &quot;enable&quot;: &quot;all&quot;</div><div class="line">            &#125;,</div><div class="line">            &quot;allocation&quot;: &#123;</div><div class="line">               &quot;allow_rebalance&quot;: &quot;always&quot;,</div><div class="line">               &quot;cluster_concurrent_rebalance&quot;: &quot;1&quot;,</div><div class="line">               &quot;node_concurrent_recoveries&quot;: &quot;1&quot;,</div><div class="line">               &quot;node_initial_primaries_recoveries&quot;: &quot;1&quot;,</div><div class="line">               &quot;enable&quot;: &quot;all&quot;</div><div class="line">            &#125;</div><div class="line">         &#125;</div><div class="line">      &#125;</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+        <h1 id="现象"><a href="#现象" class="headerlink" title="现象"></a>现象</h1><h2 id="现象1"><a href="#现象1" class="headerlink" title="现象1"></a>现象1</h2><p>最近在下线ES5.6.8集群节点时候, 发现了一个很奇怪的现象, 我先把cluster参数给贴出来看下:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div></pre></td><td class="code"><pre><div class="line">PUT _cluster/settings</div><div class="line">&#123;</div><div class="line">    &quot;transient&quot;: &#123;</div><div class="line">        &quot;cluster&quot;: &#123;</div><div class="line">         &quot;routing&quot;: &#123;</div><div class="line">            &quot;rebalance&quot;: &#123;</div><div class="line">               &quot;enable&quot;: &quot;all&quot;</div><div class="line">            &#125;,</div><div class="line">            &quot;allocation&quot;: &#123;</div><div class="line">               &quot;allow_rebalance&quot;: &quot;always&quot;,</div><div class="line">               &quot;cluster_concurrent_rebalance&quot;: &quot;1&quot;,</div><div class="line">               &quot;node_concurrent_recoveries&quot;: &quot;1&quot;,</div><div class="line">               &quot;node_initial_primaries_recoveries&quot;: &quot;1&quot;,</div><div class="line">               &quot;enable&quot;: &quot;all&quot;</div><div class="line">            &#125;</div><div class="line">         &#125;</div><div class="line">      &#125;</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
 <p>然后我通过如下命令下线4个节点:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div></pre></td><td class="code"><pre><div class="line">PUT _cluster/settings</div><div class="line">&#123;</div><div class="line">    &quot;transient&quot;: &#123;</div><div class="line">         &quot;cluster.routing.allocation.exclude._ip&quot;: &quot;ip1,ip2,ip3,ip4&quot;</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
 <p>发现此时集群上这4个节点分别有一个分片开始进行move, what for? 按我们的理解, move操作的并发应该被我们通过参数<code>cluster_concurrent_rebalance</code>控制为1, 可是为啥为4。好像这个下线节点时候shard的并发与下线节点个数一致, 而不是受我们控制。</p>
+<h2 id="现象2"><a href="#现象2" class="headerlink" title="现象2"></a>现象2</h2><p>首先向集群发送如下命令:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div></pre></td><td class="code"><pre><div class="line">PUT _cluster/settings</div><div class="line">&#123;</div><div class="line">    &quot;transient&quot;: &#123;</div><div class="line">        &quot;cluster&quot;: &#123;</div><div class="line">         &quot;routing&quot;: &#123;</div><div class="line">            &quot;rebalance&quot;: &#123;</div><div class="line">               &quot;enable&quot;: &quot;all&quot;</div><div class="line">            &#125;,</div><div class="line">            &quot;allocation&quot;: &#123;</div><div class="line">               &quot;allow_rebalance&quot;: &quot;always&quot;,</div><div class="line">               &quot;cluster_concurrent_rebalance&quot;: &quot;0&quot;,</div><div class="line">               &quot;node_concurrent_recoveries&quot;: &quot;0&quot;,</div><div class="line">               &quot;node_initial_primaries_recoveries&quot;: &quot;0&quot;,</div><div class="line">               &quot;enable&quot;: &quot;all&quot;</div><div class="line">            &#125;</div><div class="line">         &#125;</div><div class="line">      &#125;</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>然后我通过如下命令下线4个节点:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div></pre></td><td class="code"><pre><div class="line">PUT _cluster/settings</div><div class="line">&#123;</div><div class="line">    &quot;transient&quot;: &#123;</div><div class="line">         &quot;cluster.routing.allocation.exclude._ip&quot;: &quot;ip1&quot;</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>集群突然有144个分片处于move中，按道理node_concurrent_recoveries=0后， 集群将不会再有分片move。实际原因是参数<code>cluster.routing.allocation.node_concurrent_incoming_recoveries</code>和<code>cluster.routing.allocation.node_concurrent_outgoing_recoveries</code>的初始化可以由<code>cluster.routing.allocation.node_concurrent_recoveries</code>赋值， 但是之后对<code>cluster.routing.allocation.node_concurrent_recoveries</code>的修改，将不会影响incoming和outgoing的取值， 此时这两个参数任然是50。所以就产生了<code>node_concurrent_recoveries=0</code>、集群还有较大的move.</p>
 <h1 id="源码查看"><a href="#源码查看" class="headerlink" title="源码查看"></a>源码查看</h1><p>带着上面的疑问, 试图从代码中找到原因, 我们知道, 任何集群元数据变动都会跳到BalancedShardsAllocator.allocate():<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div></pre></td><td class="code"><pre><div class="line">public void allocate(RoutingAllocation allocation) &#123;</div><div class="line">    if (allocation.routingNodes().size() == 0) &#123;</div><div class="line">        /* with no nodes this is pointless */</div><div class="line">        return;</div><div class="line">    &#125;</div><div class="line">    final Balancer balancer = new Balancer(logger, allocation, weightFunction, threshold);</div><div class="line">    balancer.allocateUnassigned();</div><div class="line">    balancer.moveShards();</div><div class="line">    balancer.balance();</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
 <p>这里操作都是依据分片分配到各个节点的打分为依据来操作, 主要分为三步: 分配unassigned分片, move分片, 均衡分片。 在开始的现象, 明显不是第一步, 只可能是move分片、或者均衡分片。</p>
 <h2 id="move分片"><a href="#move分片" class="headerlink" title="move分片"></a>move分片</h2><p>我们首先进入move分片看下能否解释现象:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div></pre></td><td class="code"><pre><div class="line">public void moveShards() &#123;</div><div class="line">    // Iterate over the started shards interleaving between nodes, and check if they can remain. In the presence of throttling</div><div class="line">    // shard movements, the goal of this iteration order is to achieve a fairer movement of shards from the nodes that are</div><div class="line">    // offloading the shards.</div><div class="line">    //实际上，每次moveShards只会从每个node中选择一个shard迁移</div><div class="line">    for (Iterator&lt;ShardRouting&gt; it = allocation.routingNodes().nodeInterleavedShardIterator(); it.hasNext(); ) &#123;</div><div class="line">        ShardRouting shardRouting = it.next();</div><div class="line">        final MoveDecision moveDecision = decideMove(shardRouting);</div><div class="line">        if (moveDecision.isDecisionTaken() &amp;&amp; moveDecision.forceMove()) &#123;</div><div class="line">            final ModelNode sourceNode = nodes.get(shardRouting.currentNodeId());</div><div class="line">            final ModelNode targetNode = nodes.get(moveDecision.getTargetNode().getId());</div><div class="line">            sourceNode.removeShard(shardRouting);</div><div class="line">            Tuple&lt;ShardRouting, ShardRouting&gt; relocatingShards = routingNodes.relocateShard(shardRouting, targetNode.getNodeId(),</div><div class="line">                allocation.clusterInfo().getShardSize(shardRouting, ShardRouting.UNAVAILABLE_EXPECTED_SHARD_SIZE), allocation.changes());</div><div class="line">            targetNode.addShard(relocatingShards.v2());</div><div class="line">            if (logger.isTraceEnabled()) &#123;</div><div class="line">                logger.trace(&quot;Moved shard [&#123;&#125;] to node [&#123;&#125;]&quot;, shardRouting, targetNode.getRoutingNode());</div><div class="line">            &#125;</div><div class="line">        &#125; else if (moveDecision.isDecisionTaken() &amp;&amp; moveDecision.canRemain() == false) &#123;</div><div class="line">            logger.trace(&quot;[&#123;&#125;][&#123;&#125;] can&apos;t move&quot;, shardRouting.index(), shardRouting.id());</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
@@ -400,7 +385,7 @@
                 </span>
                 <span class="tooltip-content">
                     <div class="toc-article">
-                    <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#现象"><span class="toc-number">1.</span> <span class="toc-text">现象</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#源码查看"><span class="toc-number">2.</span> <span class="toc-text">源码查看</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#move分片"><span class="toc-number">2.1.</span> <span class="toc-text">move分片</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#均衡分片"><span class="toc-number">2.2.</span> <span class="toc-text">均衡分片</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#总结"><span class="toc-number">3.</span> <span class="toc-text">总结</span></a></li></ol>
+                    <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#现象"><span class="toc-number">1.</span> <span class="toc-text">现象</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#现象1"><span class="toc-number">1.1.</span> <span class="toc-text">现象1</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#现象2"><span class="toc-number">1.2.</span> <span class="toc-text">现象2</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#源码查看"><span class="toc-number">2.</span> <span class="toc-text">源码查看</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#move分片"><span class="toc-number">2.1.</span> <span class="toc-text">move分片</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#均衡分片"><span class="toc-number">2.2.</span> <span class="toc-text">均衡分片</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#总结"><span class="toc-number">3.</span> <span class="toc-text">总结</span></a></li></ol>
                     </div>
                 </span>
             </div>
@@ -420,21 +405,22 @@
   
 
   
-  <div id="gitment-ctn"></div> 
+  <div id="gitment-ctn"></div>
 <link rel="stylesheet" href="//imsun.github.io/gitment/style/default.css">
-<script src="//imsun.github.io/gitment/dist/gitment.browser.js"></script>
+<script src="//www.wenjunjiang.win/js/gitment.js "></script>
 <script>
 var gitment = new Gitment({
-  id: "<%=url%>",
-  owner: '<%=theme.gitment_owner%>',
-  repo: '<%=theme.gitment_repo%>',
+  id: "ES原理-下线节点时分片并发rebalance的思考",
+  owner: 'kkewwei',
+  repo: 'comments',
   oauth: {
-    client_id: '<%=theme.gitment_oauth.client_id%>',
-    client_secret: '<%=theme.gitment_oauth.client_secret%>',
+    client_id: '9391e497d6b288887f33',
+    client_secret: 'db733731bff4ee2811d9530b1ac4cfc6767e8183',
   },
 })
 gitment.render('gitment-ctn')
 </script>
+
   
 
 
@@ -550,14 +536,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">NIO, write, read</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">Linux, close</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">Flink、Slot分配、SubTask申请slot, SubTask部署</a>
               </li>
              
@@ -566,7 +544,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">LockSupport</a>
+                <a href="javascript:void(0)" class="js-tag color2">NIO, write, read</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">Linux, close</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -578,7 +560,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">Lucene、StoredField</a>
+                <a href="javascript:void(0)" class="js-tag color5">Lucene、词典、tim、tip、doc、pos、fst、倒排索引</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -590,7 +572,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">Lucene、词典、tim、tip、doc、pos、fst、倒排索引</a>
+                <a href="javascript:void(0)" class="js-tag color4">Lucene、StoredField</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">LockSupport</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -602,19 +588,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">ReentrantLock</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">随笔</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">gdb</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -626,11 +600,23 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
+                <a href="javascript:void(0)" class="js-tag color4">ReentrantLock</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">随笔</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">gdb</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">maven, 插件, 打包</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
               </li>
             
             <div class="clearfix"></div>
