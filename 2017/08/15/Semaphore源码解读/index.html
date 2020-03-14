@@ -42,57 +42,39 @@
   <div id="container" q-class="show:isCtnShow">
     <canvas id="anm-canvas" class="anm-canvas"></canvas>
     <div class="left-col" q-class="show:isShow">
-      
-<div class="overlay" style="background: #4d4d4d"></div>
+      <% var defaultBg = '#4d4d4d'; %>
+<div class="overlay" style="background: <%= theme.style && theme.style.header ? theme.style.header : defaultBg %>"></div>
 <div class="intrude-less">
 	<header id="header" class="inner">
-		<a href="/" class="profilepic">
-      <img src="https://kkewwei.github.io/elasticsearch_learning/img/myself.png" class="js-avatar">
+		<a href="<%=theme.root%>" class="profilepic">
+			<img src="<%=theme.avatar%>" class="js-avatar">
 		</a>
 		<hgroup>
-		  <h1 class="header-author"><a href="/">jianguo</a></h1>
+		  <h1 class="header-author"><a href="<%=theme.root%>"><%=theme.author%></a></h1>
 		</hgroup>
-		
-		<p class="header-subtitle">往事随风</p>
-		
+		<% if (theme.subtitle){ %>
+		<p class="header-subtitle"><%=theme.subtitle%></p>
+		<%}%>
 
 		<nav class="header-menu">
 			<ul>
-			
-				<li><a href="/elasticsearch_learning/">主页</a></li>
-	        
-				<li><a href="/elasticsearch_learning/tags/随笔/">随笔</a></li>
-	        
-				<li><a href="/elasticsearch_learning/categories">分类</a></li>
-	        
+			<% for (var i in theme.menu){ %>
+				<li><a href="<%- url_for(theme.menu[i]) %>"><%= i %></a></li>
+	        <%}%>
 			</ul>
 		</nav>
 		<nav class="header-smart-menu">
-    		
-    			
-    			<a q-on="click: openSlider(e, 'innerArchive')" href="javascript:void(0)">所有文章</a>
-    			
-            
-    			
-    			<a q-on="click: openSlider(e, 'friends')" href="javascript:void(0)">友链</a>
-    			
-            
-    			
-    			<a q-on="click: openSlider(e, 'aboutme')" href="javascript:void(0)">关于我</a>
-    			
-            
+    		<% for (var i in theme.smart_menu){ %>
+    			<% if(theme.smart_menu[i]){ %>
+    			<a q-on="click: openSlider(e, '<%-i%>')" href="javascript:void(0)"><%= theme.smart_menu[i] %></a>
+    			<% } %>
+            <%}%>
 		</nav>
 		<nav class="header-nav">
 			<div class="social">
-				
-					<a class="github" target="_blank" href="#" title="github"><i class="icon-github"></i></a>
-		        
-					<a class="weibo" target="_blank" href="#" title="weibo"><i class="icon-weibo"></i></a>
-		        
-					<a class="rss" target="_blank" href="#" title="rss"><i class="icon-rss"></i></a>
-		        
-					<a class="zhihu" target="_blank" href="#" title="zhihu"><i class="icon-zhihu"></i></a>
-		        
+				<% for (var i in theme.subnav){ %>
+					<a class="<%= i %>" target="_blank" href="<%- url_for(theme.subnav[i]) %>" title="<%= i %>"><i class="icon-<%= i %>"></i></a>
+		        <%}%>
 			</div>
 		</nav>
 	</header>
@@ -164,258 +146,7 @@
             <canvas data-colors="#eaeaea" data-sectionHeight="100" data-contentId="js-content" id="myCanvas1" class="anm-canvas"></canvas>
           </div>
           <div id="js-content" class="content-ll">
-            <article id="post-Semaphore源码解读" class="article article-type-post " itemscope itemprop="blogPost">
-  <div class="article-inner">
-    
-      <header class="article-header">
-        
-  
-    <h1 class="article-title" itemprop="name">
-      Semaphore源码分析
-    </h1>
-  
-
-        
-        <a href="/elasticsearch_learning/2017/08/15/Semaphore源码解读/" class="archive-article-date">
-  	<time datetime="2017-08-15T09:56:32.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-08-15</time>
-</a>
-        
-      </header>
-      
-      <span class="archive-article-date">
-              阅读量 <span id="busuanzi_value_page_pv"></span>
-      </span>
-
-    
-
-    <!-- 目录内容 -->
-    
-      <p class="show-toc-btn" id="show-toc-btn" onclick="showToc();" style="display:none">
-        <span class="btn-bg"></span>
-        <span class="btn-text">文章导航</span>
-      </p>
-	    <div id="toc-article" class="toc-article">
-	      <span id="toc-close" class="toc-close" title="隐藏导航" onclick="showBtn();">×</span>
-		      <strong class="toc-title">文章目录</strong>
-        <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#acquire获取过程"><span class="toc-number">1.</span> <span class="toc-text">acquire获取过程</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#释放锁release"><span class="toc-number">2.</span> <span class="toc-text">释放锁release</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#总结"><span class="toc-number">3.</span> <span class="toc-text">总结</span></a></li></ol>
-         </div>
-   <script type="text/javascript">
-	function showToc(){
-		var toc_article = document.getElementById("toc-article");
-		var show_toc_btn = document.getElementById("show-toc-btn");
-		toc_article.setAttribute("style","display:block");
-		show_toc_btn.setAttribute("style","display:none");
-		};
-	function showBtn(){
-		var toc_article = document.getElementById("toc-article");
-		var show_toc_btn = document.getElementById("show-toc-btn");
-		toc_article.setAttribute("style","display:none");
-		show_toc_btn.setAttribute("style","display:block");
-		};
-   </script>
-      
-    <!-- 目录内容结束 -->
-
-    <div class="article-entry" itemprop="articleBody">
-      
-        <p>Semaphore信号量底层也是使用AQS(参考<a href="https://kkewwei.github.io/elasticsearch_learning/2017/07/23/ReentrantLock%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB/">ReentrantLock源码解读</a>)来进行锁的互斥。<br>基本使用如下:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div></pre></td><td class="code"><pre><div class="line">Semaphore semp = new Semaphore(2, fasle);</div><div class="line">//若被别的线程通过中断唤醒了, 那么就直接抛出异常</div><div class="line">public void acquire();</div><div class="line">//若被别的线程通过中断唤醒了, 那么将中断再放到本线程里退出</div><div class="line">public void acquireUninterruptibly()</div><div class="line">//尝试获取锁, 若获取不到就直接退出</div><div class="line">public boolean tryAcquire()</div><div class="line">//再unit内等待获取锁, 获取不到就直接抛出异常</div><div class="line">public boolean tryAcquire(long timeout, TimeUnit unit) throws InterruptedException</div><div class="line"></div><div class="line">//释放一个锁。</div><div class="line">public void release()</div></pre></td></tr></table></figure></p>
-<p>Semaphore构造函数中, 2代表获取锁的并发, false代表非公平锁。信号量Semaphore的用户是限制访问的并发, 最大只能两个线程获取锁, 别的线程线程获取时都只能等着。statue最大为2, 代表可剩余的锁个数<br>|锁类型|介绍|<br>|:-|:-|<br>|ReentrantLock|互斥可重入锁, 获取锁并发为1, 谁获取锁谁可以执行, 否则阻塞|<br>|CountDownLatch|共享锁, 类似n个钥匙一起才能打开一个锁, 打开之后会唤醒所有阻塞的线程再一起执行|<br>|ReentrantReadWriteLock|有读锁和写锁同时构成, 读锁之间共享锁, 写锁——读锁会互斥|<br>|Semaphore|并发控制所, 允许同时只有n个线程可以访问, 别的线程只能阻塞, 仅当一个线程释放锁才能唤醒另外一个阻塞的线程|</p>
-<h1 id="acquire获取过程"><a href="#acquire获取过程" class="headerlink" title="acquire获取过程"></a>acquire获取过程</h1><p>锁获取与其他几个AQS获取过程一样:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div></pre></td><td class="code"><pre><div class="line"> public final void acquireSharedInterruptibly(int arg) throws InterruptedException &#123;</div><div class="line">    if (Thread.interrupted())</div><div class="line">        throw new InterruptedException();</div><div class="line">        //如果为0， 就说明获取到了，不为0， 则说明没有获取到</div><div class="line">    if (tryAcquireShared(arg) &lt; 0)</div><div class="line">        doAcquireSharedInterruptibly(arg);</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
-<ul>
-<li>首先该线程是否有中断信号, 若有的话,直接退出</li>
-<li>尝试获取锁, 若获取到了, 那么就回退</li>
-<li>否则通过调用<a href="https://kkewwei.github.io/elasticsearch_learning/2017/08/24/CountDownLatch%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB/">CountDownLatch源码解读</a>doAcquireSharedInterruptibly()将自己加入等待队列。<br>唯一的区别就是Semaphore调用自己实现的tryAcquireShared来尝试获取锁。<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div></pre></td><td class="code"><pre><div class="line">protected int tryAcquireShared(int acquires) &#123;</div><div class="line">    for (;;) &#123;</div><div class="line">        if (hasQueuedPredecessors()) //首先检查是否有别的线程比当前登的时间更长</div><div class="line">            return -1;</div><div class="line">        int available = getState();</div><div class="line">        int remaining = available - acquires;</div><div class="line">        if (remaining &lt; 0 ||</div><div class="line">            compareAndSetState(available, remaining))</div><div class="line">            return remaining;</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
-</li>
-</ul>
-<p>示例展示的是公平锁锁, 做了如下检查:</p>
-<ul>
-<li>检查是否已经有线程在排队, 若有的话, 那么获取锁失败(体现先来后到的原则)</li>
-<li>若没有线程在排队, 那么尝试获取acquires, 若state大于remaining个, 那么获取成果获取锁, 否则获取锁失败。<br>我们需要知道, Semaphore调用的doAcquireSharedInterruptibly来进入阻塞队列排队, 本身设置为SHRAD模式, 若别的线程将本线程唤醒后, 本线程也会把唤醒信号分享给后续阻塞线程, 然后大家一起去竞争锁。</li>
-</ul>
-<h1 id="释放锁release"><a href="#释放锁release" class="headerlink" title="释放锁release"></a>释放锁release</h1><p>释放锁会调用releaseShared:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div></pre></td><td class="code"><pre><div class="line">public final boolean releaseShared(int arg) &#123;</div><div class="line">     //如果status彻底为0， 那么就说明可以唤醒await()了</div><div class="line">    if (tryReleaseShared(arg)) &#123;</div><div class="line">        doReleaseShared();</div><div class="line">        return true;</div><div class="line">    &#125;</div><div class="line">    return false;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
-<p>在tryReleaseShared将锁还给state(默认+1), 使用了for(;;)为了一定的释放成功才可以退出, 释放成功了, 尝试去调用doReleaseShared(具体参考<a href="https://kkewwei.github.io/elasticsearch_learning/2017/08/24/CountDownLatch%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB/">CountDownLatch源码解读</a>)来继续唤醒新的head节点。</p>
-<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>Semaphore信号量可以限制并发访问的次数, 使用起来也比较简单; 也分公平锁和费公平锁, 与ReentrantLock讲解的概念一样。</p>
-
-      
-
-      
-        <div class="page-reward">
-          <a href="javascript:;" class="page-reward-btn tooltip-top">
-            <div class="tooltip tooltip-east">
-            <span class="tooltip-item">
-              赏
-            </span>
-            <span class="tooltip-content">
-              <span class="tooltip-text">
-                <span class="tooltip-inner">
-                  <p class="reward-p"><i class="icon icon-quo-left"></i>谢谢阅读<i class="icon icon-quo-right"></i></p>
-                  <div class="reward-box">
-                    
-                    
-                  </div>
-                </span>
-              </span>
-            </span>
-          </div>
-          </a>
-        </div>
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/elasticsearch_learning/categories/Java学习//" class="article-tag-list-link color2">Java学习</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-
-      
-        
-<div class="share-btn share-icons tooltip-left">
-  <div class="tooltip tooltip-east">
-    <span class="tooltip-item">
-      <a href="javascript:;" class="share-sns share-outer">
-        <i class="icon icon-share"></i>
-      </a>
-    </span>
-    <span class="tooltip-content">
-      <div class="share-wrap">
-        <div class="share-icons">
-          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
-            <i class="icon icon-weibo"></i>
-          </a>
-          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
-            <i class="icon icon-weixin"></i>
-          </a>
-          <a class="qq share-sns" href="javascript:;" data-type="qq">
-            <i class="icon icon-qq"></i>
-          </a>
-          <a class="douban share-sns" href="javascript:;" data-type="douban">
-            <i class="icon icon-douban"></i>
-          </a>
-          <a class="qzone share-sns" href="javascript:;" data-type="qzone">
-            <i class="icon icon-qzone"></i>
-          </a>
-          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
-            <i class="icon icon-facebook"></i>
-          </a>
-          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
-            <i class="icon icon-twitter"></i>
-          </a>
-          <a class="google share-sns" href="javascript:;" data-type="google">
-            <i class="icon icon-google"></i>
-          </a>
-        </div>
-      </div>
-    </span>
-  </div>
-</div>
-
-<div class="page-modal wx-share js-wx-box">
-    <a class="close js-modal-close" href="javascript:;"><i class="icon icon-close"></i></a>
-    <p>扫一扫，分享到微信</p>
-    <div class="wx-qrcode">
-      <img src="//pan.baidu.com/share/qrcode?url=https://kkewwei.github.io/elasticsearch_learning/2017/08/15/Semaphore源码解读/" alt="微信分享二维码">
-    </div>
-</div>
-
-<div class="mask js-mask"></div>
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-  
-<nav id="article-nav">
-  
-    <a href="/elasticsearch_learning/2017/08/24/CountDownLatch源码解读/" id="article-nav-newer" class="article-nav-link-wrap">
-      <i class="icon-circle-left"></i>
-      <div class="article-nav-title">
-        
-          CountDownLatch源码分析
-        
-      </div>
-    </a>
-  
-  
-    <a href="/elasticsearch_learning/2017/07/28/ReentrantReadWriteLock源码解读/" id="article-nav-older" class="article-nav-link-wrap">
-      <div class="article-nav-title">ReentrantReadWriteLock源码解读</div>
-      <i class="icon-circle-right"></i>
-    </a>
-  
-</nav>
-
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-        <div class="toc-container tooltip-left">
-            <i class="icon-font icon-category"></i>
-            <div class="tooltip tooltip-east">
-                <span class="tooltip-item">
-                </span>
-                <span class="tooltip-content">
-                    <div class="toc-article">
-                    <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#acquire获取过程"><span class="toc-number">1.</span> <span class="toc-text">acquire获取过程</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#释放锁release"><span class="toc-number">2.</span> <span class="toc-text">释放锁release</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#总结"><span class="toc-number">3.</span> <span class="toc-text">总结</span></a></li></ol>
-                    </div>
-                </span>
-            </div>
-        </div>
-        
-    </div>
-</aside>
-
-
-
-  
-
-  
-
-  
-
-  
-
-  
-  <div id="gitment-ctn"></div>
-<link rel="stylesheet" href="//imsun.github.io/gitment/style/default.css">
-<script src="//www.wenjunjiang.win/js/gitment.js "></script>
-<script>
-var gitment = new Gitment({
-  id: "Semaphore源码分析",
-  owner: 'kkewwei',
-  repo: 'comments',
-  oauth: {
-    client_id: '9391e497d6b288887f33',
-    client_secret: 'db733731bff4ee2811d9530b1ac4cfc6767e8183',
-  },
-})
-gitment.render('gitment-ctn')
-</script>
-
-  
-
-
+            
           </div>
         </div>
       </div>
@@ -544,11 +275,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">NIO, write, read</a>
+                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
+                <a href="javascript:void(0)" class="js-tag color2">NIO, write, read</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -556,15 +287,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">LockSupport</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">Lucene、ByteBlockPool</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">Lucene、词典、tim、tip、doc、pos、fst、倒排索引</a>
+                <a href="javascript:void(0)" class="js-tag color2">LockSupport</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">Lucene、StoredField</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -572,7 +303,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">Lucene、StoredField</a>
+                <a href="javascript:void(0)" class="js-tag color5">Lucene、词典、tim、tip、doc、pos、fst、倒排索引</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -612,11 +343,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
+                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
+                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
               </li>
              
               <li class="article-tag-list-item">

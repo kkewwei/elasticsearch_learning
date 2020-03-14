@@ -47,57 +47,39 @@
   <div id="container" q-class="show:isCtnShow">
     <canvas id="anm-canvas" class="anm-canvas"></canvas>
     <div class="left-col" q-class="show:isShow">
-      
-<div class="overlay" style="background: #4d4d4d"></div>
+      <% var defaultBg = '#4d4d4d'; %>
+<div class="overlay" style="background: <%= theme.style && theme.style.header ? theme.style.header : defaultBg %>"></div>
 <div class="intrude-less">
 	<header id="header" class="inner">
-		<a href="/" class="profilepic">
-      <img src="https://kkewwei.github.io/elasticsearch_learning/img/myself.png" class="js-avatar">
+		<a href="<%=theme.root%>" class="profilepic">
+			<img src="<%=theme.avatar%>" class="js-avatar">
 		</a>
 		<hgroup>
-		  <h1 class="header-author"><a href="/">jianguo</a></h1>
+		  <h1 class="header-author"><a href="<%=theme.root%>"><%=theme.author%></a></h1>
 		</hgroup>
-		
-		<p class="header-subtitle">往事随风</p>
-		
+		<% if (theme.subtitle){ %>
+		<p class="header-subtitle"><%=theme.subtitle%></p>
+		<%}%>
 
 		<nav class="header-menu">
 			<ul>
-			
-				<li><a href="/elasticsearch_learning/">主页</a></li>
-	        
-				<li><a href="/elasticsearch_learning/tags/随笔/">随笔</a></li>
-	        
-				<li><a href="/elasticsearch_learning/categories">分类</a></li>
-	        
+			<% for (var i in theme.menu){ %>
+				<li><a href="<%- url_for(theme.menu[i]) %>"><%= i %></a></li>
+	        <%}%>
 			</ul>
 		</nav>
 		<nav class="header-smart-menu">
-    		
-    			
-    			<a q-on="click: openSlider(e, 'innerArchive')" href="javascript:void(0)">所有文章</a>
-    			
-            
-    			
-    			<a q-on="click: openSlider(e, 'friends')" href="javascript:void(0)">友链</a>
-    			
-            
-    			
-    			<a q-on="click: openSlider(e, 'aboutme')" href="javascript:void(0)">关于我</a>
-    			
-            
+    		<% for (var i in theme.smart_menu){ %>
+    			<% if(theme.smart_menu[i]){ %>
+    			<a q-on="click: openSlider(e, '<%-i%>')" href="javascript:void(0)"><%= theme.smart_menu[i] %></a>
+    			<% } %>
+            <%}%>
 		</nav>
 		<nav class="header-nav">
 			<div class="social">
-				
-					<a class="github" target="_blank" href="#" title="github"><i class="icon-github"></i></a>
-		        
-					<a class="weibo" target="_blank" href="#" title="weibo"><i class="icon-weibo"></i></a>
-		        
-					<a class="rss" target="_blank" href="#" title="rss"><i class="icon-rss"></i></a>
-		        
-					<a class="zhihu" target="_blank" href="#" title="zhihu"><i class="icon-zhihu"></i></a>
-		        
+				<% for (var i in theme.subnav){ %>
+					<a class="<%= i %>" target="_blank" href="<%- url_for(theme.subnav[i]) %>" title="<%= i %>"><i class="icon-<%= i %>"></i></a>
+		        <%}%>
 			</div>
 		</nav>
 	</header>
@@ -169,347 +151,7 @@
             <canvas data-colors="#eaeaea" data-sectionHeight="100" data-contentId="js-content" id="myCanvas1" class="anm-canvas"></canvas>
           </div>
           <div id="js-content" class="content-ll">
-            <article id="post-Flink原理-slot分配" class="article article-type-post " itemscope itemprop="blogPost">
-  <div class="article-inner">
-    
-      <header class="article-header">
-        
-  
-    <h1 class="article-title" itemprop="name">
-      Flink原理-JobManager端的SubTask申请slot及部署
-    </h1>
-  
-
-        
-        <a href="/elasticsearch_learning/2019/03/12/Flink原理-slot分配/" class="archive-article-date">
-  	<time datetime="2019-03-12T12:04:11.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2019-03-12</time>
-</a>
-        
-      </header>
-      
-      <span class="archive-article-date">
-              阅读量 <span id="busuanzi_value_page_pv"></span>
-      </span>
-
-    
-
-    <!-- 目录内容 -->
-    
-      <p class="show-toc-btn" id="show-toc-btn" onclick="showToc();" style="display:none">
-        <span class="btn-bg"></span>
-        <span class="btn-text">文章导航</span>
-      </p>
-	    <div id="toc-article" class="toc-article">
-	      <span id="toc-close" class="toc-close" title="隐藏导航" onclick="showBtn();">×</span>
-		      <strong class="toc-title">文章目录</strong>
-        <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#Task分配slot及部署"><span class="toc-number">1.</span> <span class="toc-text">Task分配slot及部署</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#确定subTask分配的slot"><span class="toc-number">1.1.</span> <span class="toc-text">确定subTask分配的slot</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#缓存申请Slot的请求"><span class="toc-number">1.1.1.</span> <span class="toc-text">缓存申请Slot的请求</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#向ResourceManager申请slot"><span class="toc-number">1.1.2.</span> <span class="toc-text">向ResourceManager申请slot</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#JobManager端有某个TM注册的可用slot"><span class="toc-number">1.1.2.1.</span> <span class="toc-text">JobManager端有某个TM注册的可用slot</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#JobManager端没有TM注册的可用slot"><span class="toc-number">1.1.2.2.</span> <span class="toc-text">JobManager端没有TM注册的可用slot</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#申请container成功"><span class="toc-number">1.1.3.</span> <span class="toc-text">申请container成功</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#部署subTask到对应的slot"><span class="toc-number">1.2.</span> <span class="toc-text">部署subTask到对应的slot</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#SlotSharingGroup及共享slot"><span class="toc-number">2.</span> <span class="toc-text">SlotSharingGroup及共享slot</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#MultiTaskSlot及SingleTaskSlot"><span class="toc-number">3.</span> <span class="toc-text">MultiTaskSlot及SingleTaskSlot</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#参考文档"><span class="toc-number">4.</span> <span class="toc-text">参考文档</span></a></li></ol>
-         </div>
-   <script type="text/javascript">
-	function showToc(){
-		var toc_article = document.getElementById("toc-article");
-		var show_toc_btn = document.getElementById("show-toc-btn");
-		toc_article.setAttribute("style","display:block");
-		show_toc_btn.setAttribute("style","display:none");
-		};
-	function showBtn(){
-		var toc_article = document.getElementById("toc-article");
-		var show_toc_btn = document.getElementById("show-toc-btn");
-		toc_article.setAttribute("style","display:none");
-		show_toc_btn.setAttribute("style","display:block");
-		};
-   </script>
-      
-    <!-- 目录内容结束 -->
-
-    <div class="article-entry" itemprop="articleBody">
-      
-        <p>本文将从ExecutionGraph开始向后讲起, ExecutionGraph定义了Job的并发逻辑结构, 作为任务执行的以后一层逻辑结构, 也是最核心数据结构。为了让大家有全局的了解, 先盗一张广为引用的Graph转换图:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/Flink_Graph.png" height="900" width="800"><br>具体来说, 本文讲述在JobManager端subTask申请slot以及部署到TaskManager上的过程。</p>
-<h1 id="Task分配slot及部署"><a href="#Task分配slot及部署" class="headerlink" title="Task分配slot及部署"></a>Task分配slot及部署</h1><p>代码将从ExecutionGraph.scheduleExecutionGraph()开始讲解, 进入:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div></pre></td><td class="code"><pre><div class="line">public void scheduleForExecution() throws JobException &#123;</div><div class="line">	final long currentGlobalModVersion = globalModVersion;</div><div class="line">	if (transitionState(JobStatus.CREATED, JobStatus.RUNNING)) &#123;</div><div class="line">		final CompletableFuture&lt;Void&gt; newSchedulingFuture;</div><div class="line">		switch (scheduleMode) &#123;</div><div class="line">			case LAZY_FROM_SOURCES:</div><div class="line">				newSchedulingFuture = scheduleLazy(slotProvider);</div><div class="line">				break;</div><div class="line">			case EAGER:</div><div class="line">				newSchedulingFuture = scheduleEager(slotProvider, allocationTimeout);</div><div class="line">				break;</div><div class="line">			default:</div><div class="line">				throw new JobException(&quot;Schedule mode is invalid.&quot;);</div><div class="line">		&#125;</div><div class="line">	&#125;</div><div class="line">	...</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
-<p>其中, scheduleMode分EAGER和LAZY_FROM_SOURCES, EAGER表示立刻去调度部署所有的Task。实际scheduleMode是从JobGraph.getScheduleMode()取值的, 为eager。<br>我们再进入scheduleEager看是如何调度task的。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div></pre></td><td class="code"><pre><div class="line">   private CompletableFuture&lt;Void&gt; scheduleEager(SlotProvider slotProvider, final Time timeout) &#123;</div><div class="line">    ......</div><div class="line">	 //都是每个JobGraph</div><div class="line">	for (ExecutionJobVertex ejv : getVerticesTopologically()) &#123;</div><div class="line">		// these calls are not blocking, they only return futures</div><div class="line">		Collection&lt;CompletableFuture&lt;Execution&gt;&gt; allocationFutures = ejv.allocateResourcesForAll(</div><div class="line">			slotProvider, // SlotPool$ProviderAndOwner</div><div class="line">			queued,</div><div class="line">			LocationPreferenceConstraint.ALL,</div><div class="line">			allPreviousAllocationIds,</div><div class="line">			timeout);</div><div class="line">		allAllocationFutures.addAll(allocationFutures);</div><div class="line">	&#125;</div><div class="line">	//只有当所有Execution都分配到了槽位才继续进行部署</div><div class="line">	final ConjunctFuture&lt;Collection&lt;Execution&gt;&gt; allAllocationsFuture = FutureUtils.combineAll(allAllocationFutures);</div><div class="line">	final CompletableFuture&lt;Void&gt; currentSchedulingFuture = allAllocationsFuture</div><div class="line">		.thenAccept(</div><div class="line">			(Collection&lt;Execution&gt; executionsToDeploy) -&gt; &#123;</div><div class="line">				for (Execution execution : executionsToDeploy) &#123;</div><div class="line">					try &#123;</div><div class="line">					   // 最后挨个调用execution.deploy()进行部署子task，部署的模式是发送命令到</div><div class="line">					   execution.deploy();</div><div class="line">					&#125; catch (Throwable t) &#123;</div><div class="line">					   ......</div><div class="line">					&#125;</div><div class="line">				&#125;</div><div class="line">			&#125;)</div><div class="line">		......</div><div class="line">	return currentSchedulingFuture;</div><div class="line">&#125;`</div></pre></td></tr></table></figure></p>
-<p>scheduleEager主要做了两件事:</p>
-<ul>
-<li>通过allocateResourcesForAll确定每个subTask将要部署的slot。若没有合适的TaskManager, 那么通过yarn去申请TaskManager。</li>
-<li>当所有的subTask都确定好部署TaskManager的slot后, 通过execution.deploy()将subTask部署上去。<br>接下来, 将分别围绕这两件事讲解。<h2 id="确定subTask分配的slot"><a href="#确定subTask分配的slot" class="headerlink" title="确定subTask分配的slot"></a>确定subTask分配的slot</h2>通过getVerticesTopologically()获取所有的ExecutionJobVertex, 然后依次轮询给每个ExecutionJobVertex都分配一个slot, 其中轮询的ExecutionJobVertex是有先后顺序的, 从source开始分配slot, 直到sink。后面可以看到, 上游分配到哪个tm上, 会影响下游的slot分配。 我们进入allocateResourcesForAll看下是如何给一个ExecutionJobVertex所有的subTask分配slot的。<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div></pre></td><td class="code"><pre><div class="line">   public Collection&lt;CompletableFuture&lt;Execution&gt;&gt; allocateResourcesForAll(</div><div class="line">		SlotProvider resourceProvider, // SlotPool$ProviderAndOwner</div><div class="line">		boolean queued,  //true</div><div class="line">		LocationPreferenceConstraint locationPreferenceConstraint, //ALL</div><div class="line">		@Nonnull Set&lt;AllocationID&gt; allPreviousExecutionGraphAllocationIds,</div><div class="line">		Time allocationTimeout) &#123;</div><div class="line">	final ExecutionVertex[] vertices = this.taskVertices;</div><div class="line">	final CompletableFuture&lt;Execution&gt;[] slots = new CompletableFuture[vertices.length];</div><div class="line">	for (int i = 0; i &lt; vertices.length; i++) &#123;</div><div class="line">		final Execution exec = vertices[i].getCurrentExecutionAttempt();</div><div class="line">		final CompletableFuture&lt;Execution&gt; allocationFuture = exec.allocateAndAssignSlotForExecution(</div><div class="line">			resourceProvider,</div><div class="line">			queued,</div><div class="line">			locationPreferenceConstraint,</div><div class="line">			allPreviousExecutionGraphAllocationIds,</div><div class="line">			allocationTimeout);</div><div class="line">		slots[i] = allocationFuture;</div><div class="line">	&#125;</div><div class="line">	return Arrays.asList(slots);</div><div class="line">&#125;</div></pre></td></tr></table></figure>
-</li>
-</ul>
-<p>每一个ExecutionJobVertex都对应着一批ExecutionVertex(也就是subTask), 可以看到, 这里轮询每个ExecutionVertex进行申请一个slot。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div></pre></td><td class="code"><pre><div class="line">   public CompletableFuture&lt;Execution&gt; allocateAndAssignSlotForExecution(</div><div class="line">		SlotProvider slotProvider, //SlotPool$ProviderAndOwner</div><div class="line">		boolean queued,</div><div class="line">		LocationPreferenceConstraint locationPreferenceConstraint,  //ALL</div><div class="line">		@Nonnull Set&lt;AllocationID&gt; allPreviousExecutionGraphAllocationIds,</div><div class="line">		Time allocationTimeout) throws IllegalExecutionStateException &#123;</div><div class="line">	final SlotSharingGroup sharingGroup = vertex.getJobVertex().getSlotSharingGroup();</div><div class="line">	if (transitionState(CREATED, SCHEDULED)) &#123;</div><div class="line">	    // 默认情况下, 所有的subTask的共享组均为default</div><div class="line">		final SlotSharingGroupId slotSharingGroupId = sharingGroup != null ? sharingGroup.getSlotSharingGroupId() : null;</div><div class="line">		/** 获取subTask即将分配的&quot;偏好位置集合&quot;，也就是分配时，优先考虑分配在这些节点上，一般是input节点所在节点 */</div><div class="line">		final CompletableFuture&lt;Collection&lt;TaskManagerLocation&gt;&gt; preferredLocationsFuture = calculatePreferredLocations(locationPreferenceConstraint);</div><div class="line">	    //上游子task地方全部确定了，才能继续确定下游子task位置</div><div class="line">		final SlotRequestId slotRequestId = new SlotRequestId();</div><div class="line">		final CompletableFuture&lt;LogicalSlot&gt; logicalSlotFuture = preferredLocationsFuture</div><div class="line">			.thenCompose(</div><div class="line">				(Collection&lt;TaskManagerLocation&gt; preferredLocations) -&gt;</div><div class="line">					slotProvider.allocateSlot(//SlotPool$ProviderAndOwner</div><div class="line">						slotRequestId,</div><div class="line">						toSchedule,</div><div class="line">						queued,</div><div class="line">						new SlotProfile(</div><div class="line">							ResourceProfile.UNKNOWN,</div><div class="line">							preferredLocations,</div><div class="line">							previousAllocationIDs,</div><div class="line">							allPreviousExecutionGraphAllocationIds),</div><div class="line">						allocationTimeout));</div><div class="line">		return logicalSlotFuture.thenApply(</div><div class="line">			(LogicalSlot logicalSlot) -&gt; &#123;</div><div class="line">			    //</div><div class="line">				if (tryAssignResource(logicalSlot)) &#123;</div><div class="line">					return this;</div><div class="line">				&#125;</div><div class="line">			&#125;);</div><div class="line">	&#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
-<p>该函数主要做了两件事情:</p>
-<ul>
-<li>在calculatePreferredLocations中确定从该subTask对应ExecutionJobVertex的所有上游中找到最合适的上游”偏向位置集合”。</li>
-<li>通过SlotPool$ProviderAndOwner.allocateSlot继续确定从”偏向位置集合”找到一个共享slot。<br>我们知道, 多个subTask允许共享slot, 细节后面会详细描述。 那么当前subTask与哪些已经分配的subTask共享slot呢? 下游subTask与哪个上游subTask共享slot呢?<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/Flink_slot_allocate.png" height="300" width="350"></li>
-</ul>
-<p>flink会根据subTask上游slot的分配来确定当前slot的分配:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div></pre></td><td class="code"><pre><div class="line">public Collection&lt;CompletableFuture&lt;TaskManagerLocation&gt;&gt; getPreferredLocationsBasedOnInputs() &#123;</div><div class="line">		// 如果没有输入，则返回空集合，否则，基于上游分布确定偏好位置</div><div class="line">		if (inputEdges == null) &#123;</div><div class="line">			return Collections.emptySet();</div><div class="line">		&#125;</div><div class="line">		else &#123;</div><div class="line">			Set&lt;CompletableFuture&lt;TaskManagerLocation&gt;&gt; locations = new HashSet&lt;&gt;(getTotalNumberOfParallelSubtasks());</div><div class="line">			Set&lt;CompletableFuture&lt;TaskManagerLocation&gt;&gt; inputLocations = new HashSet&lt;&gt;(getTotalNumberOfParallelSubtasks());</div><div class="line">			// go over all inputs</div><div class="line">			for (int i = 0; i &lt; inputEdges.length; i++) &#123;</div><div class="line">				inputLocations.clear();</div><div class="line">				ExecutionEdge[] sources = inputEdges[i];</div><div class="line">				if (sources != null) &#123;</div><div class="line">					for (int k = 0; k &lt; sources.length; k++) &#123;</div><div class="line">						// 获取当前source源所属的taskManager位置</div><div class="line">						CompletableFuture&lt;TaskManagerLocation&gt; locationFuture = sources[k].getSource().getProducer().getCurrentTaskManagerLocationFuture();</div><div class="line">						// add input location</div><div class="line">						inputLocations.add(locationFuture);</div><div class="line">						// inputs which have too many distinct sources are not considered</div><div class="line">						// 如果某个输入源有太多的节点分布，则不考虑这个输入源的节点位置了</div><div class="line">						if (inputLocations.size() &gt; MAX_DISTINCT_LOCATIONS_TO_CONSIDER) &#123;</div><div class="line">							inputLocations.clear();</div><div class="line">							break;</div><div class="line">						&#125;</div><div class="line">					&#125;</div><div class="line">				&#125;// 保留具有最少分布位置的输入的位置</div><div class="line">				// keep the locations of the input with the least preferred locations</div><div class="line">				if (locations.isEmpty() || // nothing assigned yet  第一个source</div><div class="line">				        // 找到上游节点所处tm最少的的那个上游</div><div class="line">						(!inputLocations.isEmpty() &amp;&amp; inputLocations.size() &lt; locations.size())) &#123;</div><div class="line">					locations.clear();</div><div class="line">					locations.addAll(inputLocations);</div><div class="line">				&#125;</div><div class="line">			&#125;</div><div class="line">			return locations.isEmpty() ? Collections.emptyList() : locations;</div><div class="line">		&#125;</div><div class="line">	&#125;</div></pre></td></tr></table></figure></p>
-<p>处理过程如下:</p>
-<ul>
-<li>若该ExecutionVertex没有上游(例如source), 那么返回为空, 没有”偏好位置集合”, 之后将申请新的slot。</li>
-<li>若当前ExecutionVertex有属于不同JobVertex多个ExecutionJobVertex的上游, 那么当前sub分配到哪些共享slot的可选路径只能是: 属于同一个JobVertex的上游节点个数最少。上图的话, 就会选择source2的所有subTask作为”偏好位置集合”。我们接下来看第二步, 最终会进入到allocateSharedSlot决定subTask分配到哪些”偏好位置集合”里slot上。<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div></pre></td><td class="code"><pre><div class="line">private CompletableFuture&lt;LogicalSlot&gt; allocateSharedSlot(</div><div class="line">		SlotRequestId slotRequestId,</div><div class="line">		ScheduledUnit task,</div><div class="line">		SlotProfile slotProfile,</div><div class="line">		boolean allowQueuedScheduling,</div><div class="line">		Time allocationTimeout) &#123;</div><div class="line">		// allocate slot with slot sharing</div><div class="line">		final SlotSharingManager multiTaskSlotManager = slotSharingManagers.computeIfAbsent(</div><div class="line">			 //默认都是一个, default对应的那个</div><div class="line">			task.getSlotSharingGroupId(),</div><div class="line">			id -&gt; new SlotSharingManager(</div><div class="line">				id,</div><div class="line">				this,</div><div class="line">				providerAndOwner));</div><div class="line">		final SlotSharingManager.MultiTaskSlotLocality multiTaskSlotLocality;</div><div class="line">		try &#123;</div><div class="line">			if (task.getCoLocationConstraint() != null) &#123;</div><div class="line">				multiTaskSlotLocality = allocateCoLocatedMultiTaskSlot(</div><div class="line">					task.getCoLocationConstraint(),</div><div class="line">					multiTaskSlotManager,</div><div class="line">					slotProfile,</div><div class="line">					allowQueuedScheduling,</div><div class="line">					allocationTimeout);</div><div class="line">			&#125; else &#123;</div><div class="line">			     // 跑到这里</div><div class="line">				multiTaskSlotLocality = allocateMultiTaskSlot(</div><div class="line">					task.getJobVertexId(),</div><div class="line">					multiTaskSlotManager,</div><div class="line">					slotProfile,</div><div class="line">					allowQueuedScheduling,</div><div class="line">					allocationTimeout);</div><div class="line">			&#125;</div><div class="line">		&#125;</div><div class="line">		final SlotSharingManager.SingleTaskSlot leaf = multiTaskSlotLocality.getMultiTaskSlot().allocateSingleTaskSlot(</div><div class="line">			slotRequestId,</div><div class="line">			task.getJobVertexId(),</div><div class="line">			multiTaskSlotLocality.getLocality());</div><div class="line">		return leaf.getLogicalSlotFuture();</div><div class="line">	&#125;</div></pre></td></tr></table></figure>
-</li>
-</ul>
-<p>该函数主要做了两件事:</p>
-<ol>
-<li>通过allocateMultiTaskSlot产生MultiTaskSlotLocality, 里面包含从”偏向位置集合”中选取的部署当前subTask共享的slot。</li>
-<li>产生SingleTaskSlot, 当前SingleTaskSlot作为MultiTaskSlot的一个子叶子节点。<br>再继续跟进代码前, 我们需要了解两个变量resolvedRootSlots、unresolvedRootSlots。共享slot都会从这两个变量中获取, 这两个变量为共享组所拥有, 默认共享组为default。<br>unresolvedRootSlots: 当当前subTask正在确认部署到那个slot中时, 会将该slot保存在unresolvedRootSlots; 当确定好部署到哪个slot时, 会将该信息从unresolvedRootSlots中移除, 并放入resolvedRootSlots中  当我们查找是否有可利用的slot时, 会从这些变量中查找。<br>我们再进入正题, 看allocateMultiTaskSlot看是如何给subTask分配slot的:<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div></pre></td><td class="code"><pre><div class="line">private SlotSharingManager.MultiTaskSlotLocality allocateMultiTaskSlot(</div><div class="line">		//groupId指的同一个JobVertex的id</div><div class="line">		AbstractID groupId,</div><div class="line">		SlotSharingManager slotSharingManager,</div><div class="line">		SlotProfile slotProfile,</div><div class="line">		boolean allowQueuedScheduling,</div><div class="line">		Time allocationTimeout) throws NoResourceAvailableException &#123;</div><div class="line">	//过滤&quot;偏好位置集合&quot;的位置中不属于相同groupId的位置, 这里主要是为了避免同一个ExecutionJobVertex中不同的SubTask分配到同一个slot中。</div><div class="line">	// check first whether we have a resolved root slot which we can use</div><div class="line">	SlotSharingManager.MultiTaskSlotLocality multiTaskSlotLocality = slotSharingManager.getResolvedRootSlot(</div><div class="line">		groupId,</div><div class="line">		//  LocationPreferenceSchedulingStrategy</div><div class="line">		schedulingStrategy,</div><div class="line">		slotProfile);</div><div class="line">    //从&quot;偏好位置集合&quot;中到合适的slot后, 就直接返回了。</div><div class="line">	if (multiTaskSlotLocality != null &amp;&amp; multiTaskSlotLocality.getLocality() == Locality.LOCAL) &#123;</div><div class="line">		return multiTaskSlotLocality;</div><div class="line">	&#125;</div><div class="line">	......</div><div class="line">	if (allowQueuedScheduling) &#123;</div><div class="line">		//在unresolvedRootSlots中查找不属于同一个JobVertex的slot</div><div class="line">		SlotSharingManager.MultiTaskSlot multiTaskSlotFuture = slotSharingManager.getUnresolvedRootSlot(groupId);  // 为null</div><div class="line">		if (multiTaskSlotFuture == null) &#123;</div><div class="line">			//没有找到合适的可利用的的slot, 那么将去向ResurceNameger申请新的TaskManger, 这是最后一步</div><div class="line">			final CompletableFuture&lt;AllocatedSlot&gt; futureSlot = requestNewAllocatedSlot(</div><div class="line">				allocatedSlotRequestId,</div><div class="line">				slotProfile.getResourceProfile(),</div><div class="line">				allocationTimeout); //300s</div><div class="line">			//将新产生的futureSlot, 放入resolvedRootSlots中, 这样之后申请slot时, 该slot可以被共享。</div><div class="line">			multiTaskSlotFuture = slotSharingManager.createRootSlot(</div><div class="line">				multiTaskSlotRequestId,</div><div class="line">				futureSlot,</div><div class="line">				allocatedSlotRequestId);</div><div class="line">			futureSlot.whenComplete(</div><div class="line">				(AllocatedSlot allocatedSlot, Throwable throwable) -&gt; &#123;</div><div class="line">					final SlotSharingManager.TaskSlot taskSlot = slotSharingManager.getTaskSlot(multiTaskSlotRequestId);</div><div class="line">					if (taskSlot != null) &#123;</div><div class="line">						// still valid</div><div class="line">						if (!(taskSlot instanceof SlotSharingManager.MultiTaskSlot) || throwable != null) &#123;</div><div class="line">							taskSlot.release(throwable);</div><div class="line">						&#125; else &#123;</div><div class="line">							if (!allocatedSlot.tryAssignPayload(((SlotSharingManager.MultiTaskSlot) taskSlot))) &#123;</div><div class="line">								taskSlot.release(new FlinkException(&quot;Could not assign payload to allocated slot &quot; +</div><div class="line">									allocatedSlot.getAllocationId() + &apos;.&apos;));</div><div class="line">							&#125;</div><div class="line">						&#125;</div><div class="line">					&#125;</div><div class="line">				&#125;);</div><div class="line">		&#125;</div><div class="line">		return SlotSharingManager.MultiTaskSlotLocality.of(multiTaskSlotFuture, Locality.UNKNOWN);</div><div class="line">	&#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
-</li>
-</ol>
-<p>该函数主要逻辑如下:</p>
-<ul>
-<li>从resolvedRootSlots、unresolvedRootSlots中查找是否有可共享的slot。</li>
-<li>若没有, 向ResourceManager申请TaskManager以获取slot。</li>
-<li>将申请的slot信息也存放入unresolvedRootSlots中, 等成功申请后再存放入resolvedRootSlots。<br>我们再接着看是如何向ResourceManager申请TaskManager的。<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div></pre></td><td class="code"><pre><div class="line">private CompletableFuture&lt;AllocatedSlot&gt; requestNewAllocatedSlot(</div><div class="line">		SlotRequestId slotRequestId,</div><div class="line">		ResourceProfile resourceProfile,</div><div class="line">		Time allocationTimeout) &#123;</div><div class="line">	final PendingRequest pendingRequest = new PendingRequest(</div><div class="line">		slotRequestId,</div><div class="line">		resourceProfile);</div><div class="line">	// register request timeout</div><div class="line">	FutureUtils  //30s超时</div><div class="line">		.orTimeout(pendingRequest.getAllocatedSlotFuture(), allocationTimeout.toMilliseconds(), TimeUnit.MILLISECONDS)</div><div class="line">		.whenCompleteAsync(  //当结束完成时需要做的事情</div><div class="line">			(AllocatedSlot ignored, Throwable throwable) -&gt; &#123;</div><div class="line">				if (throwable instanceof TimeoutException) &#123;</div><div class="line">					timeoutPendingSlotRequest(slotRequestId);</div><div class="line">				&#125;</div><div class="line">			&#125;,</div><div class="line">			getMainThreadExecutor());</div><div class="line">	if (resourceManagerGateway == null) &#123;  // 为null</div><div class="line">		stashRequestWaitingForResourceManager(pendingRequest);  // 会跑到这里</div><div class="line">	&#125; else &#123;</div><div class="line">		requestSlotFromResourceManager(resourceManagerGateway, pendingRequest);</div><div class="line">	&#125;</div><div class="line">	return pendingRequest.getAllocatedSlotFuture();</div><div class="line">&#125;</div></pre></td></tr></table></figure>
-</li>
-</ul>
-<p>可以看到:</p>
-<ul>
-<li>首先查看resourceManagerGateway是否连接上, 若没有连接上, 将请求暂时缓存起来, 待连接上之后再申请。</li>
-<li>若已经初始化之后, 会去向ResourceManager申请TaskManager。<h3 id="缓存申请Slot的请求"><a href="#缓存申请Slot的请求" class="headerlink" title="缓存申请Slot的请求"></a>缓存申请Slot的请求</h3>大致思路是先缓存申请slot的请求, 直到flink ResourceManager注册完成后, 再去申请, 我们看下整体细节。首先去查看哪里开始对resourceManagerGateway进行初始化的。 首先回到最开始准备执行ExecutionGraph的时候:<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div></pre></td><td class="code"><pre><div class="line">    private Acknowledge startJobExecution(JobMasterId newJobMasterId) throws Exception &#123;</div><div class="line">	 //这里会开始尝试连接rm， 会去和resourceManager建立联系</div><div class="line">	startJobMasterServices();</div><div class="line">	resetAndScheduleExecutionGraph();</div><div class="line">    &#125;</div><div class="line">    private void startJobMasterServices() throws Exception &#123;</div><div class="line">	slotPool.start(getFencingToken(), getAddress());</div><div class="line">	// 这里比较重要，会进去启动申请tm的请求</div><div class="line">	reconnectToResourceManager(new FlinkException(&quot;Starting JobMaster component.&quot;));</div><div class="line">	// StandaloneLeaderRetrievalService</div><div class="line">	resourceManagerLeaderRetriever.start(new ResourceManagerLeaderListener());</div><div class="line">&#125;</div></pre></td></tr></table></figure>
-</li>
-</ul>
-<p>在reconnectToResourceManager中, 会去尝试初始化, 调用connectToResourceManager:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div></pre></td><td class="code"><pre><div class="line">private void connectToResourceManager() &#123;</div><div class="line">		resourceManagerConnection = new ResourceManagerConnection( //很重要</div><div class="line">			log,</div><div class="line">			jobGraph.getJobID(),</div><div class="line">			resourceId,</div><div class="line">			getAddress(),</div><div class="line">			getFencingToken(),</div><div class="line">			resourceManagerAddress.getAddress(),</div><div class="line">			resourceManagerAddress.getResourceManagerId(),</div><div class="line">			scheduledExecutorService);</div><div class="line">		resourceManagerConnection.start();  //从这里进去，获取注册ResourceManger</div><div class="line">	&#125;</div></pre></td></tr></table></figure></p>
-<p>在ResourceManagerConnection中定义了onRegistrationSuccess, 会去调用establishResourceManagerConnection()函数, 我们进入resourceManagerConnection.start()看下如何建立注册的。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div></pre></td><td class="code"><pre><div class="line">   public void start() &#123;</div><div class="line">       // ResourceManagerConnection</div><div class="line">       final RetryingRegistration&lt;F, G, S&gt; newRegistrationn = createNewRegistration();</div><div class="line">	if (REGISTRATION_UPDATER.compareAndSet(this, null, newRegistration)) &#123;</div><div class="line">	    //会从这里进去，很重要，比如注册ResourceManager</div><div class="line">		newRegistration.startRegistration();</div><div class="line">	&#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
-<p>在createNewRegistration中, 新建注册:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div></pre></td><td class="code"><pre><div class="line">private RetryingRegistration&lt;F, G, S&gt; createNewRegistration() &#123;</div><div class="line">	RetryingRegistration&lt;F, G, S&gt; newRegistration = checkNotNull(generateRegistration());  //跑进去</div><div class="line">	CompletableFuture&lt;Tuple2&lt;G, S&gt;&gt; future = newRegistration.getFuture();</div><div class="line">	future.whenCompleteAsync(</div><div class="line">		(Tuple2&lt;G, S&gt; result, Throwable failure) -&gt; &#123;</div><div class="line">			if (failure != null) &#123;</div><div class="line">			......</div><div class="line">			&#125; else &#123;</div><div class="line">				targetGateway = result.f0;</div><div class="line">				//注意进来，进行pending task分配，调用ResourceManagerConnection.onRegistrationSuccess()</div><div class="line">				onRegistrationSuccess(result.f1);</div><div class="line">			&#125;</div><div class="line">		&#125;, executor);</div><div class="line">	return newRegistration;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
-<p>当注册完成并且没有抛出异常时, 说明注册完成了, 则调用之前的ResourceManagerConnection.onRegistrationSuccess()进行连接, 最终会进去SlotPool.connectToResourceManager()<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div></pre></td><td class="code"><pre><div class="line">public void connectToResourceManager(ResourceManagerGateway resourceManagerGateway) &#123;</div><div class="line">		// 开始申请之前被pending的请求</div><div class="line">		for (PendingRequest pendingRequest : waitingForResourceManager.values()) &#123;</div><div class="line">			requestSlotFromResourceManager(resourceManagerGateway, pendingRequest);</div><div class="line">		&#125;</div><div class="line">		waitingForResourceManager.clear();</div><div class="line">	&#125;</div></pre></td></tr></table></figure></p>
-<p>当完成flink ResourceManager注册、连接后, 我们会逐个申请之前被挂起的请求。然后开始走之后描述的正常申请slot流程。</p>
-<h3 id="向ResourceManager申请slot"><a href="#向ResourceManager申请slot" class="headerlink" title="向ResourceManager申请slot"></a>向ResourceManager申请slot</h3><p>从requestSlotFromResourceManager()中最终会进入registerSlotRequest<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div></pre></td><td class="code"><pre><div class="line">   public boolean registerSlotRequest(SlotRequest slotRequest) throws SlotManagerException &#123;</div><div class="line">    PendingSlotRequest pendingSlotRequest = new PendingSlotRequest(slotRequest);</div><div class="line">	pendingSlotRequests.put(slotRequest.getAllocationId(), pendingSlotRequest);</div><div class="line">	try &#123;</div><div class="line">	    internalRequestSlot(pendingSlotRequest);</div><div class="line">	&#125;</div><div class="line">	return true;</div><div class="line">   &#125;</div><div class="line">   private void internalRequestSlot(PendingSlotRequest pendingSlotRequest) throws ResourceManagerException &#123;</div><div class="line">	//是否发现目前拥有的slot</div><div class="line">	TaskManagerSlot taskManagerSlot = findMatchingSlot(pendingSlotRequest.getResourceProfile());</div><div class="line">	if (taskManagerSlot != null) &#123;</div><div class="line">		allocateSlot(taskManagerSlot, pendingSlotRequest);</div><div class="line">	&#125; else &#123;</div><div class="line">		resourceActions.allocateResource(pendingSlotRequest.getResourceProfile()); //跑到这里</div><div class="line">	&#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
-<p>internalRequestSlot做了如下逻辑:</p>
-<ul>
-<li>通过findMatchingSlot检查是否有现成可用的slot, 其中freeSlots包含着availiable slot. 比如在每当有新的TaskManager向JobManager注册时, 就会调用SlotManager.registerSlotRequest(), 在freeSlots中注册该TM可用的slot。若有可用slot时候, 就会调用allocateSlot进行分配。</li>
-<li>若没有可用空闲slot, 通过allocateResource申请TM, 最终会调用YarnResourceManager.requestYarnContainer进行申请。<br>我们再分别以这两种情况继续介绍。<h4 id="JobManager端有某个TM注册的可用slot"><a href="#JobManager端有某个TM注册的可用slot" class="headerlink" title="JobManager端有某个TM注册的可用slot"></a>JobManager端有某个TM注册的可用slot</h4>若JM端有某个TM注册的可用slot, 那么就会进入allocateSlot来将这个slot分配给这个SubTask:<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div></pre></td><td class="code"><pre><div class="line">private void allocateSlot(TaskManagerSlot taskManagerSlot, PendingSlotRequest pendingSlotRequest) &#123;</div><div class="line">	TaskExecutorConnection taskExecutorConnection = taskManagerSlot.getTaskManagerConnection();</div><div class="line">	TaskExecutorGateway gateway = taskExecutorConnection.getTaskExecutorGateway();</div><div class="line"></div><div class="line">	final CompletableFuture&lt;Acknowledge&gt; completableFuture = new CompletableFuture&lt;&gt;();</div><div class="line">	final AllocationID allocationId = pendingSlotRequest.getAllocationId();</div><div class="line">	final SlotID slotId = taskManagerSlot.getSlotId();</div><div class="line">	final InstanceID instanceID = taskManagerSlot.getInstanceId();</div><div class="line"></div><div class="line">	taskManagerSlot.assignPendingSlotRequest(pendingSlotRequest);</div><div class="line">	pendingSlotRequest.setRequestFuture(completableFuture);</div><div class="line"></div><div class="line">	TaskManagerRegistration taskManagerRegistration = taskManagerRegistrations.get(instanceID);</div><div class="line">       // 既然这个TM上报的slot, 那么这个TM一定已经有注册信息了</div><div class="line">	if (taskManagerRegistration == null) &#123;</div><div class="line">		throw new IllegalStateException(&quot;Could not find a registered task manager for instance id &quot; +</div><div class="line">			instanceID + &apos;.&apos;);</div><div class="line">	&#125;</div><div class="line">	taskManagerRegistration.markUsed();</div><div class="line">	去向TM通信, 告诉TM这个slot已经被请求了</div><div class="line">	// RPC call to the task manager</div><div class="line">	CompletableFuture&lt;Acknowledge&gt; requestFuture = gateway.requestSlot(</div><div class="line">		slotId,</div><div class="line">		pendingSlotRequest.getJobId(),</div><div class="line">		allocationId,</div><div class="line">		pendingSlotRequest.getTargetAddress(),</div><div class="line">		resourceManagerId,</div><div class="line">		taskManagerRequestTimeout);</div><div class="line"></div><div class="line">	requestFuture.whenComplete(</div><div class="line">		(Acknowledge acknowledge, Throwable throwable) -&gt; &#123;</div><div class="line">			if (acknowledge != null) &#123;</div><div class="line">				completableFuture.complete(acknowledge);</div><div class="line">			&#125;</div><div class="line">		&#125;);</div><div class="line"></div><div class="line">	completableFuture.whenCompleteAsync(</div><div class="line">		(Acknowledge acknowledge, Throwable throwable) -&gt; &#123;</div><div class="line">			try &#123;  //去更新本地slot状态, 从可用空闲slot中删掉</div><div class="line">				if (acknowledge != null) &#123;</div><div class="line">					updateSlot(slotId, allocationId, pendingSlotRequest.getJobId());</div><div class="line">				&#125;</div><div class="line">			&#125; catch (Exception e) &#123;</div><div class="line">				LOG.error(&quot;Error while completing the slot allocation.&quot;, e);</div><div class="line">			&#125;</div><div class="line">		&#125;,</div><div class="line">		mainThreadExecutor);</div><div class="line">&#125;</div></pre></td></tr></table></figure>
-</li>
-</ul>
-<p>JM请求某个slot逻辑也比较简单:</p>
-<ol>
-<li>JM直接告诉slot对应TM, 这个slot将被申请</li>
-<li>JM修改这个slot的状态, 并且从本地可用slot中删掉。然后等待subTask被部署到这个TM的slot上<br>我们看下第一步JM是怎么告诉TM这个slot被申请的,  gateway.requestSlot直接通过RPC(通信逻辑<a href="https://kkewwei.github.io/elasticsearch_learning/2019/04/20/Flink%E5%8E%9F%E7%90%86-Akka%E9%80%9A%E4%BF%A1%E6%A8%A1%E5%9D%97/#TM%E5%90%91JM%E6%B3%A8%E5%86%8C">参考</a>)直接向TM的TaskExecutor.requestSlot去了, 我们看下TM是如何做处理的:<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div></pre></td><td class="code"><pre><div class="line">   /**</div><div class="line"> * Add the given job to be monitored. This means that the service tries to detect leaders for</div><div class="line"> * this job and then tries to establish a connection to it.</div><div class="line"> */</div><div class="line">public CompletableFuture&lt;Acknowledge&gt; requestSlot(</div><div class="line">	final SlotID slotId,</div><div class="line">	final JobID jobId,</div><div class="line">	final AllocationID allocationId,</div><div class="line">	final String targetAddress,</div><div class="line">	final ResourceManagerId resourceManagerId,</div><div class="line">	final Time timeout) &#123;</div><div class="line">	log.info(&quot;Receive slot request &#123;&#125; for job &#123;&#125; from resource manager with leader id &#123;&#125;.&quot;,</div><div class="line">		allocationId, jobId, resourceManagerId);</div><div class="line">	try &#123;</div><div class="line">		if (taskSlotTable.isSlotFree(slotId.getSlotNumber())) &#123;</div><div class="line">			if (taskSlotTable.allocateSlot(slotId.getSlotNumber(), jobId, allocationId, taskManagerConfiguration.getTimeout())) &#123;</div><div class="line">				log.info(&quot;Allocated slot for &#123;&#125;.&quot;, allocationId);</div><div class="line">			&#125;</div><div class="line">		&#125;</div><div class="line">		if (jobManagerTable.contains(jobId)) &#123;</div><div class="line">			offerSlotsToJobManager(jobId);</div><div class="line">		&#125; else &#123;</div><div class="line">			try &#123;</div><div class="line">				jobLeaderService.addJob(jobId, targetAddress);  // 跑进去</div><div class="line">			&#125;</div><div class="line">		&#125;</div><div class="line">	&#125;</div><div class="line">	return CompletableFuture.completedFuture(Acknowledge.get());</div><div class="line">&#125;</div></pre></td></tr></table></figure>
-</li>
-</ol>
-<p>主要逻辑如下:</p>
-<ol>
-<li>TM接收到JM的请求后, TM首先检查这个slot是否是空闲的, 若空闲的话, 就开始调用taskSlotTable.allocateSlot(), 将这个slot置为已分配。</li>
-<li>TM调用jobLeaderService.addJob将这个Job监控起来(每当有新的Job请求slot, 就会去检测job的leader, 并去和这个job leader建立链接),最终调用JobManagerLeaderListener.notifyLeaderAddress()-&gt;JobManagerRegisteredRpcConnection.start():<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div></pre></td><td class="code"><pre><div class="line">   public void start() &#123;</div><div class="line">	checkState(!closed, &quot;The RPC connection is already closed&quot;);</div><div class="line">	checkState(!isConnected() &amp;&amp; pendingRegistration == null, &quot;The RPC connection is already started&quot;);</div><div class="line">	final RetryingRegistration&lt;F, G, S&gt; newRegistration = createNewRegistration();</div><div class="line">	if (REGISTRATION_UPDATER.compareAndSet(this, null, newRegistration)) &#123;</div><div class="line">		newRegistration.startRegistration();</div><div class="line">	&#125; else &#123;</div><div class="line">		// concurrent start operation</div><div class="line">		newRegistration.cancel();</div><div class="line">	&#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
-</li>
-</ol>
-<p>这里是不是有点熟悉, 可以参考下<a href="https://kkewwei.github.io/elasticsearch_learning/2019/04/20/Flink%E5%8E%9F%E7%90%86-Akka%E9%80%9A%E4%BF%A1%E6%A8%A1%E5%9D%97/#TM%E5%90%91JM%E6%B3%A8%E5%86%8C">这里</a>, startRegistration主要是向JM发送申请成功通知, TM成功后回调JobManagerRegisteredRpcConnection.onRegistrationSuccess, 最终调用TaskExecutor.establishJobManagerConnection:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div></pre></td><td class="code"><pre><div class="line">private void establishJobManagerConnection(JobID jobId, final JobMasterGateway jobMasterGateway, JMTMRegistrationSuccess registrationSuccess) &#123;</div><div class="line">	if (jobManagerTable.contains(jobId)) &#123;</div><div class="line">		JobManagerConnection oldJobManagerConnection = jobManagerTable.get(jobId);</div><div class="line"></div><div class="line">		if (Objects.equals(oldJobManagerConnection.getJobMasterId(), jobMasterGateway.getFencingToken())) &#123;</div><div class="line">			// we already are connected to the given job manager</div><div class="line">			log.debug(&quot;Ignore JobManager gained leadership message for &#123;&#125; because we are already connected to it.&quot;, jobMasterGateway.getFencingToken());</div><div class="line">			return;</div><div class="line">		&#125;</div><div class="line">	&#125;</div><div class="line">	ResourceID jobManagerResourceID = registrationSuccess.getResourceID();</div><div class="line">	JobManagerConnection newJobManagerConnection = associateWithJobManager(</div><div class="line">			jobId,</div><div class="line">			jobManagerResourceID,</div><div class="line">			jobMasterGateway);</div><div class="line">	jobManagerConnections.put(jobManagerResourceID, newJobManagerConnection);</div><div class="line">	jobManagerTable.put(jobId, newJobManagerConnection);  // 设置的是每个Job在TM这里的注册</div><div class="line"></div><div class="line">	// monitor the job manager as heartbeat target</div><div class="line">	jobManagerHeartbeatManager.monitorTarget(jobManagerResourceID, new HeartbeatTarget&lt;AccumulatorReport&gt;() &#123;</div><div class="line">		@Override</div><div class="line">		public void receiveHeartbeat(ResourceID resourceID, AccumulatorReport payload) &#123;</div><div class="line">			jobMasterGateway.heartbeatFromTaskManager(resourceID, payload);</div><div class="line">		&#125;</div><div class="line"></div><div class="line">		@Override</div><div class="line">		public void requestHeartbeat(ResourceID resourceID, AccumulatorReport payload) &#123;</div><div class="line">			// request heartbeat will never be called on the task manager side</div><div class="line">		&#125;</div><div class="line">	&#125;);</div><div class="line"></div><div class="line">	offerSlotsToJobManager(jobId);</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
-<p>主要做了如下事情:</p>
-<ol>
-<li>检查这个job是否已经在TM端注册了, 若注册了, 那么就直接返回</li>
-<li>否则建立job-&gt;JobManagerConnection, 将映射关系放入TaskExecutor的jobManagerTable中, 然后监控这个job master。</li>
-<li>调用offerSlotsToJobManager, 告诉JM, 分配给Task这个slot。</li>
-</ol>
-<h4 id="JobManager端没有TM注册的可用slot"><a href="#JobManager端没有TM注册的可用slot" class="headerlink" title="JobManager端没有TM注册的可用slot"></a>JobManager端没有TM注册的可用slot</h4><p>若没有可用slot的话, 那么就只能去申请TM, 申请的TM会上报可用slot, 然后再向这个TM申请部署SubTask, 此时就回到了有可用slot的情况了。我们看下是如何申请TM的。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div></pre></td><td class="code"><pre><div class="line">   // //resource 是当前申请的container情况，比如&lt;memory:6552, vCores:4&gt;</div><div class="line">   private void requestYarnContainer(Resource resource, Priority priority) &#123;</div><div class="line">       //获取当前实际正在申请的slot个数</div><div class="line">	int pendingSlotRequests = getNumberPendingSlotRequests();</div><div class="line">	// 通过当前正在申请的Contaainer个数*numberOfTaskSlots计算出预计当前正在申请的slot个数</div><div class="line">	int pendingSlotAllocation = numPendingContainerRequests * numberOfTaskSlots;</div><div class="line">	//若当前实际申请的slot个数 &gt; 预计申请的slot个数, 那么需要去申请新的container, 来满足实际申请的slot个数</div><div class="line">	if (pendingSlotRequests &gt; pendingSlotAllocation) &#123;</div><div class="line">	    // 向yarn 发送申请container的请求。</div><div class="line">		resourceManagerClient.addContainerRequest(new AMRMClient.ContainerRequest(resource, null, null, priority));</div><div class="line">		resourceManagerClient.setHeartbeatInterval(FAST_YARN_HEARTBEAT_INTERVAL_MS);</div><div class="line">		//正在申请的container统计自增</div><div class="line">		numPendingContainerRequests++;</div><div class="line">	&#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
-<h3 id="申请container成功"><a href="#申请container成功" class="headerlink" title="申请container成功"></a>申请container成功</h3><p>当向yarn成功申请到container之后, 会回调YarnResourceManager.onContainersAllocated通知jobManager。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div></pre></td><td class="code"><pre><div class="line">public void onContainersAllocated(List&lt;Container&gt; containers) &#123;</div><div class="line">	runAsync(() -&gt; &#123;</div><div class="line">		for (Container container : containers) &#123;</div><div class="line">			if (numPendingContainerRequests &gt; 0) &#123;</div><div class="line">				numPendingContainerRequests--;</div><div class="line">				final String containerIdStr = container.getId().toString();</div><div class="line">				final ResourceID resourceId = new ResourceID(containerIdStr);</div><div class="line">				workerNodeMap.put(resourceId, new YarnWorkerNode(container));</div><div class="line">				try &#123;</div><div class="line">					// 产生tm启动命令</div><div class="line">					ContainerLaunchContext taskExecutorLaunchContext = createTaskExecutorLaunchContext(</div><div class="line">						container.getResource(),</div><div class="line">						containerIdStr,</div><div class="line">						container.getNodeId().getHost());</div><div class="line">                      // 启动TaskManager</div><div class="line">					nodeManagerClient.startContainer(container, taskExecutorLaunchContext);</div><div class="line">				&#125;</div><div class="line">			&#125;</div><div class="line">		&#125;</div><div class="line">		// if we are waiting for no further containers, we can go to the</div><div class="line">		// regular heartbeat interval</div><div class="line">		if (numPendingContainerRequests &lt;= 0) &#123;</div><div class="line">			resourceManagerClient.setHeartbeatInterval(yarnHeartbeatIntervalMillis);</div><div class="line">		&#125;</div><div class="line">	&#125;);</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
-<p>回调函数主要做了如下逻辑:</p>
-<ol>
-<li>确定启动taskManager的命令。</li>
-<li>通过yarn启动taskManager。<br>我们来放一张整体JobManager端分配Slot的流程图:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/Flink_slot_allocate1.png" height="300" width="800"></li>
-</ol>
-<h2 id="部署subTask到对应的slot"><a href="#部署subTask到对应的slot" class="headerlink" title="部署subTask到对应的slot"></a>部署subTask到对应的slot</h2><p>当确定好subTask部署到一个TaskManager的slot上之后, 在scheduleEager中就开始调用Execution.deploy()进行部署。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div></pre></td><td class="code"><pre><div class="line">public void deploy() throws JobException &#123;</div><div class="line">		final LogicalSlot slot  = assignedResource;  // SingleLogicalSlot</div><div class="line">		try &#123;</div><div class="line">			final TaskDeploymentDescriptor deployment = vertex.createDeploymentDescriptor(</div><div class="line">				attemptId,</div><div class="line">				slot, // SingleLogicalSlot</div><div class="line">				taskRestore,</div><div class="line">				attemptNumber);</div><div class="line">			// null taskRestore to let it be GC&apos;ed</div><div class="line">			taskRestore = null;</div><div class="line">			final TaskManagerGateway taskManagerGateway = slot.getTaskManagerGateway();</div><div class="line">			final CompletableFuture&lt;Acknowledge&gt; submitResultFuture = taskManagerGateway.submitTask(deployment, rpcTimeout);</div><div class="line">		&#125;</div><div class="line">	&#125;</div><div class="line">    public CompletableFuture&lt;Acknowledge&gt; submitTask(TaskDeploymentDescriptor tdd, Time timeout) &#123;</div><div class="line">        // 实际会去调用AkkaInvocationHandler，而去和tm通信，而不是跑到TaskExecutor.submitTask</div><div class="line">		return taskExecutorGateway.submitTask(tdd, jobMasterId, timeout);</div><div class="line">    &#125;</div></pre></td></tr></table></figure></p>
-<p>可以看到:</p>
-<ul>
-<li>首先生成TaskDeploymentDescriptor, 包含部署subTask的所有信息。</li>
-<li>调用taskManagerGateway.submitTask(deployment, rpcTimeout)进行部署subTask, JM接收RPC可参考:<a href="https://kkewwei.github.io/elasticsearch_learning/2019/04/20/Flink%E5%8E%9F%E7%90%86-Akka%E9%80%9A%E4%BF%A1%E6%A8%A1%E5%9D%97/">link原理-Akka通信原理</a> 。<br>TaskManager端通过TaskExecutor.subTask()接受到JobManager发出的部署SubTask的申请, 这样就完成SubTask部署了。</li>
-</ul>
-<h1 id="SlotSharingGroup及共享slot"><a href="#SlotSharingGroup及共享slot" class="headerlink" title="SlotSharingGroup及共享slot"></a>SlotSharingGroup及共享slot</h1><p>Flink 允许相同SlotSharingGroup的subTask共享同一个slot, 好处主要有俩:</p>
-<ul>
-<li>A Flink cluster needs exactly as many task slots as the highest parallelism used in the job. No need to calculate how many tasks (with varying parallelism) a program contains in total.</li>
-<li>It is easier to get better resource utilization. Without slot sharing, the non-intensive source/map() subtasks would block as many resources as the resource intensive window subtasks. With slot sharing, increasing the base parallelism in our example from two to six yields full utilization of the slotted resources, while making sure that the heavy subtasks are fairly distributed among the TaskManagers.<br>默认情况下, SubTask使用相同的slot共享组: Default, task共享slot过程可以参考:<a href="https://ci.apache.org/projects/flink/flink-docs-release-1.8/concepts/runtime.html#task-slots-and-resources" target="_blank" rel="external">如何共享slot</a><br>这里将阐述SlotSharingGroup是如何生成并起作用的:<br>在JobGraph产生的时候调用setSlotSharingAndCoLocation()函数:<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div></pre></td><td class="code"><pre><div class="line">private void setSlotSharingAndCoLocation() &#123;</div><div class="line">	final HashMap&lt;String, SlotSharingGroup&gt; slotSharingGroups = new HashMap&lt;&gt;();</div><div class="line">	for (Entry&lt;Integer, JobVertex&gt; entry : jobVertices.entrySet()) &#123;</div><div class="line">		final StreamNode node = streamGraph.getStreamNode(entry.getKey());</div><div class="line">		final JobVertex vertex = entry.getValue();// slotSharingGroupKey为默认值default</div><div class="line">		final String slotSharingGroupKey = node.getSlotSharingGroup();</div><div class="line">		final SlotSharingGroup sharingGroup;</div><div class="line">		if (slotSharingGroupKey != null) &#123;</div><div class="line">		    // 可以看到, 所有的task的group都为default, 都将放入到同一个SlotSharingGroup中</div><div class="line">			sharingGroup = slotSharingGroups.computeIfAbsent(slotSharingGroupKey, (k) -&gt; new SlotSharingGroup());</div><div class="line">			vertex.setSlotSharingGroup(sharingGroup);</div><div class="line">		&#125; else &#123;</div><div class="line">			sharingGroup = null;</div><div class="line">		&#125;</div></pre></td></tr></table></figure>
-</li>
-</ul>
-<p>这样, 所有的JobVertex都引用了同一个SlotSharingGroup。 而<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div></pre></td><td class="code"><pre><div class="line">   public void setSlotSharingGroup(SlotSharingGroup grp) &#123;</div><div class="line">	if (this.slotSharingGroup != null) &#123;</div><div class="line">		this.slotSharingGroup.removeVertexFromGroup(id);</div><div class="line">	&#125;</div><div class="line">	this.slotSharingGroup = grp;</div><div class="line">	if (grp != null) &#123;</div><div class="line">		grp.addVertexToGroup(id);</div><div class="line">	&#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
-<p>每个共享组的id都是相同的。</p>
-<h1 id="MultiTaskSlot及SingleTaskSlot"><a href="#MultiTaskSlot及SingleTaskSlot" class="headerlink" title="MultiTaskSlot及SingleTaskSlot"></a>MultiTaskSlot及SingleTaskSlot</h1><p>MultiTaskSlot及SingleTaskSlot都继承TaskSlot, 每当subTask申请到一个未被共享的slot时, 就会产生一个MultiTaskSlot, 它代表着一个TM上的slot, 管理着该slot被共享的情况。 实际分配给每个subTask时, 会单独产生一个SingleTaskSlot, 然后每次被MultiTaskSlot管理着。之后若共享slot时, 分配到的都是同一个MultiTaskSlot, 不同的是每次每次分配都产生新的SingleTaskSlot。</p>
-<h1 id="参考文档"><a href="#参考文档" class="headerlink" title="参考文档"></a>参考文档</h1><p><a href="https://ci.apache.org/projects/flink/flink-docs-release-1.8/concepts/runtime.html" target="_blank" rel="external">https://ci.apache.org/projects/flink/flink-docs-release-1.8/concepts/runtime.html</a><br><a href="https://ci.apache.org/projects/flink/flink-docs-release-1.8/internals/job_scheduling.html" target="_blank" rel="external">https://ci.apache.org/projects/flink/flink-docs-release-1.8/internals/job_scheduling.html</a><br><a href="http://wuchong.me/blog/2016/05/03/flink-internals-overview/" target="_blank" rel="external">http://wuchong.me/blog/2016/05/03/flink-internals-overview/</a><br><a href="http://wuchong.me/blog/2016/05/09/flink-internals-understanding-execution-resources/" target="_blank" rel="external">http://wuchong.me/blog/2016/05/09/flink-internals-understanding-execution-resources/</a></p>
-
-      
-
-      
-        <div class="page-reward">
-          <a href="javascript:;" class="page-reward-btn tooltip-top">
-            <div class="tooltip tooltip-east">
-            <span class="tooltip-item">
-              赏
-            </span>
-            <span class="tooltip-content">
-              <span class="tooltip-text">
-                <span class="tooltip-inner">
-                  <p class="reward-p"><i class="icon icon-quo-left"></i>谢谢阅读<i class="icon icon-quo-right"></i></p>
-                  <div class="reward-box">
-                    
-                    
-                  </div>
-                </span>
-              </span>
-            </span>
-          </div>
-          </a>
-        </div>
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color3">Flink、Slot分配、SubTask申请slot, SubTask部署</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/elasticsearch_learning/categories/Flink//" class="article-tag-list-link color1">Flink</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-
-      
-        
-<div class="share-btn share-icons tooltip-left">
-  <div class="tooltip tooltip-east">
-    <span class="tooltip-item">
-      <a href="javascript:;" class="share-sns share-outer">
-        <i class="icon icon-share"></i>
-      </a>
-    </span>
-    <span class="tooltip-content">
-      <div class="share-wrap">
-        <div class="share-icons">
-          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
-            <i class="icon icon-weibo"></i>
-          </a>
-          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
-            <i class="icon icon-weixin"></i>
-          </a>
-          <a class="qq share-sns" href="javascript:;" data-type="qq">
-            <i class="icon icon-qq"></i>
-          </a>
-          <a class="douban share-sns" href="javascript:;" data-type="douban">
-            <i class="icon icon-douban"></i>
-          </a>
-          <a class="qzone share-sns" href="javascript:;" data-type="qzone">
-            <i class="icon icon-qzone"></i>
-          </a>
-          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
-            <i class="icon icon-facebook"></i>
-          </a>
-          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
-            <i class="icon icon-twitter"></i>
-          </a>
-          <a class="google share-sns" href="javascript:;" data-type="google">
-            <i class="icon icon-google"></i>
-          </a>
-        </div>
-      </div>
-    </span>
-  </div>
-</div>
-
-<div class="page-modal wx-share js-wx-box">
-    <a class="close js-modal-close" href="javascript:;"><i class="icon icon-close"></i></a>
-    <p>扫一扫，分享到微信</p>
-    <div class="wx-qrcode">
-      <img src="//pan.baidu.com/share/qrcode?url=https://kkewwei.github.io/elasticsearch_learning/2019/03/12/Flink原理-slot分配/" alt="微信分享二维码">
-    </div>
-</div>
-
-<div class="mask js-mask"></div>
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-  
-<nav id="article-nav">
-  
-    <a href="/elasticsearch_learning/2019/04/03/Flink原理-TaskManager处理SubTask/" id="article-nav-newer" class="article-nav-link-wrap">
-      <i class="icon-circle-left"></i>
-      <div class="article-nav-title">
-        
-          Flink原理-TaskManager处理SubTask
-        
-      </div>
-    </a>
-  
-  
-    <a href="/elasticsearch_learning/2019/01/16/Netty对象回收池Recycler原理详解/" id="article-nav-older" class="article-nav-link-wrap">
-      <div class="article-nav-title">Netty对象回收池Recycler原理详解</div>
-      <i class="icon-circle-right"></i>
-    </a>
-  
-</nav>
-
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-        <div class="toc-container tooltip-left">
-            <i class="icon-font icon-category"></i>
-            <div class="tooltip tooltip-east">
-                <span class="tooltip-item">
-                </span>
-                <span class="tooltip-content">
-                    <div class="toc-article">
-                    <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#Task分配slot及部署"><span class="toc-number">1.</span> <span class="toc-text">Task分配slot及部署</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#确定subTask分配的slot"><span class="toc-number">1.1.</span> <span class="toc-text">确定subTask分配的slot</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#缓存申请Slot的请求"><span class="toc-number">1.1.1.</span> <span class="toc-text">缓存申请Slot的请求</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#向ResourceManager申请slot"><span class="toc-number">1.1.2.</span> <span class="toc-text">向ResourceManager申请slot</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#JobManager端有某个TM注册的可用slot"><span class="toc-number">1.1.2.1.</span> <span class="toc-text">JobManager端有某个TM注册的可用slot</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#JobManager端没有TM注册的可用slot"><span class="toc-number">1.1.2.2.</span> <span class="toc-text">JobManager端没有TM注册的可用slot</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#申请container成功"><span class="toc-number">1.1.3.</span> <span class="toc-text">申请container成功</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#部署subTask到对应的slot"><span class="toc-number">1.2.</span> <span class="toc-text">部署subTask到对应的slot</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#SlotSharingGroup及共享slot"><span class="toc-number">2.</span> <span class="toc-text">SlotSharingGroup及共享slot</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#MultiTaskSlot及SingleTaskSlot"><span class="toc-number">3.</span> <span class="toc-text">MultiTaskSlot及SingleTaskSlot</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#参考文档"><span class="toc-number">4.</span> <span class="toc-text">参考文档</span></a></li></ol>
-                    </div>
-                </span>
-            </div>
-        </div>
-        
-    </div>
-</aside>
-
-
-
-  
-
-  
-
-  
-
-  
-
-  
-  <div id="gitment-ctn"></div>
-<link rel="stylesheet" href="//imsun.github.io/gitment/style/default.css">
-<script src="//www.wenjunjiang.win/js/gitment.js "></script>
-<script>
-var gitment = new Gitment({
-  id: "Flink原理-JobManager端的SubTask申请slot及部署",
-  owner: 'kkewwei',
-  repo: 'comments',
-  oauth: {
-    client_id: '9391e497d6b288887f33',
-    client_secret: 'db733731bff4ee2811d9530b1ac4cfc6767e8183',
-  },
-})
-gitment.render('gitment-ctn')
-</script>
-
-  
-
-
+            
           </div>
         </div>
       </div>
@@ -638,11 +280,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">NIO, write, read</a>
+                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
+                <a href="javascript:void(0)" class="js-tag color2">NIO, write, read</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -650,15 +292,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">LockSupport</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">Lucene、ByteBlockPool</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">Lucene、词典、tim、tip、doc、pos、fst、倒排索引</a>
+                <a href="javascript:void(0)" class="js-tag color2">LockSupport</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">Lucene、StoredField</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -666,7 +308,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">Lucene、StoredField</a>
+                <a href="javascript:void(0)" class="js-tag color5">Lucene、词典、tim、tip、doc、pos、fst、倒排索引</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -706,11 +348,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
+                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
+                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
               </li>
              
               <li class="article-tag-list-item">

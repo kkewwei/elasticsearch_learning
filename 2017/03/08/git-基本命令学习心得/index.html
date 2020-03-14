@@ -52,57 +52,39 @@
   <div id="container" q-class="show:isCtnShow">
     <canvas id="anm-canvas" class="anm-canvas"></canvas>
     <div class="left-col" q-class="show:isShow">
-      
-<div class="overlay" style="background: #4d4d4d"></div>
+      <% var defaultBg = '#4d4d4d'; %>
+<div class="overlay" style="background: <%= theme.style && theme.style.header ? theme.style.header : defaultBg %>"></div>
 <div class="intrude-less">
 	<header id="header" class="inner">
-		<a href="/" class="profilepic">
-      <img src="https://kkewwei.github.io/elasticsearch_learning/img/myself.png" class="js-avatar">
+		<a href="<%=theme.root%>" class="profilepic">
+			<img src="<%=theme.avatar%>" class="js-avatar">
 		</a>
 		<hgroup>
-		  <h1 class="header-author"><a href="/">jianguo</a></h1>
+		  <h1 class="header-author"><a href="<%=theme.root%>"><%=theme.author%></a></h1>
 		</hgroup>
-		
-		<p class="header-subtitle">往事随风</p>
-		
+		<% if (theme.subtitle){ %>
+		<p class="header-subtitle"><%=theme.subtitle%></p>
+		<%}%>
 
 		<nav class="header-menu">
 			<ul>
-			
-				<li><a href="/elasticsearch_learning/">主页</a></li>
-	        
-				<li><a href="/elasticsearch_learning/tags/随笔/">随笔</a></li>
-	        
-				<li><a href="/elasticsearch_learning/categories">分类</a></li>
-	        
+			<% for (var i in theme.menu){ %>
+				<li><a href="<%- url_for(theme.menu[i]) %>"><%= i %></a></li>
+	        <%}%>
 			</ul>
 		</nav>
 		<nav class="header-smart-menu">
-    		
-    			
-    			<a q-on="click: openSlider(e, 'innerArchive')" href="javascript:void(0)">所有文章</a>
-    			
-            
-    			
-    			<a q-on="click: openSlider(e, 'friends')" href="javascript:void(0)">友链</a>
-    			
-            
-    			
-    			<a q-on="click: openSlider(e, 'aboutme')" href="javascript:void(0)">关于我</a>
-    			
-            
+    		<% for (var i in theme.smart_menu){ %>
+    			<% if(theme.smart_menu[i]){ %>
+    			<a q-on="click: openSlider(e, '<%-i%>')" href="javascript:void(0)"><%= theme.smart_menu[i] %></a>
+    			<% } %>
+            <%}%>
 		</nav>
 		<nav class="header-nav">
 			<div class="social">
-				
-					<a class="github" target="_blank" href="#" title="github"><i class="icon-github"></i></a>
-		        
-					<a class="weibo" target="_blank" href="#" title="weibo"><i class="icon-weibo"></i></a>
-		        
-					<a class="rss" target="_blank" href="#" title="rss"><i class="icon-rss"></i></a>
-		        
-					<a class="zhihu" target="_blank" href="#" title="zhihu"><i class="icon-zhihu"></i></a>
-		        
+				<% for (var i in theme.subnav){ %>
+					<a class="<%= i %>" target="_blank" href="<%- url_for(theme.subnav[i]) %>" title="<%= i %>"><i class="icon-<%= i %>"></i></a>
+		        <%}%>
 			</div>
 		</nav>
 	</header>
@@ -174,279 +156,7 @@
             <canvas data-colors="#eaeaea" data-sectionHeight="100" data-contentId="js-content" id="myCanvas1" class="anm-canvas"></canvas>
           </div>
           <div id="js-content" class="content-ll">
-            <article id="post-git-基本命令学习心得" class="article article-type-post " itemscope itemprop="blogPost">
-  <div class="article-inner">
-    
-      <header class="article-header">
-        
-  
-    <h1 class="article-title" itemprop="name">
-      git 基本命令学习心得-1
-    </h1>
-  
-
-        
-        <a href="/elasticsearch_learning/2017/03/08/git-基本命令学习心得/" class="archive-article-date">
-  	<time datetime="2017-03-08T04:46:57.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-03-08</time>
-</a>
-        
-      </header>
-      
-      <span class="archive-article-date">
-              阅读量 <span id="busuanzi_value_page_pv"></span>
-      </span>
-
-    
-
-    <!-- 目录内容 -->
-    
-      <p class="show-toc-btn" id="show-toc-btn" onclick="showToc();" style="display:none">
-        <span class="btn-bg"></span>
-        <span class="btn-text">文章导航</span>
-      </p>
-	    <div id="toc-article" class="toc-article">
-	      <span id="toc-close" class="toc-close" title="隐藏导航" onclick="showBtn();">×</span>
-		      <strong class="toc-title">文章目录</strong>
-        <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#rebase"><span class="toc-number">1.</span> <span class="toc-text">rebase</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#半路rebase"><span class="toc-number">1.1.</span> <span class="toc-text">半路rebase</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#rebase-i-参数"><span class="toc-number">1.2.</span> <span class="toc-text">rebase -i 参数</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#i参数控制复制、删除、重置提交顺序等"><span class="toc-number">1.3.</span> <span class="toc-text">i参数控制复制、删除、重置提交顺序等</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#cherry-pick"><span class="toc-number">2.</span> <span class="toc-text">cherry-pick</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#revert"><span class="toc-number">3.</span> <span class="toc-text">revert</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#checkout"><span class="toc-number">4.</span> <span class="toc-text">checkout</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#reset"><span class="toc-number">5.</span> <span class="toc-text">reset</span></a></li></ol>
-         </div>
-   <script type="text/javascript">
-	function showToc(){
-		var toc_article = document.getElementById("toc-article");
-		var show_toc_btn = document.getElementById("show-toc-btn");
-		toc_article.setAttribute("style","display:block");
-		show_toc_btn.setAttribute("style","display:none");
-		};
-	function showBtn(){
-		var toc_article = document.getElementById("toc-article");
-		var show_toc_btn = document.getElementById("show-toc-btn");
-		toc_article.setAttribute("style","display:none");
-		show_toc_btn.setAttribute("style","display:block");
-		};
-   </script>
-      
-    <!-- 目录内容结束 -->
-
-    <div class="article-entry" itemprop="articleBody">
-      
-        <p>一般在公共分支上操作,不能修改分支的提交记录, 但是可以使用cherry-pick, revert这样的可以使用, 而rebase, reset这样的命令一般在私有分支上才可用。</p>
-<h1 id="rebase"><a href="#rebase" class="headerlink" title="rebase"></a>rebase</h1><p>git rebase是用来更改提交的基, 通过重新在当前分支提交一连串的commit来实现的, 比如dev分支从master A提交产生的, 在master分支又进行了B、C、D提交, 在dev分支进行了E、F、G提交, 此时为了保证D能够合并到master最新的D提交上, 那么就使用rebase。<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/git_rebase3.png" height="300" width="550"><br><code>git:(dev) git rebase master</code>, 此时处于G(最新提交)操作。变基是以共同祖先节点开始变的, 执行后就像放电影一样, 会将E、F、G的所有内容顺序与D合并。比如基于D与E合并后变成D’, 基于D’与F合并变成F’, 基于F’和G合并变成G’。箭头代表着基于哪些commit进行了merge。 完成rebase操作后, 提交链路被就改了。<br>用法:1.git rebase master 2. 通过vim解决冲突, 3.使用git add .保存 4.git rebase –continue继续解决下一个冲突<br>注意: 并没有要求修改comment, commit不变</p>
-<h2 id="半路rebase"><a href="#半路rebase" class="headerlink" title="半路rebase"></a>半路rebase</h2><p>以上示例是我们在dev分支的最新提交H上进行rebase的, 假如我们不在最新G上操作, 而是在F上进行rebase操作, 会出现什么结果呢?<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/git_rebase2.png" height="300" width="550"><br>可以看到dev分支没有任何变化, 而是将EF提交分别与D提交合并, 使EF部分变基到master分支上。</p>
-<h2 id="rebase-i-参数"><a href="#rebase-i-参数" class="headerlink" title="rebase -i 参数"></a>rebase -i 参数</h2><p>-i参数使rebase将于用户交互的形式完成merge, 根据这个参数, 用户可以完成多次提交顺序的复制、删除、编辑commit、修改提交顺序等一系列操作。<br><code>git:(dev): git rebase -i master</code>之后, 将弹出这样的界面:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/git_rebase5.png" height="350" width="450"></p>
-<p>红框1说明dev分支从master分支产生之后, 进行了三次提交, 这三次提交会和master最新的提交分别顺序进行合并。 红框1里面每行分为三部分:</p>
-<ul>
-<li>操作action</li>
-<li>commit hash值</li>
-<li>commit commit<br>其中action介绍在红框2中, 主要分为这几种类型:<br>1) p pick = use commit: 提交这次commit, 分别修改每次提交的comment内容。<br>git rebase -i master这种和别的分支进行rebase, 所有提交的comment是可以修改成功的。<br>git rebase -i HEAD~3 这种和本身历史提交进行rebase, 也提示需要修改comment, 但是最终没有生效。<br>2) r, reword = use commit, but edit the commit message: 提交这次commit, 同时修改这次comment的内容<br>git rebase -i HEAD~3 这种和本身历史提交进行rebase, 也提示需要修改comment, 同时修改这次comment的内容, 可以成功, 仅仅当前一次提交。(与说明相符)<br>git rebase -i master这种和别的分支进行rebase, 修改comment是可以修改成功的。 但是总是发生某些提交丢失的情况, 一般禁止使用。<br>3) e, edit = use commit, but stop for amending<br>git rebase -i master: 和p参数没啥区别, 能修改所有提交的comment<br>git rebase -i HEAD~3 : 可以停下来让你修改当前comment, 直到你调用–continue才能继续<br>4) s, squash = use commit, but meld into previous commit: 提交这次commit, 将本次提交和上次的提交合并(提交内容和提交comment都合并进去),使看起来是一次提交。<br>执行以下命令:<code>git:(dev): git rebase -i HEAD~3</code>, 并且修改action如下:<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line">pick 159f932 d1</div><div class="line">squash 4279e75 d2</div><div class="line">pick 116755e d3</div></pre></td></tr></table></figure>
-</li>
-</ul>
-<p><img src="https://kkewwei.github.io/elasticsearch_learning/img/git_rebase6.png" height="350" width="450"><br>git log展示如上, 可以看出第一个和第二次的提交合并了, 所有的提交comment都修改了。<br>git rebase -i master也能和描述也是一致的。<br>5) f, fixup = like “squash”, but discard this commit’s log message: 和squash效果一样, 和之前提交的commit会合并到一起, 本次提交的comment会直接丢弃。<br>git rebase -i master: 可以一起修改前缀的comment(也可以将#去掉,同一个comment分两行显示两个comment), 后续的提交还可以修改comment。<br>git rebase -i HEAD~3 : 这次提交的coment直接丢弃, 所有提交都不给改的机会。<br>6) x, exec = run command (the rest of the line) using shell :执行shell命令, 可以忽略使用<br>7) d, drop = remove commit 直接丢弃这次提交(包括提交内容与comment)</p>
-<h2 id="i参数控制复制、删除、重置提交顺序等"><a href="#i参数控制复制、删除、重置提交顺序等" class="headerlink" title="i参数控制复制、删除、重置提交顺序等"></a>i参数控制复制、删除、重置提交顺序等</h2><p>rebase -i参数可以通过重复上面的提交记录操作这些操作, 比如:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line">pick 159f932 d1</div><div class="line">squash 4279e75 d2</div><div class="line">pick 116755e d3</div><div class="line">pick 159f932 d1</div></pre></td></tr></table></figure></p>
-<p>该提交将重复提交第一次提交, 提交结果如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/git_rebase7.png" height="350" width="450"><br>本地rebase之后再向远程推送, 可能会冲突, 这时确定没有人在基于那个分支分发的话, 可以通过git push –force origin mybranch分支。 master一般不允许直接这么弄</p>
-<h1 id="cherry-pick"><a href="#cherry-pick" class="headerlink" title="cherry-pick"></a>cherry-pick</h1><p>cherry-pick主要是将一个分支单独的提交变化合并到另外一个分支上, 以下图为例, 当前处于master的D提交上, 想让dev分支上的G提交改变合并到当前master分支上, 那么就执行:<br><code>git:(master D提交): git cherry-pick G</code>, 提交完成后, G提交出的变化代码就会和master分支D处全部代码合并, 产生提交D’。注意,这里虽然合并了, 但是并没有改变分支提交记录, 图中用虚线表达着从提交历史上看, D’和G毫无关联。<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/git_rebase10.png" height="350" width="450"><br>cherry-pick在提取G提交的变化时, 能将变化抽取出来的, 就将变化提取出来, 能合并就合并。变化合并到D时, 有冲突就解决冲突。<br>cherry-pick与rebase使用上的区别:<br>rebase: 修改提交历史, 改变的是整个分支的提交基, 将每次提交都与另外一个分支提交一一合并。<br>cherry-pick: 不会修改提交历史,仅仅产生一个新的提交。像挑选樱桃一样, 可以某个分支某次提交与另一个分支提交代码合并。<br>-m 参数<br>git cherry-pick G -m 1/2等<br>git show –pretty=raw xszdsdsdds<br><a href="https://stackoverflow.com/questions/12626754/git-cherry-pick-syntax-and-merge-branches/12628579#12628579" target="_blank" rel="external">https://stackoverflow.com/questions/12626754/git-cherry-pick-syntax-and-merge-branches/12628579#12628579</a></p>
-<h1 id="revert"><a href="#revert" class="headerlink" title="revert"></a>revert</h1><p>revert的含义是撤销(丢弃)某次提交, 下图为例, 比如想撤销G提交: <code>git:(master D提交): git revert G</code>, 实际就是丢弃G的提交, 具体实现是将G提交变化从当前提交D中去掉, 然后产生新的提交D’。<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/git_revert1.png" height="350" width="450"><br>同cherry-pick一样, 并不改变历史提交记录, 仅仅将D和F(G的父提交)合并, 产生的新提交D’与G提交没有任何关系。<br>比如<code>git:(master D提交): git revert HEAD</code>, 撤销最近一次提交(也就提交D提交), 可能要产生冲突, 解决冲突后通过git add、git revert –continue来完成此次操作。</p>
-<h1 id="checkout"><a href="#checkout" class="headerlink" title="checkout"></a>checkout</h1><p>checkout主要是从<code>对象库中(仓库)</code>拿出一个提交, 然后放在工作目录中, HEAD会指向当前提交(前提是工作区、暂存区、本地仓库一致, 否则会冲突); 附带功能是从<code>暂存区(索引)</code>中检出文件来重置工作区的文件, 使用示例如下:</p>
-<ul>
-<li>git:(master D提交): git checkout G<br>将当前分支切换到G提交上面去, 此时工作区、暂存区、本地仓库代码将一致</li>
-<li>git:(master D提交): git checkout – file1<br>用<code>暂存区</code>的文件file1来重置<code>工作区</code>的file1, 而不是从本地代码仓库来恢复。</li>
-<li>git:(master D提交): git checkout G – file1<br>用G提交的代码<code>暂存区</code>的文件file1来重置<code>工作区</code>的file1。<br>checkout不会去修改提交记录, 仅仅是修改了HEAD。</li>
-</ul>
-<h1 id="reset"><a href="#reset" class="headerlink" title="reset"></a>reset</h1><p>reset主要是将仓库中的某次提交拿出来, 然后放回到暂存区、工作目录中, HEAD, master会指向当前提交, 提交历史会被改变。</p>
-<ul>
-<li>在切换到某一次提交时, 可使用 三个参数:<br>—soft: 仅仅是将当前master、HEAD指针指向commit3<br>—mixed: 在—soft的基础上, 用commit3的提交来重置暂存区。(默认)<br>—hard: 在—hard的集群上, 用commit3的提交来重置暂存区、工作区。<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/git_reset.png" height="250" width="700"></li>
-<li>git:(master D提交): git reset HEAD file1<br>用<code>本地代码仓库</code>的文件file1来重置<code>暂存区</code>(索引)的file1。</li>
-</ul>
-
-      
-
-      
-        <div class="page-reward">
-          <a href="javascript:;" class="page-reward-btn tooltip-top">
-            <div class="tooltip tooltip-east">
-            <span class="tooltip-item">
-              赏
-            </span>
-            <span class="tooltip-content">
-              <span class="tooltip-text">
-                <span class="tooltip-inner">
-                  <p class="reward-p"><i class="icon icon-quo-left"></i>谢谢阅读<i class="icon icon-quo-right"></i></p>
-                  <div class="reward-box">
-                    
-                    
-                  </div>
-                </span>
-              </span>
-            </span>
-          </div>
-          </a>
-        </div>
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color2">git, rebase, cherry-pick, reset, checkout</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/elasticsearch_learning/categories/工具学习//" class="article-tag-list-link color5">工具学习</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-
-      
-        
-<div class="share-btn share-icons tooltip-left">
-  <div class="tooltip tooltip-east">
-    <span class="tooltip-item">
-      <a href="javascript:;" class="share-sns share-outer">
-        <i class="icon icon-share"></i>
-      </a>
-    </span>
-    <span class="tooltip-content">
-      <div class="share-wrap">
-        <div class="share-icons">
-          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
-            <i class="icon icon-weibo"></i>
-          </a>
-          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
-            <i class="icon icon-weixin"></i>
-          </a>
-          <a class="qq share-sns" href="javascript:;" data-type="qq">
-            <i class="icon icon-qq"></i>
-          </a>
-          <a class="douban share-sns" href="javascript:;" data-type="douban">
-            <i class="icon icon-douban"></i>
-          </a>
-          <a class="qzone share-sns" href="javascript:;" data-type="qzone">
-            <i class="icon icon-qzone"></i>
-          </a>
-          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
-            <i class="icon icon-facebook"></i>
-          </a>
-          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
-            <i class="icon icon-twitter"></i>
-          </a>
-          <a class="google share-sns" href="javascript:;" data-type="google">
-            <i class="icon icon-google"></i>
-          </a>
-        </div>
-      </div>
-    </span>
-  </div>
-</div>
-
-<div class="page-modal wx-share js-wx-box">
-    <a class="close js-modal-close" href="javascript:;"><i class="icon icon-close"></i></a>
-    <p>扫一扫，分享到微信</p>
-    <div class="wx-qrcode">
-      <img src="//pan.baidu.com/share/qrcode?url=https://kkewwei.github.io/elasticsearch_learning/2017/03/08/git-基本命令学习心得/" alt="微信分享二维码">
-    </div>
-</div>
-
-<div class="mask js-mask"></div>
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-  
-<nav id="article-nav">
-  
-    <a href="/elasticsearch_learning/2017/04/05/maven插件学习/" id="article-nav-newer" class="article-nav-link-wrap">
-      <i class="icon-circle-left"></i>
-      <div class="article-nav-title">
-        
-          maven插件学习
-        
-      </div>
-    </a>
-  
-  
-    <a href="/elasticsearch_learning/2016/12/20/gdb调试java基本用法/" id="article-nav-older" class="article-nav-link-wrap">
-      <div class="article-nav-title">gdb调试java基本用法</div>
-      <i class="icon-circle-right"></i>
-    </a>
-  
-</nav>
-
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-        <div class="toc-container tooltip-left">
-            <i class="icon-font icon-category"></i>
-            <div class="tooltip tooltip-east">
-                <span class="tooltip-item">
-                </span>
-                <span class="tooltip-content">
-                    <div class="toc-article">
-                    <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#rebase"><span class="toc-number">1.</span> <span class="toc-text">rebase</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#半路rebase"><span class="toc-number">1.1.</span> <span class="toc-text">半路rebase</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#rebase-i-参数"><span class="toc-number">1.2.</span> <span class="toc-text">rebase -i 参数</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#i参数控制复制、删除、重置提交顺序等"><span class="toc-number">1.3.</span> <span class="toc-text">i参数控制复制、删除、重置提交顺序等</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#cherry-pick"><span class="toc-number">2.</span> <span class="toc-text">cherry-pick</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#revert"><span class="toc-number">3.</span> <span class="toc-text">revert</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#checkout"><span class="toc-number">4.</span> <span class="toc-text">checkout</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#reset"><span class="toc-number">5.</span> <span class="toc-text">reset</span></a></li></ol>
-                    </div>
-                </span>
-            </div>
-        </div>
-        
-    </div>
-</aside>
-
-
-
-  
-
-  
-
-  
-
-  
-
-  
-  <div id="gitment-ctn"></div>
-<link rel="stylesheet" href="//imsun.github.io/gitment/style/default.css">
-<script src="//www.wenjunjiang.win/js/gitment.js "></script>
-<script>
-var gitment = new Gitment({
-  id: "git 基本命令学习心得-1",
-  owner: 'kkewwei',
-  repo: 'comments',
-  oauth: {
-    client_id: '9391e497d6b288887f33',
-    client_secret: 'db733731bff4ee2811d9530b1ac4cfc6767e8183',
-  },
-})
-gitment.render('gitment-ctn')
-</script>
-
-  
-
-
+            
           </div>
         </div>
       </div>
@@ -575,11 +285,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">NIO, write, read</a>
+                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
+                <a href="javascript:void(0)" class="js-tag color2">NIO, write, read</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -587,15 +297,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">LockSupport</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">Lucene、ByteBlockPool</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">Lucene、词典、tim、tip、doc、pos、fst、倒排索引</a>
+                <a href="javascript:void(0)" class="js-tag color2">LockSupport</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">Lucene、StoredField</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -603,7 +313,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">Lucene、StoredField</a>
+                <a href="javascript:void(0)" class="js-tag color5">Lucene、词典、tim、tip、doc、pos、fst、倒排索引</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -643,11 +353,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
+                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
+                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
               </li>
              
               <li class="article-tag-list-item">

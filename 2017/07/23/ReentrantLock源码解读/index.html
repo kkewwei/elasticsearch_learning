@@ -50,57 +50,39 @@
   <div id="container" q-class="show:isCtnShow">
     <canvas id="anm-canvas" class="anm-canvas"></canvas>
     <div class="left-col" q-class="show:isShow">
-      
-<div class="overlay" style="background: #4d4d4d"></div>
+      <% var defaultBg = '#4d4d4d'; %>
+<div class="overlay" style="background: <%= theme.style && theme.style.header ? theme.style.header : defaultBg %>"></div>
 <div class="intrude-less">
 	<header id="header" class="inner">
-		<a href="/" class="profilepic">
-      <img src="https://kkewwei.github.io/elasticsearch_learning/img/myself.png" class="js-avatar">
+		<a href="<%=theme.root%>" class="profilepic">
+			<img src="<%=theme.avatar%>" class="js-avatar">
 		</a>
 		<hgroup>
-		  <h1 class="header-author"><a href="/">jianguo</a></h1>
+		  <h1 class="header-author"><a href="<%=theme.root%>"><%=theme.author%></a></h1>
 		</hgroup>
-		
-		<p class="header-subtitle">往事随风</p>
-		
+		<% if (theme.subtitle){ %>
+		<p class="header-subtitle"><%=theme.subtitle%></p>
+		<%}%>
 
 		<nav class="header-menu">
 			<ul>
-			
-				<li><a href="/elasticsearch_learning/">主页</a></li>
-	        
-				<li><a href="/elasticsearch_learning/tags/随笔/">随笔</a></li>
-	        
-				<li><a href="/elasticsearch_learning/categories">分类</a></li>
-	        
+			<% for (var i in theme.menu){ %>
+				<li><a href="<%- url_for(theme.menu[i]) %>"><%= i %></a></li>
+	        <%}%>
 			</ul>
 		</nav>
 		<nav class="header-smart-menu">
-    		
-    			
-    			<a q-on="click: openSlider(e, 'innerArchive')" href="javascript:void(0)">所有文章</a>
-    			
-            
-    			
-    			<a q-on="click: openSlider(e, 'friends')" href="javascript:void(0)">友链</a>
-    			
-            
-    			
-    			<a q-on="click: openSlider(e, 'aboutme')" href="javascript:void(0)">关于我</a>
-    			
-            
+    		<% for (var i in theme.smart_menu){ %>
+    			<% if(theme.smart_menu[i]){ %>
+    			<a q-on="click: openSlider(e, '<%-i%>')" href="javascript:void(0)"><%= theme.smart_menu[i] %></a>
+    			<% } %>
+            <%}%>
 		</nav>
 		<nav class="header-nav">
 			<div class="social">
-				
-					<a class="github" target="_blank" href="#" title="github"><i class="icon-github"></i></a>
-		        
-					<a class="weibo" target="_blank" href="#" title="weibo"><i class="icon-weibo"></i></a>
-		        
-					<a class="rss" target="_blank" href="#" title="rss"><i class="icon-rss"></i></a>
-		        
-					<a class="zhihu" target="_blank" href="#" title="zhihu"><i class="icon-zhihu"></i></a>
-		        
+				<% for (var i in theme.subnav){ %>
+					<a class="<%= i %>" target="_blank" href="<%- url_for(theme.subnav[i]) %>" title="<%= i %>"><i class="icon-<%= i %>"></i></a>
+		        <%}%>
 			</div>
 		</nav>
 	</header>
@@ -172,346 +154,7 @@
             <canvas data-colors="#eaeaea" data-sectionHeight="100" data-contentId="js-content" id="myCanvas1" class="anm-canvas"></canvas>
           </div>
           <div id="js-content" class="content-ll">
-            <article id="post-ReentrantLock源码解读" class="article article-type-post " itemscope itemprop="blogPost">
-  <div class="article-inner">
-    
-      <header class="article-header">
-        
-  
-    <h1 class="article-title" itemprop="name">
-      ReentrantLock源码解读
-    </h1>
-  
-
-        
-        <a href="/elasticsearch_learning/2017/07/23/ReentrantLock源码解读/" class="archive-article-date">
-  	<time datetime="2017-07-23T11:47:30.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-07-23</time>
-</a>
-        
-      </header>
-      
-      <span class="archive-article-date">
-              阅读量 <span id="busuanzi_value_page_pv"></span>
-      </span>
-
-    
-
-    <!-- 目录内容 -->
-    
-      <p class="show-toc-btn" id="show-toc-btn" onclick="showToc();" style="display:none">
-        <span class="btn-bg"></span>
-        <span class="btn-text">文章导航</span>
-      </p>
-	    <div id="toc-article" class="toc-article">
-	      <span id="toc-close" class="toc-close" title="隐藏导航" onclick="showBtn();">×</span>
-		      <strong class="toc-title">文章目录</strong>
-        <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#简介"><span class="toc-number">1.</span> <span class="toc-text">简介</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#AbstractQueuedSynchronizer详解"><span class="toc-number">1.1.</span> <span class="toc-text">AbstractQueuedSynchronizer详解</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#ReentrantLock详解"><span class="toc-number">1.1.1.</span> <span class="toc-text">ReentrantLock详解</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#尝试获取锁"><span class="toc-number">1.1.2.</span> <span class="toc-text">尝试获取锁</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#加入等待队列"><span class="toc-number">1.1.2.1.</span> <span class="toc-text">加入等待队列</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#设置等待队列"><span class="toc-number">1.1.2.2.</span> <span class="toc-text">设置等待队列</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#释放锁"><span class="toc-number">1.1.3.</span> <span class="toc-text">释放锁</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#总结"><span class="toc-number">1.1.4.</span> <span class="toc-text">总结</span></a></li></ol></li></ol></li></ol>
-         </div>
-   <script type="text/javascript">
-	function showToc(){
-		var toc_article = document.getElementById("toc-article");
-		var show_toc_btn = document.getElementById("show-toc-btn");
-		toc_article.setAttribute("style","display:block");
-		show_toc_btn.setAttribute("style","display:none");
-		};
-	function showBtn(){
-		var toc_article = document.getElementById("toc-article");
-		var show_toc_btn = document.getElementById("show-toc-btn");
-		toc_article.setAttribute("style","display:none");
-		show_toc_btn.setAttribute("style","display:block");
-		};
-   </script>
-      
-    <!-- 目录内容结束 -->
-
-    <div class="article-entry" itemprop="articleBody">
-      
-        <p>ReentrantLock作为线程之间相互通信的工具, 在实际项目中较多的被使用到, 了解ReentrantLock, 就不得不提AbstractQueuedSynchronizer(AQS), 本文章将对这两个类展开详述。<br>基本使用如下:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div></pre></td><td class="code"><pre><div class="line">ReentrantLock lock = new ReentrantLock(true);</div><div class="line">//尝试获取锁,获取不到就阻塞</div><div class="line">lock.lock();</div><div class="line">......</div><div class="line">//释放锁,获取完了唤醒被阻塞的线程</div><div class="line">lock.unlock();</div></pre></td></tr></table></figure></p>
-<p>我们需要注意, 调用lock.lock()和lock.unlock()的线程必须是一个, lock.unlock()会对线程检查, 只有当调用lock.lock()的线程和本线程一致, 才可以解锁。可以看到, 是不是很像关键字synchronized的作用?</p>
-<h1 id="简介"><a href="#简介" class="headerlink" title="简介"></a>简介</h1><p>AbstractQueuedSynchronizer，顾名思义，抽象队列同步器，作为抽象类，使用FIFO链，实现了锁的语义, 在CountDownLatch、Semaphore都可以看到该类的实现。</p>
-<h2 id="AbstractQueuedSynchronizer详解"><a href="#AbstractQueuedSynchronizer详解" class="headerlink" title="AbstractQueuedSynchronizer详解"></a>AbstractQueuedSynchronizer详解</h2><p>接下来将首先介绍两个重要的属性变量:<br><code>state</code><br>AbstractQueuedSynchronizer主要针对属性state来实现锁的含义，用户通过针对state赋予不同的值，实现不同锁的含义。 在多线程针对state的操作，必须保证state状态的原子性，使用了<code>volatile</code>关键字，这里没使用Synchronized来保证原子性的原因:</p>
-<ul>
-<li>state的状态修改不依赖历史的值，很适合volatile使用场景，设置了volatile后，也能保证state修改的可见性。</li>
-<li>Synchronized实现互斥的成本要比volatile很高。<br><code>Node</code><br>AbstractQueuedSynchronizer实现了FIFO队列，该队列存放着目前阻塞的线程，每个元素都是都由一个Node构成，Node结构如下：<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div></pre></td><td class="code"><pre><div class="line">&#123;</div><div class="line">     volatile int waitStatus;</div><div class="line">     volatile Node prev;</div><div class="line">     volatile Node next;</div><div class="line">     volatile Thread thread;</div><div class="line">     Node nextWaiter;</div><div class="line"></div><div class="line">&#125;</div></pre></td></tr></table></figure>
-</li>
-</ul>
-<table>
-<thead>
-<tr>
-<th style="text-align:left">属性</th>
-<th style="text-align:left">介绍</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td style="text-align:left">waitStatus</td>
-<td style="text-align:left">当前节点的状态:<br>CANCELLED:当前线程取消执行, 值为1，<br>SIGNAL:当该节点释放锁的时候,需要唤醒后继节点, 值为-1<br>CONDITION:当前节点在等待某种condition发生, 值为-2<br>PROPAGATE: 当前节点主要共享锁, 当节点设置为该值, 那么无条件向后传递锁释放的的信号, 值为-3<br>0: 表示初始状态</td>
-</tr>
-<tr>
-<td style="text-align:left">prev</td>
-<td style="text-align:left">当前节点的前一个节点</td>
-</tr>
-<tr>
-<td style="text-align:left">next</td>
-<td style="text-align:left">当前节点的后继节点</td>
-</tr>
-<tr>
-<td style="text-align:left">thread</td>
-<td style="text-align:left">当前节点所拥有的线程</td>
-</tr>
-<tr>
-<td style="text-align:left">nextWaiter</td>
-<td style="text-align:left">表明本线程和下游公用一个获取获取锁的信号, 该线程被唤醒后, 该线程?又顺便把下一个节点也唤醒, 比如CountDownLatch中, 上游把锁释放了, 会向后继续传递释放锁的信号。</td>
-</tr>
-</tbody>
-</table>
-<p>nextWaiter=signal与waitStatus=shared的区别是: waitStatus=signal主要体现在线程主动调用释放锁操作unlock()后, 去唤醒等待队列中第一个线程。 waitStatus=shared体现在, 若当前线程尝试获取锁被阻塞后, 被别的线程唤醒后, 当前线程把获取锁的信号向后传递, 也去主动唤醒阻塞的线程。<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/AQS6.png" height="200" width="600"><br>上图可知, 当share时, 线程在获取锁后, 首先唤醒下一个线程再继续run运行; 而signal时, 线程在获取锁后, 首先运行, 在run运行中, 通过主动调用unlock()来唤醒下一个阻塞的线程。</p>
-<p>AQS中等待锁的线程队列与运行线程结构如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/AQS.png" height="250" width="450"></p>
-<h3 id="ReentrantLock详解"><a href="#ReentrantLock详解" class="headerlink" title="ReentrantLock详解"></a>ReentrantLock详解</h3><p>ReentrantLock作为可重入的独享锁, 分为两类, 公平锁FairSync和非公平锁NonfairSync, 公平的体现在于: 当已经有线程处于等待状态时(等待队列不为空), 新来需要获取锁的线程能否可能插队先获取锁, 可以的话, 就是非公平锁; 不能立马获取到锁, 而必须排队的就是公平锁。<br>本文就以公平锁的获取与释放作为主线进行讲解。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line">public static ReentrantLock lock = new ReentrantLock(true);</div><div class="line">lock.lock()</div></pre></td></tr></table></figure></p>
-<p>这样开始尝试获取锁, 实际调用的FairSync.acquire(1), 这里取值<code>1</code>的含义可以理解为尝试将state状态从0设置为1, 当status状态为0时, 说明是没有锁的。 真正调用的是AbstractQueuedSynchronizer函数的acquire:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div></pre></td><td class="code"><pre><div class="line">public final void acquire(int arg) &#123;</div><div class="line">    if (!tryAcquire(arg) &amp;&amp; acquireQueued(addWaiter(Node.EXCLUSIVE), arg))</div><div class="line">        //说明本次退出中间有线程调用过thread.interrput(), 这里将中断信号复原。</div><div class="line">        selfInterrupt();</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
-<p>主要做了如下几个事情:</p>
-<ul>
-<li>尝试去获取锁, 若获取到了, 就直接退出。</li>
-<li>若没有获取到锁, 那么将当前线程构成一个Node, 放入线程阻塞队列, 线程进入睡眠等待。</li>
-<li>若本次没有获取到锁、从阻塞队列中被唤醒, 并且acquireQueued()返回true, 那么说明该线程被别人调用了中断, 我们需要将该中断再置位向外传递。(parkAndCheckInterrup()把中断信号清掉了)<h3 id="尝试获取锁"><a href="#尝试获取锁" class="headerlink" title="尝试获取锁"></a>尝试获取锁</h3>代码在FairSync中定义了:<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div></pre></td><td class="code"><pre><div class="line">protected final boolean tryAcquire(int acquires) &#123;</div><div class="line">     final Thread current = Thread.currentThread();</div><div class="line">    int c = getState();//首先读取state变量</div><div class="line">    if (c == 0) &#123;</div><div class="line">         ////判断sate值是否为0,在这里0就表示初始状态</div><div class="line">        if (!hasQueuedPredecessors() &amp;&amp;</div><div class="line">            //采用CAS原子操作修改sate的值，</div><div class="line">            compareAndSetState(0, acquires)) &#123;</div><div class="line">            //如果修改成功，则将AQS的执行者设置为currentThread；这里的执行者其实就是获得执行权的线程</div><div class="line">            setExclusiveOwnerThread(current);</div><div class="line">            return true;</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line">    //当前线程就是抢占线程，那么是可以直接进入的</div><div class="line">    else if (current == getExclusiveOwnerThread()) &#123;</div><div class="line">        //注意这里，会+acquires，可重入式的，每次都得释放，不然锁就不会释放</div><div class="line">        int nextc = c + acquires;</div><div class="line">        if (nextc &lt; 0)</div><div class="line">            throw new Error(&quot;Maximum lock count exceeded&quot;);</div><div class="line">        setState(nextc);</div><div class="line">        return true;</div><div class="line">    &#125;</div><div class="line">    //否则就不能获取到，获取不到锁，但是不会改变state的值</div><div class="line">    return false;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
-</li>
-</ul>
-<p>FairSync尝试获取锁的过程比较简单: 若status为0, 那么说明锁还没有被使用, 可以获取返回true, 否则就返回false, 我们需要注意的几个地方:</p>
-<ol>
-<li>若status为0, 这里会进行hasQueuedPredecessors()判断, 只有等待队列中没有节点, 才能立刻获取到, 这里可以体现公平锁FIFO的属性, 只要有线程处于等待队里, 那么该节点就该去等待</li>
-<li>第二个条件体现了可重入锁的性质, 只要获取锁的线程就是当前线程, 那么该线程照样可以获取到, 只是将state增加了。 同时说明, 同一线程两次调用lock.lock(), 那么一定需要两次lock.unlock()进行解锁才行。</li>
-<li>若当前线程获取不到锁, 是不会对status的值产生任何改变的。</li>
-</ol>
-<h4 id="加入等待队列"><a href="#加入等待队列" class="headerlink" title="加入等待队列"></a>加入等待队列</h4><p>若没有获取到锁, 则开始将线程加入等待队列addWaiter:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div></pre></td><td class="code"><pre><div class="line">private Node addWaiter(Node mode) &#123;</div><div class="line">    Node node = new Node(Thread.currentThread(), mode);</div><div class="line">    // Try the fast path of enq; backup to full enq on failure</div><div class="line">    Node pred = tail;</div><div class="line">    //尾插法，尾部不为空</div><div class="line">    if (pred != null) &#123;</div><div class="line">        node.prev = pred;</div><div class="line">        if (compareAndSetTail(pred, node)) &#123;</div><div class="line">            pred.next = node;</div><div class="line">            return node;</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line">    enq(node);</div><div class="line">    return node;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
-<p>首先将当前线程作为参数构造等待节点Node, 传递的mode为EXCLUSIVE, 然后进行尾插法, 若等待队列不为空, 通过compareAndSetTail()原子操作将当前节点node设置为tail节点。<br>若目前还没有等待的节点, 那么构造等待队列:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div></pre></td><td class="code"><pre><div class="line">private Node enq(final Node node) &#123;</div><div class="line">    for (;;) &#123;</div><div class="line">        Node t = tail;</div><div class="line">        //初始化，只要没值，先把头和尾给初始化了再继续</div><div class="line">        if (t == null) &#123; // Must initialize</div><div class="line">            //头部应该是空，这里要设置成new node()</div><div class="line">            if (compareAndSetHead(new Node()))</div><div class="line">                tail = head;</div><div class="line">        &#125; else &#123;</div><div class="line">            node.prev = t;</div><div class="line">            //尾部目前应该是t,然后尾部设置为node，里面尾部tail已经设置指向了node</div><div class="line">            if (compareAndSetTail(t, node)) &#123;</div><div class="line">                t.next = node;</div><div class="line">                return t;</div><div class="line">            &#125;</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
-<p>注意这里for()死循环, 直到当前节点构建出来了等待队列才会退出, 否则不停地重试(重试的原因是可能其他线程也在构造或者向等待线程插入节点, 允许操作失败), 构建完成后, 等待队列如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/AQS1.png" height="200" width="250"><br>这里需要注意的是, 最开始的的时候, 会虚构出来了一个Node()作为head节点, 可以理解代表着当前拥有锁的那个线程对应的节点。</p>
-<h4 id="设置等待队列"><a href="#设置等待队列" class="headerlink" title="设置等待队列"></a>设置等待队列</h4><p>线程加入等待队列后, 是不能够立马跑去睡眠的, 还需要检查等待队列前继节点是否符合要求, 只有当前继节点waitState为SIGNAL, 那么本节点才可以去睡觉:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div></pre></td><td class="code"><pre><div class="line">//如果在整个等待过程中被中断过，则返回true，否则返回false。</div><div class="line">final boolean acquireQueued(final Node node, int arg) &#123;</div><div class="line">    //说明没有获取成功，退出时因为发生异常了</div><div class="line">    boolean failed = true;</div><div class="line">    try &#123;</div><div class="line">        boolean interrupted = false;</div><div class="line">        for (;;) &#123; //开始自旋</div><div class="line">            final Node p = node.predecessor(); //查找前继节点</div><div class="line">            //该节点前节点是头结点，并且获取到了锁,只要不满足这个条件，该节点将一直阻塞下去</div><div class="line">            if (p == head &amp;&amp; tryAcquire(arg)) &#123;</div><div class="line">                setHead(node); //那么设置该节点为头结点,将该线程对应的节点清空,变成无状态的头</div><div class="line">                p.next = null; // help GC 抛弃该节点，等待被回收</div><div class="line">                failed = false;</div><div class="line">                return interrupted;</div><div class="line">            &#125; //说明没有获取到锁，是否需要睡眠等待</div><div class="line">            if (shouldParkAfterFailedAcquire(p, node) &amp;&amp;</div><div class="line">               //等待又唤醒，可能是别人调用了LockSupport.unlock()，也有可能别人调用了thread.interrupt()唤醒的</div><div class="line">               parkAndCheckInterrupt())</div><div class="line">                //如果因为是被别人用thread.interrupt()唤醒的话，并不会退出并继续等待</div><div class="line">                interrupted = true;</div><div class="line">        &#125;</div><div class="line">    &#125; finally &#123;</div><div class="line">        if (failed)  //这里基本是执行不到的，除非遇到非运行时异常</div><div class="line">            cancelAcquire(node);</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
-<p>注意该函数中p.next = null操作, 此时p已经从等待队列链中完全脱离了, 该节点就可以等待gc回收了。 该线程开始<code>自旋</code>, 主要做了如下检查:</p>
-<ul>
-<li>检查前继节点是否是head, 尝试获取锁(此时statue为0) ,若能够获取到锁, 说明头结点已经对应的那个线程已经释放了锁, 本节点又是作为等待队列排在最前面那个节点(head节点指向了释放锁那个线程), 直接获取锁。</li>
-<li>否则说明没有获取到锁, 那么检查该线程是否可以睡眠:<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div></pre></td><td class="code"><pre><div class="line">private static boolean shouldParkAfterFailedAcquire(Node pred, Node node) &#123;</div><div class="line">    int ws = pred.waitStatus;//头结点，waitState默认为0</div><div class="line">    //前驱节点为消息通知模式，当释放锁或者取消时，会通知下个节点</div><div class="line">    if (ws == Node.SIGNAL)</div><div class="line">        /*</div><div class="line">         * This node has already set status asking a release</div><div class="line">         * to signal it, so it can safely park.</div><div class="line">         */</div><div class="line">        return true; //那么本节点可以放心睡眠</div><div class="line">    //前节点被取消了，自己加塞到前面，前继节点被无引用了，过会就会被丢弃</div><div class="line">    if (ws &gt; 0) &#123;</div><div class="line">        /*</div><div class="line">         * Predecessor was cancelled. Skip over predecessors and</div><div class="line">         * indicate retry.</div><div class="line">         */</div><div class="line">        do &#123;</div><div class="line">            node.prev = pred = pred.prev; //改变链路</div><div class="line">        &#125; while (pred.waitStatus &gt; 0);</div><div class="line">        pred.next = node;</div><div class="line">    &#125; else &#123;</div><div class="line">        /*</div><div class="line">         * waitStatus must be 0 or PROPAGATE.  Indicate that we</div><div class="line">         * need a signal, but don&apos;t park yet.  Caller will need to</div><div class="line">         * retry to make sure it cannot acquire before parking.</div><div class="line">         */ //</div><div class="line">         //若是非cancel和非signal(比如任何节点加入时， statue都是0，等待后继节点改变)，将前节点设置为通知信号，等待被通知</div><div class="line">        compareAndSetWaitStatus(pred, ws, Node.SIGNAL);</div><div class="line">    &#125;</div><div class="line">    return false;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
-</li>
-</ul>
-<p>这里主要检查前继节点的waitStatus字段, 最前面介绍node时对取值也有详细的介绍:</p>
-<ol>
-<li>当前继节点为SIGNAL, 那么说明本节点可以放心去睡眠了, 因为前继节点的线程释放锁的时候, 会通过LockSupport.unlock()唤醒。</li>
-<li>若前继节点为cancel状态, 那么向前找, 直到找到一个不为cancel的节点, 并将为cancel的节点从整个等待队列中去掉, 以便gc回收。</li>
-<li>若找到一个非signal、非cancel的前继节点, 将该前继续节点状态置为signal, 以便前继节点唤醒后继节点。<br>在释放节点时(release()), 只要当前状态不为0, 就会唤醒后继节点。此时等待队列如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/AQS2.png" height="200" width="250"></li>
-</ol>
-<p>有个问题: 这里为啥在else那里不直接可以去睡眠呢?<br>假如前继节点释放锁的时候，此时发现自己不为SIGNAL，那么就不唤醒后继节点， 此时后继节点将自己设置为了SIGNAL， 那么此时设置也是无用的，形成了死等待。 所以自己在睡眠之前，再去检查下前继节点是否已经释放了锁，若释放了锁，就直接执行，没有释放锁，才能安慰睡觉。</p>
-<ul>
-<li>若可以睡眠了, 那么线程就通过LockSupport.park(this)进入睡眠。<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div></pre></td><td class="code"><pre><div class="line">private final boolean parkAndCheckInterrupt() &#123;</div><div class="line">    //能否响应中断请求, 从等待中退出，但是不会抛出异常</div><div class="line">    LockSupport.park(this);</div><div class="line">    //检测当前线程是否有中断，若有中断, 那么清空中断,把信号向外传递</div><div class="line">    return Thread.interrupted();</div><div class="line">&#125;</div></pre></td></tr></table></figure>
-</li>
-</ul>
-<p>这里我们需要知道, 该线程从睡眠中被唤醒, 有可能是通过LockSupport.unpark(this)、也有可能是通过thread.interrupt()方式唤醒的, 第一种唤醒是有意义的, 对于第二种唤醒并没有意义,我们在acquireQueued中自旋时会忽略这种情况。<br>至此, 获取锁的过程已经全部完成, 整体过程如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/AQS4.png" height="260" width="800"><br>要么获取到锁, 那么线程进入等待队列安心睡眠。</p>
-<h3 id="释放锁"><a href="#释放锁" class="headerlink" title="释放锁"></a>释放锁</h3><p>释放锁只需要调用sync.release(1)就行了, 实际调用的AbstractQueuedSynchronizer里面的函数:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div></pre></td><td class="code"><pre><div class="line">public final boolean release(int arg) &#123;</div><div class="line">    if (tryRelease(arg)) &#123;</div><div class="line">        Node h = head;</div><div class="line">        //当前节点为signal状态，需要唤醒后继节点</div><div class="line">        if (h != null &amp;&amp; h.waitStatus != 0)</div><div class="line">            unparkSuccessor(h);</div><div class="line">        return true;</div><div class="line">    &#125;</div><div class="line">    return false;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
-<p>主要做了两个事情:</p>
-<ul>
-<li>尝试将状态复位, 比如status置为0, 排他线程置为null.<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div></pre></td><td class="code"><pre><div class="line">protected final boolean tryRelease(int releases) &#123;</div><div class="line">    int c = getState() - releases;</div><div class="line">    if (Thread.currentThread() != getExclusiveOwnerThread())</div><div class="line">        throw new IllegalMonitorStateException();</div><div class="line">    boolean free = false;</div><div class="line">    if (c == 0) &#123; //释放的时候，把status给清0了</div><div class="line">        free = true;</div><div class="line">        setExclusiveOwnerThread(null);</div><div class="line">    &#125;</div><div class="line">    setState(c);</div><div class="line">    return free;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
-</li>
-</ul>
-<p>这里实现有个需要注意的地方, ReentrantLock释放了, c为啥不为0, 因为ReentrantLock支持锁的可重入, 允许同一个线程两次获取锁。</p>
-<ul>
-<li>若等待队列有节点, 并且当前节点不为0(初始化), 那么就会去尝试唤醒后继一个有效的节点:<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div></pre></td><td class="code"><pre><div class="line">  private void unparkSuccessor(Node node) &#123;</div><div class="line">    /*</div><div class="line">     * If status is negative (i.e., possibly needing signal) try</div><div class="line">     * to clear in anticipation of signalling.  It is OK if this</div><div class="line">     * fails or if status is changed by waiting thread.</div><div class="line">     */</div><div class="line">    int ws = node.waitStatus;</div><div class="line">    //置零当前线程所在的结点状态，允许失败。</div><div class="line">    if (ws &lt; 0)</div><div class="line">        compareAndSetWaitStatus(node, ws, 0);</div><div class="line">    /*</div><div class="line">     * Thread to unpark is held in successor, which is normally</div><div class="line">     * just the next node.  But if cancelled or apparently null,</div><div class="line">     * traverse backwards from tail to find the actual</div><div class="line">     * non-cancelled successor.</div><div class="line">     */</div><div class="line">    Node s = node.next;</div><div class="line">    //节点被取消了，cancel 才大于1</div><div class="line">    if (s == null || s.waitStatus &gt; 0) &#123;</div><div class="line">        s = null;</div><div class="line">        for (Node t = tail; t != null &amp;&amp; t != node; t = t.prev)</div><div class="line">            //从后向前找，找到最近一个有效的节点</div><div class="line">            if (t.waitStatus &lt;= 0)</div><div class="line">                s = t;</div><div class="line">    &#125;</div><div class="line">    if (s != null) //反正叫醒后继节点</div><div class="line">        LockSupport.unpark(s.thread);</div><div class="line">&#125;</div></pre></td></tr></table></figure>
-</li>
-</ul>
-<p>唤醒后继节点也是比较简单的:</p>
-<ol>
-<li>首先将本节点waitStatus置为0(初始值)</li>
-<li>如果后继节点被取消了(waitStatus&gt;0), 那么在后继节点中找到一个最靠近的、非cancel状态的节点, 然后唤醒这个节点上的线程。 这里不用将cancel状态的节点从队列中去掉, 在节点尝试获取锁的时候会自动干这个事。<br>释放锁过程如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/AQS5.png" height="200" width="450"><br>注意, 对阻塞队列的结构的修改都是被唤醒线程进行的, 释放锁的线程没有做这些操作<h3 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h3>线程在获取锁的时候, 主要根据ReentrantLock里面的状态status来识别是否可以获取锁, 若为0, 那么锁未被获取; 若为1, 说明锁被一个线程获取; 若大于1, 说明发生了线程重入。 若没有获取到, 则将自己加入等待队列, 然后睡眠。 线程在释放锁时, 也会唤醒等待队列排在前面的线程。</li>
-</ol>
-
-      
-
-      
-        <div class="page-reward">
-          <a href="javascript:;" class="page-reward-btn tooltip-top">
-            <div class="tooltip tooltip-east">
-            <span class="tooltip-item">
-              赏
-            </span>
-            <span class="tooltip-content">
-              <span class="tooltip-text">
-                <span class="tooltip-inner">
-                  <p class="reward-p"><i class="icon icon-quo-left"></i>谢谢阅读<i class="icon icon-quo-right"></i></p>
-                  <div class="reward-box">
-                    
-                    
-                  </div>
-                </span>
-              </span>
-            </span>
-          </div>
-          </a>
-        </div>
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color4">ReentrantLock</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/elasticsearch_learning/categories/Netty//" class="article-tag-list-link color1">Netty</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-
-      
-        
-<div class="share-btn share-icons tooltip-left">
-  <div class="tooltip tooltip-east">
-    <span class="tooltip-item">
-      <a href="javascript:;" class="share-sns share-outer">
-        <i class="icon icon-share"></i>
-      </a>
-    </span>
-    <span class="tooltip-content">
-      <div class="share-wrap">
-        <div class="share-icons">
-          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
-            <i class="icon icon-weibo"></i>
-          </a>
-          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
-            <i class="icon icon-weixin"></i>
-          </a>
-          <a class="qq share-sns" href="javascript:;" data-type="qq">
-            <i class="icon icon-qq"></i>
-          </a>
-          <a class="douban share-sns" href="javascript:;" data-type="douban">
-            <i class="icon icon-douban"></i>
-          </a>
-          <a class="qzone share-sns" href="javascript:;" data-type="qzone">
-            <i class="icon icon-qzone"></i>
-          </a>
-          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
-            <i class="icon icon-facebook"></i>
-          </a>
-          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
-            <i class="icon icon-twitter"></i>
-          </a>
-          <a class="google share-sns" href="javascript:;" data-type="google">
-            <i class="icon icon-google"></i>
-          </a>
-        </div>
-      </div>
-    </span>
-  </div>
-</div>
-
-<div class="page-modal wx-share js-wx-box">
-    <a class="close js-modal-close" href="javascript:;"><i class="icon icon-close"></i></a>
-    <p>扫一扫，分享到微信</p>
-    <div class="wx-qrcode">
-      <img src="//pan.baidu.com/share/qrcode?url=https://kkewwei.github.io/elasticsearch_learning/2017/07/23/ReentrantLock源码解读/" alt="微信分享二维码">
-    </div>
-</div>
-
-<div class="mask js-mask"></div>
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-  
-<nav id="article-nav">
-  
-    <a href="/elasticsearch_learning/2017/07/28/ReentrantReadWriteLock源码解读/" id="article-nav-newer" class="article-nav-link-wrap">
-      <i class="icon-circle-left"></i>
-      <div class="article-nav-title">
-        
-          ReentrantReadWriteLock源码解读
-        
-      </div>
-    </a>
-  
-  
-    <a href="/elasticsearch_learning/2017/06/15/JAVA-JNI实现hello-world/" id="article-nav-older" class="article-nav-link-wrap">
-      <div class="article-nav-title">JAVA JNI实现hello world</div>
-      <i class="icon-circle-right"></i>
-    </a>
-  
-</nav>
-
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-        <div class="toc-container tooltip-left">
-            <i class="icon-font icon-category"></i>
-            <div class="tooltip tooltip-east">
-                <span class="tooltip-item">
-                </span>
-                <span class="tooltip-content">
-                    <div class="toc-article">
-                    <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#简介"><span class="toc-number">1.</span> <span class="toc-text">简介</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#AbstractQueuedSynchronizer详解"><span class="toc-number">1.1.</span> <span class="toc-text">AbstractQueuedSynchronizer详解</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#ReentrantLock详解"><span class="toc-number">1.1.1.</span> <span class="toc-text">ReentrantLock详解</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#尝试获取锁"><span class="toc-number">1.1.2.</span> <span class="toc-text">尝试获取锁</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#加入等待队列"><span class="toc-number">1.1.2.1.</span> <span class="toc-text">加入等待队列</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#设置等待队列"><span class="toc-number">1.1.2.2.</span> <span class="toc-text">设置等待队列</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#释放锁"><span class="toc-number">1.1.3.</span> <span class="toc-text">释放锁</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#总结"><span class="toc-number">1.1.4.</span> <span class="toc-text">总结</span></a></li></ol></li></ol></li></ol>
-                    </div>
-                </span>
-            </div>
-        </div>
-        
-    </div>
-</aside>
-
-
-
-  
-
-  
-
-  
-
-  
-
-  
-  <div id="gitment-ctn"></div>
-<link rel="stylesheet" href="//imsun.github.io/gitment/style/default.css">
-<script src="//www.wenjunjiang.win/js/gitment.js "></script>
-<script>
-var gitment = new Gitment({
-  id: "ReentrantLock源码解读",
-  owner: 'kkewwei',
-  repo: 'comments',
-  oauth: {
-    client_id: '9391e497d6b288887f33',
-    client_secret: 'db733731bff4ee2811d9530b1ac4cfc6767e8183',
-  },
-})
-gitment.render('gitment-ctn')
-</script>
-
-  
-
-
+            
           </div>
         </div>
       </div>
@@ -640,11 +283,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">NIO, write, read</a>
+                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
+                <a href="javascript:void(0)" class="js-tag color2">NIO, write, read</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -652,15 +295,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">LockSupport</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">Lucene、ByteBlockPool</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">Lucene、词典、tim、tip、doc、pos、fst、倒排索引</a>
+                <a href="javascript:void(0)" class="js-tag color2">LockSupport</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">Lucene、StoredField</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -668,7 +311,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">Lucene、StoredField</a>
+                <a href="javascript:void(0)" class="js-tag color5">Lucene、词典、tim、tip、doc、pos、fst、倒排索引</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -708,11 +351,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
+                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
+                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
               </li>
              
               <li class="article-tag-list-item">

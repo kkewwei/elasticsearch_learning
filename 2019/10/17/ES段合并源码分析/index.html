@@ -45,57 +45,39 @@
   <div id="container" q-class="show:isCtnShow">
     <canvas id="anm-canvas" class="anm-canvas"></canvas>
     <div class="left-col" q-class="show:isShow">
-      
-<div class="overlay" style="background: #4d4d4d"></div>
+      <% var defaultBg = '#4d4d4d'; %>
+<div class="overlay" style="background: <%= theme.style && theme.style.header ? theme.style.header : defaultBg %>"></div>
 <div class="intrude-less">
 	<header id="header" class="inner">
-		<a href="/" class="profilepic">
-      <img src="https://kkewwei.github.io/elasticsearch_learning/img/myself.png" class="js-avatar">
+		<a href="<%=theme.root%>" class="profilepic">
+			<img src="<%=theme.avatar%>" class="js-avatar">
 		</a>
 		<hgroup>
-		  <h1 class="header-author"><a href="/">jianguo</a></h1>
+		  <h1 class="header-author"><a href="<%=theme.root%>"><%=theme.author%></a></h1>
 		</hgroup>
-		
-		<p class="header-subtitle">往事随风</p>
-		
+		<% if (theme.subtitle){ %>
+		<p class="header-subtitle"><%=theme.subtitle%></p>
+		<%}%>
 
 		<nav class="header-menu">
 			<ul>
-			
-				<li><a href="/elasticsearch_learning/">主页</a></li>
-	        
-				<li><a href="/elasticsearch_learning/tags/随笔/">随笔</a></li>
-	        
-				<li><a href="/elasticsearch_learning/categories">分类</a></li>
-	        
+			<% for (var i in theme.menu){ %>
+				<li><a href="<%- url_for(theme.menu[i]) %>"><%= i %></a></li>
+	        <%}%>
 			</ul>
 		</nav>
 		<nav class="header-smart-menu">
-    		
-    			
-    			<a q-on="click: openSlider(e, 'innerArchive')" href="javascript:void(0)">所有文章</a>
-    			
-            
-    			
-    			<a q-on="click: openSlider(e, 'friends')" href="javascript:void(0)">友链</a>
-    			
-            
-    			
-    			<a q-on="click: openSlider(e, 'aboutme')" href="javascript:void(0)">关于我</a>
-    			
-            
+    		<% for (var i in theme.smart_menu){ %>
+    			<% if(theme.smart_menu[i]){ %>
+    			<a q-on="click: openSlider(e, '<%-i%>')" href="javascript:void(0)"><%= theme.smart_menu[i] %></a>
+    			<% } %>
+            <%}%>
 		</nav>
 		<nav class="header-nav">
 			<div class="social">
-				
-					<a class="github" target="_blank" href="#" title="github"><i class="icon-github"></i></a>
-		        
-					<a class="weibo" target="_blank" href="#" title="weibo"><i class="icon-weibo"></i></a>
-		        
-					<a class="rss" target="_blank" href="#" title="rss"><i class="icon-rss"></i></a>
-		        
-					<a class="zhihu" target="_blank" href="#" title="zhihu"><i class="icon-zhihu"></i></a>
-		        
+				<% for (var i in theme.subnav){ %>
+					<a class="<%= i %>" target="_blank" href="<%- url_for(theme.subnav[i]) %>" title="<%= i %>"><i class="icon-<%= i %>"></i></a>
+		        <%}%>
 			</div>
 		</nav>
 	</header>
@@ -167,346 +149,7 @@
             <canvas data-colors="#eaeaea" data-sectionHeight="100" data-contentId="js-content" id="myCanvas1" class="anm-canvas"></canvas>
           </div>
           <div id="js-content" class="content-ll">
-            <article id="post-ES段合并源码分析" class="article article-type-post " itemscope itemprop="blogPost">
-  <div class="article-inner">
-    
-      <header class="article-header">
-        
-  
-    <h1 class="article-title" itemprop="name">
-      ES段合并逻辑分析
-    </h1>
-  
-
-        
-        <a href="/elasticsearch_learning/2019/10/17/ES段合并源码分析/" class="archive-article-date">
-  	<time datetime="2019-10-17T11:02:48.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2019-10-17</time>
-</a>
-        
-      </header>
-      
-      <span class="archive-article-date">
-              阅读量 <span id="busuanzi_value_page_pv"></span>
-      </span>
-
-    
-
-    <!-- 目录内容 -->
-    
-      <p class="show-toc-btn" id="show-toc-btn" onclick="showToc();" style="display:none">
-        <span class="btn-bg"></span>
-        <span class="btn-text">文章导航</span>
-      </p>
-	    <div id="toc-article" class="toc-article">
-	      <span id="toc-close" class="toc-close" title="隐藏导航" onclick="showBtn();">×</span>
-		      <strong class="toc-title">文章目录</strong>
-        <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#merge触发条件"><span class="toc-number">1.</span> <span class="toc-text">merge触发条件</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#segments的挑选"><span class="toc-number">2.</span> <span class="toc-text">segments的挑选</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#merge过程"><span class="toc-number">3.</span> <span class="toc-text">merge过程</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#更新全局维护的合并速度"><span class="toc-number">3.1.</span> <span class="toc-text">更新全局维护的合并速度</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#启动合并线程"><span class="toc-number">3.2.</span> <span class="toc-text">启动合并线程</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#段合并"><span class="toc-number">3.2.1.</span> <span class="toc-text">段合并</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#更新所有段合并速度"><span class="toc-number">3.3.</span> <span class="toc-text">更新所有段合并速度</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#总结"><span class="toc-number">4.</span> <span class="toc-text">总结</span></a></li></ol>
-         </div>
-   <script type="text/javascript">
-	function showToc(){
-		var toc_article = document.getElementById("toc-article");
-		var show_toc_btn = document.getElementById("show-toc-btn");
-		toc_article.setAttribute("style","display:block");
-		show_toc_btn.setAttribute("style","display:none");
-		};
-	function showBtn(){
-		var toc_article = document.getElementById("toc-article");
-		var show_toc_btn = document.getElementById("show-toc-btn");
-		toc_article.setAttribute("style","display:none");
-		show_toc_btn.setAttribute("style","display:block");
-		};
-   </script>
-      
-    <!-- 目录内容结束 -->
-
-    <div class="article-entry" itemprop="articleBody">
-      
-        <p>ES中在refresh、flush过程中, 都有可能触发段合并, 段合并是将小的段合并成大的段, merge过程有两个好处:</p>
-<ol>
-<li>加快查询速度</li>
-<li>减少内存空间的占用<br>本文主要从ES7.3层面讲解是如何进行小的段文件合并成大的段文件的, 至于lucene层面的段合并, 之后也会整理一篇文档出来。</li>
-</ol>
-<h1 id="merge触发条件"><a href="#merge触发条件" class="headerlink" title="merge触发条件"></a>merge触发条件</h1><p>Merge首先会进入到IndexWriter的如下代码:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div></pre></td><td class="code"><pre><div class="line">final void maybeMerge(MergePolicy mergePolicy, MergeTrigger trigger, int maxNumSegments) throws IOException &#123;</div><div class="line">    ensureOpen(false);</div><div class="line">    boolean newMergesFound = updatePendingMerges(mergePolicy, trigger, maxNumSegments);</div><div class="line">    mergeScheduler.merge(this, trigger, newMergesFound);</div><div class="line">  &#125;</div></pre></td></tr></table></figure></p>
-<p>我们可以看到参数trigger, 代表了所有可能触发merge的情况:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div></pre></td><td class="code"><pre><div class="line">public enum MergeTrigger &#123;</div><div class="line">  /**</div><div class="line">   * 由段flush触发merge</div><div class="line">   */</div><div class="line">  SEGMENT_FLUSH,</div><div class="line">  /**</div><div class="line">   * 可能因为一个commit触发full flush</div><div class="line">   */</div><div class="line">  FULL_FLUSH,</div><div class="line">  /**</div><div class="line">   * 用户通过接口手动触发merge</div><div class="line">   */</div><div class="line">  EXPLICIT,</div><div class="line">  /**</div><div class="line">   * 由前一个成功的merge触发的</div><div class="line">   */</div><div class="line">  MERGE_FINISHED,</div><div class="line">  /**</div><div class="line">   * IndexWriter类关闭而触发</div><div class="line">   */</div><div class="line">  CLOSING</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
-<h1 id="segments的挑选"><a href="#segments的挑选" class="headerlink" title="segments的挑选"></a>segments的挑选</h1><p>我们首先需要确定, 哪些端是需要合并的、是可以一起合并的:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div></pre></td><td class="code"><pre><div class="line">private synchronized boolean updatePendingMerges(MergePolicy mergePolicy, MergeTrigger trigger, int maxNumSegments)</div><div class="line">  throws IOException &#123;</div><div class="line">  ......</div><div class="line">  boolean newMergesFound = false;</div><div class="line">  final MergePolicy.MergeSpecification spec;</div><div class="line">  // 强制合并merge或者合并完之后再次进入</div><div class="line">  if (maxNumSegments != UNBOUNDED_MAX_MERGE_SEGMENTS) &#123;</div><div class="line">   ......</div><div class="line">    // 是主动merge, 那么就去选择哪些segment需要合并</div><div class="line">  &#125; else &#123;</div><div class="line">    spec = mergePolicy.findMerges(trigger, segmentInfos, this);</div><div class="line">  &#125;</div><div class="line">  # 那么将改merge注册下。</div><div class="line">  newMergesFound = spec != null;</div><div class="line">  if (newMergesFound) &#123;</div><div class="line">    final int numMerges = spec.merges.size();</div><div class="line">    for(int i=0;i&lt;numMerges;i++) &#123;</div><div class="line">      // 把需要merge的段放进来</div><div class="line">      registerMerge(spec.merges.get(i));</div><div class="line">    &#125;</div><div class="line">  &#125;</div><div class="line">  return newMergesFound;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
-<p>这里策略策略采用的:TieredMergePolicy, 根据名字我们就可以猜测, 每次挑选时都是按照每一阶层进行挑选的。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div></pre></td><td class="code"><pre><div class="line">public MergeSpecification findMerges(MergeTrigger mergeTrigger, SegmentInfos infos, MergeContext mergeContext) throws IOException &#123;</div><div class="line">  // 该shard正在合并的段</div><div class="line">  final Set&lt;SegmentCommitInfo&gt; merging = mergeContext.getMergingSegments();</div><div class="line">  ......</div><div class="line">  // 按照semgnet大小排序，大的段拍起前面</div><div class="line">  List&lt;SegmentSizeAndDocs&gt; sortedInfos = getSortedBySegmentSize(infos, mergeContext);</div><div class="line">  Iterator&lt;SegmentSizeAndDocs&gt; iter = sortedInfos.iterator();</div><div class="line">   // 获取所有段总的删除比率</div><div class="line">  final double totalDelPct = 100 * (double) totalDelDocs / totalMaxDoc;</div><div class="line">  // 允许的删除比率</div><div class="line">  int allowedDelCount = (int) (deletesPctAllowed * totalMaxDoc / 100);</div><div class="line">  iter = sortedInfos.iterator();</div><div class="line">  // remove large segments from consideration under two conditions.</div><div class="line">  // 1&gt; Overall percent deleted docs relatively small and this segment is larger than 50% maxSegSize</div><div class="line">  // 2&gt; overall percent deleted docs large and this segment is large and has few deleted docs</div><div class="line">  // 所有的没有在合并的段都遍历</div><div class="line">  while (iter.hasNext()) &#123;</div><div class="line">    SegmentSizeAndDocs segSizeDocs = iter.next();</div><div class="line">    double segDelPct = 100 * (double) segSizeDocs.delCount / (double) segSizeDocs.maxDoc;</div><div class="line">    // 去掉大于2.5GB的段 &amp;&amp; 删除比率低的段</div><div class="line">    if (segSizeDocs.sizeInBytes &gt; maxMergedSegmentBytes / 2 &amp;&amp; (totalDelPct &lt;= deletesPctAllowed || segDelPct &lt;= deletesPctAllowed)) &#123;</div><div class="line">      iter.remove();</div><div class="line">      tooBigCount++; // Just for reporting purposes.</div><div class="line">      totIndexBytes -= segSizeDocs.sizeInBytes;</div><div class="line">      allowedDelCount -= segSizeDocs.delCount;</div><div class="line">    &#125;</div><div class="line">  &#125;</div><div class="line">  final int mergeFactor = (int) Math.min(maxMergeAtOnce, segsPerTier);</div><div class="line">  // Compute max allowed segments in the index</div><div class="line">  double allowedSegCount = 0;</div><div class="line">  // 计算allowedSegCount, 接下来会着重介绍。</div><div class="line">  return doFindMerges(sortedInfos, maxMergedSegmentBytes, mergeFactor, (int) allowedSegCount, allowedDelCount, MERGE_TYPE.NATURAL,</div><div class="line">      mergeContext, mergingBytes &gt;= maxMergedSegmentBytes);</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
-<p>该函数主要是为了过滤哪些segment是可以合并的:</p>
-<ol>
-<li>首先过滤掉正在合并的段, 不能继续参与合并。</li>
-<li>检查哪些段是不可以合并的, 需要同时满足一下两个条件:</li>
-</ol>
-<ul>
-<li>段必须大于index.merge.policy.max_merged_segment/2(默认2.5G)。<br>+该段中需要删除的文档比率要高于index.merge.policy.deletes_pct_allowed(默认33%), 或者所有段的删除率高于该阈值(33%)。<br>那么剩余的segment都有可能参与合并, 也就是说, 只要所有段删除率&gt;33%, 或者该段删除率&gt;33%, 哪怕该段&gt;2.5G, 也是需要参与merge的。</li>
-</ul>
-<ol>
-<li>获取allowedSegCount, 本shard允许的最大semgent个数, 也可以理想为合并前最少段的个数, 若段的个数达不到这个数, 就不能触发合并。该参数的计算很好的体现了分级合并的思想:<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div></pre></td><td class="code"><pre><div class="line">   // 每一级别合并的个数</div><div class="line">   final int mergeFactor = (int) Math.min(maxMergeAtOnce, segsPerTier);</div><div class="line">   // Compute max allowed segments in the index</div><div class="line">   // 每一级别合并的平均size</div><div class="line">   long levelSize = Math.max(minSegmentBytes, floorSegmentBytes);</div><div class="line">   long bytesLeft = totIndexBytes;</div><div class="line">   double allowedSegCount = 0;</div><div class="line">   // 一直在回归计算levelsize</div><div class="line">   while (true) &#123;</div><div class="line">     // 计算若在levelSize大小的level上面, 最大多少个segment个数</div><div class="line">     final double segCountLevel = bytesLeft / (double) levelSize;</div><div class="line">     // 若该level不超过规定的该阶segment个数</div><div class="line">     if (segCountLevel &lt; segsPerTier || levelSize == maxMergedSegmentBytes) &#123;</div><div class="line">       // 最终获取此值，允许合并的segment个数</div><div class="line">       allowedSegCount += Math.ceil(segCountLevel);</div><div class="line">       break;</div><div class="line">     &#125;</div><div class="line">     // 每次只增加该级别做多允许的semgent个数</div><div class="line">     allowedSegCount += segsPerTier;</div><div class="line">     // 理想情况下, 扣除该阶最大段个数, 剩余的size</div><div class="line">     bytesLeft -= segsPerTier * levelSize;</div><div class="line">     // 平均size增加一阶级, 比如从2M-&gt;20M</div><div class="line">     levelSize = Math.min(maxMergedSegmentBytes, levelSize * mergeFactor);</div><div class="line">&#125;</div></pre></td></tr></table></figure>
-</li>
-</ol>
-<p>我理解这种思想是每次合并时,都会找size尽量相同的semgent合并。这样限制了semgent多少个时, 才不用继续合并了。</p>
-<ol>
-<li>通过doFindMerges来确定真正需要合并的段。<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div><div class="line">61</div><div class="line">62</div><div class="line">63</div><div class="line">64</div><div class="line">65</div><div class="line">66</div><div class="line">67</div><div class="line">68</div><div class="line">69</div><div class="line">70</div><div class="line">71</div><div class="line">72</div><div class="line">73</div><div class="line">74</div><div class="line">75</div><div class="line">76</div><div class="line">77</div><div class="line">78</div><div class="line">79</div><div class="line">80</div><div class="line">81</div><div class="line">82</div><div class="line">83</div><div class="line">84</div><div class="line">85</div><div class="line">86</div><div class="line">87</div><div class="line">88</div><div class="line">89</div><div class="line">90</div><div class="line">91</div><div class="line">92</div><div class="line">93</div><div class="line">94</div><div class="line">95</div><div class="line">96</div><div class="line">97</div><div class="line">98</div><div class="line">99</div><div class="line">100</div><div class="line">101</div></pre></td><td class="code"><pre><div class="line">private MergeSpecification doFindMerges(List&lt;SegmentSizeAndDocs&gt; sortedEligibleInfos,</div><div class="line">                                        final long maxMergedSegmentBytes,</div><div class="line">                                        final int mergeFactor, final int allowedSegCount,</div><div class="line">                                        final int allowedDelCount, final MERGE_TYPE mergeType,</div><div class="line">                                        MergeContext mergeContext,</div><div class="line">                                        boolean maxMergeIsRunning) throws IOException &#123;</div><div class="line">  MergeSpecification spec = null;</div><div class="line">  // The trigger point for total deleted documents in the index leads to a bunch of large segment</div><div class="line">  // merges at the same time. So only put one large merge in the list of merges per cycle. We&apos;ll pick up another</div><div class="line">  // merge next time around.  本轮是否已经选择了有大于5G的merge了, 若不控制, 可能会产生一堆大段合并, 引起IO问题</div><div class="line">  boolean haveOneLargeMerge = false;</div><div class="line">  // 一次选择多个merge</div><div class="line">  while (true) &#123;</div><div class="line">    // 去掉已经被挑选出来合并的段</div><div class="line">    Iterator&lt;SegmentSizeAndDocs&gt; iter = sortedEligible.iterator();</div><div class="line">    while (iter.hasNext()) &#123;</div><div class="line">      SegmentSizeAndDocs segSizeDocs = iter.next();</div><div class="line">      if (toBeMerged.contains(segSizeDocs.segInfo)) &#123;</div><div class="line">        iter.remove();</div><div class="line">      &#125;</div><div class="line">    &#125;</div><div class="line">    // OK we are over budget -- find best merge!</div><div class="line">    MergeScore bestScore = null;</div><div class="line">    List&lt;SegmentCommitInfo&gt; best = null;</div><div class="line">    boolean bestTooLarge = false;</div><div class="line">    long bestMergeBytes = 0;</div><div class="line">    // 每次固定第一位, 组成一个merge. 该merge只最大的那个段</div><div class="line">    for (int startIdx = 0; startIdx &lt; sortedEligible.size(); startIdx++) &#123;</div><div class="line">      // 该merge统计的所有segment合并后的size大小（若某个段删除比例大于33%，该段size并没有被包含进来）</div><div class="line">      实际5G是和该值比较的</div><div class="line">      long totAfterMergeBytes = 0;</div><div class="line">      // 以startIdx起点, 选择的一组段</div><div class="line">      final List&lt;SegmentCommitInfo&gt; candidate = new ArrayList&lt;&gt;();</div><div class="line">      // 合并时,尝试过合并后大于5G的机会</div><div class="line">      boolean hitTooLarge = false;</div><div class="line">      // 该merge中所有段的大小=totAfterMergeBytes+大于5G的段（删除比例大于33%）</div><div class="line">      long bytesThisMerge = 0;</div><div class="line">      // 然后逐次选择, 只要选中的个数小于阈值mergeFactor &amp; merge的总size&gt;5G</div><div class="line">      for (int idx = startIdx; idx &lt; sortedEligible.size() &amp;&amp; candidate.size() &lt; mergeFactor &amp;&amp; bytesThisMerge &lt; maxMergedSegmentBytes; idx++) &#123;</div><div class="line">        final SegmentSizeAndDocs segSizeDocs = sortedEligible.get(idx);</div><div class="line">        final long segBytes = segSizeDocs.sizeInBytes;</div><div class="line">         // 若合并的大于阈值5G</div><div class="line">        if (totAfterMergeBytes + segBytes &gt; maxMergedSegmentBytes) &#123;</div><div class="line">          // 触过顶</div><div class="line">          hitTooLarge = true;</div><div class="line">          // 主要是为了解决单个segment内大于5G、删除比率大于33%的段，这一个段就可以直接合并</div><div class="line">          if (candidate.size() == 0) &#123;</div><div class="line">            // We should never have something coming in that _cannot_ be merged, so handle singleton merges</div><div class="line">            candidate.add(segSizeDocs.segInfo);</div><div class="line">            bytesThisMerge += segBytes;</div><div class="line">          &#125;</div><div class="line">          //若第i个加进来, size太大了, 那么拿第i+1个段来尝试下</div><div class="line">          continue;</div><div class="line">        &#125;</div><div class="line">        candidate.add(segSizeDocs.segInfo);</div><div class="line">        bytesThisMerge += segBytes; // 该merge合并后形成的segment的size大小</div><div class="line">        totAfterMergeBytes += segBytes;</div><div class="line">      &#125;</div><div class="line">      // 到此为止，找到了一批可以合并的segment</div><div class="line">      // If we didn&apos;t find a too-large merge and have a list of candidates</div><div class="line">      // whose length is less than the merge factor, it means we are reaching</div><div class="line">      // the tail of the list of segments and will only find smaller merges.</div><div class="line">      // Stop here. 若没有达到足够大的size, 并且合并的段不够多，那么我们已经遍历了所有的段也没有合适的，放弃继续查找了</div><div class="line">      if (bestScore != null &amp;&amp;  hitTooLarge == false &amp;&amp; candidate.size() &lt; mergeFactor) &#123;</div><div class="line">        break;</div><div class="line">      &#125;</div><div class="line">      // 对该merge的这批segment进行打分,得分越低越好</div><div class="line">      final MergeScore score = score(candidate, hitTooLarge, segInfosSizes);</div><div class="line">      // (若是第一次选出 || 得分最低) &amp;&amp; (正在合并的所有段size&lt;5G || 当前merge没有达到阈值5G)</div><div class="line">      if ((bestScore == null || score.getScore() &lt; bestScore.getScore()) &amp;&amp; (!hitTooLarge || !maxMergeIsRunning)) &#123;</div><div class="line">        best = candidate;</div><div class="line">        bestScore = score;</div><div class="line">        bestTooLarge = hitTooLarge; // 是否超过阈值5G(有删除率&gt;33%)</div><div class="line">        bestMergeBytes = totAfterMergeBytes;</div><div class="line">      &#125;</div><div class="line">    &#125;</div><div class="line">    if (best == null) &#123;</div><div class="line">      return spec;</div><div class="line">    &#125;</div><div class="line">    // The mergeType == FORCE_MERGE_DELETES behaves as the code does currently and can create a large number of</div><div class="line">    // concurrent big merges. If we make findForcedDeletesMerges behave as findForcedMerges and cycle through</div><div class="line">    // we should remove this.</div><div class="line">    // 若已经有大于5G的段待合并了，本轮又选择了大的段合并了，必须避免该情况。否则将会产生一大推大段合并。</div><div class="line">    if (haveOneLargeMerge == false || bestTooLarge == false || mergeType == MERGE_TYPE.FORCE_MERGE_DELETES) &#123;</div><div class="line">      haveOneLargeMerge |= bestTooLarge;</div><div class="line">      if (spec == null) &#123;</div><div class="line">        spec = new MergeSpecification();</div><div class="line">      &#125;</div><div class="line">      final OneMerge merge = new OneMerge(best);</div><div class="line">      spec.add(merge);</div><div class="line">      if (verbose(mergeContext)) &#123;</div><div class="line">        message(&quot;  add merge=&quot; + segString(mergeContext, merge.segments) + &quot; size=&quot; + String.format(Locale.ROOT, &quot;%.3f MB&quot;, bestMergeBytes / 1024. / 1024.) + &quot; score=&quot; + String.format(Locale.ROOT, &quot;%.3f&quot;, bestScore.getScore()) + &quot; &quot; + bestScore.getExplanation() + (bestTooLarge ? &quot; [max merge]&quot; : &quot;&quot;), mergeContext);</div><div class="line">      &#125;</div><div class="line">    &#125;</div><div class="line">    // whether we&apos;re going to return this list in the spec of not, we need to remove it from</div><div class="line">    // consideration on the next loop.</div><div class="line">    // 最终选择了一个合适的merge。</div><div class="line">    toBeMerged.addAll(best);</div><div class="line">  &#125;</div><div class="line">  // 再继续回归选择。</div><div class="line">&#125;</div></pre></td></tr></table></figure>
-</li>
-</ol>
-<p>该函数选择合适的segment组成merge过程如下, while循环, 查找一个merge的过程如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/es_merge1.png" height="350" width="400"></p>
-<ul>
-<li>从第一个segment(size最大), 查找到一组segment,总size&lt;5G</li>
-<li>从第二个segment(size最大), 查找到一组segment,总size&lt;5G</li>
-<li>直到查找了末尾D组, 由于size&lt;5G &amp;&amp; count(segment) &lt; 10, 认为没有合适的,将丢弃改组。<br>每找到一组, 都会通过score()计算得分, 得分越低越好。 当前一轮仅仅会从这3组中选出一组出来进行merge。</li>
-</ul>
-<p>我们接下来看下score()是如何计算A、B、C组segment的得分的:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div></pre></td><td class="code"><pre><div class="line">protected MergeScore score(List&lt;SegmentCommitInfo&gt; candidate, boolean hitTooLarge, Map&lt;SegmentCommitInfo, SegmentSizeAndDocs&gt; segmentsSizes) throws IOException &#123;</div><div class="line">  long totBeforeMergeBytes = 0;</div><div class="line">  long totAfterMergeBytes = 0;</div><div class="line">  long totAfterMergeBytesFloored = 0;</div><div class="line">  for(SegmentCommitInfo info : candidate) &#123;</div><div class="line">    final long segBytes = segmentsSizes.get(info).sizeInBytes;</div><div class="line">    totAfterMergeBytes += segBytes;</div><div class="line">    totAfterMergeBytesFloored += floorSize(segBytes);</div><div class="line">    totBeforeMergeBytes += info.sizeInBytes();</div><div class="line">  &#125;</div><div class="line">  // Roughly measure &quot;skew&quot; of the merge, i.e. how</div><div class="line">  // &quot;balanced&quot; the merge is (whether the segments are</div><div class="line">  // about the same size), which can range from</div><div class="line">  // 1.0/numSegsBeingMerged (good) to 1.0 (poor). Heavily</div><div class="line">  // lopsided merges (skew near 1.0) is no good; it means</div><div class="line">  // O(N^2) merge cost over time:</div><div class="line">  final double skew;</div><div class="line">  if (hitTooLarge) &#123;// 如果达到了5G上限</div><div class="line">    // Pretend the merge has perfect skew; skew doesn&apos;t</div><div class="line">    // matter in this case because this merge will not</div><div class="line">    // &quot;cascade&quot; and so it cannot lead to N^2 merge cost</div><div class="line">    // over time: 鼓励优先合并到最大值的, 此后就不在继续合并, 否则合并后的段还需要合并。</div><div class="line">    final int mergeFactor = (int) Math.min(maxMergeAtOnce, segsPerTier);</div><div class="line">     // 斜率是最低的, 可以认为是最均衡的</div><div class="line">    skew = 1.0/mergeFactor;</div><div class="line">  &#125; else &#123;</div><div class="line">  // 若组合数=10个，skew = max(组合最大的端)/sum(组合总共的段)，1/10&lt;skew&lt;1 ，段大小差异越大，skew值越大</div><div class="line">    skew = ((double) floorSize(segmentsSizes.get(candidate.get(0)).sizeInBytes)) / totAfterMergeBytesFloored;</div><div class="line">  &#125;</div><div class="line">  // Strongly favor merges with less skew (smaller</div><div class="line">  // mergeScore is better):</div><div class="line">  double mergeScore = skew;</div><div class="line">  // Gently favor smaller merges over bigger ones.  We</div><div class="line">  // don&apos;t want to make this exponent too large else we</div><div class="line">  // can end up doing poor merges of small segments in</div><div class="line">  // order to avoid the large merges:</div><div class="line">  // 稍微倾斜合并小段，不想指数太大，否则将出现不会合并大段的情况</div><div class="line">  mergeScore *= Math.pow(totAfterMergeBytes, 0.05);</div><div class="line">  // Strongly favor merges that reclaim deletes:</div><div class="line">  final double nonDelRatio = ((double) totAfterMergeBytes)/totBeforeMergeBytes;</div><div class="line">  // 删除的越多，得分越小, 越是优先合并</div><div class="line">  mergeScore *= Math.pow(nonDelRatio, 2);</div><div class="line">  final double finalMergeScore = mergeScore;</div><div class="line">  return new MergeScore() &#123;</div><div class="line">    @Override</div><div class="line">    public double getScore() &#123;</div><div class="line">      return finalMergeScore;</div><div class="line">    &#125;</div><div class="line">  &#125;;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
-<p>总结下, 针对每个merge打分, score越小越好:</p>
-<ul>
-<li>如果组合大小&lt;10个，说明是总大小到达5G才中断的，这样skew = 1/10,倾斜度最小，原因：不会再出现递归合并，可以认为算是最均匀分布的一种; 若组合数=10个，skew = max(组合最大的端)/sum(组合总共的段)，1/10&lt;skew&lt;1 ，段大小差异越大，skew值越大</li>
-<li>skew = skew*（抛出删除后总段的大小^0.05）:我们稍微倾向于合并小的端，原因：若源源不断的产生小段，我们则会忽略大段的合并。稍微的含义:在5G的大小内，后面系数&lt;3。</li>
-<li>mergescore = skew *[不需要删除的文档/(需要删除的文档+不需要删除的文档)]^2：说明merge的段中包含越多的被删除的段，score越小。</li>
-</ul>
-<h1 id="merge过程"><a href="#merge过程" class="headerlink" title="merge过程"></a>merge过程</h1><p>merge过程将进入ConcurrentMergeScheduler.merge()中:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div></pre></td><td class="code"><pre><div class="line">@Override</div><div class="line">public synchronized void merge(IndexWriter writer, MergeTrigger trigger, boolean newMergesFound) throws IOException &#123;</div><div class="line">  // 遍历直到将所有需要合并的merge全部进行了才退出</div><div class="line">  while (true) &#123;</div><div class="line">    OneMerge merge = writer.getNextMerge();</div><div class="line">    if (merge == null) &#123;</div><div class="line">      return;</div><div class="line">    &#125;</div><div class="line">    boolean success = false;</div><div class="line">    try &#123;</div><div class="line">      // 新产生一个线程去处理这个merge</div><div class="line">      final MergeThread newMergeThread = getMergeThread(writer, merge);</div><div class="line">      mergeThreads.add(newMergeThread);</div><div class="line">      // 更新全局维护的段合并速度（看是否有合并慢的段）,同时初始化新创建的这个的merge速度</div><div class="line">      updateIOThrottle(newMergeThread.merge, newMergeThread.rateLimiter);</div><div class="line">      // merge线程开始进行工作</div><div class="line">      newMergeThread.start();</div><div class="line">      // 更新全局维持的段合并速度，来更新存在的每个的段合并速度</div><div class="line">      updateMergeThreads();</div><div class="line">      success = true;</div><div class="line">    &#125; finally &#123;</div><div class="line">      if (!success) &#123;</div><div class="line">        writer.mergeFinish(merge);</div><div class="line">      &#125;</div><div class="line">    &#125;</div><div class="line">  &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
-<p>合并过程比较简单, 获取所有的merge并循环:</p>
-<ol>
-<li>通过updateIOThrottle更新全局维护的合并速度, 并初始化当前合并速度。</li>
-<li>启动合并线程。</li>
-<li>通过updateMergeThreads更新所有段的合并速度。<br>就这样不断循环, 产生新的合并线程。</li>
-</ol>
-<h2 id="更新全局维护的合并速度"><a href="#更新全局维护的合并速度" class="headerlink" title="更新全局维护的合并速度"></a>更新全局维护的合并速度</h2><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div></pre></td><td class="code"><pre><div class="line">private synchronized void updateIOThrottle(OneMerge newMerge, MergeRateLimiter rateLimiter) throws IOException &#123;</div><div class="line">   // 自动限流关闭了</div><div class="line">  if (doAutoIOThrottle == false) &#123;</div><div class="line">    return;</div><div class="line">  &#125;</div><div class="line">  double mergeMB = bytesToMB(newMerge.estimatedMergeBytes);// 待合并的merge大小</div><div class="line">  // 如果待合并的merge小于50M的话，不会对IO产生太大影响, 忽略。</div><div class="line">  if (mergeMB &lt; MIN_BIG_MERGE_MB) &#123;</div><div class="line">    return;</div><div class="line">  &#125;</div><div class="line">  long now = System.nanoTime();</div><div class="line">  // 如果发现有相似的merge，则说明当前level的merge落后了。</div><div class="line">  boolean newBacklog = isBacklog(now, newMerge);</div><div class="line">  // 检查存在的合并是否被阻塞了</div><div class="line">  boolean curBacklog = false;</div><div class="line">   // 新的没有阻塞</div><div class="line">  if (newBacklog == false) &#123;</div><div class="line">    // 若正在merge的线程个数超过maxThreadCount限制</div><div class="line">    if (mergeThreads.size() &gt; maxThreadCount) &#123;</div><div class="line">      curBacklog = true;</div><div class="line">    &#125; else &#123;</div><div class="line">      // Now see if any still-running merges are backlog&apos;d:</div><div class="line">      // 存在的线程中有相同level的merge</div><div class="line">      for (MergeThread mergeThread : mergeThreads) &#123;</div><div class="line">        if (isBacklog(now, mergeThread.merge)) &#123;</div><div class="line">          curBacklog = true;</div><div class="line">          break;</div><div class="line">        &#125;</div><div class="line">      &#125;</div><div class="line">    &#125;</div><div class="line">  &#125;</div><div class="line">  double curMBPerSec = targetMBPerSec; // 初始值为20M</div><div class="line">  // 若新的是被阻塞了,那么整体提速20%, 加快合并速度</div><div class="line">  if (newBacklog) &#123;</div><div class="line">    // 合并速度提速20%</div><div class="line">    targetMBPerSec *= 1.20;</div><div class="line">    // 5m-1024m之间变动</div><div class="line">    if (targetMBPerSec &gt; MAX_MERGE_MB_PER_SEC) &#123;</div><div class="line">      targetMBPerSec = MAX_MERGE_MB_PER_SEC;</div><div class="line">    &#125;</div><div class="line">  &#125; else if (curBacklog) &#123;</div><div class="line">   // 若旧的被阻塞了，则不变</div><div class="line">  &#125; else &#123;</div><div class="line">  // 若新旧合并都没有问题, 那么没必要维持该合并速度</div><div class="line">    // We are not falling behind: decrease IO throttle by 10%</div><div class="line">    targetMBPerSec /= 1.10; // 那么降速10%</div><div class="line">    if (targetMBPerSec &lt; MIN_MERGE_MB_PER_SEC) &#123;</div><div class="line">      targetMBPerSec = MIN_MERGE_MB_PER_SEC;</div><div class="line">    &#125;</div><div class="line">  &#125;</div><div class="line">  double rate;</div><div class="line">  if (newMerge.maxNumSegments != -1) &#123;</div><div class="line">    rate = forceMergeMBPerSec;</div><div class="line">  &#125; else &#123;</div><div class="line">    rate = targetMBPerSec;</div><div class="line">  &#125;</div><div class="line">  rateLimiter.setMBPerSec(rate);</div><div class="line">  targetMBPerSecChanged();</div><div class="line">&#125;</div></pre></td></tr></table></figure>
-<p>该函数主要做了如下事情:</p>
-<ol>
-<li>若当前merge的size &lt; 50MB, 将不对全局合并速度产生影响, 后面我们也可以看到size &lt; 50MB的merge就没有限速。</li>
-<li>首先检查已经存在的merge size和即将合并的线程size是否在同一个level, 若有的话, 说明新的merge合并速度慢了。更新全局合并速度, 提速20%</li>
-<li>检查已经存在的merges, 该部分合并慢了有两种可能性:</li>
-</ol>
-<ul>
-<li>当前正在合并的线程超过阈值:maxThreadCount。</li>
-<li>正在合并的merges内部是否有相同level的merge。<br>若当前合并慢了, 不做任何处理。若不慢的话, 全局合并速度下降10%。</li>
-</ul>
-<h2 id="启动合并线程"><a href="#启动合并线程" class="headerlink" title="启动合并线程"></a>启动合并线程</h2><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div></pre></td><td class="code"><pre><div class="line">public void run() &#123;</div><div class="line">      try &#123;</div><div class="line">        // merge线程才会真正去调用beforeMerge，aftermerge</div><div class="line">        doMerge(writer, merge);</div><div class="line">        // Let CMS run new merges if necessary:</div><div class="line">        try &#123; // 循环检查是否还有merge需要进行</div><div class="line">          merge(writer, MergeTrigger.MERGE_FINISHED, true);</div><div class="line">        &#125;</div><div class="line">      &#125;  finally &#123;</div><div class="line">        synchronized(ConcurrentMergeScheduler.this) &#123;</div><div class="line">          removeMergeThread();</div><div class="line">          updateMergeThreads();</div><div class="line">          // In case we had stalled indexing, we can now wake up</div><div class="line">          // and possibly unstall:</div><div class="line">          ConcurrentMergeScheduler.this.notifyAll();</div><div class="line">        &#125;</div><div class="line">      &#125;</div><div class="line">    &#125;</div></pre></td></tr></table></figure>
-<p>该函数主要做了如下事情:</p>
-<ul>
-<li>通过调用doMerge()进行真正合并过程。</li>
-<li>调用merge()进行循环第二章节的操作。</li>
-<li>调用updateMergeThreads()调整当前正在进行的merge速度。<h3 id="段合并"><a href="#段合并" class="headerlink" title="段合并"></a>段合并</h3>merge线程真正进行段合并在时ElasticsearchConcurrentMergeScheduler.doMerge()里面完成的:<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div></pre></td><td class="code"><pre><div class="line">protected void doMerge(IndexWriter writer, MergePolicy.OneMerge merge) throws IOException &#123; // 开始合并</div><div class="line">      int totalNumDocs = merge.totalNumDocs();</div><div class="line">      OnGoingMerge onGoingMerge = new OnGoingMerge(merge);</div><div class="line">      onGoingMerges.add(onGoingMerge);</div><div class="line">      try &#123;</div><div class="line">          beforeMerge(onGoingMerge); // 进行合并前的检查</div><div class="line">          super.doMerge(writer, merge); // 真正调用lucene进行合并</div><div class="line">      &#125; finally &#123;</div><div class="line">          onGoingMerges.remove(onGoingMerge);</div><div class="line">          afterMerge(onGoingMerge); // 去调用取消限速等</div><div class="line">      &#125;</div><div class="line">  &#125;</div></pre></td></tr></table></figure>
-</li>
-</ul>
-<p>合并过程分为3个阶段:</p>
-<ol>
-<li>调用beforeMerge, 检查当前merge线程是否超过阈值maxMergeCount, 若超过了, 那么将对该shard的所有写入都限速为0。 我们经常看到<code>now throttling indexing: numMergesInFlight=</code>类似的提示, 就是这里打印的。</li>
-<li>调用super.doMerge()进行lucene层面merge。</li>
-<li>调用afterMerge, 查看是否需要解除该shard的写入限制。</li>
-</ol>
-<h2 id="更新所有段合并速度"><a href="#更新所有段合并速度" class="headerlink" title="更新所有段合并速度"></a>更新所有段合并速度</h2><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div></pre></td><td class="code"><pre><div class="line">protected synchronized void updateMergeThreads() &#123;</div><div class="line"></div><div class="line">  final List&lt;MergeThread&gt; activeMerges = new ArrayList&lt;&gt;();</div><div class="line"></div><div class="line">  int threadIdx = 0;</div><div class="line">  while (threadIdx &lt; mergeThreads.size()) &#123;</div><div class="line">    final MergeThread mergeThread = mergeThreads.get(threadIdx);</div><div class="line">    if (!mergeThread.isAlive()) &#123;</div><div class="line">      // Prune any dead threads</div><div class="line">      mergeThreads.remove(threadIdx);</div><div class="line">      continue;</div><div class="line">    &#125;</div><div class="line">    activeMerges.add(mergeThread);</div><div class="line">    threadIdx++;</div><div class="line">  &#125; // 更新维持的merge线程情况，去掉已经完成的</div><div class="line"></div><div class="line">  // Sort the merge threads, largest first:</div><div class="line">  // segment最大的放最前面</div><div class="line">  CollectionUtil.timSort(activeMerges);</div><div class="line">  final int activeMergeCount = activeMerges.size();</div><div class="line">  int bigMergeCount = 0;</div><div class="line">  for (threadIdx=activeMergeCount-1;threadIdx&gt;=0;threadIdx--) &#123;</div><div class="line">    MergeThread mergeThread = activeMerges.get(threadIdx);</div><div class="line">    //只是统计大于50的段合并线程个数</div><div class="line">    if (mergeThread.merge.estimatedMergeBytes &gt; MIN_BIG_MERGE_MB*1024*1024) &#123;</div><div class="line">      bigMergeCount = 1+threadIdx;</div><div class="line">      break;</div><div class="line">    &#125;</div><div class="line">  &#125;</div><div class="line">  for (threadIdx=0;threadIdx&lt;activeMergeCount;threadIdx++) &#123; // 遍历全部的端合并线程</div><div class="line">    MergeThread mergeThread = activeMerges.get(threadIdx);</div><div class="line">    OneMerge merge = mergeThread.merge;</div><div class="line">    // pause the thread if maxThreadCount is smaller than the number of merge threads.</div><div class="line">    // 若最大的超过限制个数的最大的那个几个，直接暂停速度。小于50M的不限速，别的调整规定速度。</div><div class="line">    final boolean doPause = threadIdx &lt; bigMergeCount - maxThreadCount;</div><div class="line">    double newMBPerSec;</div><div class="line">    if (doPause) &#123; // 大于的直接为0</div><div class="line">      newMBPerSec = 0.0;</div><div class="line">      // 是强制合并的速度</div><div class="line">    &#125; else if (merge.maxNumSegments != -1) &#123;</div><div class="line">      newMBPerSec = forceMergeMBPerSec;</div><div class="line">    &#125; else if (doAutoIOThrottle == false) &#123; //</div><div class="line">      newMBPerSec = Double.POSITIVE_INFINITY;</div><div class="line">       // 若端的大小小于50M，则没有限制</div><div class="line">    &#125; else if (merge.estimatedMergeBytes &lt; MIN_BIG_MERGE_MB*1024*1024) &#123;</div><div class="line">      // Don&apos;t rate limit small merges:</div><div class="line">      newMBPerSec = Double.POSITIVE_INFINITY;</div><div class="line">    &#125; else &#123;</div><div class="line">    // 将全局的段合并速度用来更新本身的段合并速度</div><div class="line">      newMBPerSec = targetMBPerSec;</div><div class="line">    &#125;</div><div class="line">    MergeRateLimiter rateLimiter = mergeThread.rateLimiter;</div><div class="line">    double curMBPerSec = rateLimiter.getMBPerSec();</div><div class="line">    // 更新本身的段合并速度</div><div class="line">    rateLimiter.setMBPerSec(newMBPerSec);</div><div class="line">  &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
-<p>更新所有存在的merge合并速度逻辑如下:</p>
-<ol>
-<li>删除已经完成的merge线程, 并将存活的merge按照size从大到小进行排序,放入activeMerges中。</li>
-<li>统计size&gt;50MB的合并线程。</li>
-<li>遍历activeMerges:</li>
-</ol>
-<ul>
-<li>对于超过规定阈值maxThreadCount的大于50MB的merge线程进行限速, 合并速度直接降为0。注意是从最大的size的merge开始遍历的。</li>
-<li>若设置了不限速, 则取消限速。</li>
-<li>若合并线程的size&lt;50MB, 不进行限速。</li>
-<li>若合并的merge大于&gt;50, 同时在规定的阈值maxThreadCount之内的线程, 调整合并速度为全局速度。</li>
-</ul>
-<p>有两个参数比较重要, 需要注意下: maxMergeCount和maxThreadCount:</p>
-<ol>
-<li>maxMergeCount主要是从写入的方面限制的, 应用在merge线程真正进行merge前, 检查当前正在合并的线程个数是否超过该阈值, 若超过了的话, 该shard上所有写入都将被禁止。</li>
-<li>maxThreadCount主要是从限制merge合并速度的方向限制的, 用在两个地方:</li>
-</ol>
-<ul>
-<li>确定当前正在进行的merge是否超过该阈值, 超过后, 就认为当前已存在的merge合并速度慢了(若没超过,且正在合并的merge没有相同level的mege, 就会降10%合并速度)</li>
-<li>在更新全局合并速度时, 若大于50MB的合并线程数大于该阈值, 超过的merge都会被直接暂停合并。</li>
-</ul>
-<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>本文着重从merge调度层面讲解的, 比如如何选择segment, 如何动态调整merge速度的。至于lucene层面的合并, 将在之后的文档中详细介绍。从分析角度看, merge还是有些问题的, 比如只考虑单个shard的合并速度, 却没有在node层面进行限速。</p>
-
-      
-
-      
-        <div class="page-reward">
-          <a href="javascript:;" class="page-reward-btn tooltip-top">
-            <div class="tooltip tooltip-east">
-            <span class="tooltip-item">
-              赏
-            </span>
-            <span class="tooltip-content">
-              <span class="tooltip-text">
-                <span class="tooltip-inner">
-                  <p class="reward-p"><i class="icon icon-quo-left"></i>谢谢阅读<i class="icon icon-quo-right"></i></p>
-                  <div class="reward-box">
-                    
-                    
-                  </div>
-                </span>
-              </span>
-            </span>
-          </div>
-          </a>
-        </div>
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color3">ES, Semgent Merge</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/elasticsearch_learning/categories/Elasticsearch//" class="article-tag-list-link color4">Elasticsearch</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-
-      
-        
-<div class="share-btn share-icons tooltip-left">
-  <div class="tooltip tooltip-east">
-    <span class="tooltip-item">
-      <a href="javascript:;" class="share-sns share-outer">
-        <i class="icon icon-share"></i>
-      </a>
-    </span>
-    <span class="tooltip-content">
-      <div class="share-wrap">
-        <div class="share-icons">
-          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
-            <i class="icon icon-weibo"></i>
-          </a>
-          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
-            <i class="icon icon-weixin"></i>
-          </a>
-          <a class="qq share-sns" href="javascript:;" data-type="qq">
-            <i class="icon icon-qq"></i>
-          </a>
-          <a class="douban share-sns" href="javascript:;" data-type="douban">
-            <i class="icon icon-douban"></i>
-          </a>
-          <a class="qzone share-sns" href="javascript:;" data-type="qzone">
-            <i class="icon icon-qzone"></i>
-          </a>
-          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
-            <i class="icon icon-facebook"></i>
-          </a>
-          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
-            <i class="icon icon-twitter"></i>
-          </a>
-          <a class="google share-sns" href="javascript:;" data-type="google">
-            <i class="icon icon-google"></i>
-          </a>
-        </div>
-      </div>
-    </span>
-  </div>
-</div>
-
-<div class="page-modal wx-share js-wx-box">
-    <a class="close js-modal-close" href="javascript:;"><i class="icon icon-close"></i></a>
-    <p>扫一扫，分享到微信</p>
-    <div class="wx-qrcode">
-      <img src="//pan.baidu.com/share/qrcode?url=https://kkewwei.github.io/elasticsearch_learning/2019/10/17/ES段合并源码分析/" alt="微信分享二维码">
-    </div>
-</div>
-
-<div class="mask js-mask"></div>
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-  
-<nav id="article-nav">
-  
-    <a href="/elasticsearch_learning/2019/10/29/Lucenec底层架构-fdt-fdx构建过程/" id="article-nav-newer" class="article-nav-link-wrap">
-      <i class="icon-circle-left"></i>
-      <div class="article-nav-title">
-        
-          Lucene8.2.0底层架构-fdt/fdx构建过程
-        
-      </div>
-    </a>
-  
-  
-    <a href="/elasticsearch_learning/2019/10/06/Lucene8-2-0底层架构-ByteBlockPool结构分析/" id="article-nav-older" class="article-nav-link-wrap">
-      <div class="article-nav-title">Lucene8.2.0底层架构-ByteBlockPool结构分析</div>
-      <i class="icon-circle-right"></i>
-    </a>
-  
-</nav>
-
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-        <div class="toc-container tooltip-left">
-            <i class="icon-font icon-category"></i>
-            <div class="tooltip tooltip-east">
-                <span class="tooltip-item">
-                </span>
-                <span class="tooltip-content">
-                    <div class="toc-article">
-                    <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#merge触发条件"><span class="toc-number">1.</span> <span class="toc-text">merge触发条件</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#segments的挑选"><span class="toc-number">2.</span> <span class="toc-text">segments的挑选</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#merge过程"><span class="toc-number">3.</span> <span class="toc-text">merge过程</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#更新全局维护的合并速度"><span class="toc-number">3.1.</span> <span class="toc-text">更新全局维护的合并速度</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#启动合并线程"><span class="toc-number">3.2.</span> <span class="toc-text">启动合并线程</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#段合并"><span class="toc-number">3.2.1.</span> <span class="toc-text">段合并</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#更新所有段合并速度"><span class="toc-number">3.3.</span> <span class="toc-text">更新所有段合并速度</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#总结"><span class="toc-number">4.</span> <span class="toc-text">总结</span></a></li></ol>
-                    </div>
-                </span>
-            </div>
-        </div>
-        
-    </div>
-</aside>
-
-
-
-  
-
-  
-
-  
-
-  
-
-  
-  <div id="gitment-ctn"></div>
-<link rel="stylesheet" href="//imsun.github.io/gitment/style/default.css">
-<script src="//www.wenjunjiang.win/js/gitment.js "></script>
-<script>
-var gitment = new Gitment({
-  id: "ES段合并逻辑分析",
-  owner: 'kkewwei',
-  repo: 'comments',
-  oauth: {
-    client_id: '9391e497d6b288887f33',
-    client_secret: 'db733731bff4ee2811d9530b1ac4cfc6767e8183',
-  },
-})
-gitment.render('gitment-ctn')
-</script>
-
-  
-
-
+            
           </div>
         </div>
       </div>
@@ -635,11 +278,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">NIO, write, read</a>
+                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
+                <a href="javascript:void(0)" class="js-tag color2">NIO, write, read</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -647,15 +290,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">LockSupport</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">Lucene、ByteBlockPool</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">Lucene、词典、tim、tip、doc、pos、fst、倒排索引</a>
+                <a href="javascript:void(0)" class="js-tag color2">LockSupport</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">Lucene、StoredField</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -663,7 +306,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">Lucene、StoredField</a>
+                <a href="javascript:void(0)" class="js-tag color5">Lucene、词典、tim、tip、doc、pos、fst、倒排索引</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -703,11 +346,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
+                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
+                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
               </li>
              
               <li class="article-tag-list-item">

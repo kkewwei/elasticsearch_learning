@@ -45,57 +45,39 @@
   <div id="container" q-class="show:isCtnShow">
     <canvas id="anm-canvas" class="anm-canvas"></canvas>
     <div class="left-col" q-class="show:isShow">
-      
-<div class="overlay" style="background: #4d4d4d"></div>
+      <% var defaultBg = '#4d4d4d'; %>
+<div class="overlay" style="background: <%= theme.style && theme.style.header ? theme.style.header : defaultBg %>"></div>
 <div class="intrude-less">
 	<header id="header" class="inner">
-		<a href="/" class="profilepic">
-      <img src="https://kkewwei.github.io/elasticsearch_learning/img/myself.png" class="js-avatar">
+		<a href="<%=theme.root%>" class="profilepic">
+			<img src="<%=theme.avatar%>" class="js-avatar">
 		</a>
 		<hgroup>
-		  <h1 class="header-author"><a href="/">jianguo</a></h1>
+		  <h1 class="header-author"><a href="<%=theme.root%>"><%=theme.author%></a></h1>
 		</hgroup>
-		
-		<p class="header-subtitle">往事随风</p>
-		
+		<% if (theme.subtitle){ %>
+		<p class="header-subtitle"><%=theme.subtitle%></p>
+		<%}%>
 
 		<nav class="header-menu">
 			<ul>
-			
-				<li><a href="/elasticsearch_learning/">主页</a></li>
-	        
-				<li><a href="/elasticsearch_learning/tags/随笔/">随笔</a></li>
-	        
-				<li><a href="/elasticsearch_learning/categories">分类</a></li>
-	        
+			<% for (var i in theme.menu){ %>
+				<li><a href="<%- url_for(theme.menu[i]) %>"><%= i %></a></li>
+	        <%}%>
 			</ul>
 		</nav>
 		<nav class="header-smart-menu">
-    		
-    			
-    			<a q-on="click: openSlider(e, 'innerArchive')" href="javascript:void(0)">所有文章</a>
-    			
-            
-    			
-    			<a q-on="click: openSlider(e, 'friends')" href="javascript:void(0)">友链</a>
-    			
-            
-    			
-    			<a q-on="click: openSlider(e, 'aboutme')" href="javascript:void(0)">关于我</a>
-    			
-            
+    		<% for (var i in theme.smart_menu){ %>
+    			<% if(theme.smart_menu[i]){ %>
+    			<a q-on="click: openSlider(e, '<%-i%>')" href="javascript:void(0)"><%= theme.smart_menu[i] %></a>
+    			<% } %>
+            <%}%>
 		</nav>
 		<nav class="header-nav">
 			<div class="social">
-				
-					<a class="github" target="_blank" href="#" title="github"><i class="icon-github"></i></a>
-		        
-					<a class="weibo" target="_blank" href="#" title="weibo"><i class="icon-weibo"></i></a>
-		        
-					<a class="rss" target="_blank" href="#" title="rss"><i class="icon-rss"></i></a>
-		        
-					<a class="zhihu" target="_blank" href="#" title="zhihu"><i class="icon-zhihu"></i></a>
-		        
+				<% for (var i in theme.subnav){ %>
+					<a class="<%= i %>" target="_blank" href="<%- url_for(theme.subnav[i]) %>" title="<%= i %>"><i class="icon-<%= i %>"></i></a>
+		        <%}%>
 			</div>
 		</nav>
 	</header>
@@ -167,276 +149,7 @@
             <canvas data-colors="#eaeaea" data-sectionHeight="100" data-contentId="js-content" id="myCanvas1" class="anm-canvas"></canvas>
           </div>
           <div id="js-content" class="content-ll">
-            <article id="post-Netty内存回收原理解读" class="article article-type-post " itemscope itemprop="blogPost">
-  <div class="article-inner">
-    
-      <header class="article-header">
-        
-  
-    <h1 class="article-title" itemprop="name">
-      Netty堆外内存回收原理详解
-    </h1>
-  
-
-        
-        <a href="/elasticsearch_learning/2019/01/12/Netty内存回收原理解读/" class="archive-article-date">
-  	<time datetime="2019-01-12T07:22:41.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2019-01-12</time>
-</a>
-        
-      </header>
-      
-      <span class="archive-article-date">
-              阅读量 <span id="busuanzi_value_page_pv"></span>
-      </span>
-
-    
-
-    <!-- 目录内容 -->
-    
-      <p class="show-toc-btn" id="show-toc-btn" onclick="showToc();" style="display:none">
-        <span class="btn-bg"></span>
-        <span class="btn-text">文章导航</span>
-      </p>
-	    <div id="toc-article" class="toc-article">
-	      <span id="toc-close" class="toc-close" title="隐藏导航" onclick="showBtn();">×</span>
-		      <strong class="toc-title">文章目录</strong>
-        <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#PlatformDependent及PlatformDependent0简介"><span class="toc-number">1.</span> <span class="toc-text">PlatformDependent及PlatformDependent0简介</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#PlatformDependent"><span class="toc-number">1.0.1.</span> <span class="toc-text">PlatformDependent</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#PlatformDependent0"><span class="toc-number">1.0.2.</span> <span class="toc-text">PlatformDependent0</span></a></li></ol></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#直接内存的释放"><span class="toc-number">2.</span> <span class="toc-text">直接内存的释放</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#总结"><span class="toc-number">3.</span> <span class="toc-text">总结</span></a></li></ol>
-         </div>
-   <script type="text/javascript">
-	function showToc(){
-		var toc_article = document.getElementById("toc-article");
-		var show_toc_btn = document.getElementById("show-toc-btn");
-		toc_article.setAttribute("style","display:block");
-		show_toc_btn.setAttribute("style","display:none");
-		};
-	function showBtn(){
-		var toc_article = document.getElementById("toc-article");
-		var show_toc_btn = document.getElementById("show-toc-btn");
-		toc_article.setAttribute("style","display:none");
-		show_toc_btn.setAttribute("style","display:block");
-		};
-   </script>
-      
-    <!-- 目录内容结束 -->
-
-    <div class="article-entry" itemprop="articleBody">
-      
-        <p>Netty堆外内存通过DirectByteBuffer实现管理, 它会首先申请16M的直接内存块大小, 放入DirectByteBuffer, 由PoolChunk映射这16MB的内存块, 通过PoolChunk的分配来完成该直接内存块使用与释放。 每当用户申请小块内存时, 都从这16M的内存中分配, 当该部分内存使用完后, 会释放到PoolChunk内存池中, 而不是彻底释放。 可以看出, netty每次释放直接内存并没有使用DirectByteBuffer自带Cleaner来释放(具体可以参考<a href="https://kkewwei.github.io/elasticsearch_learning/2018/07/27/DirectByteBuffer%E5%A0%86%E5%A4%96%E5%86%85%E5%AD%98%E8%AF%A6%E8%A7%A3/">DirectByteBuffer堆外内存详解</a>), 使用PoolChunk管理直接内存的使用情况的好处也是很清晰的: 直接申请与释放堆外内存是个很大的开销, 若通过PoolChunk管理直接内存使用后, 可以循环使用该部分直接内存, 这样才能满足netty的高性能特性。 本文将讲述netty释放直接内存的原理及细节。<br>而DirectByteBuffer封装在PooledUnsafeDirectByteBuf, netty层面也主要操作后者, 两者的关系图如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/Netty堆外内存回收1.png" height="250" width="350"><br>了解这两者对应关系, 对理解该文有一定的帮助。</p>
-<h1 id="PlatformDependent及PlatformDependent0简介"><a href="#PlatformDependent及PlatformDependent0简介" class="headerlink" title="PlatformDependent及PlatformDependent0简介"></a>PlatformDependent及PlatformDependent0简介</h1><p>PlatformDependent及PlatformDependent0主要是用来确定重要参数配置的, 比如netty是否需要使用Unsfa, 当前使用的java版本等, 了解这些参数变量, 有助于更方面了解直接内存的使用。</p>
-<h3 id="PlatformDependent"><a href="#PlatformDependent" class="headerlink" title="PlatformDependent"></a>PlatformDependent</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div></pre></td><td class="code"><pre><div class="line">//是否有Unsafe, 拥有了Unsafe, 我们可以方便的操控直接内存,可以通过-Dio.netty.noUnsafe及-Dio.netty.tryUnsafe参数来决定, 默认是可以</div><div class="line">private static final boolean HAS_UNSAFE = hasUnsafe0();</div><div class="line">//用户优先使用堆外内存还是堆内内存, 通过-Dio.netty.noPreferDirect参数控制</div><div class="line">private static final boolean DIRECT_BUFFER_PREFERRED =HAS_UNSAFE &amp;&amp; !SystemPropertyUtil.getBoolean(&quot;io.netty.noPreferDirect&quot;, false);</div><div class="line">//当前netty能够使用的最大堆外内存, 默认与堆内内存相等</div><div class="line">private static final long MAX_DIRECT_MEMORY = maxDirectMemory0();</div><div class="line"> //与unsafe结合可以直接获取任何堆内array对象的直接地址</div><div class="line">private static final long BYTE_ARRAY_BASE_OFFSET = byteArrayBaseOffset0();</div><div class="line">//与unsafe结合可以获取任何对象的直接内存地址</div><div class="line">private static final int ADDRESS_SIZE = addressSize0();</div><div class="line"> //默认为true，则代表着netty将自己通过PoolCHunk来实现直接内存的回收与分配, 而不是使用DirectByteBuffer自带的功能来回收直接内存</div><div class="line">private static final boolean USE_DIRECT_BUFFER_NO_CLEANER;</div><div class="line">//直接内存地址的使用量, 每次新申请和释放16M堆外内存, 都会统计到该变量中, 实际项目中, 我们可以通过反射拿到该变量值以观察堆外内存是否出现泄漏</div><div class="line">private static final AtomicLong DIRECT_MEMORY_COUNTER;</div><div class="line">//最大堆外内存</div><div class="line">private static final long DIRECT_MEMORY_LIMIT;</div><div class="line">private static final ThreadLocalRandomProvider RANDOM_PROVIDER;</div><div class="line">//自己弄一个cleaner, 当16M内存被完全释放时, 会调用该变量完成。</div><div class="line">private static final Cleaner CLEANER;</div><div class="line">static &#123;</div><div class="line">     ......</div><div class="line">    long maxDirectMemory = SystemPropertyUtil.getLong(&quot;io.netty.maxDirectMemory&quot;, -1);</div><div class="line">    //PlatformDependent0.hasDirectBufferNoCleanerConstructor()会检查可以通过反射+直接内存地址来构建DirectByteBuffer对象</div><div class="line">    if (maxDirectMemory == 0 || !hasUnsafe() || !PlatformDependent0.hasDirectBufferNoCleanerConstructor()) &#123;</div><div class="line">        USE_DIRECT_BUFFER_NO_CLEANER = false;</div><div class="line">        DIRECT_MEMORY_COUNTER = null;</div><div class="line">    &#125; else &#123;</div><div class="line">        //代表释放DirectByteBuffer里面的直接内存, 不使用自带的cleaner机制, 通过UNSAFE.freeMemory(address)释放的。具体见PoolArea.destroyChunk()方法选择。</div><div class="line">        USE_DIRECT_BUFFER_NO_CLEANER = true;</div><div class="line">        if (maxDirectMemory &lt; 0) &#123;</div><div class="line">            maxDirectMemory = maxDirectMemory0();</div><div class="line">            if (maxDirectMemory &lt;= 0) &#123;</div><div class="line">                DIRECT_MEMORY_COUNTER = null;</div><div class="line">            &#125; else &#123;</div><div class="line">                DIRECT_MEMORY_COUNTER = new AtomicLong();</div><div class="line">            &#125;</div><div class="line">        &#125; else &#123;</div><div class="line">            DIRECT_MEMORY_COUNTER = new AtomicLong();</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line">    DIRECT_MEMORY_LIMIT = maxDirectMemory;</div><div class="line">    if (!isAndroid() &amp;&amp; hasUnsafe()) &#123;</div><div class="line">        if (javaVersion() &gt;= 9) &#123;</div><div class="line">            CLEANER = CleanerJava9.isSupported() ? new CleanerJava9() : NOOP;</div><div class="line">        &#125; else &#123;</div><div class="line">            CLEANER = CleanerJava6.isSupported() ? new CleanerJava6() : NOOP;</div><div class="line">        &#125;</div><div class="line">    &#125; else &#123;</div><div class="line">        CLEANER = NOOP;</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
-<p>我们可以看下CleanerJava6如何进行直接内存释放的:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div></pre></td><td class="code"><pre><div class="line">final class CleanerJava6 implements Cleaner &#123;</div><div class="line">    //随便产生了一个DircetByteBuff，里面的cleaner的直接内存地址</div><div class="line">    private static final long CLEANER_FIELD_OFFSET;</div><div class="line">    //DircetByteBuff中cleaner的直接内存地址</div><div class="line">    private static final Method CLEAN_METHOD;</div><div class="line">    static &#123;</div><div class="line">        long fieldOffset = -1;</div><div class="line">        Method clean = null;</div><div class="line">        Throwable error = null;</div><div class="line">        if (PlatformDependent0.hasUnsafe()) &#123;</div><div class="line">            //先产生一个DirectByteBuffer</div><div class="line">            ByteBuffer direct = ByteBuffer.allocateDirect(1);</div><div class="line">            try &#123;</div><div class="line">            //根据反射, 获取到该对象的cleaner域</div><div class="line">                Field cleanerField = direct.getClass().getDeclaredField(&quot;cleaner&quot;);</div><div class="line">                fieldOffset = PlatformDependent0.objectFieldOffset(cleanerField);</div><div class="line">                Object cleaner = PlatformDependent0.getObject(direct, fieldOffset);</div><div class="line">                clean = cleaner.getClass().getDeclaredMethod(&quot;clean&quot;);</div><div class="line">                //调用clean，测试回收DirectByteBuffer里面的直接内存</div><div class="line">                clean.invoke(cleaner);</div><div class="line">            &#125; catch (Throwable t) &#123;</div><div class="line">                // We don&apos;t have ByteBuffer.cleaner().</div><div class="line">                fieldOffset = -1;</div><div class="line">                clean = null;</div><div class="line">                error = t;</div><div class="line">            &#125;</div><div class="line">        &#125; else &#123;</div><div class="line">            error = new UnsupportedOperationException(&quot;sun.misc.Unsafe unavailable&quot;);</div><div class="line">        &#125;</div><div class="line">        if (error == null) &#123;</div><div class="line">            logger.debug(&quot;java.nio.ByteBuffer.cleaner(): available&quot;);</div><div class="line">        &#125; else &#123;</div><div class="line">            logger.debug(&quot;java.nio.ByteBuffer.cleaner(): unavailable&quot;, error);</div><div class="line">        &#125;</div><div class="line">        CLEANER_FIELD_OFFSET = fieldOffset; //DircetByteBuff中cleaner的直接内存地址</div><div class="line">        CLEAN_METHOD = clean;   ////DircetByteBuff中cleaner的直接内存地址</div><div class="line">    &#125;</div><div class="line">    @Override</div><div class="line">    public void freeDirectBuffer(ByteBuffer buffer) &#123;</div><div class="line">        if (!buffer.isDirect()) &#123;</div><div class="line">            return;</div><div class="line">        &#125;</div><div class="line">        try &#123;</div><div class="line">            //获取该buffer里面的cleanerd对象</div><div class="line">            Object cleaner = PlatformDependent0.getObject(buffer, CLEANER_FIELD_OFFSET);</div><div class="line">            if (cleaner != null) &#123;</div><div class="line">                //主动调用clean()函数以回收该内存</div><div class="line">                CLEAN_METHOD.invoke(cleaner);</div><div class="line">            &#125;</div><div class="line">        &#125; catch (Throwable cause) &#123;</div><div class="line">            PlatformDependent0.throwException(cause);</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
-<p>使用CleanerJava6释放直接内存的一个前提就是存在cleaner成员变量, 当使用DirectByteBuffer(int cap)产生的DirectByteBuffer, 其cleaner才会存在。 而使用private DirectByteBuffer(long addr, int cap)则不会产生cleaner对象, 而netty默认使用后者产生DirectByteBuffer对象(见<a href="https://kkewwei.github.io/elasticsearch_learning/2018/07/20/Netty-PoolChunk%E5%8E%9F%E7%90%86%E6%8E%A2%E7%A9%B6/">allocateNormal.allocateDirect()</a>)。</p>
-<h3 id="PlatformDependent0"><a href="#PlatformDependent0" class="headerlink" title="PlatformDependent0"></a>PlatformDependent0</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div><div class="line">61</div><div class="line">62</div><div class="line">63</div><div class="line">64</div><div class="line">65</div><div class="line">66</div><div class="line">67</div><div class="line">68</div><div class="line">69</div><div class="line">70</div><div class="line">71</div><div class="line">72</div><div class="line">73</div><div class="line">74</div><div class="line">75</div><div class="line">76</div><div class="line">77</div><div class="line">78</div><div class="line">79</div><div class="line">80</div><div class="line">81</div><div class="line">82</div><div class="line">83</div><div class="line">84</div><div class="line">85</div><div class="line">86</div><div class="line">87</div><div class="line">88</div><div class="line">89</div><div class="line">90</div><div class="line">91</div><div class="line">92</div><div class="line">93</div><div class="line">94</div><div class="line">95</div><div class="line">96</div><div class="line">97</div><div class="line">98</div><div class="line">99</div><div class="line">100</div><div class="line">101</div><div class="line">102</div><div class="line">103</div><div class="line">104</div><div class="line">105</div><div class="line">106</div><div class="line">107</div><div class="line">108</div><div class="line">109</div><div class="line">110</div><div class="line">111</div><div class="line">112</div><div class="line">113</div><div class="line">114</div><div class="line">115</div><div class="line">116</div><div class="line">117</div><div class="line">118</div><div class="line">119</div><div class="line">120</div><div class="line">121</div><div class="line">122</div><div class="line">123</div><div class="line">124</div><div class="line">125</div><div class="line">126</div><div class="line">127</div><div class="line">128</div><div class="line">129</div><div class="line">130</div><div class="line">131</div><div class="line">132</div><div class="line">133</div><div class="line">134</div><div class="line">135</div><div class="line">136</div><div class="line">137</div><div class="line">138</div><div class="line">139</div><div class="line">140</div><div class="line">141</div><div class="line">142</div><div class="line">143</div><div class="line">144</div><div class="line">145</div><div class="line">146</div><div class="line">147</div><div class="line">148</div><div class="line">149</div><div class="line">150</div><div class="line">151</div><div class="line">152</div><div class="line">153</div><div class="line">154</div><div class="line">155</div><div class="line">156</div><div class="line">157</div><div class="line">158</div><div class="line">159</div><div class="line">160</div></pre></td><td class="code"><pre><div class="line">//与Unsafe配合, 可以获取任何对象任何成员变量的值</div><div class="line">private static final long ADDRESS_FIELD_OFFSET;</div><div class="line">//可以通过该地址直接获取数组在内存中的初始地址， 参考https://www.jianshu.com/p/9819eb48716a</div><div class="line">private static final long BYTE_ARRAY_BASE_OFFSET;</div><div class="line">//DirectByteBuff对象构造器，参数包括直接内存address</div><div class="line">private static final Constructor&lt;?&gt; DIRECT_BUFFER_CONSTRUCTOR;</div><div class="line">//是否明确不让使用Unsafe</div><div class="line">private static final boolean IS_EXPLICIT_NO_UNSAFE = explicitNoUnsafe0();</div><div class="line">//通过Unsafe来控制直接内存</div><div class="line">private static final Object INTERNAL_UNSAFE;</div><div class="line">static final Unsafe UNSAFE;</div><div class="line">private static final boolean UNALIGNED;</div><div class="line">static &#123;</div><div class="line">    final ByteBuffer direct;</div><div class="line">    Field addressField = null;</div><div class="line">    Method allocateArrayMethod = null;</div><div class="line">    Unsafe unsafe;</div><div class="line">    Object internalUnsafe = null;</div><div class="line">    if (isExplicitNoUnsafe()) &#123;</div><div class="line">        direct = null;</div><div class="line">        addressField = null;</div><div class="line">        unsafe = null;</div><div class="line">        internalUnsafe = null;</div><div class="line">    &#125; else &#123;</div><div class="line">        //这里只是尝试分配一个内存</div><div class="line">        direct = ByteBuffer.allocateDirect(1);</div><div class="line">        // 尝试通过反射获取Unsafe对象</div><div class="line">        final Object maybeUnsafe = AccessController.doPrivileged(new PrivilegedAction&lt;Object&gt;() &#123;</div><div class="line">            @Override</div><div class="line">            public Object run() &#123;</div><div class="line">                try &#123;</div><div class="line">                    //反射， 强制获取该类属性</div><div class="line">                    final Field unsafeField = Unsafe.class.getDeclaredField(&quot;theUnsafe&quot;);</div><div class="line">                    Throwable cause = ReflectionUtil.trySetAccessible(unsafeField);</div><div class="line">                    if (cause != null) &#123;</div><div class="line">                        return cause;</div><div class="line">                    &#125;</div><div class="line">                    // the unsafe instance</div><div class="line">                    return unsafeField.get(null);</div><div class="line">                &#125; catch (NoSuchFieldException e) &#123;</div><div class="line">                    ......</div><div class="line">                    return e;</div><div class="line">                &#125;</div><div class="line">            &#125;</div><div class="line">        &#125;);</div><div class="line">        if (maybeUnsafe instanceof Exception) &#123;</div><div class="line">            unsafe = null;</div><div class="line">        &#125; else &#123;</div><div class="line">            unsafe = (Unsafe) maybeUnsafe;</div><div class="line">        &#125;</div><div class="line">        //检车copyMemory可用</div><div class="line">        if (unsafe != null) &#123;</div><div class="line">            final Unsafe finalUnsafe = unsafe;</div><div class="line">            final Object maybeException = AccessController.doPrivileged(new PrivilegedAction&lt;Object&gt;() &#123;</div><div class="line">                @Override</div><div class="line">                public Object run() &#123;</div><div class="line">                    try &#123;</div><div class="line">                        finalUnsafe.getClass().getDeclaredMethod(</div><div class="line">                                &quot;copyMemory&quot;, Object.class, long.class, Object.class, long.class, long.class);</div><div class="line">                        return null;</div><div class="line">                    &#125; catch (NoSuchMethodException e) &#123;</div><div class="line">                        ......</div><div class="line">                    &#125;</div><div class="line">                &#125;</div><div class="line">            &#125;);</div><div class="line">            if (maybeException == null) &#123;</div><div class="line">                logger.debug(&quot;sun.misc.Unsafe.copyMemory: available&quot;);</div><div class="line">            &#125; else &#123;</div><div class="line">                // Unsafe.copyMemory(Object, long, Object, long, long) unavailable.</div><div class="line">                unsafe = null;</div><div class="line">            &#125;</div><div class="line">        &#125;</div><div class="line">        if (unsafe != null) &#123;</div><div class="line">            //测试通过Unsafe获取DirectByteBuffer.address()可用</div><div class="line">            final Unsafe finalUnsafe = unsafe;</div><div class="line">            final Object maybeAddressField = AccessController.doPrivileged(new PrivilegedAction&lt;Object&gt;() &#123;</div><div class="line">                @Override</div><div class="line">                public Object run() &#123;</div><div class="line">                    try &#123;</div><div class="line">                        final Field field = Buffer.class.getDeclaredField(&quot;address&quot;);</div><div class="line">                        final long offset = finalUnsafe.objectFieldOffset(field);</div><div class="line">                        final long address = finalUnsafe.getLong(direct, offset);</div><div class="line">                        if (address == 0) &#123;</div><div class="line">                            return null;</div><div class="line">                        &#125;</div><div class="line">                        return field;</div><div class="line">                    &#125; catch (NoSuchFieldException e) &#123;</div><div class="line">                       ......</div><div class="line">                    &#125;</div><div class="line">                &#125;</div><div class="line">            &#125;);</div><div class="line">            if (maybeAddressField instanceof Field) &#123;</div><div class="line">                addressField = (Field) maybeAddressField;</div><div class="line">            &#125; else &#123;</div><div class="line">                unsafe = null;</div><div class="line">            &#125;</div><div class="line">        &#125;</div><div class="line">        if (unsafe != null) &#123;</div><div class="line">            long byteArrayIndexScale = unsafe.arrayIndexScale(byte[].class);</div><div class="line">            if (byteArrayIndexScale != 1) &#123;</div><div class="line">                unsafe = null;</div><div class="line">            &#125;</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line">    UNSAFE = unsafe;</div><div class="line">    if (unsafe == null) &#123;</div><div class="line">        ADDRESS_FIELD_OFFSET = -1;</div><div class="line">        BYTE_ARRAY_BASE_OFFSET = -1;</div><div class="line">        UNALIGNED = false;</div><div class="line">        DIRECT_BUFFER_CONSTRUCTOR = null;</div><div class="line">        ALLOCATE_ARRAY_METHOD = null;</div><div class="line">    &#125; else &#123;</div><div class="line">        //构建通过private DirectByteBuffer(long addr, int cap)获取DirectByteBuffer对象的构造体</div><div class="line">        Constructor&lt;?&gt; directBufferConstructor;</div><div class="line">        long address = -1;</div><div class="line">        try &#123;</div><div class="line">            //返回的是DirectByteBuff的构造器</div><div class="line">            final Object maybeDirectBufferConstructor =</div><div class="line">                    AccessController.doPrivileged(new PrivilegedAction&lt;Object&gt;() &#123;</div><div class="line">                        @Override</div><div class="line">                        public Object run() &#123;</div><div class="line">                            try &#123;</div><div class="line">                                final Constructor&lt;?&gt; constructor =  //对应DirectByteBuffer(long addr, int cap)</div><div class="line">                                        direct.getClass().getDeclaredConstructor(long.class, int.class);</div><div class="line">                                Throwable cause = ReflectionUtil.trySetAccessible(constructor);</div><div class="line">                                if (cause != null) &#123;</div><div class="line">                                    return cause;</div><div class="line">                                &#125;</div><div class="line">                                return constructor;</div><div class="line">                            &#125; catch (NoSuchMethodException e) &#123;</div><div class="line">                                return e;</div><div class="line">                            &#125; catch (SecurityException e) &#123;</div><div class="line">                                return e;</div><div class="line">                            &#125;</div><div class="line">                        &#125;</div><div class="line">                    &#125;);</div><div class="line">            if (maybeDirectBufferConstructor instanceof Constructor&lt;?&gt;) &#123;</div><div class="line">                address = UNSAFE.allocateMemory(1);</div><div class="line">                try &#123;</div><div class="line">                     //这里是尝试产生一个直接内存测试一用</div><div class="line">                    ((Constructor&lt;?&gt;) maybeDirectBufferConstructor).newInstance(address, 1);</div><div class="line">                    directBufferConstructor = (Constructor&lt;?&gt;) maybeDirectBufferConstructor;</div><div class="line">                &#125; catch (InstantiationException e) &#123;</div><div class="line">                    directBufferConstructor = null;</div><div class="line">                    ......</div><div class="line">                &#125;</div><div class="line">            &#125; else &#123;</div><div class="line">                directBufferConstructor = null;</div><div class="line">            &#125;</div><div class="line">        &#125; finally &#123;</div><div class="line">            if (address != -1) &#123;</div><div class="line">               //测试完成后再释放这个节点</div><div class="line">                UNSAFE.freeMemory(address);</div><div class="line">            &#125;</div><div class="line">        &#125;</div><div class="line">        DIRECT_BUFFER_CONSTRUCTOR = directBufferConstructor;</div><div class="line">        ADDRESS_FIELD_OFFSET = objectFieldOffset(addressField);</div><div class="line">        BYTE_ARRAY_BASE_OFFSET = UNSAFE.arrayBaseOffset(byte[].class);</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
-<h1 id="直接内存的释放"><a href="#直接内存的释放" class="headerlink" title="直接内存的释放"></a>直接内存的释放</h1><p>当数据通过channel发送出去后(见<a href="https://kkewwei.github.io/elasticsearch_learning/2018/05/04/Netty-Http%E9%80%9A%E4%BF%A1%E7%BC%96%E7%A0%81%E6%BA%90%E7%A0%81%E9%98%85%E8%AF%BB/">Netty Http通信源码二(编码)分析</a>), 然后就开始准备着释放直接内存<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line"> // Release the fully written buffers, and update the indexes of the partially written buffer.</div><div class="line">in.removeBytes(writtenBytes); //释放内存资源</div></pre></td></tr></table></figure></p>
-<p>最后调用的remove():<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div></pre></td><td class="code"><pre><div class="line"> public boolean remove() &#123;</div><div class="line">    Entry e = flushedEntry;</div><div class="line">    if (e == null) &#123;</div><div class="line">        clearNioBuffers();</div><div class="line">        return false;</div><div class="line">    &#125;</div><div class="line">    Object msg = e.msg; //PooledUnsafeDirectByteBuf</div><div class="line">    ChannelPromise promise = e.promise;</div><div class="line">    int size = e.pendingSize;</div><div class="line">    removeEntry(e);</div><div class="line">    if (!e.cancelled) &#123;</div><div class="line">        // only release message, notify and decrement if it was not canceled before.</div><div class="line">        ReferenceCountUtil.safeRelease(msg); //释放了直接内存地址，</div><div class="line">        safeSuccess(promise);</div><div class="line">        decrementPendingOutboundBytes(size, false, true);</div><div class="line">    &#125;</div><div class="line">    // recycle the entry</div><div class="line">    e.recycle(); //释放Entry</div><div class="line">    return true;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
-<p>remove主要做了三件事:</p>
-<ul>
-<li>调用removeEntry(e)清理ChannelOutboundBuffer里面的缓存链表。</li>
-<li>调用ReferenceCountUtil.safeRelease(msg)释放该对象的引用次数, 当引用次数为0时, 那么将直接调用PooledByteBuf.deallocate()释放该ByteBuffer。</li>
-<li>调用e.recycle()来回收Entry(原理见<a href="https://kkewwei.github.io/elasticsearch_learning/2018/05/04/Netty-Http%E9%80%9A%E4%BF%A1%E7%BC%96%E7%A0%81%E6%BA%90%E7%A0%81%E9%9dsdsdsdsd8%85%E8%AF%BB/">Ndsdsdsd源码二(编码)分析</a>)<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div></pre></td><td class="code"><pre><div class="line">protected final void deallocate() &#123;</div><div class="line">    if (handle &gt;= 0) &#123;</div><div class="line">        final long handle = this.handle;</div><div class="line">        this.handle = -1;</div><div class="line">        memory = null;</div><div class="line">        tmpNioBuf = null;</div><div class="line">        chunk.arena.free(chunk, handle, maxLength, cache);</div><div class="line">        chunk = null;</div><div class="line">        recycle(); //释放</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
-</li>
-</ul>
-<p>主要做了两件事:</p>
-<ul>
-<li>释放直接内存DirectByteBuffer占用的内存。</li>
-<li>释放PooledUnsafeDirectByteBuf对象, 使其回收进入对象池以便下次继续使用该对象。<br>我们接着看area.free()是怎么操作的<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div></pre></td><td class="code"><pre><div class="line">void free(PoolChunk&lt;T&gt; chunk, long handle, int normCapacity, PoolThreadCache cache) &#123;</div><div class="line">    if (chunk.unpooled) &#123;</div><div class="line">        int size = chunk.chunkSize();</div><div class="line">        destroyChunk(chunk);</div><div class="line">        activeBytesHuge.add(-size);</div><div class="line">        deallocationsHuge.increment();</div><div class="line">    &#125; else &#123;</div><div class="line">        SizeClass sizeClass = sizeClass(normCapacity);</div><div class="line">        if (cache != null &amp;&amp; cache.add(this, chunk, handle, normCapacity, sizeClass)) &#123;  //放入该cache的缓存队列</div><div class="line">            // cached so not free it.</div><div class="line">            return;</div><div class="line">        &#125;</div><div class="line"></div><div class="line">        freeChunk(chunk, handle, sizeClass);</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
-</li>
-</ul>
-<p>这里做判断, 针对该对象是否池化做了不同判断:</p>
-<ul>
-<li>针对非池化内存, 直接将该内存块给释放了</li>
-<li>针对池化内存:</li>
-</ul>
-<ol>
-<li>检查内存属性为tiny、small、normal中的一种</li>
-<li>查找是否有该属性的缓存, 在<a href="https://kkewwei.github.io/elasticsearch_learning/2018/07/14/Netty-PoolThreadCache%E6%BA%90%E7%A0%81%E6%8E%A2%E7%A9%B6/">Netty PoolThreadCache原理探究</a>我们知道, 缓存的范围只在[16B, 32kB]之间, 若内存块在这范围之内, 则将内存块放入对应的缓存中</li>
-<li>若内存块&gt;32KB, 那么将调用freeChunk()该内存块释放到公共内存池中。<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div></pre></td><td class="code"><pre><div class="line">void freeChunk(PoolChunk&lt;T&gt; chunk, long handle, SizeClass sizeClass) &#123;</div><div class="line">        final boolean destroyChunk;</div><div class="line">        synchronized (this) &#123;</div><div class="line">            destroyChunk = !chunk.parent.free(chunk, handle);</div><div class="line">        &#125;</div><div class="line">        if (destroyChunk) &#123;</div><div class="line">            // destroyChunk not need to be called while holding the synchronized lock.</div><div class="line">            destroyChunk(chunk);</div><div class="line">        &#125;</div><div class="line">    &#125;</div></pre></td></tr></table></figure>
-</li>
-</ol>
-<p>freeChunk做了如下检查:<br>调用free来释放PoolChunkList中对应的节点<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div></pre></td><td class="code"><pre><div class="line">boolean free(PoolChunk&lt;T&gt; chunk, long handle) &#123;</div><div class="line">    chunk.free(handle);</div><div class="line">    if (chunk.usage() &lt; minUsage) &#123;</div><div class="line">        //若当前PoolChunk使用率不满足当前链节点最低使用率要求, 从当前PoolchunkList中删掉chunk</div><div class="line">        remove(chunk);</div><div class="line">        // 根据目前PoolChunk使用率, 逐次检查q100-&gt;qinit的节点, 直到找到一个满足条件的节点</div><div class="line">        return move0(chunk);</div><div class="line">    &#125;</div><div class="line">    return true;</div><div class="line">&#125;</div><div class="line"> private boolean move0(PoolChunk&lt;T&gt; chunk) &#123;</div><div class="line">     //若找到当前链节点是qinit链， 那么说明该节点使用为0, PoolChunk对应的16MB内存完全空闲, 将会释放该直接内存块</div><div class="line">    if (prevList == null) &#123;</div><div class="line">        // There is no previous PoolChunkList so return false which result in having the PoolChunk destroyed and</div><div class="line">        // all memory associated with the PoolChunk will be released.</div><div class="line">        assert chunk.usage() == 0;</div><div class="line">        return false;</div><div class="line">    &#125;</div><div class="line">    return prevList.move(chunk); //移动到前面的链中</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
-<p>释放PoolChunk对应的16M的内存块的过程如下:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div></pre></td><td class="code"><pre><div class="line">protected void destroyChunk(PoolChunk&lt;ByteBuffer&gt; chunk) &#123;</div><div class="line">    if (PlatformDependent.useDirectBufferNoCleaner()) &#123;</div><div class="line">        //将直接通过显示调用UNSAFE.freeMemory(address)方式释放内存, 并修改DIRECT_MEMORY_COUNTER值</div><div class="line">        PlatformDependent.freeDirectNoCleaner(chunk.memory);</div><div class="line">    &#125; else &#123;</div><div class="line">        //如果用cleaner回收内存, 将调用CleanerJava6.freeDirectBuffer()释放内存</div><div class="line">        PlatformDependent.freeDirectBuffer(chunk.memory);</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
-<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>整个netty池化内存回收过程如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/Netty堆外内存回收.png" height="400" width="990"><br>netty默认释放管理直接内存方式与DirectByteBuffer默认释放内存的方式不一致, 释放时会依次检查缓存、公共内存池, 若Poolchunk使用率为0, 那么16M直接内存将直接释放。</p>
-
-      
-
-      
-        <div class="page-reward">
-          <a href="javascript:;" class="page-reward-btn tooltip-top">
-            <div class="tooltip tooltip-east">
-            <span class="tooltip-item">
-              赏
-            </span>
-            <span class="tooltip-content">
-              <span class="tooltip-text">
-                <span class="tooltip-inner">
-                  <p class="reward-p"><i class="icon icon-quo-left"></i>谢谢阅读<i class="icon icon-quo-right"></i></p>
-                  <div class="reward-box">
-                    
-                    
-                  </div>
-                </span>
-              </span>
-            </span>
-          </div>
-          </a>
-        </div>
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/elasticsearch_learning/categories/Netty//" class="article-tag-list-link color1">Netty</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-
-      
-        
-<div class="share-btn share-icons tooltip-left">
-  <div class="tooltip tooltip-east">
-    <span class="tooltip-item">
-      <a href="javascript:;" class="share-sns share-outer">
-        <i class="icon icon-share"></i>
-      </a>
-    </span>
-    <span class="tooltip-content">
-      <div class="share-wrap">
-        <div class="share-icons">
-          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
-            <i class="icon icon-weibo"></i>
-          </a>
-          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
-            <i class="icon icon-weixin"></i>
-          </a>
-          <a class="qq share-sns" href="javascript:;" data-type="qq">
-            <i class="icon icon-qq"></i>
-          </a>
-          <a class="douban share-sns" href="javascript:;" data-type="douban">
-            <i class="icon icon-douban"></i>
-          </a>
-          <a class="qzone share-sns" href="javascript:;" data-type="qzone">
-            <i class="icon icon-qzone"></i>
-          </a>
-          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
-            <i class="icon icon-facebook"></i>
-          </a>
-          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
-            <i class="icon icon-twitter"></i>
-          </a>
-          <a class="google share-sns" href="javascript:;" data-type="google">
-            <i class="icon icon-google"></i>
-          </a>
-        </div>
-      </div>
-    </span>
-  </div>
-</div>
-
-<div class="page-modal wx-share js-wx-box">
-    <a class="close js-modal-close" href="javascript:;"><i class="icon icon-close"></i></a>
-    <p>扫一扫，分享到微信</p>
-    <div class="wx-qrcode">
-      <img src="//pan.baidu.com/share/qrcode?url=https://kkewwei.github.io/elasticsearch_learning/2019/01/12/Netty内存回收原理解读/" alt="微信分享二维码">
-    </div>
-</div>
-
-<div class="mask js-mask"></div>
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-  
-<nav id="article-nav">
-  
-    <a href="/elasticsearch_learning/2019/01/16/Netty对象回收池Recycler原理详解/" id="article-nav-newer" class="article-nav-link-wrap">
-      <i class="icon-circle-left"></i>
-      <div class="article-nav-title">
-        
-          Netty对象回收池Recycler原理详解
-        
-      </div>
-    </a>
-  
-  
-    <a href="/elasticsearch_learning/2018/12/15/LinkedTransferQueue原理解读/" id="article-nav-older" class="article-nav-link-wrap">
-      <div class="article-nav-title">LinkedTransferQueue原理分析</div>
-      <i class="icon-circle-right"></i>
-    </a>
-  
-</nav>
-
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-        <div class="toc-container tooltip-left">
-            <i class="icon-font icon-category"></i>
-            <div class="tooltip tooltip-east">
-                <span class="tooltip-item">
-                </span>
-                <span class="tooltip-content">
-                    <div class="toc-article">
-                    <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#PlatformDependent及PlatformDependent0简介"><span class="toc-number">1.</span> <span class="toc-text">PlatformDependent及PlatformDependent0简介</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#PlatformDependent"><span class="toc-number">1.0.1.</span> <span class="toc-text">PlatformDependent</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#PlatformDependent0"><span class="toc-number">1.0.2.</span> <span class="toc-text">PlatformDependent0</span></a></li></ol></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#直接内存的释放"><span class="toc-number">2.</span> <span class="toc-text">直接内存的释放</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#总结"><span class="toc-number">3.</span> <span class="toc-text">总结</span></a></li></ol>
-                    </div>
-                </span>
-            </div>
-        </div>
-        
-    </div>
-</aside>
-
-
-
-  
-
-  
-
-  
-
-  
-
-  
-  <div id="gitment-ctn"></div>
-<link rel="stylesheet" href="//imsun.github.io/gitment/style/default.css">
-<script src="//www.wenjunjiang.win/js/gitment.js "></script>
-<script>
-var gitment = new Gitment({
-  id: "Netty堆外内存回收原理详解",
-  owner: 'kkewwei',
-  repo: 'comments',
-  oauth: {
-    client_id: '9391e497d6b288887f33',
-    client_secret: 'db733731bff4ee2811d9530b1ac4cfc6767e8183',
-  },
-})
-gitment.render('gitment-ctn')
-</script>
-
-  
-
-
+            
           </div>
         </div>
       </div>
@@ -565,11 +278,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">NIO, write, read</a>
+                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
+                <a href="javascript:void(0)" class="js-tag color2">NIO, write, read</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -577,15 +290,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">LockSupport</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">Lucene、ByteBlockPool</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">Lucene、词典、tim、tip、doc、pos、fst、倒排索引</a>
+                <a href="javascript:void(0)" class="js-tag color2">LockSupport</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">Lucene、StoredField</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -593,7 +306,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">Lucene、StoredField</a>
+                <a href="javascript:void(0)" class="js-tag color5">Lucene、词典、tim、tip、doc、pos、fst、倒排索引</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -633,11 +346,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
+                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
+                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
               </li>
              
               <li class="article-tag-list-item">

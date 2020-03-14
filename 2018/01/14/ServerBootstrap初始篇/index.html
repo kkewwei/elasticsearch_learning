@@ -49,57 +49,39 @@
   <div id="container" q-class="show:isCtnShow">
     <canvas id="anm-canvas" class="anm-canvas"></canvas>
     <div class="left-col" q-class="show:isShow">
-      
-<div class="overlay" style="background: #4d4d4d"></div>
+      <% var defaultBg = '#4d4d4d'; %>
+<div class="overlay" style="background: <%= theme.style && theme.style.header ? theme.style.header : defaultBg %>"></div>
 <div class="intrude-less">
 	<header id="header" class="inner">
-		<a href="/" class="profilepic">
-      <img src="https://kkewwei.github.io/elasticsearch_learning/img/myself.png" class="js-avatar">
+		<a href="<%=theme.root%>" class="profilepic">
+			<img src="<%=theme.avatar%>" class="js-avatar">
 		</a>
 		<hgroup>
-		  <h1 class="header-author"><a href="/">jianguo</a></h1>
+		  <h1 class="header-author"><a href="<%=theme.root%>"><%=theme.author%></a></h1>
 		</hgroup>
-		
-		<p class="header-subtitle">往事随风</p>
-		
+		<% if (theme.subtitle){ %>
+		<p class="header-subtitle"><%=theme.subtitle%></p>
+		<%}%>
 
 		<nav class="header-menu">
 			<ul>
-			
-				<li><a href="/elasticsearch_learning/">主页</a></li>
-	        
-				<li><a href="/elasticsearch_learning/tags/随笔/">随笔</a></li>
-	        
-				<li><a href="/elasticsearch_learning/categories">分类</a></li>
-	        
+			<% for (var i in theme.menu){ %>
+				<li><a href="<%- url_for(theme.menu[i]) %>"><%= i %></a></li>
+	        <%}%>
 			</ul>
 		</nav>
 		<nav class="header-smart-menu">
-    		
-    			
-    			<a q-on="click: openSlider(e, 'innerArchive')" href="javascript:void(0)">所有文章</a>
-    			
-            
-    			
-    			<a q-on="click: openSlider(e, 'friends')" href="javascript:void(0)">友链</a>
-    			
-            
-    			
-    			<a q-on="click: openSlider(e, 'aboutme')" href="javascript:void(0)">关于我</a>
-    			
-            
+    		<% for (var i in theme.smart_menu){ %>
+    			<% if(theme.smart_menu[i]){ %>
+    			<a q-on="click: openSlider(e, '<%-i%>')" href="javascript:void(0)"><%= theme.smart_menu[i] %></a>
+    			<% } %>
+            <%}%>
 		</nav>
 		<nav class="header-nav">
 			<div class="social">
-				
-					<a class="github" target="_blank" href="#" title="github"><i class="icon-github"></i></a>
-		        
-					<a class="weibo" target="_blank" href="#" title="weibo"><i class="icon-weibo"></i></a>
-		        
-					<a class="rss" target="_blank" href="#" title="rss"><i class="icon-rss"></i></a>
-		        
-					<a class="zhihu" target="_blank" href="#" title="zhihu"><i class="icon-zhihu"></i></a>
-		        
+				<% for (var i in theme.subnav){ %>
+					<a class="<%= i %>" target="_blank" href="<%- url_for(theme.subnav[i]) %>" title="<%= i %>"><i class="icon-<%= i %>"></i></a>
+		        <%}%>
 			</div>
 		</nav>
 	</header>
@@ -171,318 +153,7 @@
             <canvas data-colors="#eaeaea" data-sectionHeight="100" data-contentId="js-content" id="myCanvas1" class="anm-canvas"></canvas>
           </div>
           <div id="js-content" class="content-ll">
-            <article id="post-ServerBootstrap初始篇" class="article article-type-post " itemscope itemprop="blogPost">
-  <div class="article-inner">
-    
-      <header class="article-header">
-        
-  
-    <h1 class="article-title" itemprop="name">
-      ServerBootstrap初始篇
-    </h1>
-  
-
-        
-        <a href="/elasticsearch_learning/2018/01/14/ServerBootstrap初始篇/" class="archive-article-date">
-  	<time datetime="2018-01-14T10:32:43.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2018-01-14</time>
-</a>
-        
-      </header>
-      
-      <span class="archive-article-date">
-              阅读量 <span id="busuanzi_value_page_pv"></span>
-      </span>
-
-    
-
-    <!-- 目录内容 -->
-    
-      <p class="show-toc-btn" id="show-toc-btn" onclick="showToc();" style="display:none">
-        <span class="btn-bg"></span>
-        <span class="btn-text">文章导航</span>
-      </p>
-	    <div id="toc-article" class="toc-article">
-	      <span id="toc-close" class="toc-close" title="隐藏导航" onclick="showBtn();">×</span>
-		      <strong class="toc-title">文章目录</strong>
-        <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#服务器示例"><span class="toc-number">1.</span> <span class="toc-text">服务器示例</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#NioEventLoop和NioEventLoopGroup分析"><span class="toc-number">2.</span> <span class="toc-text">NioEventLoop和NioEventLoopGroup分析</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#一些概念对应关系"><span class="toc-number">3.</span> <span class="toc-text">一些概念对应关系</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#具体过程分析"><span class="toc-number">4.</span> <span class="toc-text">具体过程分析</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#首先分析AbstractBootstrap-doBind"><span class="toc-number">4.1.</span> <span class="toc-text">首先分析AbstractBootstrap.doBind()</span></a></li></ol></li></ol>
-         </div>
-   <script type="text/javascript">
-	function showToc(){
-		var toc_article = document.getElementById("toc-article");
-		var show_toc_btn = document.getElementById("show-toc-btn");
-		toc_article.setAttribute("style","display:block");
-		show_toc_btn.setAttribute("style","display:none");
-		};
-	function showBtn(){
-		var toc_article = document.getElementById("toc-article");
-		var show_toc_btn = document.getElementById("show-toc-btn");
-		toc_article.setAttribute("style","display:none");
-		show_toc_btn.setAttribute("style","display:block");
-		};
-   </script>
-      
-    <!-- 目录内容结束 -->
-
-    <div class="article-entry" itemprop="articleBody">
-      
-        <p>&emsp;本文将以一个最简单的netty服务器端代码进行讲解。</p>
-<h1 id="服务器示例"><a href="#服务器示例" class="headerlink" title="服务器示例"></a>服务器示例</h1> <figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div></pre></td><td class="code"><pre><div class="line"> public class HelloServer &#123;</div><div class="line">    /**</div><div class="line">     * 服务端监听的端口地址</div><div class="line">     */</div><div class="line">    private static final int portNumber = 7878;</div><div class="line">    public static void main(String[] args) throws InterruptedException &#123;</div><div class="line">        EventLoopGroup bossGroup = new NioEventLoopGroup(1);</div><div class="line">        EventLoopGroup WorkGroup = new NioEventLoopGroup(4);</div><div class="line">        try &#123;</div><div class="line">            ServerBootstrap b = new ServerBootstrap();</div><div class="line">            b.group(bossGroup,WorkGroup);</div><div class="line">            b.channel(NioServerSocketChannel.class);</div><div class="line">            b.childHandler(new HelloServerInitializer());</div><div class="line">            ChannelFuture f = b.bind(portNumber).sync();</div><div class="line">            f.channel().closeFuture().sync();</div><div class="line">        &#125; finally &#123;</div><div class="line">            bossGroup.shutdownGracefully();</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line">&#125;</div><div class="line"></div><div class="line">class HelloServerInitializer extends ChannelInitializer&lt;SocketChannel&gt; &#123;</div><div class="line">    @Override       //  ch = NioSocketChannel</div><div class="line">    protected void initChannel(SocketChannel ch) throws Exception &#123;</div><div class="line">        ChannelPipeline pipeline = ch.pipeline();</div><div class="line">        pipeline.addLast(&quot;frameDecoder&quot;, new LengthFieldBasedFrameDecoder(Integer.MAX_VALUE, 0, 4, 0, 4));</div><div class="line">        pipeline.addLast(&quot;frameEncoder&quot;, new LengthFieldPrepender(4));</div><div class="line">        pipeline.addLast(&quot;decoder&quot;, new StringDecoder(CharsetUtil.UTF_8));</div><div class="line">        pipeline.addLast(&quot;encoder&quot;, new StringEncoder(CharsetUtil.UTF_8));</div><div class="line">        // 自己的逻辑Handler</div><div class="line">        pipeline.addLast(&quot;handler&quot;, new HelloServerHandler());</div><div class="line">    &#125;</div><div class="line">&#125;</div><div class="line"></div><div class="line">class HelloServerHandler extends SimpleChannelInboundHandler&lt;String&gt; &#123;</div><div class="line">    @Override</div><div class="line">    protected void channelRead0(ChannelHandlerContext ctx, String msg) throws Exception &#123;</div><div class="line">        // 收到消息直接打印输出</div><div class="line">        System.out.println(ctx.channel().remoteAddress() + &quot; Say : &quot; + msg);</div><div class="line">        // 返回客户端消息 - 我已经接收到了你的消息</div><div class="line">        ctx.writeAndFlush(&quot;Received your message !\n&quot;);</div><div class="line">    &#125;</div><div class="line">    /*</div><div class="line">     *</div><div class="line">     * 覆盖 channelActive 方法 在channel被启用的时候触发 (在建立连接的时候)</div><div class="line">     *</div><div class="line">     * channelActive 和 channelInActive 在后面的内容中讲述，这里先不做详细的描述</div><div class="line">     * */</div><div class="line">    @Override</div><div class="line">    public void channelActive(ChannelHandlerContext ctx) throws Exception &#123;</div><div class="line">        ctx.writeAndFlush(&quot;Welcome to &quot; + InetAddress.getLocalHost().getHostName() + &quot; service!\n&quot;);</div><div class="line">        super.channelActive(ctx);</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
-<h1 id="NioEventLoop和NioEventLoopGroup分析"><a href="#NioEventLoop和NioEventLoopGroup分析" class="headerlink" title="NioEventLoop和NioEventLoopGroup分析"></a>NioEventLoop和NioEventLoopGroup分析</h1><ul>
-<li>NioEventLoop:是一个单线程执行器(所有),所有task的具体执行者,每个task都是一个Runnable实例。NioEventLoop内的线程池线程,默认取值为<code>NettyRuntime.availableProcessors() * 2)</code></li>
-<li>NioEventLoopGroup:每个NioEventLoop都有一个分组,NioEventLoopGroup一般分为两组parentGroup、childGroup,parentGroup管理一类NioEventLoop,这类执行器主要生成boss类的线程,实际使用时,childGroup管理的一类NioEventLoop主要生成work类的线程。</li>
-</ul>
-<h1 id="一些概念对应关系"><a href="#一些概念对应关系" class="headerlink" title="一些概念对应关系"></a>一些概念对应关系</h1><ul>
-<li>一个NioEventLoop可以处理分配给多个Channel(包含NioServerSocketChannel), 是一对多的关系。</li>
-<li>NioEventLoop里面处理task的线程唯一。</li>
-<li>Channel与NioEventLoop绑定称之为register。在它的生命周期产生的所有task内只能由固定的某一个NioEventLoop处理。<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/Netty%E6%A6%82%E5%BF%B5.png"></li>
-</ul>
-<h1 id="具体过程分析"><a href="#具体过程分析" class="headerlink" title="具体过程分析"></a>具体过程分析</h1><h2 id="首先分析AbstractBootstrap-doBind"><a href="#首先分析AbstractBootstrap-doBind" class="headerlink" title="首先分析AbstractBootstrap.doBind()"></a>首先分析AbstractBootstrap.doBind()</h2> <figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div></pre></td><td class="code"><pre><div class="line">private ChannelFuture doBind(final SocketAddress localAddress) &#123;</div><div class="line">   final ChannelFuture regFuture = initAndRegister();</div><div class="line">    final Channel channel = regFuture.channel(); //NioServerSocketChannel</div><div class="line">    if (regFuture.cause() != null) &#123;</div><div class="line">        return regFuture;</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    if (regFuture.isDone()) &#123;</div><div class="line">        // At this point we know that the registration was complete and successful.</div><div class="line">        ChannelPromise promise = channel.newPromise();</div><div class="line">        doBind0(regFuture, channel, localAddress, promise);</div><div class="line">        return promise;</div><div class="line">    &#125; else &#123;</div><div class="line">        // Registration future is almost always fulfilled already, but just in case it&apos;s not.</div><div class="line">        final PendingRegistrationPromise promise = new PendingRegistrationPromise(channel);</div><div class="line">        regFuture.addListener(new ChannelFutureListener() &#123;</div><div class="line">            @Override</div><div class="line">            public void operationComplete(ChannelFuture future) throws Exception &#123;</div><div class="line">                Throwable cause = future.cause();</div><div class="line">                if (cause != null) &#123;</div><div class="line">                    // Registration on the EventLoop failed so fail the ChannelPromise directly to not cause an</div><div class="line">                    // IllegalStateException once we try to access the EventLoop of the Channel.</div><div class="line">                    promise.setFailure(cause);</div><div class="line">                &#125; else &#123;</div><div class="line">                    // Registration was successful, so set the correct executor to use.</div><div class="line">                    // See https://github.com/netty/netty/issues/2586</div><div class="line">                    promise.registered();</div><div class="line"></div><div class="line">                    doBind0(regFuture, channel, localAddress, promise);</div><div class="line">                &#125;</div><div class="line">            &#125;</div><div class="line">        &#125;);</div><div class="line">        return promise;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
-<p>主要干的事:</p>
-<ol>
-<li>生成并初始化NioServerSocketChannel,见initAndRegister():</li>
-<li>检查该channel是否应注册到selector上。若注册上去后, 才会进行真正的channel与address、事件(OP_ACCEPT)绑定(见<code>doBind0</code>)。</li>
-</ol>
-<p>initAndRegister()主要作用:<br>(1) 生成一个NioServerSocketChannel, 实际使用的<code>SelectorProvider.provider().openServerSocketChannel()</code>;<br>NioServerSocketChannel构造函数如下:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div></pre></td><td class="code"><pre><div class="line">this.parent = parent;</div><div class="line">id = newId();// 分配一个全局唯一的id，默认为MAC+进程id+自增的序列号+时间戳相关的数值+随机值</div><div class="line">// 初始化Unsafe, NioSocketChannel对应的是NioSocketChannelUnsafe; 而NioServerSocketChannel对应着NioMessageUnsafe</div><div class="line">unsafe = newUnsafe();</div><div class="line">pipeline = newChannelPipeline();//// 初始化pipeline，</div><div class="line">this.ch = ch;</div><div class="line">this.readInterestOp = readInterestOp;</div><div class="line">try &#123;</div><div class="line">    ch.configureBlocking(false); //</div><div class="line">&#125; catch (IOException e) &#123;</div><div class="line">    try &#123;</div><div class="line">        ch.close();</div><div class="line">    &#125; catch (IOException e2) &#123;</div><div class="line">        if (logger.isWarnEnabled()) &#123;</div><div class="line">            logger.warn(</div><div class="line">                    &quot;Failed to close a partially initialized socket.&quot;, e2);</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line">    throw new ChannelException(&quot;Failed to enter non-blocking mode.&quot;, e);</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
-<ul>
-<li>每一个channel都将独自拥有一个DefaultChannelPipeline, DefaultChannelPipeline主要的属性如下:<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div></pre></td><td class="code"><pre><div class="line">this.channel = ObjectUtil.checkNotNull(channel, &quot;channel&quot;);</div><div class="line">tail = new TailContext(this);   //只是in</div><div class="line">head = new HeadContext(this);  //只是out</div><div class="line"></div><div class="line">head.next = tail;</div><div class="line">tail.prev = head;</div></pre></td></tr></table></figure>
-</li>
-</ul>
-<p>基本含义就是每个DefaultChannelPipeline与一个channel绑定, 该channle对应的处理链由head和tail串联起来。</p>
-<ul>
-<li>TailContext和HeadContext是所有Pipeline默认拥有的,他们本身同时继承了AbstractChannelHandlerContext, 另外HeadContext继承了ChannelOutboundHandler, ChannelInboundHandler两种属性, TailContext继承了ChannelOutboundHandler一种, 返回handler都是本身</li>
-<li>ch传递过来的参数是SelectionKey.OP_ACCEPT, 之后会再次初始化成0(0并不是SelectionKey其中的一种), (见doRegister())</li>
-<li>将该channel设置为非block类型,这里是不是与NIO很像。<br>(2) 调用channel()对channel初始化(见<code>分析init(channel)</code>)<br>(3) 将产生的NioServerSocketChannel注册到对应EventLoop上,见register()部分。</li>
-</ul>
-<p>&emsp;regFuture.isDone()当且仅当执行NioServerSocketChannel.register(selector, SelectionKey)之后, 也就是将NioServerSocketChannel注册到parentGroup管理的NioEventLoop的selector上(代码见AbstractChannel.register0()), ChannelPromise状态才置为success。 后面会详细讲解doBind0函数。</p>
-<p><font size="6">分析init(channel)</font></p>
-<p></p><p>代码实际会跑到ServerBootstrap.init():</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div></pre></td><td class="code"><pre><div class="line">    ChannelPipeline p = channel.pipeline(); //DefaultChannalPipeLine</div><div class="line">    p.addLast(new ChannelInitializer&lt;Channel&gt;() &#123;</div><div class="line">    @Override</div><div class="line">    public void initChannel(final Channel ch) throws Exception &#123;//NioServerSocketChannel</div><div class="line">        final ChannelPipeline pipeline = ch.pipeline();</div><div class="line">        ChannelHandler handler = config.handler();</div><div class="line">        if (handler != null) &#123;</div><div class="line">            pipeline.addLast(handler);</div><div class="line">        &#125;</div><div class="line">        ch.eventLoop().execute(new Runnable() &#123;//ChannelInitializer和ServerBootstrapAcceptor都是Inbound,区别就是</div><div class="line">            @Override</div><div class="line">            public void run() &#123;</div><div class="line">                pipeline.addLast(new ServerBootstrapAcceptor(</div><div class="line">                        ch, currentChildGroup, currentChildHandler, currentChildOptions, currentChildAttrs));</div><div class="line">            &#125;</div><div class="line">        &#125;);</div><div class="line">    &#125;</div><div class="line">&#125;);</div></pre></td></tr></table></figure>
-<p>主要干的事是向NioServerSocketChannel的DefaultChannalPipeLine对应的处理链添加ChannelInitializer(实际也是一个InBoundHandler), ChannelInitializer对于后面还有作用, 先留个印象。<br>此时, NioServerSocketChannel对应的pipeline中handler结构如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/PipeLine.png" height="200" width="450"></p>
-<p><font size="6">p.addLast</font></p>
-<p></p><p>具体添加代码操作如下:</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div></pre></td><td class="code"><pre><div class="line">synchronized (this) &#123;</div><div class="line">    newCtx = newContext(group, filterName(name, handler), handler);</div><div class="line">    addLast0(newCtx);</div><div class="line">    if (!registered) &#123;//只有这个channel被register到某个具体的EventLoop后，才会考虑执行一些任务，这里考虑的任务是将对应的handler加入到对应的pipe中,DefaultChannelPipeline是与NioServerSocketChannel一一对应的</div><div class="line">        newCtx.setAddPending();</div><div class="line">        callHandlerCallbackLater(newCtx, true);</div><div class="line">        return this;</div><div class="line">    &#125;</div><div class="line">    EventExecutor executor = newCtx.executor();</div><div class="line">    if (!executor.inEventLoop()) &#123;</div><div class="line">        newCtx.setAddPending();</div><div class="line">        executor.execute(new Runnable() &#123;</div><div class="line">            @Override</div><div class="line">            public void run() &#123;</div><div class="line">                callHandlerAdded0(newCtx);</div><div class="line">            &#125;</div><div class="line">        &#125;);</div><div class="line">        return this;</div><div class="line">    &#125;</div><div class="line">&#125;</div><div class="line">callHandlerAdded0(newCtx);</div><div class="line">return this;</div></pre></td></tr></table></figure>
-<p>主要操作就是:</p>
-<ul>
-<li>新产生一个DefaultChannelHandlerContext, 主要作用就是存放对应的handler,也就是ChannelInitializer。</li>
-<li>将DefaultChannelHandlerContext添加进DefaultChannalPipeLine的倒数第二个, 也就是tail之前。</li>
-<li><p>如果NioServerSocketChannel并没有注册到对应的selector上(代码见AbstractChannel.register0()), 那么将生成PendingHandlerAddedTask, 并将该task线程放入pendingHandlerCallbackHead(属于Pipeline), 等待NioServerSocketChannel被注册到对应的selector时执行(见NioMessageUnsafe.register());<br>若注册了, 那么调用callHandlerAdded0()-&gt;ChannelInitializer.initChannel(ChannelHandlerContext ctx)函数中,如下:</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div></pre></td><td class="code"><pre><div class="line">@SuppressWarnings(&quot;unchecked&quot;)</div><div class="line">  private boolean initChannel(ChannelHandlerContext ctx) throws Exception &#123;</div><div class="line">      if (initMap.putIfAbsent(ctx, Boolean.TRUE) == null) &#123; // Guard against re-entrance.</div><div class="line">          try &#123;</div><div class="line">              initChannel((C) ctx.channel());</div><div class="line">          &#125; catch (Throwable cause) &#123;</div><div class="line">              // Explicitly call exceptionCaught(...) as we removed the handler before calling initChannel(...).</div><div class="line">              // We do so to prevent multiple calls to initChannel(...).</div><div class="line">              exceptionCaught(ctx, cause);</div><div class="line">          &#125; finally &#123;</div><div class="line">              remove(ctx); //初始化完善后，删除自身。又要把最开始注册的HelloServerInitializer删掉，也是ChannelInboundHandler类型</div><div class="line">          &#125;</div><div class="line">          return true;</div><div class="line">      &#125;</div><div class="line">      return false;</div><div class="line">  &#125;</div></pre></td></tr></table></figure>
-<ul>
-<li>这里会进入ChannelInitializer.initChannel(final Channel ch)(详见ServerBootstrap.init()), 把会向pipeLine添加ServerBootstrapAcceptor的操作当成一个task, 传递给NilEventLoop, 等待执行形成一个最终的handler链。 传递的参数也可以注意下, 有childGroup、以及自定义的HelloServerInitializer。之后新建立的连接请求SocketChannel, 将根据这两个参数创建, 之后会详解(见NioEventLoop篇)。</li>
-<li>这里还需要注意ChannelInitializer.remove(ctx)会将该匿名ChannelInitializer(见ServerBootstrap.init())从NioServerSocketChannel的pipeline中删掉。这样NioServerSocketChannel对应的pipeline结构如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/PipeLine2.png" height="200" width="650"></li>
-</ul>
-</li>
-</ul>
-<p><font size="6">register</font></p><p><br>根据<code>config().group().register(channel)</code>进行注册, 首先这里的group()使用的是ParentGroup里面的EventLoop, 具体从EventLoop选取哪个EventLoop来与该channel绑定呢,使用的轮训策略。每次选取都会+1。 这里分两种决策策略:PowerOfTwoEventExecutorChooser和GenericEventExecutorChooser,都实现了+1的效果, 两者的唯一区别就是求余的效果不同:<br>当该Group定义的EventLoop为2^n时, PowerOfTwoEventExecutorChooser使用的是位运算的方式求余, 位运算能减少计算的时间复杂度。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line">public EventExecutor next() &#123;</div><div class="line">    return executors[idx.getAndIncrement() &amp; executors.length - 1];</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
-<p>如何判断一个数是否为2^n呢, 方法如下:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line">private static boolean isPowerOfTwo(int val) &#123;</div><div class="line">    return (val &amp; -val) == val;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
-<p>选出一个NioEventLoop后, 最终会进入NioMessageUnsafe.register()中(是AbstractUnsafe的函数), 该对象在NioServerSocketChannel构造函数中生成。接着会进入AbstractUnsafe.register0(), 代码如下:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div></pre></td><td class="code"><pre><div class="line">try &#123;</div><div class="line">    // check if the channel is still open as it could be closed in the mean time when the register</div><div class="line">    // call was outside of the eventLoop</div><div class="line">    if (!promise.setUncancellable() || !ensureOpen(promise)) &#123;</div><div class="line">        return;</div><div class="line">    &#125;</div><div class="line">    boolean firstRegistration = neverRegistered;</div><div class="line">    doRegister();</div><div class="line">    neverRegistered = false;</div><div class="line">    registered = true;</div><div class="line">    pipeline.invokeHandlerAddedIfNeeded();</div><div class="line"></div><div class="line">    safeSetSuccess(promise);</div><div class="line">    pipeline.fireChannelRegistered();</div><div class="line">    // Only fire a channelActive if the channel has never been registered. This prevents firing</div><div class="line">    // multiple channel actives if the channel is deregistered and re-registered.</div><div class="line">    if (isActive()) &#123;</div><div class="line">        if (firstRegistration) &#123;</div><div class="line">            pipeline.fireChannelActive();</div><div class="line">        &#125; else if (config().isAutoRead()) &#123;</div><div class="line">            // This channel was registered before and autoRead() is set. This means we need to begin read</div><div class="line">            // again so that we process inbound data.</div><div class="line">            //</div><div class="line">            // See https://github.com/netty/netty/issues/4805</div><div class="line">            beginRead();</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line">&#125; catch (Throwable t) &#123;</div><div class="line">    // Close the channel directly to avoid FD leak.</div><div class="line">    closeForcibly();</div><div class="line">    closeFuture.setClosed();</div><div class="line">    safeSetFailure(promise, t);</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
-<p>doRegister()函数将会跑到AbstractNioChannel.doRegister()里面, 如下:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div></pre></td><td class="code"><pre><div class="line">for (;;) &#123;</div><div class="line">    try &#123;</div><div class="line">        selectionKey = javaChannel().register(eventLoop().unwrappedSelector(), 0, this);</div><div class="line">        return;</div><div class="line">    &#125; catch (CancelledKeyException e) &#123;</div><div class="line">        if (!selected) &#123;</div><div class="line">            // Force the Selector to select now as the &quot;canceled&quot; SelectionKey may still be</div><div class="line">            // cached and not removed because no Select.select(..) operation was called yet.</div><div class="line">            eventLoop().selectNow();</div><div class="line">            selected = true;</div><div class="line">        &#125; else &#123;</div><div class="line">            // We forced a select operation on the selector before but the SelectionKey is still cached</div><div class="line">            // for whatever reason. JDK bug ?</div><div class="line">            throw e;</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
-<p>这里是不是很熟悉? 不断地轮训注册, 将该channel注册到NioEventLoop上面的Selector上面, 并且select_ops置为0, 表示什么都不感兴趣。<br>我们先了解NioServerSocketChannel与NioSocketChannel的继承关系:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/ServerBootstrap1.png" height="200" width="450"><br>可以看到:</p>
-<ul>
-<li>NioServerSocketChannel在初始化时候就声明readInterestOp为OP_ACCEPT, 而NioSocketChannel在初始化时声明readInterestOp为OP_READ。</li>
-<li>NioServerSocketChannel对应NioMessage, 当bossdui对应的NioEventLoop为新的连接建立NioSocketChannel时, 都会进入NioMessage.read()进行初始化。当NioSocketChannel对应着NioByteUnsafe, 当work对应的NioSocketchannel接收到数据时, 会进入NioByteUnsafe.read()只来接收数据。</li>
-</ul>
-<p>继续回到register()上,  channel与selector完成register之后:</p>
-<ol>
-<li>执行一些挂起的任务(invokeHandlerAddedIfNeeded()), 比如p.addLast所介绍的, 此时pileline对应的的handler链如下:HEAD-&gt;ServerBootstrapAcceptor-&gt;TAIL</li>
-<li>执行safeSetSuccess(promise), 最终会去调用AbstractBootstrap.doBind()里面介绍的ChannelFutureListener.operationComplete()函数, 注意doBind0()函数, 这里将完成channel与port的绑定和channel感兴趣事件为OP_ACCEPT,具体代码见AbstractChannel.bin(), 代码如下:<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div></pre></td><td class="code"><pre><div class="line">boolean wasActive = isActive();</div><div class="line">           try &#123;</div><div class="line">                //doBind0最终调用channel.bind方法对执行端口进行绑定</div><div class="line">               doBind(localAddress);</div><div class="line">           &#125; catch (Throwable t) &#123;</div><div class="line">               safeSetFailure(promise, t);</div><div class="line">               closeIfClosed();</div><div class="line">               return;</div><div class="line">           &#125;</div><div class="line">           //之前没有绑定，现在绑定了，绑定的意思是NioServerSocketChannel里面的SocketChannel的Address有值了</div><div class="line">           if (!wasActive &amp;&amp; isActive()) &#123;</div><div class="line">               invokeLater(new Runnable() &#123;</div><div class="line">                   @Override</div><div class="line">                   public void run() &#123;</div><div class="line">                       //最终修改的是NioServerSocketChannel的可Accept属性</div><div class="line">                       pipeline.fireChannelActive();</div><div class="line">                   &#125;</div><div class="line">               &#125;);</div><div class="line">           &#125;</div></pre></td></tr></table></figure>
-</li>
-</ol>
-<p>NioServerSocketChannel在初始化时只是将readInterestOp赋值为OP_ACCEPT, 而被注册感兴趣OP_ACCEPT是在这里, 真正调用了AbstractNioCHannel.doBeginRead来实现注册<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div></pre></td><td class="code"><pre><div class="line">@Override</div><div class="line">protected void doBeginRead() throws Exception &#123;</div><div class="line">    // Channel.read() or ChannelHandlerContext.read() was called</div><div class="line">    final SelectionKey selectionKey = this.selectionKey;</div><div class="line">    if (!selectionKey.isValid()) &#123;</div><div class="line">        return;</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    readPending = true;</div><div class="line"></div><div class="line">    final int interestOps = selectionKey.interestOps();</div><div class="line">    if ((interestOps &amp; readInterestOp) == 0) &#123; //将设置可接受</div><div class="line">        selectionKey.interestOps(interestOps | readInterestOp);</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
-<p>自此NioServerSocketChannel已经初始化完成, NioServerSocketChannel拥有的pipeLine的里面的上下文:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/PipeLine1.png" height="300" width="550"><br>其中第二个Context的handler为ServerBootstrapAcceptor, 它的构造时的代码如下:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">new ServerBootstrapAcceptor(ch, currentChildGroup, currentChildHandler, currentChildOptions, currentChildAttrs)</div></pre></td></tr></table></figure></p>
-<p>currentChildHandler就是我们自定的HelloServerInitializer, 该handler包含了我们所需要的所有逻辑,这些handler将在NioEventLoop篇构造NioSocketChannel时使用。</p>
-
-      
-
-      
-        <div class="page-reward">
-          <a href="javascript:;" class="page-reward-btn tooltip-top">
-            <div class="tooltip tooltip-east">
-            <span class="tooltip-item">
-              赏
-            </span>
-            <span class="tooltip-content">
-              <span class="tooltip-text">
-                <span class="tooltip-inner">
-                  <p class="reward-p"><i class="icon icon-quo-left"></i>谢谢阅读<i class="icon icon-quo-right"></i></p>
-                  <div class="reward-box">
-                    
-                    
-                  </div>
-                </span>
-              </span>
-            </span>
-          </div>
-          </a>
-        </div>
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color4">netty4, ServerBootstrap, Initiale</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/elasticsearch_learning/categories/Netty//" class="article-tag-list-link color1">Netty</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-
-      
-        
-<div class="share-btn share-icons tooltip-left">
-  <div class="tooltip tooltip-east">
-    <span class="tooltip-item">
-      <a href="javascript:;" class="share-sns share-outer">
-        <i class="icon icon-share"></i>
-      </a>
-    </span>
-    <span class="tooltip-content">
-      <div class="share-wrap">
-        <div class="share-icons">
-          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
-            <i class="icon icon-weibo"></i>
-          </a>
-          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
-            <i class="icon icon-weixin"></i>
-          </a>
-          <a class="qq share-sns" href="javascript:;" data-type="qq">
-            <i class="icon icon-qq"></i>
-          </a>
-          <a class="douban share-sns" href="javascript:;" data-type="douban">
-            <i class="icon icon-douban"></i>
-          </a>
-          <a class="qzone share-sns" href="javascript:;" data-type="qzone">
-            <i class="icon icon-qzone"></i>
-          </a>
-          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
-            <i class="icon icon-facebook"></i>
-          </a>
-          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
-            <i class="icon icon-twitter"></i>
-          </a>
-          <a class="google share-sns" href="javascript:;" data-type="google">
-            <i class="icon icon-google"></i>
-          </a>
-        </div>
-      </div>
-    </span>
-  </div>
-</div>
-
-<div class="page-modal wx-share js-wx-box">
-    <a class="close js-modal-close" href="javascript:;"><i class="icon icon-close"></i></a>
-    <p>扫一扫，分享到微信</p>
-    <div class="wx-qrcode">
-      <img src="//pan.baidu.com/share/qrcode?url=https://kkewwei.github.io/elasticsearch_learning/2018/01/14/ServerBootstrap初始篇/" alt="微信分享二维码">
-    </div>
-</div>
-
-<div class="mask js-mask"></div>
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-  
-<nav id="article-nav">
-  
-    <a href="/elasticsearch_learning/2018/01/22/NioEventLoop篇/" id="article-nav-newer" class="article-nav-link-wrap">
-      <i class="icon-circle-left"></i>
-      <div class="article-nav-title">
-        
-          NioEventLoop篇
-        
-      </div>
-    </a>
-  
-  
-    <a href="/elasticsearch_learning/2017/12/17/ES索引创建流程/" id="article-nav-older" class="article-nav-link-wrap">
-      <div class="article-nav-title">ES索引创建流程</div>
-      <i class="icon-circle-right"></i>
-    </a>
-  
-</nav>
-
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-        <div class="toc-container tooltip-left">
-            <i class="icon-font icon-category"></i>
-            <div class="tooltip tooltip-east">
-                <span class="tooltip-item">
-                </span>
-                <span class="tooltip-content">
-                    <div class="toc-article">
-                    <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#服务器示例"><span class="toc-number">1.</span> <span class="toc-text">服务器示例</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#NioEventLoop和NioEventLoopGroup分析"><span class="toc-number">2.</span> <span class="toc-text">NioEventLoop和NioEventLoopGroup分析</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#一些概念对应关系"><span class="toc-number">3.</span> <span class="toc-text">一些概念对应关系</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#具体过程分析"><span class="toc-number">4.</span> <span class="toc-text">具体过程分析</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#首先分析AbstractBootstrap-doBind"><span class="toc-number">4.1.</span> <span class="toc-text">首先分析AbstractBootstrap.doBind()</span></a></li></ol></li></ol>
-                    </div>
-                </span>
-            </div>
-        </div>
-        
-    </div>
-</aside>
-
-
-
-  
-
-  
-
-  
-
-  
-
-  
-  <div id="gitment-ctn"></div>
-<link rel="stylesheet" href="//imsun.github.io/gitment/style/default.css">
-<script src="//www.wenjunjiang.win/js/gitment.js "></script>
-<script>
-var gitment = new Gitment({
-  id: "ServerBootstrap初始篇",
-  owner: 'kkewwei',
-  repo: 'comments',
-  oauth: {
-    client_id: '9391e497d6b288887f33',
-    client_secret: 'db733731bff4ee2811d9530b1ac4cfc6767e8183',
-  },
-})
-gitment.render('gitment-ctn')
-</script>
-
-  
-
-
+            
           </div>
         </div>
       </div>
@@ -611,11 +282,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">NIO, write, read</a>
+                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
+                <a href="javascript:void(0)" class="js-tag color2">NIO, write, read</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -623,15 +294,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">LockSupport</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">Lucene、ByteBlockPool</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">Lucene、词典、tim、tip、doc、pos、fst、倒排索引</a>
+                <a href="javascript:void(0)" class="js-tag color2">LockSupport</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">Lucene、StoredField</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -639,7 +310,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">Lucene、StoredField</a>
+                <a href="javascript:void(0)" class="js-tag color5">Lucene、词典、tim、tip、doc、pos、fst、倒排索引</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -679,11 +350,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
+                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
+                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
               </li>
              
               <li class="article-tag-list-item">

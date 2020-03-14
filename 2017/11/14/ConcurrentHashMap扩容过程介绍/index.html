@@ -44,57 +44,39 @@
   <div id="container" q-class="show:isCtnShow">
     <canvas id="anm-canvas" class="anm-canvas"></canvas>
     <div class="left-col" q-class="show:isShow">
-      
-<div class="overlay" style="background: #4d4d4d"></div>
+      <% var defaultBg = '#4d4d4d'; %>
+<div class="overlay" style="background: <%= theme.style && theme.style.header ? theme.style.header : defaultBg %>"></div>
 <div class="intrude-less">
 	<header id="header" class="inner">
-		<a href="/" class="profilepic">
-      <img src="https://kkewwei.github.io/elasticsearch_learning/img/myself.png" class="js-avatar">
+		<a href="<%=theme.root%>" class="profilepic">
+			<img src="<%=theme.avatar%>" class="js-avatar">
 		</a>
 		<hgroup>
-		  <h1 class="header-author"><a href="/">jianguo</a></h1>
+		  <h1 class="header-author"><a href="<%=theme.root%>"><%=theme.author%></a></h1>
 		</hgroup>
-		
-		<p class="header-subtitle">往事随风</p>
-		
+		<% if (theme.subtitle){ %>
+		<p class="header-subtitle"><%=theme.subtitle%></p>
+		<%}%>
 
 		<nav class="header-menu">
 			<ul>
-			
-				<li><a href="/elasticsearch_learning/">主页</a></li>
-	        
-				<li><a href="/elasticsearch_learning/tags/随笔/">随笔</a></li>
-	        
-				<li><a href="/elasticsearch_learning/categories">分类</a></li>
-	        
+			<% for (var i in theme.menu){ %>
+				<li><a href="<%- url_for(theme.menu[i]) %>"><%= i %></a></li>
+	        <%}%>
 			</ul>
 		</nav>
 		<nav class="header-smart-menu">
-    		
-    			
-    			<a q-on="click: openSlider(e, 'innerArchive')" href="javascript:void(0)">所有文章</a>
-    			
-            
-    			
-    			<a q-on="click: openSlider(e, 'friends')" href="javascript:void(0)">友链</a>
-    			
-            
-    			
-    			<a q-on="click: openSlider(e, 'aboutme')" href="javascript:void(0)">关于我</a>
-    			
-            
+    		<% for (var i in theme.smart_menu){ %>
+    			<% if(theme.smart_menu[i]){ %>
+    			<a q-on="click: openSlider(e, '<%-i%>')" href="javascript:void(0)"><%= theme.smart_menu[i] %></a>
+    			<% } %>
+            <%}%>
 		</nav>
 		<nav class="header-nav">
 			<div class="social">
-				
-					<a class="github" target="_blank" href="#" title="github"><i class="icon-github"></i></a>
-		        
-					<a class="weibo" target="_blank" href="#" title="weibo"><i class="icon-weibo"></i></a>
-		        
-					<a class="rss" target="_blank" href="#" title="rss"><i class="icon-rss"></i></a>
-		        
-					<a class="zhihu" target="_blank" href="#" title="zhihu"><i class="icon-zhihu"></i></a>
-		        
+				<% for (var i in theme.subnav){ %>
+					<a class="<%= i %>" target="_blank" href="<%- url_for(theme.subnav[i]) %>" title="<%= i %>"><i class="icon-<%= i %>"></i></a>
+		        <%}%>
 			</div>
 		</nav>
 	</header>
@@ -166,272 +148,7 @@
             <canvas data-colors="#eaeaea" data-sectionHeight="100" data-contentId="js-content" id="myCanvas1" class="anm-canvas"></canvas>
           </div>
           <div id="js-content" class="content-ll">
-            <article id="post-ConcurrentHashMap扩容过程介绍" class="article article-type-post " itemscope itemprop="blogPost">
-  <div class="article-inner">
-    
-      <header class="article-header">
-        
-  
-    <h1 class="article-title" itemprop="name">
-      ConcurrentHashMap扩容源码介绍
-    </h1>
-  
-
-        
-        <a href="/elasticsearch_learning/2017/11/14/ConcurrentHashMap扩容过程介绍/" class="archive-article-date">
-  	<time datetime="2017-11-14T03:21:07.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-11-14</time>
-</a>
-        
-      </header>
-      
-      <span class="archive-article-date">
-              阅读量 <span id="busuanzi_value_page_pv"></span>
-      </span>
-
-    
-
-    <!-- 目录内容 -->
-    
-      <p class="show-toc-btn" id="show-toc-btn" onclick="showToc();" style="display:none">
-        <span class="btn-bg"></span>
-        <span class="btn-text">文章导航</span>
-      </p>
-	    <div id="toc-article" class="toc-article">
-	      <span id="toc-close" class="toc-close" title="隐藏导航" onclick="showBtn();">×</span>
-		      <strong class="toc-title">文章目录</strong>
-        <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#协助扩容helpTransfer"><span class="toc-number">1.</span> <span class="toc-text">协助扩容helpTransfer()</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#扩容transfer"><span class="toc-number">1.1.</span> <span class="toc-text">扩容transfer</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#总结"><span class="toc-number">2.</span> <span class="toc-text">总结</span></a></li></ol>
-         </div>
-   <script type="text/javascript">
-	function showToc(){
-		var toc_article = document.getElementById("toc-article");
-		var show_toc_btn = document.getElementById("show-toc-btn");
-		toc_article.setAttribute("style","display:block");
-		show_toc_btn.setAttribute("style","display:none");
-		};
-	function showBtn(){
-		var toc_article = document.getElementById("toc-article");
-		var show_toc_btn = document.getElementById("show-toc-btn");
-		toc_article.setAttribute("style","display:none");
-		show_toc_btn.setAttribute("style","display:block");
-		};
-   </script>
-      
-    <!-- 目录内容结束 -->
-
-    <div class="article-entry" itemprop="articleBody">
-      
-        <p>在<a href="https://kkewwei.github.io/elasticsearch_learning/2017/11/05/ConcurrentHashMap-put%E8%BF%87%E7%A8%8B%E4%BB%8B%E7%BB%8D/">ConcurrentHashMap Put源码介绍</a>我们讲过, ConcurrentHashMap由三部分构成, table+链表+红黑树, 其中table是一个数组, 既然是数组, 必须要在使用时确定数组的大小, 当table存放的元素过多时, 就需要扩容, 以减少碰撞发生次数, 本文就讲解扩容的过程。扩容检查主要发生在插入元素(<a href="https://kkewwei.github.io/elasticsearch_learning/2017/11/05/ConcurrentHashMap-put%E8%BF%87%E7%A8%8B%E4%BB%8B%E7%BB%8D/">ConcurrentHashMap Put源码介绍</a> putVal())的过程:</p>
-<ul>
-<li>一个线程插完元素后, 检查table使用率, 若超过阈值, 调用transfer进行扩容</li>
-<li>一个线程插入数据时, 发现table对应元素的hash=MOVED, 那么调用helpTransfer()协助扩容。</li>
-</ul>
-<h1 id="协助扩容helpTransfer"><a href="#协助扩容helpTransfer" class="headerlink" title="协助扩容helpTransfer()"></a>协助扩容helpTransfer()</h1><p>下面是协助扩容的过程:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div></pre></td><td class="code"><pre><div class="line">final Node&lt;K,V&gt;[] helpTransfer(Node&lt;K,V&gt;[] tab, Node&lt;K,V&gt; f) &#123; //table扩容</div><div class="line">        Node&lt;K,V&gt;[] nextTab; int sc;</div><div class="line">        if (tab != null &amp;&amp; (f instanceof ForwardingNode) &amp;&amp;</div><div class="line">            (nextTab = ((ForwardingNode&lt;K,V&gt;)f).nextTable) != null) &#123;</div><div class="line">            // 根据 length 得到一个标识符号</div><div class="line">            int rs = resizeStamp(tab.length);</div><div class="line">            while (nextTab == nextTable &amp;&amp; table == tab &amp;&amp;</div><div class="line">                   (sc = sizeCtl) &lt; 0) &#123;//说明还在扩容</div><div class="line">                //判断是否标志发生了变化||  扩容结束了</div><div class="line">                if ((sc &gt;&gt;&gt; RESIZE_STAMP_SHIFT) != rs || sc == rs + 1 ||</div><div class="line">                     //达到最大的帮助线程 ||  判断扩容转移下标是否在调整（扩容结束）</div><div class="line">                    sc == rs + MAX_RESIZERS || transferIndex &lt;= 0)</div><div class="line">                    break;</div><div class="line">                // 将 sizeCtl + 1, （表示增加了一个线程帮助其扩容）</div><div class="line">                if (U.compareAndSwapInt(this, SIZECTL, sc, sc + 1)) &#123;</div><div class="line">                    transfer(tab, nextTab);</div><div class="line">                    break;</div><div class="line">                &#125;</div><div class="line">            &#125;</div><div class="line">            return nextTab;</div><div class="line">        &#125;</div><div class="line">        return table;</div><div class="line">    &#125;</div></pre></td></tr></table></figure></p>
-<p>主要做了如下事情:</p>
-<ul>
-<li>检查是否扩容完成<br>扩容期间c &gt;&gt;&gt; RESIZE_STAMP_SHIFT == rs是成立的, 扩容完成后, transferIndex &lt;= 0是成立的。而这里的sc == rs + 1和sc == rs + MAX_RESIZERS并没有看到什么意义, 网上说的是检查扩容结束和扩容现成的控制。但是要是扩容结束, 应该是sc == rs &lt;&lt; RESIZE_STAMP_SHIFT + 1才对, 若是对线程控制, sc == rs + MAX_RESIZERS里面sc=resizeStamp(n)&lt;&lt;RESIZE_STAMP_SHIFT+2, 是一个大于-2^16的负数, 就算每个线程对sc+1, 那么需要2^16才能大于0, 相等基本也是不可能的。</li>
-<li>对sizeCtrl = sizeCtrl+1, 然后调用transfer()进行真正的扩容。</li>
-</ul>
-<h2 id="扩容transfer"><a href="#扩容transfer" class="headerlink" title="扩容transfer"></a>扩容transfer</h2><p>扩容的整体步骤就是新建一个nextTab, size是之前的2倍, 将table上的非空元素迁移到nextTab上面去。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div><div class="line">61</div><div class="line">62</div><div class="line">63</div><div class="line">64</div><div class="line">65</div><div class="line">66</div><div class="line">67</div><div class="line">68</div><div class="line">69</div><div class="line">70</div><div class="line">71</div><div class="line">72</div><div class="line">73</div><div class="line">74</div><div class="line">75</div><div class="line">76</div><div class="line">77</div><div class="line">78</div><div class="line">79</div><div class="line">80</div><div class="line">81</div><div class="line">82</div><div class="line">83</div><div class="line">84</div><div class="line">85</div><div class="line">86</div><div class="line">87</div><div class="line">88</div><div class="line">89</div><div class="line">90</div><div class="line">91</div><div class="line">92</div><div class="line">93</div><div class="line">94</div><div class="line">95</div><div class="line">96</div><div class="line">97</div><div class="line">98</div><div class="line">99</div><div class="line">100</div><div class="line">101</div><div class="line">102</div><div class="line">103</div><div class="line">104</div><div class="line">105</div><div class="line">106</div><div class="line">107</div><div class="line">108</div><div class="line">109</div><div class="line">110</div><div class="line">111</div><div class="line">112</div><div class="line">113</div><div class="line">114</div><div class="line">115</div><div class="line">116</div><div class="line">117</div><div class="line">118</div><div class="line">119</div><div class="line">120</div><div class="line">121</div><div class="line">122</div><div class="line">123</div><div class="line">124</div><div class="line">125</div><div class="line">126</div><div class="line">127</div><div class="line">128</div><div class="line">129</div><div class="line">130</div><div class="line">131</div><div class="line">132</div><div class="line">133</div><div class="line">134</div><div class="line">135</div><div class="line">136</div><div class="line">137</div><div class="line">138</div><div class="line">139</div><div class="line">140</div><div class="line">141</div><div class="line">142</div><div class="line">143</div><div class="line">144</div><div class="line">145</div><div class="line">146</div><div class="line">147</div><div class="line">148</div><div class="line">149</div><div class="line">150</div></pre></td><td class="code"><pre><div class="line">private final void transfer(Node&lt;K,V&gt;[] tab, Node&lt;K,V&gt;[] nextTab) &#123;</div><div class="line">    int n = tab.length, stride;</div><div class="line">    if ((stride = (NCPU &gt; 1) ? (n &gt;&gt;&gt; 3) / NCPU : n) &lt; MIN_TRANSFER_STRIDE)</div><div class="line">       // subdivide range，每个线程最少迁移16个槽位，大的话，最多</div><div class="line">        stride = MIN_TRANSFER_STRIDE;</div><div class="line">    // initiating  才开始初始化新的nextTab</div><div class="line">    if (nextTab == null) &#123;</div><div class="line">        try &#123;</div><div class="line">            @SuppressWarnings(&quot;unchecked&quot;)</div><div class="line">            Node&lt;K,V&gt;[] nt = (Node&lt;K,V&gt;[])new Node&lt;?,?&gt;[n &lt;&lt; 1];  //扩容2倍</div><div class="line">            nextTab = nt;</div><div class="line">        &#125; catch (Throwable ex) &#123;      // try to cope with OOME</div><div class="line">            sizeCtl = Integer.MAX_VALUE;</div><div class="line">            return;</div><div class="line">        &#125;</div><div class="line">        nextTable = nextTab;</div><div class="line">        transferIndex = n;//更新的转移下标，</div><div class="line">    &#125;</div><div class="line">    int nextn = nextTab.length;</div><div class="line">    ForwardingNode&lt;K,V&gt; fwd = new ForwardingNode&lt;K,V&gt;(nextTab);</div><div class="line">    //是否能够向前推进到下一个周期</div><div class="line">    boolean advance = true;</div><div class="line">    // to ensure sweep before committing nextTab，完成状态，如果是，则结束此方法</div><div class="line">    boolean finishing = false;</div><div class="line">    for (int i = 0, bound = 0;;) &#123;</div><div class="line">        Node&lt;K,V&gt; f; int fh;</div><div class="line">        while (advance) &#123; //取下一个周期</div><div class="line">            int nextIndex, nextBound;</div><div class="line">            //本线程处理的区间范围为[bound, i),范围还没有处理完成，那么就继续处理</div><div class="line">            if (--i &gt;= bound || finishing)</div><div class="line">                advance = false;</div><div class="line">            //目前处理到了这里（从大到小， 下线），开始找新的一轮的区间</div><div class="line">            else if ((nextIndex = transferIndex) &lt;= 0) &#123;</div><div class="line">                i = -1;</div><div class="line">                advance = false;</div><div class="line">            &#125;</div><div class="line">            //这个条件改变的是transferIndex的值，从16变成了1</div><div class="line">            else if (U.compareAndSwapInt</div><div class="line">                     (this, TRANSFERINDEX, nextIndex,</div><div class="line">                     //nextBound 是这次迁移任务的边界，注意，是从后往前</div><div class="line">                      nextBound = (nextIndex &gt; stride ?</div><div class="line">                                   nextIndex - stride : 0))) &#123;</div><div class="line">                bound = nextBound; //一块区间最小桶的下标</div><div class="line">                i = nextIndex - 1; //能够处理的最大桶的下标</div><div class="line">                advance = false;</div><div class="line">            &#125;</div><div class="line">        &#125;</div><div class="line">        if (i &lt; 0 || i &gt;= n || i + n &gt;= nextn) &#123; //每个迁移线程都能达到这里</div><div class="line">            int sc;</div><div class="line">            if (finishing) &#123; //迁移完成</div><div class="line">                nextTable = null;</div><div class="line">                //直接把以前的table丢弃了，上面的MOVE等标志全部丢弃，使用新的</div><div class="line">                table = nextTab;</div><div class="line">                sizeCtl = (n &lt;&lt; 1) - (n &gt;&gt;&gt; 1); //扩大2n-0.5n = 1.50n, 更新新的容量阈值</div><div class="line">                return;</div><div class="line">            &#125;</div><div class="line">            //表示当前线程迁移完成了</div><div class="line">            if (U.compareAndSwapInt(this, SIZECTL, sc = sizeCtl, sc - 1)) &#123;</div><div class="line">                 //注意此时sc的值并不等于sizeCtl，上一步，sizeCtl=sizeCtl-1了。这两个对象还是分割的</div><div class="line">                if ((sc - 2) != resizeStamp(n) &lt;&lt; RESIZE_STAMP_SHIFT)</div><div class="line">                    return;</div><div class="line">                finishing = advance = true;</div><div class="line">                i = n; // recheck before commit</div><div class="line">            &#125;</div><div class="line">        &#125;</div><div class="line">        //如果对应位置为null， 则将ForwardingNode放在对应的地方</div><div class="line">        else if ((f = tabAt(tab, i)) == null)</div><div class="line">            advance = casTabAt(tab, i, null, fwd);</div><div class="line">        else if ((fh = f.hash) == MOVED) //别的线程已经在处理了，再推进一个下标</div><div class="line">            advance = true; // already processed，推动到下一个周期，仍然会检查i与bound是否结束</div><div class="line">        else &#123; //说明位置上有值了，</div><div class="line">            //需要加锁，防止再向里面放值，在放数据时，也会锁住。比如整个table正在迁移，还没有迁移到这个元素，另外一个线程像这个节点插入数据，此时迁移到这里了，会被阻塞住</div><div class="line">            synchronized (f) &#123;</div><div class="line">                if (tabAt(tab, i) == f) &#123;//判断i下标和f是否相同</div><div class="line">                    Node&lt;K,V&gt; ln, hn; //高位桶， 地位桶</div><div class="line">                    if (fh &gt;= 0) &#123;</div><div class="line">                        int runBit = fh &amp; n;//n为2^n, 取余后只能是2^n</div><div class="line">                        Node&lt;K,V&gt; lastRun = f;</div><div class="line">                        ///找到最后一个不和fn相同的节点</div><div class="line">                        for (Node&lt;K,V&gt; p = f.next; p != null; p = p.next) &#123;</div><div class="line">                            int b = p.hash &amp; n;</div><div class="line">                            //只要找到这，之后的取值都是一样的，下次循环时，就不用再循环后面的</div><div class="line">                            if (b != runBit) &#123;</div><div class="line">                                runBit = b;</div><div class="line">                                lastRun = p;</div><div class="line">                            &#125;</div><div class="line">                        &#125;</div><div class="line">                        if (runBit == 0) &#123;</div><div class="line">                            ln = lastRun;</div><div class="line">                            hn = null;</div><div class="line">                        &#125;</div><div class="line">                        else &#123; //比如1，16，32,如果低位%16，那么肯定是0。</div><div class="line">                            hn = lastRun;</div><div class="line">                            ln = null;</div><div class="line">                        &#125;</div><div class="line">                        for (Node&lt;K,V&gt; p = f; p != lastRun; p = p.next) &#123;</div><div class="line">                            int ph = p.hash; K pk = p.key; V pv = p.val;</div><div class="line">                            if ((ph &amp; n) == 0)</div><div class="line">                                 //这样就把相同串的给串起来了</div><div class="line">                                ln = new Node&lt;K,V&gt;(ph, pk, pv, ln);</div><div class="line">                            else</div><div class="line">                                //这样就把相同串的给串起来了，注意这里ln用法，第一个next为null，烦着串起来了。</div><div class="line">                                hn = new Node&lt;K,V&gt;(ph, pk, pv, hn);</div><div class="line">                        &#125;</div><div class="line">                        setTabAt(nextTab, i, ln); //反着给串起来了</div><div class="line">                        setTabAt(nextTab, i + n, hn);</div><div class="line">                        setTabAt(tab, i, fwd);</div><div class="line">                        advance = true;</div><div class="line">                    &#125;</div><div class="line">                    else if (f instanceof TreeBin) &#123;// 如果是红黑树</div><div class="line">                        TreeBin&lt;K,V&gt; t = (TreeBin&lt;K,V&gt;)f;</div><div class="line">                        TreeNode&lt;K,V&gt; lo = null, loTail = null; //也是高低节点</div><div class="line">                        TreeNode&lt;K,V&gt; hi = null, hiTail = null;//也是高低节点</div><div class="line">                        int lc = 0, hc = 0;</div><div class="line">                        for (Node&lt;K,V&gt; e = t.first; e != null; e = e.next) &#123; //中序遍历红黑树</div><div class="line">                            int h = e.hash;</div><div class="line">                            TreeNode&lt;K,V&gt; p = new TreeNode&lt;K,V&gt;</div><div class="line">                                (h, e.key, e.val, null, null);</div><div class="line">                            if ((h &amp; n) == 0) &#123; //0的放低位</div><div class="line">                                //注意这里p.prev = loTail，每一个p都是下一个的prev</div><div class="line">                                if ((p.prev = loTail) == null)</div><div class="line">                                    lo = p; //把头记住</div><div class="line">                                else</div><div class="line">                                    loTail.next = p;  //上一次的p的next是这次的p</div><div class="line">                                loTail = p; //把上次p给记住</div><div class="line">                                ++lc;</div><div class="line">                            &#125;</div><div class="line">                            else &#123; //高位</div><div class="line">                                if ((p.prev = hiTail) == null)</div><div class="line">                                    hi = p; //把尾记住</div><div class="line">                                else</div><div class="line">                                    hiTail.next = p;</div><div class="line">                                hiTail = p;</div><div class="line">                                ++hc;</div><div class="line">                            &#125;</div><div class="line">                        &#125;</div><div class="line">                        ln = (lc &lt;= UNTREEIFY_THRESHOLD) ? untreeify(lo) :// //判断是否需要转化为树</div><div class="line">                            (hc != 0) ? new TreeBin&lt;K,V&gt;(lo) : t; //如果没有高低的话，则部分为两个树</div><div class="line">                        hn = (hc &lt;= UNTREEIFY_THRESHOLD) ? untreeify(hi) :</div><div class="line">                            (lc != 0) ? new TreeBin&lt;K,V&gt;(hi) : t;</div><div class="line">                        setTabAt(nextTab, i, ln);</div><div class="line">                        setTabAt(nextTab, i + n, hn);</div><div class="line">                        setTabAt(tab, i, fwd);</div><div class="line">                        advance = true;</div><div class="line">                    &#125;</div><div class="line">                &#125;</div><div class="line">            &#125;</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
-<p>其中有两个变量需要了解下:<br>advance: 表示是否可以向下一个轮元素进行迁移。<br>finishing: table所有元素是否迁移完成。<br>大致做了如下事情:</p>
-<ul>
-<li>确定线程每轮迁移元素的个数stride, 比如进来一个线程, 确定扩容table下标为(a,b]之间元素, 下一个线程扩容(b,c]。这里对b-a或者c-b也是由最小值16限制的。 也就是说每个线程最少扩容连续16个table的元素。而标志当前迁移的下标保存在transferIndex里面。</li>
-<li>检查nextTab是否完成初始化, 若没有的话, 说明是第一个迁移的线程, 先初始化nextTab, size是之前table的2倍。</li>
-<li>进入while循环查找本轮迁移的table下标元素区间, 保存在(bound, i]中, 注意这里是半开半闭区间。</li>
-<li>从i -&gt; bound开始遍历table中每个元素, 这里是<code>从大到小</code>遍历的:</li>
-</ul>
-<ol>
-<li>若该元素为空, 则向该元素标写入ForwardingNode, 然后检查下一个元素。 当别的线程向这个元素插入数据时, 根据这个标志符知道了table正在被别的线程迁移, 在putVal中就会调用helpTransfer帮着迁移。</li>
-<li>若该元素的hash=MOVED, 代表次table正在处于迁移之中, 跳过。 按道理不会跑着这里的。</li>
-<li>否则说明该元素跟着的是一个链表或者是个红黑树结构, 若hash&gt;0, 则说明是个链表, 若f instanceof TreeBin, 则说明是个红黑树结构。</li>
-</ol>
-<ul>
-<li>链表迁移原理如下: <code>遍历链表每个节点。 若节点的f.hash&amp;n==0成立, 则将节点放在i, 否则, 则将节点放在n+i上面</code>。<br>迁移前, 对该元素进行加锁。 遍历链表时, 这里使用lastRun变量, 保留的是上次hash的值, 假如整个链表全部节点f.hash&amp;n==0, 那么第二次遍历, 只要找到lastRun的值, 那么认为之后的节点都是相同值, 减少了不必要的f.hash&amp;n取值。遍历完所有的节点后, 此时形成了两条链表, ln存放的是f.hash&amp;n=0的节点, hn存放的是非0的节点, 然后将ln存放在nextTable第i元素的位置, n+i存放在n+i的位置。<br>首先放一个张图展示扩容的变化:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/ConcurrentHashMap18.png" height="450" width="650"><br>蓝色节点代表:f.hash&amp;n==0, 绿色节点代表f.hash&amp;n!=0。 最终蓝色的节点仍在存放在(0, n)范围里, 绿的的节点存放在(n, 2n-1)的范围之内。</li>
-<li>迁移链表和红黑树的原理是一样的, 在红黑树中, 我们记录了每个红黑树的first(这个节点不是hash最小的节点)和每个节点的next, 根据这两个元素, 我们可以访问红黑树所有的元素, 红黑树此时也是一个链表, 红黑树和链表迁移的过程一样。红黑树根据迁移后拆分成了hn和ln, 根据链表长度确定链表是红黑树结构还是退化为了链表。<br>4.如何确定table所有元素迁移完成:<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div></pre></td><td class="code"><pre><div class="line">//表示当前线程迁移完成了</div><div class="line">if (U.compareAndSwapInt(this, SIZECTL, sc = sizeCtl, sc - 1)) &#123;</div><div class="line">     //注意此时sc的值并不等于sizeCtl，上一步，sizeCtl=sizeCtl-1了。这两个对象还是分割的</div><div class="line">    if ((sc - 2) != resizeStamp(n) &lt;&lt; RESIZE_STAMP_SHIFT)</div><div class="line">        return;</div><div class="line">    finishing = advance = true;</div><div class="line">    i = n; // recheck before commit</div><div class="line">&#125;</div></pre></td></tr></table></figure>
-</li>
-</ul>
-<p>第一个线程开始迁移时, 设置了sizeCtl= resizeStamp(n) &lt;&lt; RESIZE_STAMP_SHIFT+2, 此后每个新来帮助迁移的线程都会sizeCtl=sizeCtl+1, 完成迁移后,sizeCtl-1, 那么只要有一个线程还处于迁移状态, 那么sizeCtl&gt; resizeStamp(n) &lt;&lt; RESIZE_STAMP_SHIFT+2一直成立, 当只有最后一个线程完成迁移之后, 等式两边才成立。 可能大家会有疑问, 第一个线程并没有对sizeCtl=sizeCtl+1, 此时完成后再减一, 那不是不相等了吗, 注意这里, sizeCtl在减一前, 将值赋给了sc, 等式比较的是sc。</p>
-<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>table扩容过程就是将table元素迁移到新的table上, 在元素迁移时, 可以并发完成, 加快了迁移速度, 同时不至于阻塞线程。所有元素迁移完成后, 旧的table直接丢失, 直接使用新的table。</p>
-
-      
-
-      
-        <div class="page-reward">
-          <a href="javascript:;" class="page-reward-btn tooltip-top">
-            <div class="tooltip tooltip-east">
-            <span class="tooltip-item">
-              赏
-            </span>
-            <span class="tooltip-content">
-              <span class="tooltip-text">
-                <span class="tooltip-inner">
-                  <p class="reward-p"><i class="icon icon-quo-left"></i>谢谢阅读<i class="icon icon-quo-right"></i></p>
-                  <div class="reward-box">
-                    
-                    
-                  </div>
-                </span>
-              </span>
-            </span>
-          </div>
-          </a>
-        </div>
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/elasticsearch_learning/categories/Java学习//" class="article-tag-list-link color2">Java学习</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-
-      
-        
-<div class="share-btn share-icons tooltip-left">
-  <div class="tooltip tooltip-east">
-    <span class="tooltip-item">
-      <a href="javascript:;" class="share-sns share-outer">
-        <i class="icon icon-share"></i>
-      </a>
-    </span>
-    <span class="tooltip-content">
-      <div class="share-wrap">
-        <div class="share-icons">
-          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
-            <i class="icon icon-weibo"></i>
-          </a>
-          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
-            <i class="icon icon-weixin"></i>
-          </a>
-          <a class="qq share-sns" href="javascript:;" data-type="qq">
-            <i class="icon icon-qq"></i>
-          </a>
-          <a class="douban share-sns" href="javascript:;" data-type="douban">
-            <i class="icon icon-douban"></i>
-          </a>
-          <a class="qzone share-sns" href="javascript:;" data-type="qzone">
-            <i class="icon icon-qzone"></i>
-          </a>
-          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
-            <i class="icon icon-facebook"></i>
-          </a>
-          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
-            <i class="icon icon-twitter"></i>
-          </a>
-          <a class="google share-sns" href="javascript:;" data-type="google">
-            <i class="icon icon-google"></i>
-          </a>
-        </div>
-      </div>
-    </span>
-  </div>
-</div>
-
-<div class="page-modal wx-share js-wx-box">
-    <a class="close js-modal-close" href="javascript:;"><i class="icon icon-close"></i></a>
-    <p>扫一扫，分享到微信</p>
-    <div class="wx-qrcode">
-      <img src="//pan.baidu.com/share/qrcode?url=https://kkewwei.github.io/elasticsearch_learning/2017/11/14/ConcurrentHashMap扩容过程介绍/" alt="微信分享二维码">
-    </div>
-</div>
-
-<div class="mask js-mask"></div>
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-  
-<nav id="article-nav">
-  
-    <a href="/elasticsearch_learning/2017/12/17/ES索引创建流程/" id="article-nav-newer" class="article-nav-link-wrap">
-      <i class="icon-circle-left"></i>
-      <div class="article-nav-title">
-        
-          ES索引创建流程
-        
-      </div>
-    </a>
-  
-  
-    <a href="/elasticsearch_learning/2017/11/06/ConcurrentHashMap红黑树原理介绍/" id="article-nav-older" class="article-nav-link-wrap">
-      <div class="article-nav-title">ConcurrentHashMap红黑树原理介绍</div>
-      <i class="icon-circle-right"></i>
-    </a>
-  
-</nav>
-
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-        <div class="toc-container tooltip-left">
-            <i class="icon-font icon-category"></i>
-            <div class="tooltip tooltip-east">
-                <span class="tooltip-item">
-                </span>
-                <span class="tooltip-content">
-                    <div class="toc-article">
-                    <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#协助扩容helpTransfer"><span class="toc-number">1.</span> <span class="toc-text">协助扩容helpTransfer()</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#扩容transfer"><span class="toc-number">1.1.</span> <span class="toc-text">扩容transfer</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#总结"><span class="toc-number">2.</span> <span class="toc-text">总结</span></a></li></ol>
-                    </div>
-                </span>
-            </div>
-        </div>
-        
-    </div>
-</aside>
-
-
-
-  
-
-  
-
-  
-
-  
-
-  
-  <div id="gitment-ctn"></div>
-<link rel="stylesheet" href="//imsun.github.io/gitment/style/default.css">
-<script src="//www.wenjunjiang.win/js/gitment.js "></script>
-<script>
-var gitment = new Gitment({
-  id: "ConcurrentHashMap扩容源码介绍",
-  owner: 'kkewwei',
-  repo: 'comments',
-  oauth: {
-    client_id: '9391e497d6b288887f33',
-    client_secret: 'db733731bff4ee2811d9530b1ac4cfc6767e8183',
-  },
-})
-gitment.render('gitment-ctn')
-</script>
-
-  
-
-
+            
           </div>
         </div>
       </div>
@@ -560,11 +277,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">NIO, write, read</a>
+                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
+                <a href="javascript:void(0)" class="js-tag color2">NIO, write, read</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -572,15 +289,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">LockSupport</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">Lucene、ByteBlockPool</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">Lucene、词典、tim、tip、doc、pos、fst、倒排索引</a>
+                <a href="javascript:void(0)" class="js-tag color2">LockSupport</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">Lucene、StoredField</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -588,7 +305,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">Lucene、StoredField</a>
+                <a href="javascript:void(0)" class="js-tag color5">Lucene、词典、tim、tip、doc、pos、fst、倒排索引</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -628,11 +345,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
+                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
+                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
               </li>
              
               <li class="article-tag-list-item">
