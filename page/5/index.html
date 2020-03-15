@@ -310,11 +310,11 @@
 <li>接受外来连接(服务器端), 即accept函数, 如果对一个阻塞的套接字调用accept函数, 并且尚无新的连接到达, 该线程将阻塞。<br>&#160; &#160; &#160; &#160;如果对一个非阻塞的套接字调用accpet函数, 并且尚无新的连接到大, accept将立即返回一个AWOULDBLOCK错误。</li>
 <li>发起外来连接(客户端), 即调用TCP的connect函数。(connect同样可用于UDP, 不过它不能使一个真正的连接建立起来, 它只是是内核保存对端的IP和端口号)。TCP连接的建立涉及一个三次握手过程, 而且connect函数一直要等到客户端收到对于自己的SYN的ACK为止才返回。 这意味着TCP的每一个connect总会阻塞其调用进程至少一个到服务器的RTT时间。<br>在代码里面, 我们可以通过<code>channel.configureBlocking(false)</code>设置管道的非阻塞。在JAVA NIO中, 若我们对ServerSocketChannelImp和SocketChannelImp不设置非阻塞, 那么程序将检查不通过。</li>
 </ol>
-<h1 id="open"><a href="#open" class="headerlink" title="open"></a>open</h1><p>有了复路选择器提供者之后, 就该产生ServerSocketChannelImpl了, 任何与client建立建立都是由它完成的, 我们看下初始化做了什么工作<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div></pre></td><td class="code"><pre><div class="line">ServerSocketChannelImpl(SelectorProvider sp) throws IOException &#123;</div><div class="line">    super(sp);</div><div class="line">    this.fd =  Net.serverSocket(true);</div><div class="line">    this.fdVal = IOUtil.fdVal(fd);</div><div class="line">    this.state = ST_INUSE;  // 只有三个状态，未使用，正使用，被kill</div><div class="line">&#125;</div><div class="line">static FileDescriptor serverSocket(boolean var0) &#123;</div><div class="line">    return IOUtil.newFD(socket0(isIPv6Available(), var0, true, fastLoopback));</div><div class="line">&#125;</div><div class="line">public static FileDescriptor newFD(int i) &#123;</div><div class="line">    FileDescriptor fd = new FileDescriptor();</div><div class="line">    setfdVal(fd, i);</div><div class="line">    return fd;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<h1 id="ServerSocketChannel-open"><a href="#ServerSocketChannel-open" class="headerlink" title="ServerSocketChannel.open"></a>ServerSocketChannel.open</h1><p>有了复路选择器提供者之后, 就该产生ServerSocketChannelImpl了, 任何与client建立建立都是由它完成的, 我们看下初始化做了什么工作<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div></pre></td><td class="code"><pre><div class="line">ServerSocketChannelImpl(SelectorProvider sp) throws IOException &#123;</div><div class="line">    super(sp);</div><div class="line">    this.fd =  Net.serverSocket(true);</div><div class="line">    this.fdVal = IOUtil.fdVal(fd);</div><div class="line">    this.state = ST_INUSE;  // 只有三个状态，未使用，正使用，被kill</div><div class="line">&#125;</div><div class="line">static FileDescriptor serverSocket(boolean var0) &#123;</div><div class="line">    return IOUtil.newFD(socket0(isIPv6Available(), var0, true, fastLoopback));</div><div class="line">&#125;</div><div class="line">public static FileDescriptor newFD(int i) &#123;</div><div class="line">    FileDescriptor fd = new FileDescriptor();</div><div class="line">    setfdVal(fd, i);</div><div class="line">    return fd;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
 <p>可以看到初始化主要做了如下工作:</p>
 <ol>
 <li>通过调用java nio Java_sun_nio_ch_Net_socket0 获取文件描述符fd(int类型)</li>
-<li>产生FileDescriptor对象fd, 然后调用nio函数setfdVal, 对这个赋值, 将数字类型的fd放入FileDescriptor的类中。</li>
+<li>产生FileDescriptor对象fd, 然后调用nio函数setfdVal（Java_sun_nio_ch_Net_setIntOption0）, 对这个赋值, 将数字类型的fd放入FileDescriptor的类中。</li>
 <li>通过nio IOUtil.fdVal获取FileDescriptor中的fd属性值, 保存在ServerSocketChannelImpl的fdVal中</li>
 <li>设置ServerSocketChannelImpl的状态为ST_INUSE 正使用状态。<br>FileDescriptor里面的fd作为java与底层c++沟通的桥梁。 从FileDescriptor中获取fd ,也是通过java nio饶了一圈, 而不是直接从java FileDescriptor, 原因是FileDescriptor fd属性被设置成了private(保证fd的安全性)<br>我们接下来看java nio Java_sun_nio_ch_Net_socket0是如何实现的:<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div></pre></td><td class="code"><pre><div class="line">// 网络协议相关参数https://linux.die.net/man/2/socket</div><div class="line">JNIEXPORT int JNICALL</div><div class="line">Java_sun_nio_ch_Net_socket0(JNIEnv *env, jclass cl, jboolean preferIPv6,</div><div class="line">                            jboolean stream, jboolean reuse)</div><div class="line">&#123;</div><div class="line">    int fd;</div><div class="line">     //通信协议, 默认都是SOCK_STREAM, 代表是TCP协议, 而SOCK_DGRAM表示UDP协议</div><div class="line">    int type = (stream ? SOCK_STREAM : SOCK_DGRAM);</div><div class="line">#ifdef AF_INET6</div><div class="line">    int domain = (ipv6_available() &amp;&amp; preferIPv6) ? AF_INET6 : AF_INET; //前面是ipv6, 后面代表ipv4</div><div class="line">#else</div><div class="line">    # AF_INET代表协议是ipv4, 默认都是ipv4</div><div class="line">    int domain = AF_INET;</div><div class="line">#endif</div><div class="line">    // 第三个参数protocol执行通信用的协议, 0意味着使用默认的, 获得网络通信的fd</div><div class="line">    fd = socket(domain, type, 0);</div><div class="line">    // 它返回的就是socket file descriptor</div><div class="line">    if (fd &lt; 0) &#123;</div><div class="line">        return handleSocketError(env, errno);</div><div class="line">    &#125;</div><div class="line">    ......</div><div class="line"></div><div class="line">    if (reuse) &#123; // 如果是地址复用地址, 那么就设置参数</div><div class="line">        int arg = 1;</div><div class="line">        if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, (char*)&amp;arg,</div><div class="line">                       sizeof(arg)) &lt; 0) &#123;</div><div class="line">            JNU_ThrowByNameWithLastError(env,</div><div class="line">                                         JNU_JAVANETPKG &quot;SocketException&quot;,</div><div class="line">                                         &quot;Unable to set SO_REUSEADDR&quot;);</div><div class="line">            close(fd);</div><div class="line">            return -1;</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line"></div><div class="line">......</div><div class="line">    // 默认返回的是fd, 若出错, 那么返回值 &lt; 0</div><div class="line">    return fd;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
 </li>
@@ -1312,7 +1312,7 @@
   <!-- 根据个人喜好在相应位置添加以下代码 -->
   <div calss="count-span">
   <span id="busuanzi_container_site_pv">
-  总访问量: <span id="busuanzi_value_site_pv"></span>|
+  总访问量: <span id="busuanzi_value_site_pv"></span> |
   </span>
   <span id="busuanzi_container_site_uv">
   总访客: <span id="busuanzi_value_site_uv"></span>
@@ -1406,6 +1406,14 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">NIO, write, read</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">Linux, close</a>
               </li>
              
@@ -1414,7 +1422,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">NIO, write, read</a>
+                <a href="javascript:void(0)" class="js-tag color2">LockSupport</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1422,11 +1430,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">LockSupport</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
+                <a href="javascript:void(0)" class="js-tag color5">Lucene、词典、tim、tip、doc、pos、fst、倒排索引</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1434,15 +1438,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">Lucene、词典、FST</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">Lucene、词典、tim、tip、doc、pos、fst、倒排索引</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">Lucene、DocValue</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">Lucene、词典、FST</a>
               </li>
              
               <li class="article-tag-list-item">
