@@ -23,7 +23,7 @@
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/lucene_tim6.png">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/lucene_tim8.png">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/lucene_tim7.png">
-<meta property="og:updated_time" content="2020-03-29T11:32:44.000Z">
+<meta property="og:updated_time" content="2020-03-29T11:36:24.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Lucene8.2.0底层架构-tim&#x2F;tip词典结构原理研究">
 <meta name="twitter:description" content="Lucene中主要有两类倒排索引结构， 一种是词典结构， 涉及tim、tip、doc、pos。另外一种就是词典向量，涉及tvd,tvm（参考Lucene8.2.0底层架构-tvd/tvm词典向量结构研究）, 这者统计的信息大体相同，这两个类都继承自TermsHashPerField，都是对segment内相同域名所有文档共享这两个类。前者由FreqProxTermsWriterPerField构建">
@@ -204,7 +204,7 @@
 	    <div id="toc-article" class="toc-article">
 	      <span id="toc-close" class="toc-close" title="隐藏导航" onclick="showBtn();">×</span>
 		      <strong class="toc-title">文章目录</strong>
-        <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#词典在内存中构建"><span class="toc-number">1.</span> <span class="toc-text">词典在内存中构建</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#flush到文件中"><span class="toc-number">2.</span> <span class="toc-text">flush到文件中</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#单个词的倒排索引结构落盘"><span class="toc-number">2.1.</span> <span class="toc-text">单个词的倒排索引结构落盘</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#构建词典结构"><span class="toc-number">2.2.</span> <span class="toc-text">构建词典结构</span></a></li></ol></li></ol>
+        <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#词典在内存中构建"><span class="toc-number">1.</span> <span class="toc-text">词典在内存中构建</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#flush到文件中"><span class="toc-number">2.</span> <span class="toc-text">flush到文件中</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#单个词的倒排索引结构落盘"><span class="toc-number">2.1.</span> <span class="toc-text">单个词的倒排索引结构落盘</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#构建词典结构"><span class="toc-number">2.2.</span> <span class="toc-text">构建词典结构</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#总结"><span class="toc-number">3.</span> <span class="toc-text">总结</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#参考"><span class="toc-number">4.</span> <span class="toc-text">参考</span></a></li></ol>
          </div>
    <script type="text/javascript">
 	function showToc(){
@@ -283,7 +283,7 @@
 <li>即将构建的FST是否有term。</li>
 <li>blockCount-1个数组，分别反映了该fst下blockCount-1个子block在tim中的位置。<br>2) 将输入的产生的PendingBlock列表构建成一个FST，构建原理可以参考：<a href="https://kkewwei.github.io/elasticsearch_learning/2020/02/25/Lucene8-2-0%E5%BA%95%E5%B1%82%E6%9E%B6%E6%9E%84-%E8%AF%8D%E5%85%B8fst%E5%8E%9F%E7%90%86%E8%A7%A3%E6%9E%90/">Lucene8.2.0底层架构-词典fst原理解析</a><br>构建出来的FST如下所示：<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/lucene_tim7.png" height="300" width="400"><br>也就是说，只要通过FST的output0，就可以找到block0、block1、block2、block3在tim中存储的位置。其中block0存放着整个FST结构，和别的term再次构建FST.</li>
 </ul>
-<p>参考：<br><a href="https://kkewwei.github.io/elasticsearch_learning/2020/02/25/Lucene8-2-0%E5%BA%95%E5%B1%82%E6%9E%B6%E6%9E%84-%E8%AF%8D%E5%85%B8fst%E5%8E%9F%E7%90%86%E8%A7%A3%E6%9E%90/">https://kkewwei.github.io/elasticsearch_learning/2020/02/25/Lucene8-2-0%E5%BA%95%E5%B1%82%E6%9E%B6%E6%9E%84-%E8%AF%8D%E5%85%B8fst%E5%8E%9F%E7%90%86%E8%A7%A3%E6%9E%90/</a><br><a href="https://www.amazingkoala.com.cn/Lucene/suoyinwenjian/2019/0401/43.html" target="_blank" rel="external">https://www.amazingkoala.com.cn/Lucene/suoyinwenjian/2019/0401/43.html</a></p>
+<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><h1 id="参考"><a href="#参考" class="headerlink" title="参考"></a>参考</h1><p><a href="https://kkewwei.github.io/elasticsearch_learning/2020/02/25/Lucene8-2-0%E5%BA%95%E5%B1%82%E6%9E%B6%E6%9E%84-%E8%AF%8D%E5%85%B8fst%E5%8E%9F%E7%90%86%E8%A7%A3%E6%9E%90/">https://kkewwei.github.io/elasticsearch_learning/2020/02/25/Lucene8-2-0%E5%BA%95%E5%B1%82%E6%9E%B6%E6%9E%84-%E8%AF%8D%E5%85%B8fst%E5%8E%9F%E7%90%86%E8%A7%A3%E6%9E%90/</a><br><a href="https://www.amazingkoala.com.cn/Lucene/suoyinwenjian/2019/0401/43.html" target="_blank" rel="external">https://www.amazingkoala.com.cn/Lucene/suoyinwenjian/2019/0401/43.html</a></p>
 
       
 
@@ -437,7 +437,7 @@
                 </span>
                 <span class="tooltip-content">
                     <div class="toc-article">
-                    <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#词典在内存中构建"><span class="toc-number">1.</span> <span class="toc-text">词典在内存中构建</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#flush到文件中"><span class="toc-number">2.</span> <span class="toc-text">flush到文件中</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#单个词的倒排索引结构落盘"><span class="toc-number">2.1.</span> <span class="toc-text">单个词的倒排索引结构落盘</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#构建词典结构"><span class="toc-number">2.2.</span> <span class="toc-text">构建词典结构</span></a></li></ol></li></ol>
+                    <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#词典在内存中构建"><span class="toc-number">1.</span> <span class="toc-text">词典在内存中构建</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#flush到文件中"><span class="toc-number">2.</span> <span class="toc-text">flush到文件中</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#单个词的倒排索引结构落盘"><span class="toc-number">2.1.</span> <span class="toc-text">单个词的倒排索引结构落盘</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#构建词典结构"><span class="toc-number">2.2.</span> <span class="toc-text">构建词典结构</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#总结"><span class="toc-number">3.</span> <span class="toc-text">总结</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#参考"><span class="toc-number">4.</span> <span class="toc-text">参考</span></a></li></ol>
                     </div>
                 </span>
             </div>
@@ -604,11 +604,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">NIO, write, read</a>
+                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
+                <a href="javascript:void(0)" class="js-tag color2">NIO, write, read</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -616,19 +616,19 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">Lucene、ByteBlockPool</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">LockSupport</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">Lucene、termVector、tvd、tvm、倒排索引</a>
+                <a href="javascript:void(0)" class="js-tag color1">Lucene、ByteBlockPool</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">Lucene、词典、tim、tip、doc、pos、fst、倒排索引</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">Lucene、termVector、tvd、tvm、倒排索引</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -648,19 +648,19 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">ReentrantLock</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">Cycler</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">netty4, ServerBootstrap, Initiale</a>
+                <a href="javascript:void(0)" class="js-tag color4">ReentrantLock</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">netty4, ServerBootstrap, Initiale</a>
               </li>
              
               <li class="article-tag-list-item">
