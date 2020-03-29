@@ -23,7 +23,7 @@
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/lucene_tim6.png">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/lucene_tim8.png">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/lucene_tim7.png">
-<meta property="og:updated_time" content="2020-03-29T12:19:02.000Z">
+<meta property="og:updated_time" content="2020-03-29T12:20:48.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Lucene8.2.0底层架构-tim&#x2F;tip词典结构原理研究">
 <meta name="twitter:description" content="Lucene中主要有两类倒排索引结构， 一种是词典结构， 涉及tim、tip、doc、pos。另外一种就是词典向量，涉及tvd,tvm（参考Lucene8.2.0底层架构-tvd/tvm词典向量结构研究）, 这者统计的信息大体相同，这两个类都继承自TermsHashPerField，都是对segment内相同域名所有文档共享这两个类。前者由FreqProxTermsWriterPerField构建">
@@ -277,7 +277,7 @@
 <p>我们再继续看下<code>BlockTreeTermsWriter.writeBlock()</code>是怎么将这批terms组成一个PendingBlock。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div><div class="line">61</div><div class="line">62</div><div class="line">63</div><div class="line">64</div><div class="line">65</div><div class="line">66</div><div class="line">67</div><div class="line">68</div><div class="line">69</div><div class="line">70</div><div class="line">71</div><div class="line">72</div><div class="line">73</div><div class="line">74</div><div class="line">75</div><div class="line">76</div><div class="line">77</div><div class="line">78</div><div class="line">79</div><div class="line">80</div><div class="line">81</div><div class="line">82</div><div class="line">83</div><div class="line">84</div><div class="line">85</div><div class="line">86</div><div class="line">87</div></pre></td><td class="code"><pre><div class="line">private PendingBlock writeBlock(int prefixLength, boolean isFloor, int floorLeadLabel, int start, int end,</div><div class="line">                                boolean hasTerms, boolean hasSubBlocks) throws IOException &#123;</div><div class="line">  long startFP = termsOut.getFilePointer(); // 获取当前block在tim中的起始位置</div><div class="line">  boolean hasFloorLeadLabel = isFloor &amp;&amp; floorLeadLabel != -1;</div><div class="line">  final BytesRef prefix = new BytesRef(prefixLength + (hasFloorLeadLabel ? 1 : 0));</div><div class="line">  System.arraycopy(lastTerm.get().bytes, 0, prefix.bytes, 0, prefixLength);</div><div class="line">  prefix.length = prefixLength;</div><div class="line">  int numEntries = end - start;</div><div class="line">  int code = numEntries &lt;&lt; 1; // block的term个数</div><div class="line">  if (end == pending.size()) &#123;</div><div class="line">    // Last block:</div><div class="line">    code |= 1;  // 标志是最后一个block</div><div class="line">  &#125;</div><div class="line">  termsOut.writeVInt(code); // tim</div><div class="line">  boolean isLeafBlock = hasSubBlocks == false;// 如果这个值为true，那么这个block中没有一个是新产生的block</div><div class="line">  //System.out.println(&quot;  isLeaf=&quot; + isLeafBlock);</div><div class="line">  final List&lt;FST&lt;BytesRef&gt;&gt; subIndices; // 存放的是子fst结构</div><div class="line">  boolean absolute = true;</div><div class="line">   // block仅有terms, 而没有PendingBlock</div><div class="line">  if (isLeafBlock) &#123; </div><div class="line">    // Block contains only ordinary terms:</div><div class="line">    subIndices = null;</div><div class="line">     // 遍历每一个term，将其不同的后缀给存储起来</div><div class="line">    for (int i=start;i&lt;end;i++) &#123; </div><div class="line">      PendingEntry ent = pending.get(i);</div><div class="line">      PendingTerm term = (PendingTerm) ent;</div><div class="line">      BlockTermState state = term.state;</div><div class="line">       // 该词后缀长度</div><div class="line">      final int suffix = term.termBytes.length - prefixLength;</div><div class="line">      // 写入后缀内容</div><div class="line">      suffixWriter.writeVInt(suffix);</div><div class="line">      suffixWriter.writeBytes(term.termBytes, prefixLength, suffix);</div><div class="line">      // 该词在多少文件中出现过</div><div class="line">      statsWriter.writeVInt(state.docFreq);  </div><div class="line">      if (fieldInfo.getIndexOptions() != IndexOptions.DOCS) &#123;</div><div class="line">        // 多出来的词频</div><div class="line">        statsWriter.writeVLong(state.totalTermFreq - state.docFreq); </div><div class="line">      &#125;</div><div class="line">      // 将state中的元数据，抽取出来放在longs,bytesWriter中</div><div class="line">      // Write term meta data， 将doc的block存放在这里</div><div class="line">      // 将doc.pos,pay信息放入longs中</div><div class="line">      postingsWriter.encodeTerm(longs, bytesWriter, fieldInfo, state, absolute);</div><div class="line">       // 写入doc + pos + pay 三个在对应文件中与上个term的差值</div><div class="line">      for (int pos = 0; pos &lt; longsSize; pos++) &#123;</div><div class="line">        metaWriter.writeVLong(longs[pos]);</div><div class="line">      &#125;</div><div class="line">      // 将byte写入metaWriter中</div><div class="line">      bytesWriter.writeTo(metaWriter); </div><div class="line">      bytesWriter.reset();</div><div class="line">      absolute = false;</div><div class="line">    &#125;</div><div class="line">  &#125; else &#123; </div><div class="line">    // 该block子pending中包含子Block</div><div class="line">    subIndices = new ArrayList&lt;&gt;();</div><div class="line">    for (int i=start;i&lt;end;i++) &#123;</div><div class="line">      PendingEntry ent = pending.get(i);</div><div class="line">      if (ent.isTerm) &#123;</div><div class="line">        ......</div><div class="line">      &#125; else &#123;</div><div class="line">        PendingBlock block = (PendingBlock) ent;</div><div class="line">        final int suffix = block.prefix.length - prefixLength;</div><div class="line">        suffixWriter.writeVInt((suffix&lt;&lt;1)|1);</div><div class="line">        suffixWriter.writeBytes(block.prefix.bytes, prefixLength, suffix);</div><div class="line">        suffixWriter.writeVLong(startFP - block.fp);</div><div class="line">        subIndices.add(block.index);</div><div class="line">      &#125;</div><div class="line">    &#125;</div><div class="line">  &#125;</div><div class="line">  // 写入suffixWriter中的长度，写入tim中</div><div class="line">  termsOut.writeVInt((int) (suffixWriter.getFilePointer() &lt;&lt; 1) | (isLeafBlock ? 1:0)); </div><div class="line">   // 将suffixWriter中的byte[]写入tim中</div><div class="line">  suffixWriter.writeTo(termsOut);</div><div class="line">  suffixWriter.reset();</div><div class="line">  // Write term stats byte[] blob</div><div class="line">  termsOut.writeVInt((int) statsWriter.getFilePointer()); //写入长度</div><div class="line">  statsWriter.writeTo(termsOut); // 写入内容</div><div class="line">  statsWriter.reset();</div><div class="line">  // Write term meta data byte[] blob</div><div class="line">  termsOut.writeVInt((int) metaWriter.getFilePointer());</div><div class="line">  metaWriter.writeTo(termsOut); //</div><div class="line">  metaWriter.reset();</div><div class="line">  if (hasFloorLeadLabel) &#123; // 这里给多加了一个字段</div><div class="line">    prefix.bytes[prefix.length++] = (byte) floorLeadLabel;</div><div class="line">  &#125;</div><div class="line">  // 产生一个新的PendingBlock</div><div class="line">  return new PendingBlock(prefix, startFP, hasTerms, isFloor, floorLeadLabel, subIndices); </div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
 <p>该函数主要是将start-end长度的terms组装成一个PendingBlock, 针对PendingTerm采集的term信息如下：<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/lucene_tim6.png" height="350" width="800"><br>然后将suffixWriter、statsWriter、metaWriter依次写入tim文件中。若有PendingBlock的话，只在suffixWriter记录该block前缀、该block在tim中的存储位置，并将该block下所有的FST保存在该新创建的PendingBlock中，以便后续根据这些FST产生新的FST。</p>
 <p>我们再继续看下firstBlock.compileIndex()，是如何将<code>writeBlocks()</code>产生的所有Block合并产生一个FST的：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div></pre></td><td class="code"><pre><div class="line">public void compileIndex(List&lt;PendingBlock&gt; blocks, RAMOutputStream scratchBytes, IntsRefBuilder scratchIntsRef) throws IOException &#123;</div><div class="line">   // 写入scratchBytes比较重要，作为FST数的</div><div class="line">   //写入scratchBytes：最高62为存放tim起始位置，低一位存放是否有terms，最低位存放是否是floor机器。</div><div class="line">  scratchBytes.writeVLong(encodeOutput(fp, hasTerms, isFloor));</div><div class="line">  if (isFloor) &#123;</div><div class="line">    // 同时将每个block在tim中的fp也保存起来</div><div class="line">    scratchBytes.writeVInt(blocks.size()-1); </div><div class="line">    // 遍历每一个block</div><div class="line">    for (int i=1;i&lt;blocks.size();i++) &#123; </div><div class="line">      PendingBlock sub = blocks.get(i); </div><div class="line">      // 下一个block与上个block相比，不同的字符</div><div class="line">      scratchBytes.writeByte((byte) sub.floorLeadByte); </div><div class="line">      scratchBytes.writeVLong((sub.fp - fp) &lt;&lt; 1 | (sub.hasTerms ? 1 : 0));</div><div class="line">    &#125;</div><div class="line">  &#125;</div><div class="line">  // 这里会新产生以Builder</div><div class="line">  final ByteSequenceOutputs outputs = ByteSequenceOutputs.getSingleton();</div><div class="line">  final Builder&lt;BytesRef&gt; indexBuilder = new Builder&lt;&gt;(FST.INPUT_TYPE.BYTE1,</div><div class="line">                                                       0, 0, true, false, Integer.MAX_VALUE,</div><div class="line">                                                       outputs, true, 15);</div><div class="line">  // scratchBytes里面的长度。存的是fp&amp;hasTerms&amp;isFloor</div><div class="line">  final byte[] bytes = new byte[(int) scratchBytes.getFilePointer()]; </div><div class="line">  scratchBytes.writeTo(bytes, 0);</div><div class="line">  // 将本身的字符放入FST中</div><div class="line">  indexBuilder.add(Util.toIntsRef(prefix, scratchIntsRef), new BytesRef(bytes, 0, bytes.length));</div><div class="line">  scratchBytes.reset();</div><div class="line">  // 将 sub-block 的所有 index 写入indexBuilder(比较重要)</div><div class="line">  // Copy over index for all sub-blocks</div><div class="line">  for(PendingBlock block : blocks) &#123;</div><div class="line">    if (block.subIndices != null) &#123;</div><div class="line">      // 遍历所有的block</div><div class="line">      for(FST&lt;BytesRef&gt; subIndex : block.subIndices) &#123;  </div><div class="line">      // 当做普通字符串再加入新的fst中</div><div class="line">        append(indexBuilder, subIndex, scratchIntsRef);</div><div class="line">      &#125;</div><div class="line">      block.subIndices = null;</div><div class="line">    &#125;</div><div class="line">  &#125;</div><div class="line">  // 生成新的FST</div><div class="line">  index = indexBuilder.finish();</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
-<p>该函数主要是将产生的PengingBlock组装成一个FST， 主要做了如下工作：<br>1) 构建FST的output, output里面存放了如下信息：<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/lucene_tim8.png" height="200" width="450"><br>output能够快速定位block在tim中的存储位置，主要由一下几部分构成：</p>
+<p>该函数主要是将产生的PengingBlock组装成一个FST， 主要做了如下工作：<br>1) 构建FST的output, output里面存放了如下信息：<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/lucene_tim8.png" height="200" width="500"><br>output能够快速定位block在tim中的存储位置，主要由一下几部分构成：</p>
 <ul>
 <li>block0在tim文件中的起始位置。</li>
 <li>即将构建的FST是否有term。</li>
@@ -600,15 +600,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">Flink、Slot分配、SubTask申请slot, SubTask部署</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">NIO, write, read</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">Flink、Slot分配、SubTask申请slot, SubTask部署</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -616,11 +612,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">LockSupport</a>
+                <a href="javascript:void(0)" class="js-tag color1">Lucene、ByteBlockPool</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">Lucene、ByteBlockPool</a>
+                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -628,7 +624,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">Lucene、词典、FST</a>
+                <a href="javascript:void(0)" class="js-tag color2">LockSupport</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">Lucene、词典、tim、tip、doc、pos、fst、倒排索引</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -636,7 +636,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">Lucene、词典、tim、tip、doc、pos、fst、倒排索引</a>
+                <a href="javascript:void(0)" class="js-tag color4">Lucene、词典、FST</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -652,11 +652,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
+                <a href="javascript:void(0)" class="js-tag color4">ReentrantLock</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">ReentrantLock</a>
+                <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
               </li>
              
               <li class="article-tag-list-item">
