@@ -353,7 +353,7 @@
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div></pre></td><td class="code"><pre><div class="line">JNIEXPORT void JNICALL</div><div class="line">Java_sun_nio_ch_KQueueArrayWrapper_register0(JNIEnv *env, jobject this,</div><div class="line">                                             jint kq, jint fd, jint r, jint w)</div><div class="line">&#123;</div><div class="line">    struct kevent changes[2];</div><div class="line">    struct kevent errors[2];</div><div class="line">    struct timespec dontBlock = &#123;0, 0&#125;;</div><div class="line">    // 注册监听事件， 这里可以看出，要么只能是读，要么只能是写，只能选择一样。选择其中一样，那么另外一样只能取消关注。</div><div class="line">    // if (r) then &#123; register for read &#125; else &#123; unregister for read &#125;</div><div class="line">    // if (w) then &#123; register for write &#125; else &#123; unregister for write &#125;</div><div class="line">    // Ignore errors - they&apos;re probably complaints about deleting non-</div><div class="line">    //   added filters - but provide an error array anyway because</div><div class="line">    //   kqueue behaves erratically if some of its registrations fail.</div><div class="line">    EV_SET(&amp;changes[0], fd, EVFILT_READ,  r ? EV_ADD : EV_DELETE, 0, 0, 0);</div><div class="line">    EV_SET(&amp;changes[1], fd, EVFILT_WRITE, w ? EV_ADD : EV_DELETE, 0, 0, 0);</div><div class="line">    kevent(kq, changes, 2, errors, 2, &amp;dontBlock);</div><div class="line">&#125;</div></pre></td></tr></table></figure>
 <p>之后也会在selector.select()介绍。<br>&#160; &#160; &#160; &#160;我们还是看下向KQueueSelectorImpl.register()做了哪些事情吧<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div></pre></td><td class="code"><pre><div class="line">protected final SelectionKey SelectorImpl.register(AbstractSelectableChannel ch, int ops, Object attachment) &#123;</div><div class="line">    // 产生一个SelectionKeyImpl, 存放当前管道ServerSocketChannelImp和KQueueSelectorImpl</div><div class="line">    SelectionKeyImpl k = new SelectionKeyImpl((SelChImpl)ch, this);</div><div class="line">    k.attach(attachment);</div><div class="line">    synchronized (publicKeys) &#123;</div><div class="line">        implRegister(k);</div><div class="line">    &#125;</div><div class="line">    // 注册感兴趣的事, 会将ServerSocketChannelImpl及感兴趣的事注册到KQueueArrayWrapper.updateList, 会将对ServerSocketChannelImpl的OP_ACCEPT事件转变为了OP_READ</div><div class="line">    k.interestOps(ops);</div><div class="line">    return k;</div><div class="line">&#125;</div><div class="line">protected void implRegister(SelectionKeyImpl ski) &#123;</div><div class="line">    if (closed)</div><div class="line">        throw new ClosedSelectorException();</div><div class="line">    int fd = IOUtil.fdVal(ski.channel.getFD());</div><div class="line">    // 向fdMap中保存管道对应的fd及SelectionKeyImpl对应关系</div><div class="line">    fdMap.put(Integer.valueOf(fd), new MapEntry(ski));</div><div class="line">    totalChannels++;</div><div class="line">    keys.add(ski);</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
 <p>&#160; &#160; &#160; &#160;可以看到, 主要是向KQueueSelectorImpl注册了此次的SelectionKeyImpl。这里也是可以看到, 对于一个管道(ServerSocketChannelImp或者SocketChannelImp), 只能在KQueueSelectorImpl注册一个事件。3. 检查目前是否该管道是否在selector上面已经注册了, 若注册了, 那么修改关注的事件。否则就调用register去KQueueSelectorImpl中注册这个事件。这里还有一个细节需要注意下, 在k.interestOps中, kevent只有read/write等几种事件类型, 并没有Accept事件, 所以会将ACCEPT事件转变为READ事件。</p>
-<h2 id="select"><a href="#select" class="headerlink" title="select"></a>select</h2><p>然后就开始真正向kqueue注册感兴趣的事件了:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div></pre></td><td class="code"><pre><div class="line">protected int KQueueSelectorImpl.doSelect(long timeout) throws IOException &#123;</div><div class="line">    int entries = 0;</div><div class="line">    //首先将那些取消的key从keys数组中去掉</div><div class="line">    processDeregisterQueue();</div><div class="line">    try &#123;</div><div class="line">        begin();</div><div class="line">        entries = kqueueWrapper.poll(timeout);</div><div class="line">    &#125; finally &#123;</div><div class="line">        end();</div><div class="line">    &#125;</div><div class="line">    processDeregisterQueue();</div><div class="line">    return updateSelectedKeys(entries);</div><div class="line">&#125;</div><div class="line">// timeout是从selector.select()这里传递过来的，默认为-1，代表永久阻塞</div><div class="line">int poll(long timeout) &#123;</div><div class="line">    updateRegistrations();</div><div class="line">    int updated = kevent0(kq, keventArrayAddress, NUM_KEVENTS, timeout);</div><div class="line">    // 有时间变化的个数</div><div class="line">    return updated;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<h1 id="select"><a href="#select" class="headerlink" title="select"></a>select</h1><p>然后就开始真正向kqueue注册感兴趣的事件了:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div></pre></td><td class="code"><pre><div class="line">protected int KQueueSelectorImpl.doSelect(long timeout) throws IOException &#123;</div><div class="line">    int entries = 0;</div><div class="line">    //首先将那些取消的key从keys数组中去掉</div><div class="line">    processDeregisterQueue();</div><div class="line">    try &#123;</div><div class="line">        begin();</div><div class="line">        entries = kqueueWrapper.poll(timeout);</div><div class="line">    &#125; finally &#123;</div><div class="line">        end();</div><div class="line">    &#125;</div><div class="line">    processDeregisterQueue();</div><div class="line">    return updateSelectedKeys(entries);</div><div class="line">&#125;</div><div class="line">// timeout是从selector.select()这里传递过来的，默认为-1，代表永久阻塞</div><div class="line">int poll(long timeout) &#123;</div><div class="line">    updateRegistrations();</div><div class="line">    int updated = kevent0(kq, keventArrayAddress, NUM_KEVENTS, timeout);</div><div class="line">    // 有时间变化的个数</div><div class="line">    return updated;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
 <p>这里主要做了两件事情:</p>
 <ol>
 <li>调用begin()向当前线程的的blocker赋值interruptor, 以便当调用kqueue()被阻塞时, 被别的线程唤醒。</li>
@@ -1406,11 +1406,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
+                <a href="javascript:void(0)" class="js-tag color2">NIO, write, read</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">NIO, write, read</a>
+                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1418,7 +1418,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">Lucene、termVector、tvd、tvm、倒排索引</a>
+                <a href="javascript:void(0)" class="js-tag color3">Linux, close</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1426,15 +1426,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">Linux, close</a>
+                <a href="javascript:void(0)" class="js-tag color5">Lucene、词典、tim、tip、doc、pos、fst、倒排索引</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">Lucene、DocValue</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">Lucene、StoredField</a>
+                <a href="javascript:void(0)" class="js-tag color1">Lucene、termVector、tvd、tvm、倒排索引</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1442,11 +1438,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">Lucene、词典、tim、tip、doc、pos、fst、倒排索引</a>
+                <a href="javascript:void(0)" class="js-tag color4">Lucene、StoredField</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">Cycler</a>
+                <a href="javascript:void(0)" class="js-tag color1">Lucene、DocValue</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1454,7 +1450,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
+                <a href="javascript:void(0)" class="js-tag color2">Cycler</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1462,7 +1458,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">netty4, ServerBootstrap, Initiale</a>
+                <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1478,11 +1474,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">maven, 插件, 打包</a>
+                <a href="javascript:void(0)" class="js-tag color4">netty4, ServerBootstrap, Initiale</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">maven, 插件, 打包</a>
               </li>
             
             <div class="clearfix"></div>
