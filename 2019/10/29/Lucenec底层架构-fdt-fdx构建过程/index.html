@@ -19,7 +19,7 @@
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/lucene_fdt1.png">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/lucene_fdt2.png">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/lucene_fdt.png">
-<meta property="og:updated_time" content="2020-03-09T11:11:46.000Z">
+<meta property="og:updated_time" content="2020-05-24T08:24:51.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Lucene8.2.0底层架构-fdt&#x2F;fdx构建过程">
 <meta name="twitter:description" content="StoredField文件主要存放文档-&amp;gt;域-&amp;gt;value的关系, 每个文档的所有域都保存一起,再保存下一行, 行式存储, 正排索引结果, 不对字段分词, 便于读取任何字段的value。 fdt存放文档的value及一级索引索引, fdx存放二级索引结构。 本文就以这两个文件结构的建立-&amp;gt;文件写入磁盘的过程来进行详细介绍, 代码主要可见CompressingStoredField">
@@ -47,57 +47,39 @@
   <div id="container" q-class="show:isCtnShow">
     <canvas id="anm-canvas" class="anm-canvas"></canvas>
     <div class="left-col" q-class="show:isShow">
-      
-<div class="overlay" style="background: #4d4d4d"></div>
+      <% var defaultBg = '#4d4d4d'; %>
+<div class="overlay" style="background: <%= theme.style && theme.style.header ? theme.style.header : defaultBg %>"></div>
 <div class="intrude-less">
 	<header id="header" class="inner">
-		<a href="/" class="profilepic">
-      <img src="https://kkewwei.github.io/elasticsearch_learning/img/myself.png" class="js-avatar">
+		<a href="<%=theme.root%>" class="profilepic">
+			<img src="<%=theme.avatar%>" class="js-avatar">
 		</a>
 		<hgroup>
-		  <h1 class="header-author"><a href="/">jianguo</a></h1>
+		  <h1 class="header-author"><a href="<%=theme.root%>"><%=theme.author%></a></h1>
 		</hgroup>
-		
-		<p class="header-subtitle">往事随风</p>
-		
+		<% if (theme.subtitle){ %>
+		<p class="header-subtitle"><%=theme.subtitle%></p>
+		<%}%>
 
 		<nav class="header-menu">
 			<ul>
-			
-				<li><a href="/elasticsearch_learning/">主页</a></li>
-	        
-				<li><a href="/elasticsearch_learning/tags/随笔/">随笔</a></li>
-	        
-				<li><a href="/elasticsearch_learning/categories">分类</a></li>
-	        
+			<% for (var i in theme.menu){ %>
+				<li><a href="<%- url_for(theme.menu[i]) %>"><%= i %></a></li>
+	        <%}%>
 			</ul>
 		</nav>
 		<nav class="header-smart-menu">
-    		
-    			
-    			<a q-on="click: openSlider(e, 'innerArchive')" href="javascript:void(0)">所有文章</a>
-    			
-            
-    			
-    			<a q-on="click: openSlider(e, 'friends')" href="javascript:void(0)">友链</a>
-    			
-            
-    			
-    			<a q-on="click: openSlider(e, 'aboutme')" href="javascript:void(0)">关于我</a>
-    			
-            
+    		<% for (var i in theme.smart_menu){ %>
+    			<% if(theme.smart_menu[i]){ %>
+    			<a q-on="click: openSlider(e, '<%-i%>')" href="javascript:void(0)"><%= theme.smart_menu[i] %></a>
+    			<% } %>
+            <%}%>
 		</nav>
 		<nav class="header-nav">
 			<div class="social">
-				
-					<a class="github" target="_blank" href="#" title="github"><i class="icon-github"></i></a>
-		        
-					<a class="weibo" target="_blank" href="#" title="weibo"><i class="icon-weibo"></i></a>
-		        
-					<a class="rss" target="_blank" href="#" title="rss"><i class="icon-rss"></i></a>
-		        
-					<a class="zhihu" target="_blank" href="#" title="zhihu"><i class="icon-zhihu"></i></a>
-		        
+				<% for (var i in theme.subnav){ %>
+					<a class="<%= i %>" target="_blank" href="<%- url_for(theme.subnav[i]) %>" title="<%= i %>"><i class="icon-<%= i %>"></i></a>
+		        <%}%>
 			</div>
 		</nav>
 	</header>
@@ -253,7 +235,7 @@
 <p>我们需要了解下indexWriter.writeIndex()缓存了哪些索引数据:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div></pre></td><td class="code"><pre><div class="line">void writeIndex(int numDocs, long startPointer) throws IOException &#123;</div><div class="line">  // 在block满的时候才会一起写入fdx</div><div class="line">  if (blockChunks == blockSize) &#123;</div><div class="line">    writeBlock(); // 足够一个block了</div><div class="line">    reset();</div><div class="line">  &#125;</div><div class="line">  // 只有经过writeBlock后才会置-1</div><div class="line">  if (firstStartPointer == -1) &#123;</div><div class="line">    firstStartPointer = maxStartPointer = startPointer;</div><div class="line">  &#125;</div><div class="line">  // 这个chunk的文档数</div><div class="line">  docBaseDeltas[blockChunks] = numDocs;</div><div class="line">  // fdt文件的绝对位置</div><div class="line">  startPointerDeltas[blockChunks] = startPointer - maxStartPointer;</div><div class="line">  ++blockChunks;</div><div class="line">  blockDocs += numDocs;</div><div class="line">  totalDocs += numDocs;</div><div class="line">  maxStartPointer = startPointer; // 当前写入的最大值</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
 <p>1.检查当前缓存的chunk个数是否达到阈值1024, 每个chunk文档数最大个数128个。若达到了, 调用writeBlock()将chunk的索引结构写入fdx中, 我们在第三节会详细介绍该函数。<br>2.记录该chunk的文档数、该chunk在fdt中的起始位置。</p>
 <h1 id="刷到fdx文件"><a href="#刷到fdx文件" class="headerlink" title="刷到fdx文件"></a>刷到fdx文件</h1><p>刷新到fdx文件，只会产生一个block, block记录的是一批chunk的索引结构, 一个fdx可以存储不止一个block, 产生一个block主要有一下两种情况:<br>1.内存缓存的chunk个数超过阈值1024, 会在每次产生一个block的时候检查。<br>2.用户主动通过indexWriter.flush()触发（此时一个block的chunk数小于1024）。<br>结束一个fdx文件的写入（产生一个segment）, 有一下两种情况:<br>1.lucene建立的索引结构占用内存或者缓存文档书超过阈值, 会在每次索引一个文档的时候检查。<br>2.用户主动通过indexWriter.flush()触发。<br>针对第一种情况, 每当对一个文档建立完成后, 就会检查缓存的文档数或者lucene构建索引共占用的内存是否超过阈值, 我们可以通过如下参数设置这些阈值:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line">indexWriterConfig = (IndexWriterConfig) indexWriter.getConfig();</div><div class="line">//统计的是距上次flush到目前内存中缓存的数据</div><div class="line">indexWriterConfig.setMaxBufferedDocs(201);</div><div class="line">indexWriterConfig.indexWriterConfig.setRAMBufferSizeMB(16)</div></pre></td></tr></table></figure></p>
-<p>lucene默认内存参数设置16mb, 文档个数缓存无限制。而在es中, 默认也没有对文档个数限制, 而对总的内存使用做出限制, 可以通过indices.memory.index_buffer_size设置, 默认10%内存, 若超过了内存限制, 则会进行所有索引文件的刷新工作, 当然也包括fdt/fdx文件的构建。 检查是否超过阈值的代码可参考DocumentsWriterFlushControl.doAfterDocument()。<br>实际完成一个fdx文件写入的代码可以看下StoredFieldsConsumer.flush()函数:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div></pre></td><td class="code"><pre><div class="line">void flush(SegmentWriteState state, Sorter.DocMap sortMap) throws IOException &#123;</div><div class="line">  try &#123;</div><div class="line">    // CompressingStoredFieldsWriter, 将所有chunk的索引结构写入fdx。新建的索引结构写入新的fdt、fdt中</div><div class="line">    writer.finish(state.fieldInfos, state.segmentInfo.maxDoc());</div><div class="line">  &#125; finally &#123;</div><div class="line">    IOUtils.close(writer);</div><div class="line">    // 每flush一次, 就会清空writer。下次写入时产生一个新的writer</div><div class="line">    writer = null;</div><div class="line">  &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>lucene默认内存参数设置16mb, 文档个数缓存无限制。而在es中, 默认也没有对文档个数限制, 也没有通过Lucene的内存使用来进行限制, 在ES7版本中, 对Lucene该值设置的非常大,就是为了不生效。而使用indices.memory.index_buffer_size对内存限制, 是在es层面的限制, 默认10%内存, 每次写入时都在InternalEngine中检查所有shard的内存写入占用。若超过了内存限制, 则会进行所有索引文件的刷新工作, 当然也包括fdt/fdx文件的构建。 检查是否超过阈值的代码可参考DocumentsWriterFlushControl.doAfterDocument()。<br>实际完成一个fdx文件写入的代码可以看下StoredFieldsConsumer.flush()函数:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div></pre></td><td class="code"><pre><div class="line">void flush(SegmentWriteState state, Sorter.DocMap sortMap) throws IOException &#123;</div><div class="line">  try &#123;</div><div class="line">    // CompressingStoredFieldsWriter, 将所有chunk的索引结构写入fdx。新建的索引结构写入新的fdt、fdt中</div><div class="line">    writer.finish(state.fieldInfos, state.segmentInfo.maxDoc());</div><div class="line">  &#125; finally &#123;</div><div class="line">    IOUtils.close(writer);</div><div class="line">    // 每flush一次, 就会清空writer。下次写入时产生一个新的writer</div><div class="line">    writer = null;</div><div class="line">  &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
 <p>这里我们可以看到一个事实: 每次由于内存满了而刷新时, CompressingStoredFieldsWriter对象就被置空。也就是说, 若因为构建索引的内存超过阈值, 那么将所有chunk组成一个block, 写入fdx文档。 之后新来的数据全部写到新的fdt及fdx文件中。<br>我们需要重点看下这里的finish做了那些事情:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div></pre></td><td class="code"><pre><div class="line">public void finish(FieldInfos fis, int numDocs) throws IOException &#123;</div><div class="line">  // 若此时还有缓存的文档不够一个chunk文档数, 则将这些缓存的文档构建一个chunk。</div><div class="line">  if (numBufferedDocs &gt; 0) &#123;</div><div class="line">    flush();</div><div class="line">    // chunk不够128个文档</div><div class="line">    numDirtyChunks++; // incomplete: we had to force this flush</div><div class="line">  &#125;</div><div class="line">  // 向fdx写入chunk的索引结构。</div><div class="line">  indexWriter.finish(numDocs, fieldsStream.getFilePointer());</div><div class="line">  fieldsStream.writeVLong(numChunks); // fdt</div><div class="line">  fieldsStream.writeVLong(numDirtyChunks);</div><div class="line">  // 关闭fdt文件。</div><div class="line">  CodecUtil.writeFooter(fieldsStream);</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
 <p>主要事情如下:<br>1.若内存缓存有文档(不足一个chunk), 则强制产生一个chunk。比如用户主动调用indexWriter.flush()时, 内幕才能缓存的文档就不足一个chunk。<br>2.调用indexWriter.finish()将chunk的索引结构写入fdx。<br>3.结尾fdt文件写入。</p>
 <p>再接着看下fdx中的block存储了一批chunk的哪些索引结构:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div><div class="line">61</div><div class="line">62</div><div class="line">63</div><div class="line">64</div><div class="line">65</div><div class="line">66</div><div class="line">67</div><div class="line">68</div><div class="line">69</div><div class="line">70</div><div class="line">71</div><div class="line">72</div><div class="line">73</div><div class="line">74</div><div class="line">75</div><div class="line">76</div><div class="line">77</div><div class="line">78</div><div class="line">79</div></pre></td><td class="code"><pre><div class="line">// 只有fdx/fdt文件时候,</div><div class="line">void finish(int numDocs, long maxPointer) throws IOException &#123;</div><div class="line">  // 内存中有chunk还没刷到fdx中, 则将这些chunk</div><div class="line">  if (blockChunks &gt; 0) &#123;</div><div class="line">    writeBlock();</div><div class="line">  &#125;</div><div class="line">  fieldsIndexOut.writeVInt(0); // end marker</div><div class="line">  fieldsIndexOut.writeVLong(maxPointer);</div><div class="line">  CodecUtil.writeFooter(fieldsIndexOut);</div><div class="line">&#125;</div><div class="line">private void writeBlock() throws IOException &#123;</div><div class="line">  assert blockChunks &gt; 0;</div><div class="line">  // 向fdx中写入当前block中chunk的个数</div><div class="line">  fieldsIndexOut.writeVInt(blockChunks);</div><div class="line">  // doc bases</div><div class="line">  final int avgChunkDocs;</div><div class="line">  if (blockChunks == 1) &#123;</div><div class="line">    avgChunkDocs = 0;</div><div class="line">  &#125; else &#123;</div><div class="line">   // 去掉最后一个chun空的主要原因是chunk可能不满128个文档</div><div class="line">    avgChunkDocs = Math.round((float) (blockDocs - docBaseDeltas[blockChunks - 1]) / (blockChunks - 1)); // 这个block中每个chunk的平均文档个数</div><div class="line">  &#125;</div><div class="line">  // 这个block的其实文档在整个fdt中的文档起始位置</div><div class="line">  fieldsIndexOut.writeVInt(totalDocs - blockDocs);</div><div class="line">   // 再储存这个block的chunk平均文档树</div><div class="line">  fieldsIndexOut.writeVInt(avgChunkDocs);</div><div class="line">  int docBase = 0;</div><div class="line">  long maxDelta = 0;</div><div class="line">  // 仅仅是为了获取delta的最大差值</div><div class="line">  for (int i = 0; i &lt; blockChunks; ++i) &#123;</div><div class="line">   // 与标准相差多少文档</div><div class="line">    final int delta = docBase - avgChunkDocs * i;</div><div class="line">     // 编码映射：比如-n映射成2n-1。 获取最大的误差</div><div class="line">    maxDelta |= zigZagEncode(delta);</div><div class="line">    docBase += docBaseDeltas[i];</div><div class="line">  &#125;</div><div class="line">  final int bitsPerDocBase = PackedInts.bitsRequired(maxDelta);</div><div class="line">   // 根据maxDelta来确定需要几位来装数</div><div class="line">  fieldsIndexOut.writeVInt(bitsPerDocBase);</div><div class="line">  PackedInts.Writer writer = PackedInts.getWriterNoHeader(fieldsIndexOut,</div><div class="line">      PackedInts.Format.PACKED, blockChunks, bitsPerDocBase, 1);</div><div class="line">  docBase = 0;</div><div class="line">  // 这里只存储实际文档个数与理论个数的差值</div><div class="line">  for (int i = 0; i &lt; blockChunks; ++i) &#123;</div><div class="line">    final long delta = docBase - avgChunkDocs * i;</div><div class="line">    assert PackedInts.bitsRequired(zigZagEncode(delta)) &lt;= writer.bitsPerValue();</div><div class="line">    writer.add(zigZagEncode(delta));</div><div class="line">    docBase += docBaseDeltas[i];</div><div class="line">  &#125;</div><div class="line">  writer.finish();</div><div class="line">  // 该 block 在 fdx 文件的起始位置指针</div><div class="line">  fieldsIndexOut.writeVLong(firstStartPointer);</div><div class="line">  final long avgChunkSize;</div><div class="line">  if (blockChunks == 1) &#123;</div><div class="line">    avgChunkSize = 0;</div><div class="line">  &#125; else &#123;</div><div class="line">    avgChunkSize = (maxStartPointer - firstStartPointer) / (blockChunks - 1);</div><div class="line">  &#125;</div><div class="line">  fieldsIndexOut.writeVLong(avgChunkSize);</div><div class="line">  long startPointer = 0;</div><div class="line">  maxDelta = 0; // 为了找到最大的delta</div><div class="line">  for (int i = 0; i &lt; blockChunks; ++i) &#123;</div><div class="line">    startPointer += startPointerDeltas[i];</div><div class="line">    final long delta = startPointer - avgChunkSize * i;</div><div class="line">    maxDelta |= zigZagEncode(delta);</div><div class="line">  &#125;</div><div class="line">  final int bitsPerStartPointer = PackedInts.bitsRequired(maxDelta);</div><div class="line">  fieldsIndexOut.writeVInt(bitsPerStartPointer); // fdx</div><div class="line">  writer = PackedInts.getWriterNoHeader(fieldsIndexOut, PackedInts.Format.PACKED,</div><div class="line">      blockChunks, bitsPerStartPointer, 1);</div><div class="line">  startPointer = 0;</div><div class="line">  for (int i = 0; i &lt; blockChunks; ++i) &#123;</div><div class="line">    startPointer += startPointerDeltas[i];</div><div class="line">    final long delta = startPointer - avgChunkSize * i;</div><div class="line">    assert PackedInts.bitsRequired(zigZagEncode(delta)) &lt;= writer.bitsPerValue();</div><div class="line">    writer.add(zigZagEncode(delta));</div><div class="line">  &#125;</div><div class="line">  writer.finish();</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
@@ -432,22 +414,21 @@
   
 
   
-  <div id="gitment-ctn"></div>
+  <div id="gitment-ctn"></div> 
 <link rel="stylesheet" href="//imsun.github.io/gitment/style/default.css">
-<script src="//www.wenjunjiang.win/js/gitment.js "></script>
+<script src="//imsun.github.io/gitment/dist/gitment.browser.js"></script>
 <script>
 var gitment = new Gitment({
-  id: "Lucene8.2.0底层架构-fdt/fdx构建过程",
-  owner: 'kkewwei',
-  repo: 'comments',
+  id: "<%=url%>",
+  owner: '<%=theme.gitment_owner%>',
+  repo: '<%=theme.gitment_repo%>',
   oauth: {
-    client_id: '9391e497d6b288887f33',
-    client_secret: 'db733731bff4ee2811d9530b1ac4cfc6767e8183',
+    client_id: '<%=theme.gitment_oauth.client_id%>',
+    client_secret: '<%=theme.gitment_oauth.client_secret%>',
   },
 })
 gitment.render('gitment-ctn')
 </script>
-
   
 
 
@@ -575,11 +556,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">Flink、Slot分配、SubTask申请slot, SubTask部署</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
+                <a href="javascript:void(0)" class="js-tag color3">Linux, close</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -587,11 +564,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">Linux, close</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">LockSupport</a>
+                <a href="javascript:void(0)" class="js-tag color3">Flink、Slot分配、SubTask申请slot, SubTask部署</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -600,6 +573,14 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">Lucene、termVector、tvd、tvm、倒排索引</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">LockSupport</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -639,10 +620,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">随笔</a>
               </li>
              
@@ -655,7 +632,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">maven, 插件, 打包</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">pmap、jcmd、perftools</a>
               </li>
             
             <div class="clearfix"></div>
