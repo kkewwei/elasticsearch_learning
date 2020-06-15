@@ -9,19 +9,19 @@
   <title>jvm堆外内存泄露排查工具 | Hexo</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
   <meta name="google-site-verification" content="sCUXxLczmZVJ1Fkt5jSJGE9xPpdVD25hYciudlUUVNQ" />
-  <meta name="description" content="本文介绍几个不常用的内存泄露排查工具:perftools、pmap、jcmd。 堆外内存分类 1.通过ByteBuffer.allocateDirect方式申请的内存。可以通过编写ManagementFactory.getPlatformMXBeans(BufferPoolMXBean.class)方式监控到 2.通过UNSAFE.allocateMemory()方式申请的内存 3.通过mmap0">
+  <meta name="description" content="本文介绍几个不常用的内存泄露排查工具:perftools、pmap、jcmd。 堆外内存分类 1.通过ByteBuffer.allocateDirect方式申请的内存。可以通过编写ManagementFactory.getPlatformMXBeans(BufferPoolMXBean.class)、jcmd方式监控到 2.通过UNSAFE.allocateMemory()方式申请的内存, 可以通">
 <meta name="keywords" content="perftools、jcmd、pmap">
 <meta property="og:type" content="article">
 <meta property="og:title" content="jvm堆外内存泄露排查工具">
 <meta property="og:url" content="https://kkewwei.github.io/elasticsearch_learning/2016/12/15/jvm内存泄露排查工具/index.html">
 <meta property="og:site_name" content="Hexo">
-<meta property="og:description" content="本文介绍几个不常用的内存泄露排查工具:perftools、pmap、jcmd。 堆外内存分类 1.通过ByteBuffer.allocateDirect方式申请的内存。可以通过编写ManagementFactory.getPlatformMXBeans(BufferPoolMXBean.class)方式监控到 2.通过UNSAFE.allocateMemory()方式申请的内存 3.通过mmap0">
+<meta property="og:description" content="本文介绍几个不常用的内存泄露排查工具:perftools、pmap、jcmd。 堆外内存分类 1.通过ByteBuffer.allocateDirect方式申请的内存。可以通过编写ManagementFactory.getPlatformMXBeans(BufferPoolMXBean.class)、jcmd方式监控到 2.通过UNSAFE.allocateMemory()方式申请的内存, 可以通">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/jvm_memory_leak.png">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/jvm_memory_leak1.png">
-<meta property="og:updated_time" content="2020-06-15T00:07:23.000Z">
+<meta property="og:updated_time" content="2020-06-15T00:14:36.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="jvm堆外内存泄露排查工具">
-<meta name="twitter:description" content="本文介绍几个不常用的内存泄露排查工具:perftools、pmap、jcmd。 堆外内存分类 1.通过ByteBuffer.allocateDirect方式申请的内存。可以通过编写ManagementFactory.getPlatformMXBeans(BufferPoolMXBean.class)方式监控到 2.通过UNSAFE.allocateMemory()方式申请的内存 3.通过mmap0">
+<meta name="twitter:description" content="本文介绍几个不常用的内存泄露排查工具:perftools、pmap、jcmd。 堆外内存分类 1.通过ByteBuffer.allocateDirect方式申请的内存。可以通过编写ManagementFactory.getPlatformMXBeans(BufferPoolMXBean.class)、jcmd方式监控到 2.通过UNSAFE.allocateMemory()方式申请的内存, 可以通">
 <meta name="twitter:image" content="https://kkewwei.github.io/elasticsearch_learning/img/jvm_memory_leak.png">
   
     <link rel="alternative" href="/atom.xml" title="Hexo" type="application/atom+xml">
@@ -46,39 +46,57 @@
   <div id="container" q-class="show:isCtnShow">
     <canvas id="anm-canvas" class="anm-canvas"></canvas>
     <div class="left-col" q-class="show:isShow">
-      <% var defaultBg = '#4d4d4d'; %>
-<div class="overlay" style="background: <%= theme.style && theme.style.header ? theme.style.header : defaultBg %>"></div>
+      
+<div class="overlay" style="background: #4d4d4d"></div>
 <div class="intrude-less">
 	<header id="header" class="inner">
-		<a href="<%=theme.root%>" class="profilepic">
-			<img src="<%=theme.avatar%>" class="js-avatar">
+		<a href="/" class="profilepic">
+      <img src="https://kkewwei.github.io/elasticsearch_learning/img/myself.png" class="js-avatar">
 		</a>
 		<hgroup>
-		  <h1 class="header-author"><a href="<%=theme.root%>"><%=theme.author%></a></h1>
+		  <h1 class="header-author"><a href="/">jianguo</a></h1>
 		</hgroup>
-		<% if (theme.subtitle){ %>
-		<p class="header-subtitle"><%=theme.subtitle%></p>
-		<%}%>
+		
+		<p class="header-subtitle">往事随风</p>
+		
 
 		<nav class="header-menu">
 			<ul>
-			<% for (var i in theme.menu){ %>
-				<li><a href="<%- url_for(theme.menu[i]) %>"><%= i %></a></li>
-	        <%}%>
+			
+				<li><a href="/elasticsearch_learning/">主页</a></li>
+	        
+				<li><a href="/elasticsearch_learning/tags/随笔/">随笔</a></li>
+	        
+				<li><a href="/elasticsearch_learning/categories">分类</a></li>
+	        
 			</ul>
 		</nav>
 		<nav class="header-smart-menu">
-    		<% for (var i in theme.smart_menu){ %>
-    			<% if(theme.smart_menu[i]){ %>
-    			<a q-on="click: openSlider(e, '<%-i%>')" href="javascript:void(0)"><%= theme.smart_menu[i] %></a>
-    			<% } %>
-            <%}%>
+    		
+    			
+    			<a q-on="click: openSlider(e, 'innerArchive')" href="javascript:void(0)">所有文章</a>
+    			
+            
+    			
+    			<a q-on="click: openSlider(e, 'friends')" href="javascript:void(0)">友链</a>
+    			
+            
+    			
+    			<a q-on="click: openSlider(e, 'aboutme')" href="javascript:void(0)">关于我</a>
+    			
+            
 		</nav>
 		<nav class="header-nav">
 			<div class="social">
-				<% for (var i in theme.subnav){ %>
-					<a class="<%= i %>" target="_blank" href="<%- url_for(theme.subnav[i]) %>" title="<%= i %>"><i class="icon-<%= i %>"></i></a>
-		        <%}%>
+				
+					<a class="github" target="_blank" href="#" title="github"><i class="icon-github"></i></a>
+		        
+					<a class="weibo" target="_blank" href="#" title="weibo"><i class="icon-weibo"></i></a>
+		        
+					<a class="rss" target="_blank" href="#" title="rss"><i class="icon-rss"></i></a>
+		        
+					<a class="zhihu" target="_blank" href="#" title="zhihu"><i class="icon-zhihu"></i></a>
+		        
 			</div>
 		</nav>
 	</header>
@@ -203,7 +221,7 @@
     <div class="article-entry" itemprop="articleBody">
       
         <p>本文介绍几个不常用的内存泄露排查工具:perftools、pmap、jcmd。</p>
-<h1 id="堆外内存分类"><a href="#堆外内存分类" class="headerlink" title="堆外内存分类"></a>堆外内存分类</h1><p> 1.通过<code>ByteBuffer.allocateDirect</code>方式申请的内存。可以通过编写<code>ManagementFactory.getPlatformMXBeans(BufferPoolMXBean.class)</code>方式监控到<br> 2.通过<code>UNSAFE.allocateMemory()</code>方式申请的内存<br> 3.通过mmap0()方式分配内存<br> 4.线程栈使用的内存, 可通过<br> 5.java8的metaspace元数据空间<br> 6.JNI里分配的内存</p>
+<h1 id="堆外内存分类"><a href="#堆外内存分类" class="headerlink" title="堆外内存分类"></a>堆外内存分类</h1><p> 1.通过<code>ByteBuffer.allocateDirect</code>方式申请的内存。可以通过编写<code>ManagementFactory.getPlatformMXBeans(BufferPoolMXBean.class)</code>、jcmd方式监控到<br> 2.通过<code>UNSAFE.allocateMemory()</code>方式申请的内存, 可以通过jcmd方式监控到。<br> 3.通过mmap0()方式分配内存,<br> 4.线程栈使用的内存, 通过统计线程个数查看(jcmd中也有统计)<br> 5.java8的metaspace元数据空间<br> 6.JNI里分配的内存(一般需要pmap、perf工具检测)</p>
 <h2 id="jcmd"><a href="#jcmd" class="headerlink" title="jcmd"></a>jcmd</h2><p>jcm是一个多功能工具, 功能如下:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div></pre></td><td class="code"><pre><div class="line">$user@host: /usr/local/java18/bin/jcmd 25266 help</div><div class="line">25266:</div><div class="line">The following commands are available:</div><div class="line">JFR.stop</div><div class="line">JFR.start</div><div class="line">JFR.dump</div><div class="line">JFR.check</div><div class="line">VM.native_memory</div><div class="line">VM.check_commercial_features</div><div class="line">VM.unlock_commercial_features</div><div class="line">ManagementAgent.stop</div><div class="line">ManagementAgent.start_local</div><div class="line">ManagementAgent.start</div><div class="line">GC.rotate_log</div><div class="line">Thread.print         // 与jstack功能相同</div><div class="line">GC.class_stats</div><div class="line">GC.class_histogram    // 与jmap -histo功能相同</div><div class="line">GC.heap_dump         //与jmap -dump功能相同</div><div class="line">GC.run_finalization</div><div class="line">GC.run</div><div class="line">VM.uptime</div><div class="line">VM.flags                   //查看更完整的启动命令, 包括默认的参数, 比如垃圾回收器</div><div class="line">VM.system_properties      //查看系统参数</div><div class="line">VM.command_line          //查看启动命令</div><div class="line">VM.version</div><div class="line">help</div></pre></td></tr></table></figure></p>
 <p>我们将着重介绍VM.native_memory, 该参数可以支持我们追踪堆内内存的申请。 不过我们必须在进程启动时添加-XX:NativeMemoryTracking=detail参数才可用。 开启该参数将导致jvm进程5-10%性能损耗。<br>其参数如下:</p>
 <table>
@@ -265,7 +283,8 @@
 <p>[0x00007f5c46cc4883] MemBaseline::aggregate_virtual_memory_allocation_sites()+0x173<br>[0x00007f5c46cc4b08] MemBaseline::baseline_allocation_sites()+0x1d8<br>[0x00007f5c46cc5185] MemBaseline::baseline(bool)+0x635<br>[0x00007f5c46d34188] NMTDCmd::execute(DCmdSource, Thread*)+0x178<br>                             (malloc=1KB +1KB #17 +17)<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div></pre></td><td class="code"><pre><div class="line">如上图, 可以轻易发现Unsafe_AllocateMemory diff期间,增加了13次内存分配, 新增了13MB内存申请。</div><div class="line"></div><div class="line">## pmap</div><div class="line">pmap可以查看进程使用的内存分布, 包括所有堆内和堆外内存, 其实pmap是从/proc/$pid/maps中获取的内存映射, 每个内存区更详细的内存映射可以从/proc/$pid/smaps中查看到。</div><div class="line">使用: pmap -x 9752 | sort -n -r -k 2, 并不需要root或者别的参数就可以执行, 查看进程的内存映射信息</div></pre></td></tr></table></figure></p>
 <p>mapped: 5341520K    writeable/private: 308668K    shared: 3836K<br>Address           Kbytes       Mode   Offset Device  Mapping<br>0000000100080000 1048064       0       0 —–    [ anon ]<br>00007fb789360000  242304       0       0 —–    [ anon ]<br>00000000f9c00000  102912   23776   23776 rw—    [ anon ]<br>00007fb6a216c000   96848      44       0 r—-  locale-archive<br>00007fb784021000   65404       0       0 —–    [ anon ]<br>00007fb780021000   65404       0       0 —–    [ anon ]<br>00007fb77c021000   65404       0       0 —–    [ anon ]<br>00007fb778021000   65404       0       0 —–    [ anon ]<br>00007fb774021000   65404       0       0 —–    [ anon ]<br>00007fb770021000   65404       0       0 —–    [ anon ]<br>00007fb76c021000   65404       0       0 —–    [ anon ]<br>00007fb768021000   65404       0       0 —–    [ anon ]<br>00007fb764021000   65404       0       0 —–    [ anon ]<br>00007fb760021000   65404       0       0 —–    [ anon ]<br>00007fb75c021000   65404       0       0 —–    [ anon ]<br>00007fb758021000   65404       0       0 —–    [ anon ]<br>00007fb750021000   65404       0       0 —–    [ anon ]<br>00007fb74c021000   65404       0       0 —–    [ anon ]<br>00007fb748021000   65404       0       0 —–    [ anon ]<br>00007fb740021000   65404       0       0 —–    [ anon ]<br>00007fb738021000   65404       0       0 —–    [ anon ]<br>00007fb730021000   65404       0       0 —–    [ anon ]<br>00007fb728021000   65404       0       0 —–    [ anon ]<br>00007fb720021000   65404       0       0 —–    [ anon ]<br>00007fb718021000   65404       0       0 —–    [ anon ]<br>00007fb710021000   65404       0       0 —–    [ anon ]<br>00007fb708021000   65404       0       0 —–    [ anon ]<br>00007fb700021000   65404       0       0 —–    [ anon ]<br>00007fb7a1802000    2048       0       0 —–  libpthread-2.12.so<br>00007fb7a15ea000    2048       0       0 —–  libjli.so<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div></pre></td><td class="code"><pre><div class="line">Address:  start address of map  映像的虚拟起始地址,</div><div class="line">Kbytes:  size of map in kilobytes  映像大小</div><div class="line">RSS:  resident set size in kilobytes  驻留集大小</div><div class="line">Dirty:  dirty pages (both shared and private) in kilobytes  脏页大小</div><div class="line">Mode:  permissions on map 映像权限: r=read, w=write, x=execute, s=shared, p=private (copy on write)</div><div class="line">Mapping:  file backing the map , or &apos;[ anon ]&apos; for allocated memory, or &apos;[ stack ]&apos; for the program stack.  映像支持文件,[anon]为对的内存分配, [stack]为程序堆栈</div><div class="line">Offset:  offset into the file  文件偏移</div><div class="line">Device:  device name (major:minor)  设备名</div><div class="line">第一行的值:</div><div class="line">+ mapped 表示该进程映射的虚拟地址空间大小，也就是该进程预先分配的虚拟内存大小，即ps出的vsz</div><div class="line">+ writeable/private  表示进程所占用的私有地址空间大小，也就是该进程实际使用的内存大小</div><div class="line">+ shared 表示进程和其他进程共享的内存大小</div><div class="line">根据此处的address和NMT可判断出该内存块属于哪个空间的。我们可以通过如下方式检查是否存在内存泄露</div><div class="line">`while true; do pmap -d  3066 | tail -1; sleep 1; done`</div></pre></td></tr></table></figure></p>
 <p>mapped: 5411424K    writeable/private: 378492K    shared: 3836K<br>mapped: 5412452K    writeable/private: 379520K    shared: 3836K<br>mapped: 5413480K    writeable/private: 380548K    shared: 3836K<br>mapped: 5414508K    writeable/private: 381576K    shared: 3836K<br>mapped: 5415536K    writeable/private: 382604K    shared: 3836K<br>```</p>
-<h2 id="gdb"><a href="#gdb" class="headerlink" title="gdb"></a>gdb</h2><h2 id="perftools"><a href="#perftools" class="headerlink" title="perftools"></a>perftools</h2><p>perftools是一款比较好的性能分析工具, 支持cpu、内存使用分析, 原理: 通过使用自己实现的libtcmalloc.so来替换原有的内存分配函数, 来达到监控内存分配的目的</p>
+<h2 id="gdb"><a href="#gdb" class="headerlink" title="gdb"></a>gdb</h2><p>可以通过gdb dump线上虚拟内存中地址中的内容, 需要结合pmap一起使用, 可参考<a href="https://kkewwei.github.io/elasticsearch_learning/2016/12/20/gdb%E8%B0%83%E8%AF%95java%E5%9F%BA%E6%9C%AC%E7%94%A8%E6%B3%95/">gdb调试java基本用法</a></p>
+<h2 id="perftools"><a href="#perftools" class="headerlink" title="perftools"></a>perftools</h2><p>perftools是一款比较好的性能分析工具, 支持cpu、内存使用分析, 原理: 通过使用自己实现的libtcmalloc.so来替换原有的内存分配函数, 来达到监控内存分配的目的</p>
 <h4 id="安装"><a href="#安装" class="headerlink" title="安装"></a>安装</h4><p>perftools安装需要依赖:libunwind, 首先安装libunwind:</p>
 <ul>
 <li>wget <a href="https://github.com/libunwind/libunwind/releases/download/v1.2.1/libunwind-1.2.1.tar.gz" target="_blank" rel="external">https://github.com/libunwind/libunwind/releases/download/v1.2.1/libunwind-1.2.1.tar.gz</a></li>
@@ -460,21 +479,22 @@
   
 
   
-  <div id="gitment-ctn"></div> 
+  <div id="gitment-ctn"></div>
 <link rel="stylesheet" href="//imsun.github.io/gitment/style/default.css">
-<script src="//imsun.github.io/gitment/dist/gitment.browser.js"></script>
+<script src="//www.wenjunjiang.win/js/gitment.js "></script>
 <script>
 var gitment = new Gitment({
-  id: "<%=url%>",
-  owner: '<%=theme.gitment_owner%>',
-  repo: '<%=theme.gitment_repo%>',
+  id: "jvm堆外内存泄露排查工具",
+  owner: 'kkewwei',
+  repo: 'comments',
   oauth: {
-    client_id: '<%=theme.gitment_oauth.client_id%>',
-    client_secret: '<%=theme.gitment_oauth.client_secret%>',
+    client_id: '9391e497d6b288887f33',
+    client_secret: 'db733731bff4ee2811d9530b1ac4cfc6767e8183',
   },
 })
 gitment.render('gitment-ctn')
 </script>
+
   
 
 
@@ -602,7 +622,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">Linux, close</a>
+                <a href="javascript:void(0)" class="js-tag color3">Flink、Slot分配、SubTask申请slot, SubTask部署</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -610,7 +630,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">Flink、Slot分配、SubTask申请slot, SubTask部署</a>
+                <a href="javascript:void(0)" class="js-tag color3">Linux, close</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">LockSupport</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -622,11 +650,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">LockSupport</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
+                <a href="javascript:void(0)" class="js-tag color5">Lucene、词典、tim、tip、doc、pos、fst、倒排索引</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -634,7 +658,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">Lucene、词典、tim、tip、doc、pos、fst、倒排索引</a>
+                <a href="javascript:void(0)" class="js-tag color4">Lucene、StoredField</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -642,15 +666,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">Lucene、StoredField</a>
+                <a href="javascript:void(0)" class="js-tag color2">Cycler</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">Cycler</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -674,11 +694,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
+                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
+                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
               </li>
              
               <li class="article-tag-list-item">
