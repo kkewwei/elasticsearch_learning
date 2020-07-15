@@ -21,7 +21,7 @@
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/lucene_fst2.png">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/lucene_fst3.png">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/lucene_fst4.png">
-<meta property="og:updated_time" content="2020-03-01T06:25:17.000Z">
+<meta property="og:updated_time" content="2020-06-26T18:01:09.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Lucene8.2.0底层架构-词典fst原理解析">
 <meta name="twitter:description" content="lucene中使用fst(Finite State Transducer)来对字典压缩存储、快速查询词典, fst结构紧凑, 在时间复杂度和空间复杂度之间均衡, 和HashMap结构相比, 该结构体共享字符串前缀和后缀以达到精简内存使用, FST逻辑上构成了一个有向无环图, 本文将对fst结构体的构建过程进行分析。 使用示例在输入字符串时词典时, 必须经过排序, 这样产生的fst才最小。12345">
@@ -49,57 +49,39 @@
   <div id="container" q-class="show:isCtnShow">
     <canvas id="anm-canvas" class="anm-canvas"></canvas>
     <div class="left-col" q-class="show:isShow">
-      
-<div class="overlay" style="background: #4d4d4d"></div>
+      <% var defaultBg = '#4d4d4d'; %>
+<div class="overlay" style="background: <%= theme.style && theme.style.header ? theme.style.header : defaultBg %>"></div>
 <div class="intrude-less">
 	<header id="header" class="inner">
-		<a href="/" class="profilepic">
-      <img src="https://kkewwei.github.io/elasticsearch_learning/img/myself.png" class="js-avatar">
+		<a href="<%=theme.root%>" class="profilepic">
+			<img src="<%=theme.avatar%>" class="js-avatar">
 		</a>
 		<hgroup>
-		  <h1 class="header-author"><a href="/">jianguo</a></h1>
+		  <h1 class="header-author"><a href="<%=theme.root%>"><%=theme.author%></a></h1>
 		</hgroup>
-		
-		<p class="header-subtitle">往事随风</p>
-		
+		<% if (theme.subtitle){ %>
+		<p class="header-subtitle"><%=theme.subtitle%></p>
+		<%}%>
 
 		<nav class="header-menu">
 			<ul>
-			
-				<li><a href="/elasticsearch_learning/">主页</a></li>
-	        
-				<li><a href="/elasticsearch_learning/tags/随笔/">随笔</a></li>
-	        
-				<li><a href="/elasticsearch_learning/categories">分类</a></li>
-	        
+			<% for (var i in theme.menu){ %>
+				<li><a href="<%- url_for(theme.menu[i]) %>"><%= i %></a></li>
+	        <%}%>
 			</ul>
 		</nav>
 		<nav class="header-smart-menu">
-    		
-    			
-    			<a q-on="click: openSlider(e, 'innerArchive')" href="javascript:void(0)">所有文章</a>
-    			
-            
-    			
-    			<a q-on="click: openSlider(e, 'friends')" href="javascript:void(0)">友链</a>
-    			
-            
-    			
-    			<a q-on="click: openSlider(e, 'aboutme')" href="javascript:void(0)">关于我</a>
-    			
-            
+    		<% for (var i in theme.smart_menu){ %>
+    			<% if(theme.smart_menu[i]){ %>
+    			<a q-on="click: openSlider(e, '<%-i%>')" href="javascript:void(0)"><%= theme.smart_menu[i] %></a>
+    			<% } %>
+            <%}%>
 		</nav>
 		<nav class="header-nav">
 			<div class="social">
-				
-					<a class="github" target="_blank" href="#" title="github"><i class="icon-github"></i></a>
-		        
-					<a class="weibo" target="_blank" href="#" title="weibo"><i class="icon-weibo"></i></a>
-		        
-					<a class="rss" target="_blank" href="#" title="rss"><i class="icon-rss"></i></a>
-		        
-					<a class="zhihu" target="_blank" href="#" title="zhihu"><i class="icon-zhihu"></i></a>
-		        
+				<% for (var i in theme.subnav){ %>
+					<a class="<%= i %>" target="_blank" href="<%- url_for(theme.subnav[i]) %>" title="<%= i %>"><i class="icon-<%= i %>"></i></a>
+		        <%}%>
 			</div>
 		</nav>
 	</header>
@@ -227,7 +209,7 @@
 <h1 id="使用示例"><a href="#使用示例" class="headerlink" title="使用示例"></a>使用示例</h1><p>在输入字符串时词典时, 必须经过排序, 这样产生的fst才最小。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div></pre></td><td class="code"><pre><div class="line">// 输入字符串</div><div class="line">String inputValues[] = &#123;&quot;abcde&quot;,&quot;abdde&quot;,&quot;abede&quot;,&quot;accde&quot;,&quot;adcde&quot;&#125;;</div><div class="line">// 对应字符串的附加output</div><div class="line">Long outputValues[] = &#123;1L,2L,3L,4L,5L&#125;;</div><div class="line">PositiveIntOutputs outputs = PositiveIntOutputs.getSingleton();</div><div class="line">//构建FST</div><div class="line">Builder&lt;Long&gt; builder = new Builder&lt;&gt;(FST.INPUT_TYPE.BYTE1,outputs);</div><div class="line">IntsRefBuilder scratchInts = new IntsRefBuilder();</div><div class="line">for (int i = 0; i &lt; inputValues.length; i++) &#123;</div><div class="line">    BytesRef scratchBytes =  new BytesRef(inputValues[i].getBytes());</div><div class="line">    scratchInts.copyUTF8Bytes(scratchBytes);</div><div class="line">    builder.add(scratchInts.toIntsRef(),outputValues[i]);</div><div class="line">&#125;</div><div class="line">// 构建fst结构</div><div class="line">FST&lt;Long&gt; fst = builder.finish();</div><div class="line">// 读取该字符串对应的值</div><div class="line">Long value = Util.get(fst, new BytesRef(&quot;abcde&quot;));</div><div class="line">System.out.println(value);</div></pre></td></tr></table></figure></p>
 <p>以上示例我们使用fst作为容器存储字符串, 通过fst查询获得相应out的过程, 看起来是不是和HashMap使用场景很像, 我们可以看下fst构成的<a href="http://examples.mikemccandless.com/fst.py?terms=abcde%2F1%0D%0Aabdde%2F2%0D%0Aabede%2F3%0D%0Aaccde%2F4%0D%0Aadcde%2F4&cmd=Build+it%21" target="_blank" rel="external">逻辑存储结构</a>。</p>
 <h1 id="Builder"><a href="#Builder" class="headerlink" title="Builder"></a>Builder</h1><p>我们可以看到, fst主要是在Builder完成结构构建的, 实际存储是通过FST来完成的, 为了更好地理解, 我们先对该Builder属性做个介绍:<br>该类的属性:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div></pre></td><td class="code"><pre><div class="line">// 共享后缀使用的, 存储当前存在的后缀,</div><div class="line">private final NodeHash&lt;T&gt; dedupHash;</div><div class="line">// 真正保存构建的fst结构的地方</div><div class="line">final FST&lt;T&gt; fst;</div><div class="line">// 缓存的前一个字符串</div><div class="line">private final IntsRefBuilder lastInput = new IntsRefBuilder();</div><div class="line">// 缓存的前一个字符串形成的UnCompiledNode。前一个字符串的不同后缀会在当前字符串写入时候freeze存储到fst中。</div><div class="line">private UnCompiledNode&lt;T&gt;[] frontier;</div><div class="line">是当前添加的字符串所形成的状态节点，而前面添加的字符串形成的状态节点通过指针相互引用。</div><div class="line">// 记录的当前节点所有边的长度，临时变量。</div><div class="line">int[] reusedBytesPerArc = new int[4];</div><div class="line">// 默认为true</div><div class="line">boolean allowArrayArcs;</div><div class="line">// 和FST中的bytes是同一个对象, 真正存储fst结构的地方。</div><div class="line">BytesStore bytes;</div></pre></td></tr></table></figure></p>
-<p>1.UnCompiledNode和CompiledNode<br>Node作为FST的节点, 分为以上两种角色, UnCompiledNode表示该节点还可能后来的字符共享, 由于输入的字符串有先后顺序, 若不能共享的节点经过freezeTail处理后(compile), 就变成了CompiledNode。<br>UnCompiledNode的主要属性:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div></pre></td><td class="code"><pre><div class="line">final Builder&lt;T&gt; owner;</div><div class="line">  // 该节点的出边条数</div><div class="line">  public int numArcs;</div><div class="line">  // 该节点总共的出边</div><div class="line">  public Arc&lt;T&gt;[] arcs;</div><div class="line">  // 表示从Node出发的Arc数量是0，当Node是Final Node时，output才有值。</div><div class="line">  public boolean isFinal;</div><div class="line">   //这个节点上UnCompiledNode进来的边</div><div class="line">  public long inputCount;</div><div class="line">  // 从根节点到本节点的深度</div><div class="line">  public final int depth;</div></pre></td></tr></table></figure></p>
+<p>1.UnCompiledNode和CompiledNode<br>Node作为FST的节点, 分为以上两种角色, UnCompiledNode表示该节点还可能后来的字符共享, 由于输入的字符串有先后顺序, 若不能共享的节点经过freezeTail处理后(compile), 就变成了CompiledNode。<br>UnCompiledNode的主要属性:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div></pre></td><td class="code"><pre><div class="line">final Builder&lt;T&gt; owner;</div><div class="line">  // 该节点的出边条数</div><div class="line">  public int numArcs;</div><div class="line">  // 该节点总共的出边</div><div class="line">  public Arc&lt;T&gt;[] arcs;</div><div class="line">  // 表示从Node出发的Arc数量是0，当Node是Final Node时，output才有值。</div><div class="line">  public boolean isFinal;</div><div class="line">   //这个节点上UnCompiledNode进来的边。实际基本并没有使用</div><div class="line">  public long inputCount;</div><div class="line">  // 从根节点到本节点的深度</div><div class="line">  public final int depth;</div></pre></td></tr></table></figure></p>
 <p>CompiledNode属性node表示该节点对应的边存放在fst中的address。<br>2.Arc<br>Arc表示FST中的边。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div></pre></td><td class="code"><pre><div class="line">// 每个表代表着一个字符,</div><div class="line">public int label;</div><div class="line">// 该边目标节点</div><div class="line">public Node target;</div><div class="line">// 表示当前Arc上附带的值, 可以认为key对应的value。</div><div class="line">public T output;</div></pre></td></tr></table></figure></p>
 <h1 id="构建"><a href="#构建" class="headerlink" title="构建"></a>构建</h1><p>真正开始构建fst结构是从<code>Builder.add</code>中开始的。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div><div class="line">61</div><div class="line">62</div><div class="line">63</div><div class="line">64</div><div class="line">65</div><div class="line">66</div><div class="line">67</div><div class="line">68</div><div class="line">69</div><div class="line">70</div><div class="line">71</div><div class="line">72</div><div class="line">73</div></pre></td><td class="code"><pre><div class="line">public void add(IntsRef input, T output) throws IOException &#123; // output: BytesRef</div><div class="line">  // 比较当前字符串和前一个字符串相同的前缀长度</div><div class="line">  int pos1 = 0;</div><div class="line">  int pos2 = input.offset;</div><div class="line">  final int pos1Stop = Math.min(lastInput.length(), input.length);</div><div class="line">  while(true) &#123;</div><div class="line">    frontier[pos1].inputCount++;</div><div class="line">    //System.out.println(&quot;  incr &quot; + pos1 + &quot; ct=&quot; + frontier[pos1].inputCount + &quot; n=&quot; + frontier[pos1]);</div><div class="line">    if (pos1 &gt;= pos1Stop || lastInput.intAt(pos1) != input.ints[pos2]) &#123;</div><div class="line">      break;</div><div class="line">    &#125;</div><div class="line">    pos1++;</div><div class="line">    pos2++;</div><div class="line">  &#125;</div><div class="line">  final int prefixLenPlus1 = pos1+1; // 公共长度+1</div><div class="line"></div><div class="line">  // 扩容frontier, 最起码保证frontier能够存放当前的字符串(前一个字符串一定可以存放的下)</div><div class="line">  if (frontier.length &lt; input.length+1) &#123;</div><div class="line">    final UnCompiledNode&lt;T&gt;[] next = ArrayUtil.grow(frontier, input.length+1);</div><div class="line">    for(int idx=frontier.length;idx&lt;next.length;idx++) &#123;</div><div class="line">      next[idx] = new UnCompiledNode&lt;&gt;(this, idx);</div><div class="line">    &#125;</div><div class="line">    frontier = next;</div><div class="line">  &#125;</div><div class="line">  // 前一个字符串的不同后缀不会再共享了, 那么我们就冰冻前一个字符串不同的后缀, 并存储。</div><div class="line">  freezeTail(prefixLenPlus1);</div><div class="line">  // 针对当前字符串不同的后缀, 首先构建对应的边</div><div class="line">  for(int idx=prefixLenPlus1;idx&lt;=input.length;idx++) &#123;</div><div class="line">    frontier[idx-1].addArc(input.ints[input.offset + idx - 1],</div><div class="line">                           frontier[idx]);</div><div class="line">    frontier[idx].inputCount++;</div><div class="line">  &#125;</div><div class="line"> // 最后一个边设置为true</div><div class="line">  final UnCompiledNode&lt;T&gt; lastNode = frontier[input.length];</div><div class="line">  if (lastInput.length() != input.length || prefixLenPlus1 != input.length + 1) &#123;</div><div class="line">    lastNode.isFinal = true;</div><div class="line">    lastNode.output = NO_OUTPUT;</div><div class="line">  &#125;</div><div class="line"></div><div class="line">  // 遍历针对冲突的output，尽可能在相同的前缀里共享。</div><div class="line">  for(int idx=1;idx&lt;prefixLenPlus1;idx++) &#123;</div><div class="line">    final UnCompiledNode&lt;T&gt; node = frontier[idx];</div><div class="line">    final UnCompiledNode&lt;T&gt; parentNode = frontier[idx-1];</div><div class="line">    // 既然可以共享前缀，那么前缀边和本边是一致的，那么一定是一条直线，没有分叉。获取当前边的output</div><div class="line">    final T lastOutput = parentNode.getLastOutput(input.ints[input.offset + idx - 1]);</div><div class="line">    final T commonOutputPrefix;// BytesRef</div><div class="line">    final T wordSuffix;// BytesRef</div><div class="line">     // 读取上一个的output，若存在，检查是否可以和新的合并</div><div class="line">    if (lastOutput != NO_OUTPUT) &#123;</div><div class="line">      // 获取第一条共享边和output的相同前缀</div><div class="line">      commonOutputPrefix = fst.outputs.common(output, lastOutput);</div><div class="line">      // 扣除相同的output前缀</div><div class="line">      wordSuffix = fst.outputs.subtract(lastOutput, commonOutputPrefix); // lastOutput-commonOutputPrefix=不同的后缀部分</div><div class="line">      //并修正该边的output</div><div class="line">      parentNode.setLastOutput(input.ints[input.offset + idx - 1], commonOutputPrefix);</div><div class="line">      //将剩余后缀一定到下一个节点对应的边。</div><div class="line">      node.prependOutput(wordSuffix);</div><div class="line">    &#125; else &#123;</div><div class="line">      commonOutputPrefix = wordSuffix = NO_OUTPUT;</div><div class="line">    &#125;</div><div class="line">    // 检查输入时候的output, 并在此向后循环</div><div class="line">    output = fst.outputs.subtract(output, commonOutputPrefix);</div><div class="line">  &#125;</div><div class="line">  // 本次输入的内容和上次输入的内容一样，则重新分配output</div><div class="line">  if (lastInput.length() == input.length &amp;&amp; prefixLenPlus1 == 1+input.length) &#123;</div><div class="line">    lastNode.output = fst.outputs.merge(lastNode.output, output);</div><div class="line">  &#125; else &#123;</div><div class="line">    // 将剩余output放到新创建的最前的那条边</div><div class="line">    frontier[prefixLenPlus1-1].setLastOutput(input.ints[input.offset + prefixLenPlus1-1], output);</div><div class="line">  &#125;</div><div class="line">  // 处理完了, 替换上一次的字符串。</div><div class="line">  lastInput.copyInts(input);</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
 <p>该函数主要做了如下几个事情:</p>
@@ -578,11 +560,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">Linux, close</a>
+                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
+                <a href="javascript:void(0)" class="js-tag color3">Linux, close</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -614,11 +596,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">Cycler</a>
+                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
+                <a href="javascript:void(0)" class="js-tag color2">Cycler</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -630,15 +612,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">netty4, ServerBootstrap, Initiale</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">随笔</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">gdb</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">netty4, ServerBootstrap, Initiale</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -651,10 +633,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">maven, 插件, 打包</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">pmap、jcmd、perftools</a>
               </li>
             
             <div class="clearfix"></div>

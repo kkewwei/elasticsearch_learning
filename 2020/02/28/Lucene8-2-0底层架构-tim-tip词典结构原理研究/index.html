@@ -24,7 +24,7 @@
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/lucene_tim6.png">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/lucene_tim8.png">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/lucene_tim7.png">
-<meta property="og:updated_time" content="2020-04-01T16:03:29.000Z">
+<meta property="og:updated_time" content="2020-06-26T16:11:21.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Lucene8.2.0底层架构-tim&#x2F;tip词典结构原理研究">
 <meta name="twitter:description" content="Lucene中主要有两类倒排索引结构， 一种是词典结构， 涉及tim、tip、doc、pos。另外一种就是词典向量,统计的是单个词在文档内的，涉及tvd,tvm（参考Lucene8.2.0底层架构-tvd/tvm词典向量结构研究）, 这者统计的信息大体相同，这两个类都继承自TermsHashPerField，都是对segment内相同域名所有文档共享这两个类。前者由FreqProxTermsWri">
@@ -52,57 +52,39 @@
   <div id="container" q-class="show:isCtnShow">
     <canvas id="anm-canvas" class="anm-canvas"></canvas>
     <div class="left-col" q-class="show:isShow">
-      
-<div class="overlay" style="background: #4d4d4d"></div>
+      <% var defaultBg = '#4d4d4d'; %>
+<div class="overlay" style="background: <%= theme.style && theme.style.header ? theme.style.header : defaultBg %>"></div>
 <div class="intrude-less">
 	<header id="header" class="inner">
-		<a href="/" class="profilepic">
-      <img src="https://kkewwei.github.io/elasticsearch_learning/img/myself.png" class="js-avatar">
+		<a href="<%=theme.root%>" class="profilepic">
+			<img src="<%=theme.avatar%>" class="js-avatar">
 		</a>
 		<hgroup>
-		  <h1 class="header-author"><a href="/">jianguo</a></h1>
+		  <h1 class="header-author"><a href="<%=theme.root%>"><%=theme.author%></a></h1>
 		</hgroup>
-		
-		<p class="header-subtitle">往事随风</p>
-		
+		<% if (theme.subtitle){ %>
+		<p class="header-subtitle"><%=theme.subtitle%></p>
+		<%}%>
 
 		<nav class="header-menu">
 			<ul>
-			
-				<li><a href="/elasticsearch_learning/">主页</a></li>
-	        
-				<li><a href="/elasticsearch_learning/tags/随笔/">随笔</a></li>
-	        
-				<li><a href="/elasticsearch_learning/categories">分类</a></li>
-	        
+			<% for (var i in theme.menu){ %>
+				<li><a href="<%- url_for(theme.menu[i]) %>"><%= i %></a></li>
+	        <%}%>
 			</ul>
 		</nav>
 		<nav class="header-smart-menu">
-    		
-    			
-    			<a q-on="click: openSlider(e, 'innerArchive')" href="javascript:void(0)">所有文章</a>
-    			
-            
-    			
-    			<a q-on="click: openSlider(e, 'friends')" href="javascript:void(0)">友链</a>
-    			
-            
-    			
-    			<a q-on="click: openSlider(e, 'aboutme')" href="javascript:void(0)">关于我</a>
-    			
-            
+    		<% for (var i in theme.smart_menu){ %>
+    			<% if(theme.smart_menu[i]){ %>
+    			<a q-on="click: openSlider(e, '<%-i%>')" href="javascript:void(0)"><%= theme.smart_menu[i] %></a>
+    			<% } %>
+            <%}%>
 		</nav>
 		<nav class="header-nav">
 			<div class="social">
-				
-					<a class="github" target="_blank" href="#" title="github"><i class="icon-github"></i></a>
-		        
-					<a class="weibo" target="_blank" href="#" title="weibo"><i class="icon-weibo"></i></a>
-		        
-					<a class="rss" target="_blank" href="#" title="rss"><i class="icon-rss"></i></a>
-		        
-					<a class="zhihu" target="_blank" href="#" title="zhihu"><i class="icon-zhihu"></i></a>
-		        
+				<% for (var i in theme.subnav){ %>
+					<a class="<%= i %>" target="_blank" href="<%- url_for(theme.subnav[i]) %>" title="<%= i %>"><i class="icon-<%= i %>"></i></a>
+		        <%}%>
 			</div>
 		</nav>
 	</header>
@@ -255,10 +237,10 @@
 <h2 id="每个域构建词典结构"><a href="#每个域构建词典结构" class="headerlink" title="每个域构建词典结构"></a>每个域构建词典结构</h2><p>在对单个term建立完跳表结构后，就开始将该term加入词典中，词典作为倒排索引的核心结构，通过词典，我们可以快速在doc、pos文件中找到每个词的文档ID、词频。构建词典采取了一些做法: 相似性比较高的term可以构成一个子term（专业名称是子FST结构），子term再重新再和别的term组成一个更大的FST。本节看下如何构建词典结构的，每个词都是通过<code>pushTerm(text)</code>加入词典结构的：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div></pre></td><td class="code"><pre><div class="line">private void pushTerm(BytesRef text) throws IOException &#123;</div><div class="line">  int limit = Math.min(lastTerm.length(), text.length); // 本term和上一个term最小值</div><div class="line">  int pos = 0;</div><div class="line">   // 计算当前term与前一个term的公共前缀长度+1, 不相同的那个</div><div class="line">  while (pos &lt; limit &amp;&amp; lastTerm.byteAt(pos) == text.bytes[text.offset+pos]) &#123;</div><div class="line">    pos++;</div><div class="line">  &#125;</div><div class="line">  // 尽量找一批term，从后向前是为了更多可能取相似性前缀</div><div class="line">  for(int i=lastTerm.length()-1;i&gt;=pos;i--) &#123; // last</div><div class="line">    // // 计算与栈顶的Entry的公共前缀为 i 的Entry的数量</div><div class="line">    // How many items on top of the stack share the current suffix</div><div class="line">    // we are closing:</div><div class="line">     // 当前存量与多少后缀是不同的</div><div class="line">    int prefixTopSize = pending.size() - prefixStarts[i];</div><div class="line">     // pending词的个数最少25个。</div><div class="line">    if (prefixTopSize &gt;= minItemsInBlock) &#123;</div><div class="line">      // 将最后prefixTopSize产生一个fst，放入PendingBlock中，然后再放入pending中</div><div class="line">      writeBlocks(i+1, prefixTopSize);</div><div class="line">      prefixStarts[i] -= prefixTopSize-1;</div><div class="line">    &#125;</div><div class="line">  &#125;</div><div class="line">  if (prefixStarts.length &lt; text.length) &#123; // prefixStarts达不到最大size的话，会不断扩容</div><div class="line">    prefixStarts = ArrayUtil.grow(prefixStarts, text.length);</div><div class="line">  &#125;</div><div class="line">  // 修改不同的后缀。</div><div class="line">  for(int i=pos;i&lt;text.length;i++) &#123; </div><div class="line">    prefixStarts[i] = pending.size();</div><div class="line">  &#125;</div><div class="line">  lastTerm.copyBytes(text); // 缓存上一次的term</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
 <p>该函数主要是判断已经输入的哪些相似的term可以组合成一个子FST结构。因为字典term输入都是按序排好了的，很多单词相似性非常高，可以利用FST结构搜索，本节主要看如何找到这些相似的terms。我们需要了解2个关键变量：</p>
 <ul>
-<li>prefixStarts[i]<br>存放的是term中第i个元素与前一个term该元素不一致时， pending中目前存储的term个数，该数组反映的是这一堆terms的相似性。我们以如下terms为例：<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div></pre></td><td class="code"><pre><div class="line">     当前写入顺序                   当前term写入时，prefixStarts值         pending.size() - prefixStarts[i]最大值：</div><div class="line">0    61 62 63                      0 0 0                  </div><div class="line">1    61 62 63 64                   0 0 0 1</div><div class="line">2    61 62 64                      0 0 2 1                             2-1</div><div class="line">3    61 62 65 66 30                0 0 3 3 3                           3-3  </div><div class="line">4    61 62 65 66 31                0 0 3 3 4                           4-4</div><div class="line">5    61 62 65 66 31 30             0 0 3 3 4 5                         5-5</div><div class="line">6    61 62 65 66 31 30 30          0 0 3 3 4 5 6                       6-6</div><div class="line">7    61 62 65 66 31 30 30 30       0 0 3 3 4 5 6 7                     7-7</div><div class="line">8    61 62 65 66 31 30 30 30 30    0 0 3 3 4 5 6 7 8                   8-8</div><div class="line">9    61 62 65 66 31 30 30 30 31    0 0 3 3 4 5 6 7 9                   9-9         </div><div class="line">10   61 62 65 66 31 30 30 30 32    0 0 3 3 4 5 6 7 10                  10-10         </div><div class="line">11   61 62 65 66 31 30 30 30 33    0 0 3 3 4 5 6 7 11                  11-11    </div><div class="line">12   61 62 65 66 31 30 30 30 34    0 0 3 3 4 5 6 7 12                  12-12         </div><div class="line">13   61 62 65 66 31 30 30 30 35    0 0 3 3 4 5 6 7 13                  13-13         </div><div class="line">14   61 62 65 66 31 30 30 30 36    0 0 3 3 4 5 6 7 14                  14-14         </div><div class="line">15   61 63                        0 15 3 3 4 5 6 7 14                  15-3</div></pre></td></tr></table></figure>
+<li>prefixStarts[i]<br>存放的是term中第i个元素与前一个term该元素不一致时， pending中目前存储的term个数，该数组反映的是这一堆terms的相似性。我们以如下terms为例：<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div></pre></td><td class="code"><pre><div class="line">     当前写入顺序                   当前term写入时，prefixStarts值         pending.size() - prefixStarts[i]最大值：</div><div class="line">0    61 62 63                      0 0 0                               \</div><div class="line">1    61 62 63 64                   0 0 0 1                             1-1=0</div><div class="line">2    61 62 64                      0 0 2 1                             2-1=1</div><div class="line">3    61 62 65 66 30                0 0 3 3 3                           3-3=0</div><div class="line">4    61 62 65 66 31                0 0 3 3 4                           4-4=0</div><div class="line">5    61 62 65 66 31 30             0 0 3 3 4 5                         5-5=0</div><div class="line">6    61 62 65 66 31 30 30          0 0 3 3 4 5 6                       6-6=0</div><div class="line">7    61 62 65 66 31 30 30 30       0 0 3 3 4 5 6 7                     7-7=0</div><div class="line">8    61 62 65 66 31 30 30 30 30    0 0 3 3 4 5 6 7 8                   8-8=0</div><div class="line">9    61 62 65 66 31 30 30 30 31    0 0 3 3 4 5 6 7 9                   9-9=0</div><div class="line">10   61 62 65 66 31 30 30 30 32    0 0 3 3 4 5 6 7 10                  10-10=0</div><div class="line">11   61 62 65 66 31 30 30 30 33    0 0 3 3 4 5 6 7 11                  11-11=0</div><div class="line">12   61 62 65 66 31 30 30 30 34    0 0 3 3 4 5 6 7 12                  12-12=0</div><div class="line">13   61 62 65 66 31 30 30 30 35    0 0 3 3 4 5 6 7 13                  13-13=0</div><div class="line">14   61 62 65 66 31 30 30 30 36    0 0 3 3 4 5 6 7 14                  14-14=0</div><div class="line">15   61 63                        0 15 3 3 4 5 6 7 14                  15-3=12</div></pre></td></tr></table></figure>
 </li>
 </ul>
-<p>prefixStarts数组的变化如图所示：每层第一次出现的字母的位置为i，则currentRerm[i]!=lastTerm[i], prefixStarts[i]=pending.size()。而仅当pending.size() - prefixStarts[i] &gt; minItemsInBlock（线上默认配置25）时， 会截取这部分terms进行构建子FST结构。 假如minItemsInBlock=12， 那么我们会选择从3-14行共12个term产生子FST。</p>
+<p>prefixStarts数组的变化如图所示：每层第一次出现的字母的位置为i，则currentRerm[i]!=lastTerm[i], prefixStarts[i]=pending.size()。而仅当pending.size() - prefixStarts[i] &gt; minItemsInBlock（线上默认配置25）时， 会截取这部分terms进行构建子FST结构。 假如minItemsInBlock=10， 那么我们会选择从3-14行共12个term产生子FST。</p>
 <ul>
 <li>PendingTerm与PendingBlock<br>单个term放在PendingTerm里面；多个相似性高的term组建起来，将这些terms相似前缀作为一个term，构建成一个子字典，形成一个PendingBlock，来代替这组相似的terms和别term继续组建更广泛的字典。</li>
 </ul>
@@ -275,7 +257,8 @@
 <ul>
 <li>block0在tim文件中的起始位置。</li>
 <li>即将构建的FST是否有term。</li>
-<li>blockCount-1个数组，分别反映了该fst下blockCount-1个子block在tim中的位置。<br>2) 将输入的产生的PendingBlock列表构建成一个FST，构建原理可以参考：<a href="https://kkewwei.github.io/elasticsearch_learning/2020/02/25/Lucene8-2-0%E5%BA%95%E5%B1%82%E6%9E%B6%E6%9E%84-%E8%AF%8D%E5%85%B8fst%E5%8E%9F%E7%90%86%E8%A7%A3%E6%9E%90/">Lucene8.2.0底层架构-词典fst原理解析</a><br>构建出来的FST如下所示：<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/lucene_tim7.png" height="400" width="400"><br>也就是说，只要通过FST的output0，就可以找到block0、block1、block2、block3在tim中存储的位置。其中block0存放着整个FST结构，和别的term再次构建FST.</li>
+<li>blockCount-1个数组，分别反映了该fst下blockCount-1个子block在tim中的位置。</li>
+<li>floorLeadByte后续紧接着的block的terms第一个term最后一个字符(与本block的terms最后一个term不相同的字符)<br>2) 将输入的产生的PendingBlock列表构建成一个FST，构建原理可以参考：<a href="https://kkewwei.github.io/elasticsearch_learning/2020/02/25/Lucene8-2-0%E5%BA%95%E5%B1%82%E6%9E%B6%E6%9E%84-%E8%AF%8D%E5%85%B8fst%E5%8E%9F%E7%90%86%E8%A7%A3%E6%9E%90/">Lucene8.2.0底层架构-词典fst原理解析</a><br>构建出来的FST如下所示：<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/lucene_tim7.png" height="400" width="400"><br>也就是说，只要通过FST的output0，就可以找到block0、block1、block2、block3在tim中存储的位置。其中block0存放着整个FST结构，和别的term再次构建FST.</li>
 </ul>
 <h2 id="FST结构写入tip中"><a href="#FST结构写入tip中" class="headerlink" title="FST结构写入tip中"></a>FST结构写入tip中</h2><p>当前域所有term放入词典后，开始将当前域的词典索引结构FSP放入tip文件中：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div></pre></td><td class="code"><pre><div class="line">public void finish() throws IOException &#123;</div><div class="line">  if (numTerms &gt; 0) &#123;</div><div class="line">    pushTerm(new BytesRef());</div><div class="line">    // 将剩余的再次产生一个PendingTerm</div><div class="line">    pushTerm(new BytesRef());</div><div class="line">    writeBlocks(0, pending.size()); </div><div class="line">    // 有个最终root的 block</div><div class="line">    // We better have one final &quot;root&quot; block:</div><div class="line">    final PendingBlock root = (PendingBlock) pending.get(0);</div><div class="line">    // Write FST to index</div><div class="line">    indexStartFP = indexOut.getFilePointer();  </div><div class="line">    // 将fst写入tip文件</div><div class="line">    root.index.save(indexOut); </div><div class="line">    // 该域写入的第一个词</div><div class="line">    BytesRef minTerm = new BytesRef(firstPendingTerm.termBytes); </div><div class="line">    // 该域写入的最后一个词</div><div class="line">    BytesRef maxTerm = new BytesRef(lastPendingTerm.termBytes); </div><div class="line">    fields.add(new FieldMetaData(fieldInfo,</div><div class="line">                                 ((PendingBlock) pending.get(0)).index.getEmptyOutput(),</div><div class="line">                                 numTerms,</div><div class="line">                                 indexStartFP,</div><div class="line">                                 sumTotalTermFreq,</div><div class="line">                                 sumDocFreq,</div><div class="line">                                  // 该词有多少个文档</div><div class="line">                                 docsSeen.cardinality(),</div><div class="line">                                 longsSize,</div><div class="line">                                 minTerm, maxTerm));</div><div class="line">  &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
 <p>该函数主要走了如下事情：<br>1.通过第一次调用<code>pushTerm(new BytesRef())</code>将pending中缓存的PendingBlocks组装成一个PendingBlock。<br>2.调用<code>writeBlocks(0, pending.size())</code>将最后一个block里缓存的子fst构成一个最终的FST。<br>3.将这个FST写入tip文件中。</p>
@@ -605,11 +588,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">Linux, close</a>
+                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
+                <a href="javascript:void(0)" class="js-tag color3">Linux, close</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -641,11 +624,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">Cycler</a>
+                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
+                <a href="javascript:void(0)" class="js-tag color2">Cycler</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -657,15 +640,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">netty4, ServerBootstrap, Initiale</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">随笔</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">gdb</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">netty4, ServerBootstrap, Initiale</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -678,10 +661,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">maven, 插件, 打包</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">pmap、jcmd、perftools</a>
               </li>
             
             <div class="clearfix"></div>

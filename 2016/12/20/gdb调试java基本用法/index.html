@@ -16,7 +16,7 @@
 <meta property="og:url" content="https://kkewwei.github.io/elasticsearch_learning/2016/12/20/gdb调试java基本用法/index.html">
 <meta property="og:site_name" content="Hexo">
 <meta property="og:description" content="jvm进程崩溃时, 可以产生coredump文件, 该dump文件记录了崩溃时cpu、jvm当前线程、当前内存的使用情况, 学会分析该coredump对于我们排查问题十分重要, 本文将主要讲解如何通过gdb分析该coredump文件。 coredump产生第一步检查系统是否允许产生coredump文件操作系统默认禁止coredump文件的产生, 可以通过ulimit -c查看是否允许产生cored">
-<meta property="og:updated_time" content="2020-06-15T00:08:31.000Z">
+<meta property="og:updated_time" content="2020-06-15T00:22:59.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="gdb调试java基本用法">
 <meta name="twitter:description" content="jvm进程崩溃时, 可以产生coredump文件, 该dump文件记录了崩溃时cpu、jvm当前线程、当前内存的使用情况, 学会分析该coredump对于我们排查问题十分重要, 本文将主要讲解如何通过gdb分析该coredump文件。 coredump产生第一步检查系统是否允许产生coredump文件操作系统默认禁止coredump文件的产生, 可以通过ulimit -c查看是否允许产生cored">
@@ -43,57 +43,39 @@
   <div id="container" q-class="show:isCtnShow">
     <canvas id="anm-canvas" class="anm-canvas"></canvas>
     <div class="left-col" q-class="show:isShow">
-      
-<div class="overlay" style="background: #4d4d4d"></div>
+      <% var defaultBg = '#4d4d4d'; %>
+<div class="overlay" style="background: <%= theme.style && theme.style.header ? theme.style.header : defaultBg %>"></div>
 <div class="intrude-less">
 	<header id="header" class="inner">
-		<a href="/" class="profilepic">
-      <img src="https://kkewwei.github.io/elasticsearch_learning/img/myself.png" class="js-avatar">
+		<a href="<%=theme.root%>" class="profilepic">
+			<img src="<%=theme.avatar%>" class="js-avatar">
 		</a>
 		<hgroup>
-		  <h1 class="header-author"><a href="/">jianguo</a></h1>
+		  <h1 class="header-author"><a href="<%=theme.root%>"><%=theme.author%></a></h1>
 		</hgroup>
-		
-		<p class="header-subtitle">往事随风</p>
-		
+		<% if (theme.subtitle){ %>
+		<p class="header-subtitle"><%=theme.subtitle%></p>
+		<%}%>
 
 		<nav class="header-menu">
 			<ul>
-			
-				<li><a href="/elasticsearch_learning/">主页</a></li>
-	        
-				<li><a href="/elasticsearch_learning/tags/随笔/">随笔</a></li>
-	        
-				<li><a href="/elasticsearch_learning/categories">分类</a></li>
-	        
+			<% for (var i in theme.menu){ %>
+				<li><a href="<%- url_for(theme.menu[i]) %>"><%= i %></a></li>
+	        <%}%>
 			</ul>
 		</nav>
 		<nav class="header-smart-menu">
-    		
-    			
-    			<a q-on="click: openSlider(e, 'innerArchive')" href="javascript:void(0)">所有文章</a>
-    			
-            
-    			
-    			<a q-on="click: openSlider(e, 'friends')" href="javascript:void(0)">友链</a>
-    			
-            
-    			
-    			<a q-on="click: openSlider(e, 'aboutme')" href="javascript:void(0)">关于我</a>
-    			
-            
+    		<% for (var i in theme.smart_menu){ %>
+    			<% if(theme.smart_menu[i]){ %>
+    			<a q-on="click: openSlider(e, '<%-i%>')" href="javascript:void(0)"><%= theme.smart_menu[i] %></a>
+    			<% } %>
+            <%}%>
 		</nav>
 		<nav class="header-nav">
 			<div class="social">
-				
-					<a class="github" target="_blank" href="#" title="github"><i class="icon-github"></i></a>
-		        
-					<a class="weibo" target="_blank" href="#" title="weibo"><i class="icon-weibo"></i></a>
-		        
-					<a class="rss" target="_blank" href="#" title="rss"><i class="icon-rss"></i></a>
-		        
-					<a class="zhihu" target="_blank" href="#" title="zhihu"><i class="icon-zhihu"></i></a>
-		        
+				<% for (var i in theme.subnav){ %>
+					<a class="<%= i %>" target="_blank" href="<%- url_for(theme.subnav[i]) %>" title="<%= i %>"><i class="icon-<%= i %>"></i></a>
+		        <%}%>
 			</div>
 		</nav>
 	</header>
@@ -196,7 +178,7 @@
 	    <div id="toc-article" class="toc-article">
 	      <span id="toc-close" class="toc-close" title="隐藏导航" onclick="showBtn();">×</span>
 		      <strong class="toc-title">文章目录</strong>
-        <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#coredump产生"><span class="toc-number">1.</span> <span class="toc-text">coredump产生</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#gdb基本使用"><span class="toc-number">2.</span> <span class="toc-text">gdb基本使用</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#分析coredump文件"><span class="toc-number">3.</span> <span class="toc-text">分析coredump文件</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#在线dump虚拟地址内的数据"><span class="toc-number"></span> <span class="toc-text">在线dump虚拟地址内的数据</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#参考"><span class="toc-number"></span> <span class="toc-text">参考</span></a>
+        <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#coredump产生"><span class="toc-number">1.</span> <span class="toc-text">coredump产生</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#gdb基本使用"><span class="toc-number">2.</span> <span class="toc-text">gdb基本使用</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#分析coredump文件"><span class="toc-number">3.</span> <span class="toc-text">分析coredump文件</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#在线dump虚拟地址内的数据"><span class="toc-number">4.</span> <span class="toc-text">在线dump虚拟地址内的数据</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#参考"><span class="toc-number">5.</span> <span class="toc-text">参考</span></a></li></ol>
          </div>
    <script type="text/javascript">
 	function showToc(){
@@ -218,9 +200,9 @@
     <div class="article-entry" itemprop="articleBody">
       
         <p>jvm进程崩溃时, 可以产生coredump文件, 该dump文件记录了崩溃时cpu、jvm当前线程、当前内存的使用情况, 学会分析该coredump对于我们排查问题十分重要, 本文将主要讲解如何通过gdb分析该coredump文件。</p>
-<h2 id="coredump产生"><a href="#coredump产生" class="headerlink" title="coredump产生"></a>coredump产生</h2><p>第一步检查系统是否允许产生coredump文件<br>操作系统默认禁止coredump文件的产生, 可以通过<code>ulimit -c</code>查看是否允许产生coredump文件, 若显示为0, 则禁止线程崩溃时产生该core文件, 可以通过<code>echo &quot;ulimit  -c unlimited&quot; &gt;&gt; /etc/profile</code>. 我们也可以通过cat /pro/$pid/limits 查看设置情况<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div></pre></td><td class="code"><pre><div class="line">Limit                     Soft Limit           Hard Limit           Units</div><div class="line">Max cpu time              unlimited            unlimited            seconds</div><div class="line">Max file size             unlimited            unlimited            bytes</div><div class="line">Max data size             unlimited            unlimited            bytes</div><div class="line">Max stack size            8388608              unlimited            bytes</div><div class="line">Max core file size        unlimited            unlimited            bytes</div><div class="line">Max resident set          unlimited            unlimited            bytes</div><div class="line">Max processes             23262                23262                processes</div><div class="line">Max open files            4096                 4096                 files</div><div class="line">Max locked memory         65536                65536                bytes</div><div class="line">Max address space         unlimited            unlimited            bytes</div><div class="line">Max file locks            unlimited            unlimited            locks</div><div class="line">Max pending signals       23262                23262                signals</div><div class="line">Max msgqueue size         819200               819200               bytes</div><div class="line">Max nice priority         0                    0</div><div class="line">Max realtime priority     0                    0</div><div class="line">Max realtime timeout      unlimited            unlimited            us</div></pre></td></tr></table></figure></p>
+<h1 id="coredump产生"><a href="#coredump产生" class="headerlink" title="coredump产生"></a>coredump产生</h1><p>第一步检查系统是否允许产生coredump文件<br>操作系统默认禁止coredump文件的产生, 可以通过<code>ulimit -c</code>查看是否允许产生coredump文件, 若显示为0, 则禁止线程崩溃时产生该core文件, 可以通过<code>echo &quot;ulimit  -c unlimited&quot; &gt;&gt; /etc/profile</code>. 我们也可以通过cat /pro/$pid/limits 查看设置情况<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div></pre></td><td class="code"><pre><div class="line">Limit                     Soft Limit           Hard Limit           Units</div><div class="line">Max cpu time              unlimited            unlimited            seconds</div><div class="line">Max file size             unlimited            unlimited            bytes</div><div class="line">Max data size             unlimited            unlimited            bytes</div><div class="line">Max stack size            8388608              unlimited            bytes</div><div class="line">Max core file size        unlimited            unlimited            bytes</div><div class="line">Max resident set          unlimited            unlimited            bytes</div><div class="line">Max processes             23262                23262                processes</div><div class="line">Max open files            4096                 4096                 files</div><div class="line">Max locked memory         65536                65536                bytes</div><div class="line">Max address space         unlimited            unlimited            bytes</div><div class="line">Max file locks            unlimited            unlimited            locks</div><div class="line">Max pending signals       23262                23262                signals</div><div class="line">Max msgqueue size         819200               819200               bytes</div><div class="line">Max nice priority         0                    0</div><div class="line">Max realtime priority     0                    0</div><div class="line">Max realtime timeout      unlimited            unlimited            us</div></pre></td></tr></table></figure></p>
 <p>可以看到Max core file size设置为unlimited, 是运行产生core 文件的。<br>第二步, 通过kill -6 pid 向进程发送abort信号产生core文件(默认文件名称,不是kill -9)。</p>
-<h2 id="gdb基本使用"><a href="#gdb基本使用" class="headerlink" title="gdb基本使用"></a>gdb基本使用</h2><table>
+<h1 id="gdb基本使用"><a href="#gdb基本使用" class="headerlink" title="gdb基本使用"></a>gdb基本使用</h1><table>
 <thead>
 <tr>
 <th style="text-align:left">命令</th>
@@ -318,7 +300,7 @@
 </tbody>
 </table>
 <p>(参考<a href="https://blog.csdn.net/zdy0_2004/article/details/80102076" target="_blank" rel="external">gdb调试的基本使用</a>)</p>
-<h2 id="分析coredump文件"><a href="#分析coredump文件" class="headerlink" title="分析coredump文件"></a>分析coredump文件</h2><ul>
+<h1 id="分析coredump文件"><a href="#分析coredump文件" class="headerlink" title="分析coredump文件"></a>分析coredump文件</h1><ul>
 <li>gdb java core<br>调用如上命令加载core文件(这里的core指的是core文件名称)。</li>
 </ul>
 <ol>
@@ -353,7 +335,7 @@
 </li>
 </ul>
 <h1 id="在线dump虚拟地址内的数据"><a href="#在线dump虚拟地址内的数据" class="headerlink" title="在线dump虚拟地址内的数据"></a>在线dump虚拟地址内的数据</h1><p>1.<code>使用gdb -pid $pid</code>,该命令使用将小心, 它会直接hung住进程, 禁止直接对线上进程设置。<br>2.接着可以dump某个内存中的内容放入memory.bin1中:<code>dump memory memory.bin1 startoffset endoffset</code>, 其中startoffset、endoffset取值可以从/proc/$pids/maps中获取:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div></pre></td><td class="code"><pre><div class="line">Reading symbols from /usr/local/jdk1.8.0_45/jre/lib/amd64/libnio.so...(no debugging symbols found)...done.</div><div class="line">Loaded symbols for /usr/local/jdk1.8.0_45/jre/lib/amd64/libnio.so</div><div class="line">0x00007fd979de22fd in pthread_join () from /lib64/libpthread.so.0</div><div class="line">Missing separate debuginfos, use: debuginfo-install jdk-1.8.0-45.x86_64</div><div class="line">No symbol table is loaded.  Use the &quot;file&quot; command.</div><div class="line">(gdb) dump memory memory.bin1 0x7fd8bc000000 0x7fd8bc029000</div></pre></td></tr></table></figure></p>
-<p>3.使用<code>strings memory.bin1</code>查找包含的字符创, 或者使用<code>hexDump -C memory.bin1</code>, 以二进制打开内存dump。(也许打开的看不懂)</p>
+<p>3.使用<code>strings memory.bin1</code>查找包含的字符创, 或者使用<code>hexDump -C memory.bin1</code>, 以二进制打开内存dump。(若内存区域无值, 此方法将无用)</p>
 <h1 id="参考"><a href="#参考" class="headerlink" title="参考"></a>参考</h1><p><a href="https://blog.csdn.net/zdy0_2004/article/details/80102076" target="_blank" rel="external">https://blog.csdn.net/zdy0_2004/article/details/80102076</a><br><a href="https://www.cnblogs.com/xuxm2007/archive/2011/04/01/2002162.html" target="_blank" rel="external">https://www.cnblogs.com/xuxm2007/archive/2011/04/01/2002162.html</a></p>
 
       
@@ -512,7 +494,7 @@
                 </span>
                 <span class="tooltip-content">
                     <div class="toc-article">
-                    <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#coredump产生"><span class="toc-number">1.</span> <span class="toc-text">coredump产生</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#gdb基本使用"><span class="toc-number">2.</span> <span class="toc-text">gdb基本使用</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#分析coredump文件"><span class="toc-number">3.</span> <span class="toc-text">分析coredump文件</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#在线dump虚拟地址内的数据"><span class="toc-number"></span> <span class="toc-text">在线dump虚拟地址内的数据</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#参考"><span class="toc-number"></span> <span class="toc-text">参考</span></a>
+                    <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#coredump产生"><span class="toc-number">1.</span> <span class="toc-text">coredump产生</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#gdb基本使用"><span class="toc-number">2.</span> <span class="toc-text">gdb基本使用</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#分析coredump文件"><span class="toc-number">3.</span> <span class="toc-text">分析coredump文件</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#在线dump虚拟地址内的数据"><span class="toc-number">4.</span> <span class="toc-text">在线dump虚拟地址内的数据</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#参考"><span class="toc-number">5.</span> <span class="toc-text">参考</span></a></li></ol>
                     </div>
                 </span>
             </div>
@@ -683,11 +665,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">Linux, close</a>
+                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
+                <a href="javascript:void(0)" class="js-tag color3">Linux, close</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -719,11 +701,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">Cycler</a>
+                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
+                <a href="javascript:void(0)" class="js-tag color2">Cycler</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -735,15 +717,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">netty4, ServerBootstrap, Initiale</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">随笔</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">gdb</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">netty4, ServerBootstrap, Initiale</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -756,10 +738,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">maven, 插件, 打包</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">pmap、jcmd、perftools</a>
               </li>
             
             <div class="clearfix"></div>
