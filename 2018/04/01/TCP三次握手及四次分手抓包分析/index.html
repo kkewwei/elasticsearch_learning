@@ -1,20 +1,21 @@
 <!DOCTYPE html>
 <html>
-<head>
+<head><meta name="generator" content="Hexo 3.9.0">
   <meta charset="utf-8">
   
   <meta name="renderer" content="webkit">
-  <meta http-equiv="X-UA-Compatible" content="IE=edge" >
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <link rel="dns-prefetch" href="https://kkewwei.github.io/elasticsearch_learning">
   <title>TCP三次握手及四次分手抓包分析 | Hexo</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-  <meta name="google-site-verification" content="sCUXxLczmZVJ1Fkt5jSJGE9xPpdVD25hYciudlUUVNQ" />
+  <meta name="google-site-verification" content="sCUXxLczmZVJ1Fkt5jSJGE9xPpdVD25hYciudlUUVNQ">
   <meta name="description" content="对于TCP建立连接时的三次握手及断开连接时的四次分手, 相信我们大致原理都是很熟悉的, 具体介绍可以百度搜索, 今天我们将仅从抓包的角度实际验证时, 以更好地掌握这2个过程。我们以如下代码来实验: Linux通信过程server:123456789101112131415161718192021222324252627282930313233343536#include &amp;lt;stdio.h&amp;g">
 <meta property="og:type" content="article">
 <meta property="og:title" content="TCP三次握手及四次分手抓包分析">
 <meta property="og:url" content="https://kkewwei.github.io/elasticsearch_learning/2018/04/01/TCP三次握手及四次分手抓包分析/index.html">
 <meta property="og:site_name" content="Hexo">
 <meta property="og:description" content="对于TCP建立连接时的三次握手及断开连接时的四次分手, 相信我们大致原理都是很熟悉的, 具体介绍可以百度搜索, 今天我们将仅从抓包的角度实际验证时, 以更好地掌握这2个过程。我们以如下代码来实验: Linux通信过程server:123456789101112131415161718192021222324252627282930313233343536#include &amp;lt;stdio.h&amp;g">
+<meta property="og:locale" content="default">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/tcp.png">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/tcp_connect_close.png">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/tcp_connect_close1.png">
@@ -43,7 +44,7 @@
   
 
 </head>
-
+</html>
 <body>
   <div id="container" q-class="show:isCtnShow">
     <canvas id="anm-canvas" class="anm-canvas"></canvas>
@@ -223,8 +224,8 @@
     <div class="article-entry" itemprop="articleBody">
       
         <p>对于TCP建立连接时的三次握手及断开连接时的四次分手, 相信我们大致原理都是很熟悉的, 具体介绍可以百度搜索, 今天我们将仅从抓包的角度实际验证时, 以更好地掌握这2个过程。<br>我们以如下代码来实验:</p>
-<h2 id="Linux通信过程"><a href="#Linux通信过程" class="headerlink" title="Linux通信过程"></a>Linux通信过程</h2><p>server:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div></pre></td><td class="code"><pre><div class="line">#include &lt;stdio.h&gt;</div><div class="line">#include &lt;string.h&gt;</div><div class="line">#include &lt;stdlib.h&gt;</div><div class="line">#include &lt;unistd.h&gt;</div><div class="line">#include &lt;arpa/inet.h&gt;</div><div class="line">#include &lt;sys/socket.h&gt;</div><div class="line">#include &lt;sys/fcntl.h&gt;</div><div class="line">#include &lt;netinet/in.h&gt;</div><div class="line">#include &lt;errno.h&gt;</div><div class="line">int main()&#123;</div><div class="line">    //创建套接字</div><div class="line">    int serv_sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);</div><div class="line">    //将套接字和IP、端口绑定</div><div class="line">    struct sockaddr_in serv_addr;</div><div class="line">    memset(&amp;serv_addr, 0, sizeof(serv_addr));  //每个字节都用0填充</div><div class="line">    serv_addr.sin_family = AF_INET;  //使用IPv4地址</div><div class="line">    serv_addr.sin_addr.s_addr = inet_addr(&quot;0.0.0.0&quot;);  //具体的IP地址</div><div class="line">    serv_addr.sin_port = htons(1234);  //端口</div><div class="line">    bind(serv_sock, (struct sockaddr*)&amp;serv_addr, sizeof(serv_addr));</div><div class="line">    // 可执行各种描述符控制操作</div><div class="line">    // int flags = fcntl(serv_sock, F_GETFL);</div><div class="line">    // int newflags = (flags | O_NONBLOCK);</div><div class="line">    // fcntl(serv_sock, F_SETFL, newflags);</div><div class="line">    //进入监听状态，等待用户发起请求</div><div class="line">    listen(serv_sock, 20);</div><div class="line">    //接收客户端请求</div><div class="line">    struct sockaddr_in clnt_addr;</div><div class="line">    socklen_t clnt_addr_size = sizeof(clnt_addr);</div><div class="line">    int clnt_sock = accept(serv_sock, (struct sockaddr*)&amp;clnt_addr, &amp;clnt_addr_size);</div><div class="line">    char str[] = &quot;http://c.biancheng.net/socket/&quot;;</div><div class="line">    int j = write(clnt_sock, str, sizeof(str));</div><div class="line">    sleep(6);</div><div class="line">    close(clnt_sock);</div><div class="line">    sleep(100);</div><div class="line">    return 0;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
-<p>client:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div></pre></td><td class="code"><pre><div class="line">#include &lt;stdio.h&gt;</div><div class="line">#include &lt;string.h&gt;</div><div class="line">#include &lt;stdlib.h&gt;</div><div class="line">#include &lt;unistd.h&gt;</div><div class="line">#include &lt;arpa/inet.h&gt;</div><div class="line">#include &lt;sys/socket.h&gt;</div><div class="line">int main()&#123;</div><div class="line">    //创建套接字</div><div class="line">    int sock = socket(AF_INET, SOCK_STREAM, 0);</div><div class="line">    //向服务器（特定的IP和端口）发起请求</div><div class="line">    struct sockaddr_in serv_addr;</div><div class="line">    memset(&amp;serv_addr, 0, sizeof(serv_addr));  //每个字节都用0填充</div><div class="line">    serv_addr.sin_family = AF_INET;  //使用IPv4地址</div><div class="line">    serv_addr.sin_addr.s_addr = inet_addr(&quot;127.0.0.1&quot;);  //具体的IP地址</div><div class="line">    serv_addr.sin_port = htons(1234);  //端口</div><div class="line">    connect(sock, (struct sockaddr*)&amp;serv_addr, sizeof(serv_addr));</div><div class="line">    //读取服务器传回的数据</div><div class="line">    char buffer[40];</div><div class="line">    read(sock, buffer, sizeof(buffer)-1);</div><div class="line">    socklen_t  sa_len = sizeof(serv_addr);</div><div class="line">    printf(&quot;Message form server: %s\n&quot;, buffer);</div><div class="line">    //关闭套接字</div><div class="line">    sleep(5);</div><div class="line">    close(sock);</div><div class="line">    sleep(1000);</div><div class="line">    return 0;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<h2 id="Linux通信过程"><a href="#Linux通信过程" class="headerlink" title="Linux通信过程"></a>Linux通信过程</h2><p>server:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br></pre></td><td class="code"><pre><span class="line">#include &lt;stdio.h&gt;</span><br><span class="line">#include &lt;string.h&gt;</span><br><span class="line">#include &lt;stdlib.h&gt;</span><br><span class="line">#include &lt;unistd.h&gt;</span><br><span class="line">#include &lt;arpa/inet.h&gt;</span><br><span class="line">#include &lt;sys/socket.h&gt;</span><br><span class="line">#include &lt;sys/fcntl.h&gt;</span><br><span class="line">#include &lt;netinet/in.h&gt;</span><br><span class="line">#include &lt;errno.h&gt;</span><br><span class="line">int main()&#123;</span><br><span class="line">    //创建套接字</span><br><span class="line">    int serv_sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);</span><br><span class="line">    //将套接字和IP、端口绑定</span><br><span class="line">    struct sockaddr_in serv_addr;</span><br><span class="line">    memset(&amp;serv_addr, 0, sizeof(serv_addr));  //每个字节都用0填充</span><br><span class="line">    serv_addr.sin_family = AF_INET;  //使用IPv4地址</span><br><span class="line">    serv_addr.sin_addr.s_addr = inet_addr(&quot;0.0.0.0&quot;);  //具体的IP地址</span><br><span class="line">    serv_addr.sin_port = htons(1234);  //端口</span><br><span class="line">    bind(serv_sock, (struct sockaddr*)&amp;serv_addr, sizeof(serv_addr));</span><br><span class="line">    // 可执行各种描述符控制操作</span><br><span class="line">    // int flags = fcntl(serv_sock, F_GETFL);</span><br><span class="line">    // int newflags = (flags | O_NONBLOCK);</span><br><span class="line">    // fcntl(serv_sock, F_SETFL, newflags);</span><br><span class="line">    //进入监听状态，等待用户发起请求</span><br><span class="line">    listen(serv_sock, 20);</span><br><span class="line">    //接收客户端请求</span><br><span class="line">    struct sockaddr_in clnt_addr;</span><br><span class="line">    socklen_t clnt_addr_size = sizeof(clnt_addr);</span><br><span class="line">    int clnt_sock = accept(serv_sock, (struct sockaddr*)&amp;clnt_addr, &amp;clnt_addr_size);</span><br><span class="line">    char str[] = &quot;http://c.biancheng.net/socket/&quot;;</span><br><span class="line">    int j = write(clnt_sock, str, sizeof(str));</span><br><span class="line">    sleep(6);</span><br><span class="line">    close(clnt_sock);</span><br><span class="line">    sleep(100);</span><br><span class="line">    return 0;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>client:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line">#include &lt;stdio.h&gt;</span><br><span class="line">#include &lt;string.h&gt;</span><br><span class="line">#include &lt;stdlib.h&gt;</span><br><span class="line">#include &lt;unistd.h&gt;</span><br><span class="line">#include &lt;arpa/inet.h&gt;</span><br><span class="line">#include &lt;sys/socket.h&gt;</span><br><span class="line">int main()&#123;</span><br><span class="line">    //创建套接字</span><br><span class="line">    int sock = socket(AF_INET, SOCK_STREAM, 0);</span><br><span class="line">    //向服务器（特定的IP和端口）发起请求</span><br><span class="line">    struct sockaddr_in serv_addr;</span><br><span class="line">    memset(&amp;serv_addr, 0, sizeof(serv_addr));  //每个字节都用0填充</span><br><span class="line">    serv_addr.sin_family = AF_INET;  //使用IPv4地址</span><br><span class="line">    serv_addr.sin_addr.s_addr = inet_addr(&quot;127.0.0.1&quot;);  //具体的IP地址</span><br><span class="line">    serv_addr.sin_port = htons(1234);  //端口</span><br><span class="line">    connect(sock, (struct sockaddr*)&amp;serv_addr, sizeof(serv_addr));</span><br><span class="line">    //读取服务器传回的数据</span><br><span class="line">    char buffer[40];</span><br><span class="line">    read(sock, buffer, sizeof(buffer)-1);</span><br><span class="line">    socklen_t  sa_len = sizeof(serv_addr);</span><br><span class="line">    printf(&quot;Message form server: %s\n&quot;, buffer);</span><br><span class="line">    //关闭套接字</span><br><span class="line">    sleep(5);</span><br><span class="line">    close(sock);</span><br><span class="line">    sleep(1000);</span><br><span class="line">    return 0;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
 <p>然后根据WireShark进行抓包, 抓到的包如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/tcp.png" height="200" width="900"><br>我们对抓包进行简单说明:<br>1.2.3分别是三次握手过程,4是服务器端向客户端发送数据,5是客户端对服务器端的数据进行确认,6,7,8,9分别是四次分手过程。结合到3次握手及4次分手过程如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/tcp_connect_close.png" height="600" width="400"><br>从这个过程中可以知道如下几点:</p>
 <ol>
 <li>客户端或者服务器每发送一条数据, 对端都会对这条数据进行确认, 确认时, ack=接受的sqe+len(data)。</li>
@@ -236,7 +237,7 @@
 <ol>
 <li>调用SocketDispatcher.preClose(fd)半关闭。</li>
 <li>若此时有读写函数的话, 那么通过调用NativeThread.signal唤醒这些线程的。</li>
-<li>若这个管道上没有被注册关注的事件, 那么就可以安全的关闭。<br>这里并没有直接通过close(sock)方式关闭, 客户端和服务器端主动关闭管道, 过程都是一样的, 这里将主要客户端关闭过程来说明, 我们将这段话转变为c++版本的过程如下:<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div></pre></td><td class="code"><pre><div class="line">int main()&#123;</div><div class="line">    ......</div><div class="line">    char buffer[40];</div><div class="line">    read(sock, buffer, sizeof(buffer)-1);</div><div class="line">    sleep(3);</div><div class="line">    socklen_t  sa_len = sizeof(serv_addr);</div><div class="line">    printf(&quot;Message form server: %s\n&quot;, buffer);</div><div class="line"></div><div class="line">    //下面是关闭过程</div><div class="line">    int socket_pair[2];</div><div class="line">    // 首先获得双工套接字</div><div class="line">    socketpair(AF_UNIX, SOCK_STREAM, 0, socket_pair);</div><div class="line">    // 关闭其中一边的套接字</div><div class="line">    close(socket_pair[0]);</div><div class="line">    sleep(3);</div><div class="line">    // 将原写入sock套接字关闭, 并指向新的socket_pair[1]指向的文件表</div><div class="line">    dup2(socket_pair[1], sock);</div><div class="line">    // 关闭这个文件表</div><div class="line">    close(sock);</div><div class="line">    sleep(3);</div><div class="line">    return 0;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<li>若这个管道上没有被注册关注的事件, 那么就可以安全的关闭。<br>这里并没有直接通过close(sock)方式关闭, 客户端和服务器端主动关闭管道, 过程都是一样的, 这里将主要客户端关闭过程来说明, 我们将这段话转变为c++版本的过程如下:<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line">int main()&#123;</span><br><span class="line">    ......</span><br><span class="line">    char buffer[40];</span><br><span class="line">    read(sock, buffer, sizeof(buffer)-1);</span><br><span class="line">    sleep(3);</span><br><span class="line">    socklen_t  sa_len = sizeof(serv_addr);</span><br><span class="line">    printf(&quot;Message form server: %s\n&quot;, buffer);</span><br><span class="line"></span><br><span class="line">    //下面是关闭过程</span><br><span class="line">    int socket_pair[2];</span><br><span class="line">    // 首先获得双工套接字</span><br><span class="line">    socketpair(AF_UNIX, SOCK_STREAM, 0, socket_pair);</span><br><span class="line">    // 关闭其中一边的套接字</span><br><span class="line">    close(socket_pair[0]);</span><br><span class="line">    sleep(3);</span><br><span class="line">    // 将原写入sock套接字关闭, 并指向新的socket_pair[1]指向的文件表</span><br><span class="line">    dup2(socket_pair[1], sock);</span><br><span class="line">    // 关闭这个文件表</span><br><span class="line">    close(sock);</span><br><span class="line">    sleep(3);</span><br><span class="line">    return 0;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 </li>
 </ol>
 <p>可以看到, 其实在<code>dup2(socket_pair[1], sock);</code>中就将原始套接字关闭了, 达到了<code>close(sock)</code>的效果, 通过抓包也实际验证了<code>dup2</code>函数会向服务器端发送发送分手过程的第一阶段。<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/tcp_connect_close1.png" height="200" width="900"><br>可以由抓包看到, 在第6s开始向server发送分手过程的第一阶段, 也就对应着<code>dup2</code>过程。</p>
@@ -551,71 +552,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
           <ul class="article-tag-list" q-show="showTags">
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">ES, Semgent Merge</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">NIO, write, read</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">Flink、Slot分配、SubTask申请slot, SubTask部署</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">Linux, close</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">Lucene、ByteBlockPool</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">LockSupport</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">Lucene、termVector、tvd、tvm、倒排索引</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">Lucene、StoredField</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">Lucene、词典、tim、tip、doc、pos、fst、倒排索引</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">Lucene、DocValue</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">Lucene、词典、FST</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">Cycler</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">ReentrantLock</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">netty4, ServerBootstrap, Initiale</a>
+                <a href="javascript:void(0)" class="js-tag color3">Linux, close</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -635,7 +576,67 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">NIO, write, read</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">LockSupport</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">Lucene、BKW树、Point</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">Lucene、StoredField</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">Lucene、DocValue</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">Cycler</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">ReentrantLock</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">netty4, ServerBootstrap, Initiale</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">ES, Semgent Merge</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">Lucene、词典、FST</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">Flink、Slot分配、SubTask申请slot, SubTask部署</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">Lucene、词典、tim、tip、doc、pos、fst、倒排索引</a>
               </li>
             
             <div class="clearfix"></div>

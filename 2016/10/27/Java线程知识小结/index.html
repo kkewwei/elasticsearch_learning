@@ -1,20 +1,21 @@
 <!DOCTYPE html>
 <html>
-<head>
+<head><meta name="generator" content="Hexo 3.9.0">
   <meta charset="utf-8">
   
   <meta name="renderer" content="webkit">
-  <meta http-equiv="X-UA-Compatible" content="IE=edge" >
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <link rel="dns-prefetch" href="https://kkewwei.github.io/elasticsearch_learning">
   <title>Java 线程知识小结(-) | Hexo</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-  <meta name="google-site-verification" content="sCUXxLczmZVJ1Fkt5jSJGE9xPpdVD25hYciudlUUVNQ" />
+  <meta name="google-site-verification" content="sCUXxLczmZVJ1Fkt5jSJGE9xPpdVD25hYciudlUUVNQ">
   <meta name="description" content="wait/notify/notifyAll:wait/notify用于线程通信的等待/通知模型, 这两个函数被定义在java.lang.Object类中, 被声明为final函数, 不可复写。使用时, 线程A调用object.wait(), 释放cpu进入等待; 线程B调用object.notify()来唤醒A线程。以下是基本的用法:12345678910111213141516171819202">
 <meta property="og:type" content="article">
 <meta property="og:title" content="Java 线程知识小结(-)">
 <meta property="og:url" content="https://kkewwei.github.io/elasticsearch_learning/2016/10/27/Java线程知识小结/index.html">
 <meta property="og:site_name" content="Hexo">
 <meta property="og:description" content="wait/notify/notifyAll:wait/notify用于线程通信的等待/通知模型, 这两个函数被定义在java.lang.Object类中, 被声明为final函数, 不可复写。使用时, 线程A调用object.wait(), 释放cpu进入等待; 线程B调用object.notify()来唤醒A线程。以下是基本的用法:12345678910111213141516171819202">
+<meta property="og:locale" content="default">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/wait_notify.png">
 <meta property="og:updated_time" content="2020-06-09T13:09:41.000Z">
 <meta name="twitter:card" content="summary">
@@ -39,7 +40,7 @@
   
 
 </head>
-
+</html>
 <body>
   <div id="container" q-class="show:isCtnShow">
     <canvas id="anm-canvas" class="anm-canvas"></canvas>
@@ -218,7 +219,7 @@
 
     <div class="article-entry" itemprop="articleBody">
       
-        <h1 id="wait-notify-notifyAll"><a href="#wait-notify-notifyAll" class="headerlink" title="wait/notify/notifyAll:"></a>wait/notify/notifyAll:</h1><p>wait/notify用于线程通信的等待/通知模型, 这两个函数被定义在java.lang.Object类中, 被声明为final函数, 不可复写。使用时, 线程A调用object.wait(), 释放cpu进入等待; 线程B调用object.notify()来唤醒A线程。以下是基本的用法:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div></pre></td><td class="code"><pre><div class="line">public static Object lock = new Object();</div><div class="line"></div><div class="line">public void run()&#123;//线程A</div><div class="line">        try &#123;</div><div class="line">            synchronized (lock) &#123;</div><div class="line">                lock.wait(); //进入睡眠进行等待</div><div class="line">                ...</div><div class="line">            &#125;</div><div class="line"></div><div class="line">        &#125; catch (Exception e) &#123;</div><div class="line">            ...</div><div class="line">        &#125;</div><div class="line">&#125;</div><div class="line"></div><div class="line">public void run()&#123;//线程B</div><div class="line">        try &#123;</div><div class="line">            synchronized (lock) &#123;</div><div class="line">                lock.notify(); //唤醒A线程</div><div class="line">                ...</div><div class="line">            &#125;</div><div class="line"></div><div class="line">        &#125; catch (Exception e) &#123;</div><div class="line">            ...</div><div class="line">        &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+        <h1 id="wait-notify-notifyAll"><a href="#wait-notify-notifyAll" class="headerlink" title="wait/notify/notifyAll:"></a>wait/notify/notifyAll:</h1><p>wait/notify用于线程通信的等待/通知模型, 这两个函数被定义在java.lang.Object类中, 被声明为final函数, 不可复写。使用时, 线程A调用object.wait(), 释放cpu进入等待; 线程B调用object.notify()来唤醒A线程。以下是基本的用法:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line">public static Object lock = new Object();</span><br><span class="line"></span><br><span class="line">public void run()&#123;//线程A</span><br><span class="line">        try &#123;</span><br><span class="line">            synchronized (lock) &#123;</span><br><span class="line">                lock.wait(); //进入睡眠进行等待</span><br><span class="line">                ...</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">        &#125; catch (Exception e) &#123;</span><br><span class="line">            ...</span><br><span class="line">        &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">public void run()&#123;//线程B</span><br><span class="line">        try &#123;</span><br><span class="line">            synchronized (lock) &#123;</span><br><span class="line">                lock.notify(); //唤醒A线程</span><br><span class="line">                ...</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">        &#125; catch (Exception e) &#123;</span><br><span class="line">            ...</span><br><span class="line">        &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
 <p>线程执行状态如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/wait_notify.png" height="300" width="800"><br>需要注意一下几点:</p>
 <ul>
 <li>wait/notify两个操作都必须要和synchronized(lock)配合使用, 这里可以这么理解: 每个object都拥有一个WatiQueue等待队列, 存放着调用lock.lock()被阻塞的线程, 每次向这个等待队列添加或者删除线程时, 为了保证对该队列操作的互斥性, 使用synchronized来达到目的;</li>
@@ -226,8 +227,8 @@
 <li>线程B完全执行完 synchronized(lock){}块后, 线程A才能继续执行。也就是说A从wait()返回的前提是获取到了锁。</li>
 <li>若线程A与B之间调用顺序不能反了, 若B先执行的话, 那么A将永远不能被唤醒（底层也是通过<a href="https://kkewwei.github.io/elasticsearch_learning/2018/11/10/LockSupport%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB/#Parker-park">Parker::unpark</a>实现）。与直接使用LockSupport(park/unpark)相比很大的区别。<br>notify的作用只是唤醒一个object.wait()状态的线程, 唤醒哪个线程, 与线程优先级等有关 notifyAll的作用是唤醒全部object.wait()的线程去抢。</li>
 </ul>
-<h1 id="Join"><a href="#Join" class="headerlink" title="Join"></a>Join</h1><p>join函数的作用是等别的线程退出后再继续执行, 基本使用如下:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line">Thread thread = new Thread(new a2());</div><div class="line">thread.start();</div><div class="line">thread.join();</div></pre></td></tr></table></figure></p>
-<p>当前线程调用thread.join()之后, 便会等待thread执行完再继续执行, join函数代码如下:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div></pre></td><td class="code"><pre><div class="line"> public final synchronized void join(long millis) throws InterruptedException &#123;</div><div class="line">    long base = System.currentTimeMillis();</div><div class="line">    long now = 0;</div><div class="line">    if (millis &lt; 0) &#123;</div><div class="line">        throw new IllegalArgumentException(&quot;timeout value is negative&quot;);</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    if (millis == 0) &#123;//没有设置超时时间</div><div class="line">        while (isAlive()) &#123;</div><div class="line">            wait(0);</div><div class="line">        &#125;</div><div class="line">    &#125; else &#123;//超时等待的话</div><div class="line">        while (isAlive()) &#123; //循环检查</div><div class="line">            long delay = millis - now;</div><div class="line">            if (delay &lt;= 0) &#123; //超时时间到了之后退出</div><div class="line">                break;</div><div class="line">            &#125;</div><div class="line">            wait(delay);</div><div class="line">            now = System.currentTimeMillis() - base;</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<h1 id="Join"><a href="#Join" class="headerlink" title="Join"></a>Join</h1><p>join函数的作用是等别的线程退出后再继续执行, 基本使用如下:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">Thread thread = new Thread(new a2());</span><br><span class="line">thread.start();</span><br><span class="line">thread.join();</span><br></pre></td></tr></table></figure></p>
+<p>当前线程调用thread.join()之后, 便会等待thread执行完再继续执行, join函数代码如下:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line"> public final synchronized void join(long millis) throws InterruptedException &#123;</span><br><span class="line">    long base = System.currentTimeMillis();</span><br><span class="line">    long now = 0;</span><br><span class="line">    if (millis &lt; 0) &#123;</span><br><span class="line">        throw new IllegalArgumentException(&quot;timeout value is negative&quot;);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    if (millis == 0) &#123;//没有设置超时时间</span><br><span class="line">        while (isAlive()) &#123;</span><br><span class="line">            wait(0);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125; else &#123;//超时等待的话</span><br><span class="line">        while (isAlive()) &#123; //循环检查</span><br><span class="line">            long delay = millis - now;</span><br><span class="line">            if (delay &lt;= 0) &#123; //超时时间到了之后退出</span><br><span class="line">                break;</span><br><span class="line">            &#125;</span><br><span class="line">            wait(delay);</span><br><span class="line">            now = System.currentTimeMillis() - base;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
 <p>实际底层依靠的是wait(delay)函数 + 循环来达到等待的效果, 当wait等待时, cpu释放了资源, 则join()等待过程也是释放了cpu。</p>
 
       
@@ -524,71 +525,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
           <ul class="article-tag-list" q-show="showTags">
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">ES, Semgent Merge</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">NIO, write, read</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">Flink、Slot分配、SubTask申请slot, SubTask部署</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">Linux, close</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">Lucene、ByteBlockPool</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">LockSupport</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">Lucene、termVector、tvd、tvm、倒排索引</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">Lucene、StoredField</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">Lucene、词典、tim、tip、doc、pos、fst、倒排索引</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">Lucene、DocValue</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">Lucene、词典、FST</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">Cycler</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">ReentrantLock</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">netty4, ServerBootstrap, Initiale</a>
+                <a href="javascript:void(0)" class="js-tag color3">Linux, close</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -608,7 +549,67 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">NIO, write, read</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">LockSupport</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">Lucene、BKW树、Point</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">Lucene、StoredField</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">Lucene、DocValue</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">Cycler</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">ReentrantLock</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">netty4, ServerBootstrap, Initiale</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">ES, Semgent Merge</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">Lucene、词典、FST</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">Flink、Slot分配、SubTask申请slot, SubTask部署</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">Lucene、词典、tim、tip、doc、pos、fst、倒排索引</a>
               </li>
             
             <div class="clearfix"></div>

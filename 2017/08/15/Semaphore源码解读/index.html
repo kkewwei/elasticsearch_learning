@@ -1,20 +1,21 @@
 <!DOCTYPE html>
 <html>
-<head>
+<head><meta name="generator" content="Hexo 3.9.0">
   <meta charset="utf-8">
   
   <meta name="renderer" content="webkit">
-  <meta http-equiv="X-UA-Compatible" content="IE=edge" >
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <link rel="dns-prefetch" href="https://kkewwei.github.io/elasticsearch_learning">
   <title>Semaphore源码分析 | Hexo</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-  <meta name="google-site-verification" content="sCUXxLczmZVJ1Fkt5jSJGE9xPpdVD25hYciudlUUVNQ" />
+  <meta name="google-site-verification" content="sCUXxLczmZVJ1Fkt5jSJGE9xPpdVD25hYciudlUUVNQ">
   <meta name="description" content="Semaphore信号量底层也是使用AQS(参考ReentrantLock源码解读)来进行锁的互斥。基本使用如下:123456789101112Semaphore semp = new Semaphore(2, fasle);//若被别的线程通过中断唤醒了, 那么就直接抛出异常public void acquire();//若被别的线程通过中断唤醒了, 那么将中断再放到本线程里退出public v">
 <meta property="og:type" content="article">
 <meta property="og:title" content="Semaphore源码分析">
 <meta property="og:url" content="https://kkewwei.github.io/elasticsearch_learning/2017/08/15/Semaphore源码解读/index.html">
 <meta property="og:site_name" content="Hexo">
 <meta property="og:description" content="Semaphore信号量底层也是使用AQS(参考ReentrantLock源码解读)来进行锁的互斥。基本使用如下:123456789101112Semaphore semp = new Semaphore(2, fasle);//若被别的线程通过中断唤醒了, 那么就直接抛出异常public void acquire();//若被别的线程通过中断唤醒了, 那么将中断再放到本线程里退出public v">
+<meta property="og:locale" content="default">
 <meta property="og:updated_time" content="2019-09-01T11:18:18.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Semaphore源码分析">
@@ -37,7 +38,7 @@
   
 
 </head>
-
+</html>
 <body>
   <div id="container" q-class="show:isCtnShow">
     <canvas id="anm-canvas" class="anm-canvas"></canvas>
@@ -216,13 +217,13 @@
 
     <div class="article-entry" itemprop="articleBody">
       
-        <p>Semaphore信号量底层也是使用AQS(参考<a href="https://kkewwei.github.io/elasticsearch_learning/2017/07/23/ReentrantLock%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB/">ReentrantLock源码解读</a>)来进行锁的互斥。<br>基本使用如下:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div></pre></td><td class="code"><pre><div class="line">Semaphore semp = new Semaphore(2, fasle);</div><div class="line">//若被别的线程通过中断唤醒了, 那么就直接抛出异常</div><div class="line">public void acquire();</div><div class="line">//若被别的线程通过中断唤醒了, 那么将中断再放到本线程里退出</div><div class="line">public void acquireUninterruptibly()</div><div class="line">//尝试获取锁, 若获取不到就直接退出</div><div class="line">public boolean tryAcquire()</div><div class="line">//再unit内等待获取锁, 获取不到就直接抛出异常</div><div class="line">public boolean tryAcquire(long timeout, TimeUnit unit) throws InterruptedException</div><div class="line"></div><div class="line">//释放一个锁。</div><div class="line">public void release()</div></pre></td></tr></table></figure></p>
+        <p>Semaphore信号量底层也是使用AQS(参考<a href="https://kkewwei.github.io/elasticsearch_learning/2017/07/23/ReentrantLock%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB/">ReentrantLock源码解读</a>)来进行锁的互斥。<br>基本使用如下:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">Semaphore semp = new Semaphore(2, fasle);</span><br><span class="line">//若被别的线程通过中断唤醒了, 那么就直接抛出异常</span><br><span class="line">public void acquire();</span><br><span class="line">//若被别的线程通过中断唤醒了, 那么将中断再放到本线程里退出</span><br><span class="line">public void acquireUninterruptibly()</span><br><span class="line">//尝试获取锁, 若获取不到就直接退出</span><br><span class="line">public boolean tryAcquire()</span><br><span class="line">//再unit内等待获取锁, 获取不到就直接抛出异常</span><br><span class="line">public boolean tryAcquire(long timeout, TimeUnit unit) throws InterruptedException</span><br><span class="line"></span><br><span class="line">//释放一个锁。</span><br><span class="line">public void release()</span><br></pre></td></tr></table></figure></p>
 <p>Semaphore构造函数中, 2代表获取锁的并发, false代表非公平锁。信号量Semaphore的用户是限制访问的并发, 最大只能两个线程获取锁, 别的线程线程获取时都只能等着。statue最大为2, 代表可剩余的锁个数<br>|锁类型|介绍|<br>|:-|:-|<br>|ReentrantLock|互斥可重入锁, 获取锁并发为1, 谁获取锁谁可以执行, 否则阻塞|<br>|CountDownLatch|共享锁, 类似n个钥匙一起才能打开一个锁, 打开之后会唤醒所有阻塞的线程再一起执行|<br>|ReentrantReadWriteLock|有读锁和写锁同时构成, 读锁之间共享锁, 写锁——读锁会互斥|<br>|Semaphore|并发控制所, 允许同时只有n个线程可以访问, 别的线程只能阻塞, 仅当一个线程释放锁才能唤醒另外一个阻塞的线程|</p>
-<h1 id="acquire获取过程"><a href="#acquire获取过程" class="headerlink" title="acquire获取过程"></a>acquire获取过程</h1><p>锁获取与其他几个AQS获取过程一样:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div></pre></td><td class="code"><pre><div class="line"> public final void acquireSharedInterruptibly(int arg) throws InterruptedException &#123;</div><div class="line">    if (Thread.interrupted())</div><div class="line">        throw new InterruptedException();</div><div class="line">        //如果为0， 就说明获取到了，不为0， 则说明没有获取到</div><div class="line">    if (tryAcquireShared(arg) &lt; 0)</div><div class="line">        doAcquireSharedInterruptibly(arg);</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<h1 id="acquire获取过程"><a href="#acquire获取过程" class="headerlink" title="acquire获取过程"></a>acquire获取过程</h1><p>锁获取与其他几个AQS获取过程一样:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"> public final void acquireSharedInterruptibly(int arg) throws InterruptedException &#123;</span><br><span class="line">    if (Thread.interrupted())</span><br><span class="line">        throw new InterruptedException();</span><br><span class="line">        //如果为0， 就说明获取到了，不为0， 则说明没有获取到</span><br><span class="line">    if (tryAcquireShared(arg) &lt; 0)</span><br><span class="line">        doAcquireSharedInterruptibly(arg);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
 <ul>
 <li>首先该线程是否有中断信号, 若有的话,直接退出</li>
 <li>尝试获取锁, 若获取到了, 那么就回退</li>
-<li>否则通过调用<a href="https://kkewwei.github.io/elasticsearch_learning/2017/08/24/CountDownLatch%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB/">CountDownLatch源码解读</a>doAcquireSharedInterruptibly()将自己加入等待队列。<br>唯一的区别就是Semaphore调用自己实现的tryAcquireShared来尝试获取锁。<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div></pre></td><td class="code"><pre><div class="line">protected int tryAcquireShared(int acquires) &#123;</div><div class="line">    for (;;) &#123;</div><div class="line">        if (hasQueuedPredecessors()) //首先检查是否有别的线程比当前登的时间更长</div><div class="line">            return -1;</div><div class="line">        int available = getState();</div><div class="line">        int remaining = available - acquires;</div><div class="line">        if (remaining &lt; 0 ||</div><div class="line">            compareAndSetState(available, remaining))</div><div class="line">            return remaining;</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<li>否则通过调用<a href="https://kkewwei.github.io/elasticsearch_learning/2017/08/24/CountDownLatch%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB/">CountDownLatch源码解读</a>doAcquireSharedInterruptibly()将自己加入等待队列。<br>唯一的区别就是Semaphore调用自己实现的tryAcquireShared来尝试获取锁。<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">protected int tryAcquireShared(int acquires) &#123;</span><br><span class="line">    for (;;) &#123;</span><br><span class="line">        if (hasQueuedPredecessors()) //首先检查是否有别的线程比当前登的时间更长</span><br><span class="line">            return -1;</span><br><span class="line">        int available = getState();</span><br><span class="line">        int remaining = available - acquires;</span><br><span class="line">        if (remaining &lt; 0 ||</span><br><span class="line">            compareAndSetState(available, remaining))</span><br><span class="line">            return remaining;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 </li>
 </ul>
 <p>示例展示的是公平锁锁, 做了如下检查:</p>
@@ -230,7 +231,7 @@
 <li>检查是否已经有线程在排队, 若有的话, 那么获取锁失败(体现先来后到的原则)</li>
 <li>若没有线程在排队, 那么尝试获取acquires, 若state大于remaining个, 那么获取成果获取锁, 否则获取锁失败。<br>我们需要知道, Semaphore调用的doAcquireSharedInterruptibly来进入阻塞队列排队, 本身设置为SHRAD模式, 若别的线程将本线程唤醒后, 本线程也会把唤醒信号分享给后续阻塞线程, 然后大家一起去竞争锁。</li>
 </ul>
-<h1 id="释放锁release"><a href="#释放锁release" class="headerlink" title="释放锁release"></a>释放锁release</h1><p>释放锁会调用releaseShared:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div></pre></td><td class="code"><pre><div class="line">public final boolean releaseShared(int arg) &#123;</div><div class="line">     //如果status彻底为0， 那么就说明可以唤醒await()了</div><div class="line">    if (tryReleaseShared(arg)) &#123;</div><div class="line">        doReleaseShared();</div><div class="line">        return true;</div><div class="line">    &#125;</div><div class="line">    return false;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<h1 id="释放锁release"><a href="#释放锁release" class="headerlink" title="释放锁release"></a>释放锁release</h1><p>释放锁会调用releaseShared:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">public final boolean releaseShared(int arg) &#123;</span><br><span class="line">     //如果status彻底为0， 那么就说明可以唤醒await()了</span><br><span class="line">    if (tryReleaseShared(arg)) &#123;</span><br><span class="line">        doReleaseShared();</span><br><span class="line">        return true;</span><br><span class="line">    &#125;</span><br><span class="line">    return false;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
 <p>在tryReleaseShared将锁还给state(默认+1), 使用了for(;;)为了一定的释放成功才可以退出, 释放成功了, 尝试去调用doReleaseShared(具体参考<a href="https://kkewwei.github.io/elasticsearch_learning/2017/08/24/CountDownLatch%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB/">CountDownLatch源码解读</a>)来继续唤醒新的head节点。</p>
 <h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>Semaphore信号量可以限制并发访问的次数, 使用起来也比较简单; 也分公平锁和费公平锁, 与ReentrantLock讲解的概念一样。</p>
 
@@ -533,71 +534,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
           <ul class="article-tag-list" q-show="showTags">
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">ES, Semgent Merge</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">NIO, write, read</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">Flink、Slot分配、SubTask申请slot, SubTask部署</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">Linux, close</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">Lucene、ByteBlockPool</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">LockSupport</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">Lucene、termVector、tvd、tvm、倒排索引</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">Lucene、StoredField</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">Lucene、词典、tim、tip、doc、pos、fst、倒排索引</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">Lucene、DocValue</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">Lucene、词典、FST</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">Cycler</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">ReentrantLock</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">netty4, ServerBootstrap, Initiale</a>
+                <a href="javascript:void(0)" class="js-tag color3">Linux, close</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -617,7 +558,67 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">NIO, write, read</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">LockSupport</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">Lucene、BKW树、Point</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">Lucene、StoredField</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">Lucene、DocValue</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">Cycler</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">ReentrantLock</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">netty4, ServerBootstrap, Initiale</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">ES, Semgent Merge</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">Lucene、词典、FST</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">Flink、Slot分配、SubTask申请slot, SubTask部署</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">Lucene、词典、tim、tip、doc、pos、fst、倒排索引</a>
               </li>
             
             <div class="clearfix"></div>
