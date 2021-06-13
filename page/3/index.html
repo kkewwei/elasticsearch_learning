@@ -42,57 +42,39 @@
   <div id="container" q-class="show:isCtnShow">
     <canvas id="anm-canvas" class="anm-canvas"></canvas>
     <div class="left-col" q-class="show:isShow">
-      
-<div class="overlay" style="background: #4d4d4d"></div>
+      <% var defaultBg = '#4d4d4d'; %>
+<div class="overlay" style="background: <%= theme.style && theme.style.header ? theme.style.header : defaultBg %>"></div>
 <div class="intrude-less">
 	<header id="header" class="inner">
-		<a href="/" class="profilepic">
-      <img src="https://kkewwei.github.io/elasticsearch_learning/img/myself.png" class="js-avatar">
+		<a href="<%=theme.root%>" class="profilepic">
+			<img src="<%=theme.avatar%>" class="js-avatar">
 		</a>
 		<hgroup>
-		  <h1 class="header-author"><a href="/">jianguo</a></h1>
+		  <h1 class="header-author"><a href="<%=theme.root%>"><%=theme.author%></a></h1>
 		</hgroup>
-		
-		<p class="header-subtitle">往事随风</p>
-		
+		<% if (theme.subtitle){ %>
+		<p class="header-subtitle"><%=theme.subtitle%></p>
+		<%}%>
 
 		<nav class="header-menu">
 			<ul>
-			
-				<li><a href="/elasticsearch_learning/">主页</a></li>
-	        
-				<li><a href="/elasticsearch_learning/tags/随笔/">随笔</a></li>
-	        
-				<li><a href="/elasticsearch_learning/categories">分类</a></li>
-	        
+			<% for (var i in theme.menu){ %>
+				<li><a href="<%- url_for(theme.menu[i]) %>"><%= i %></a></li>
+	        <%}%>
 			</ul>
 		</nav>
 		<nav class="header-smart-menu">
-    		
-    			
-    			<a q-on="click: openSlider(e, 'innerArchive')" href="javascript:void(0)">所有文章</a>
-    			
-            
-    			
-    			<a q-on="click: openSlider(e, 'friends')" href="javascript:void(0)">友链</a>
-    			
-            
-    			
-    			<a q-on="click: openSlider(e, 'aboutme')" href="javascript:void(0)">关于我</a>
-    			
-            
+    		<% for (var i in theme.smart_menu){ %>
+    			<% if(theme.smart_menu[i]){ %>
+    			<a q-on="click: openSlider(e, '<%-i%>')" href="javascript:void(0)"><%= theme.smart_menu[i] %></a>
+    			<% } %>
+            <%}%>
 		</nav>
 		<nav class="header-nav">
 			<div class="social">
-				
-					<a class="github" target="_blank" href="#" title="github"><i class="icon-github"></i></a>
-		        
-					<a class="weibo" target="_blank" href="#" title="weibo"><i class="icon-weibo"></i></a>
-		        
-					<a class="rss" target="_blank" href="#" title="rss"><i class="icon-rss"></i></a>
-		        
-					<a class="zhihu" target="_blank" href="#" title="zhihu"><i class="icon-zhihu"></i></a>
-		        
+				<% for (var i in theme.subnav){ %>
+					<a class="<%= i %>" target="_blank" href="<%- url_for(theme.subnav[i]) %>" title="<%= i %>"><i class="icon-<%= i %>"></i></a>
+		        <%}%>
 			</div>
 		</nav>
 	</header>
@@ -165,6 +147,210 @@
           </div>
           <div id="js-content" class="content-ll">
             
+  
+    <article id="post-DirectByteBuffer堆外内存详解" class="article article-type-post  article-index" itemscope itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/elasticsearch_learning/2018/07/27/DirectByteBuffer堆外内存详解/">DirectByteBuffer堆外内存详解</a>
+    </h1>
+  
+
+        
+        
+        <a href="/elasticsearch_learning/2018/07/27/DirectByteBuffer堆外内存详解/" class="archive-article-date">
+  	<time datetime="2018-07-27T08:33:58.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2018-07-27</time>
+</a>
+        
+      </header>
+    
+
+    <!-- 目录内容 -->
+    
+    <!-- 目录内容结束 -->
+
+    <div class="article-entry" itemprop="articleBody">
+      
+        <p>我们知道, 在使用IO传输数据时, 首先会将数据传输到堆外直接内存中, 然后才通过网络发送出去。这样的话, 数据多了次中间copy, 能否不经过copy而直接将数据发送出去呢, 其实是可以的, 存放的位置就是本文要讲的主角:DirectByteBuffer 。JVM内存主要分为heap内存和堆外内存(一般我们也会称呼为直接内存), heap内存我们不用care, jvm能自动帮我们管理, 而堆外内存回收不受JVM GC控制, 因此, 堆外内存使用必须小心。本文就主要讲jvm中堆外内存的实现及原理。</p>
+<h2 id="DirectByteBuffer使用"><a href="#DirectByteBuffer使用" class="headerlink" title="DirectByteBuffer使用"></a>DirectByteBuffer使用</h2><p>在程序中, 我们可以通过如下方式获取到DirectByteBuffer, 并且直接作为IO的缓存:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">public void sendAndRecv(String words) throws IOException</span><br><span class="line">   &#123;</span><br><span class="line">       byte[] msg = new String(words).getBytes();</span><br><span class="line">       ByteBuffer buffer = ByteBuffer.allocateDirect(msg.length);</span><br><span class="line">       buffer.put(msg);</span><br><span class="line">       //读写模式相互转化写</span><br><span class="line">       buffer.flip();</span><br><span class="line">       System.out.println(&quot;Client sending: &quot; + words);</span><br><span class="line">       channel.write(buffer);</span><br><span class="line">       channel.close();</span><br><span class="line">   &#125;</span><br></pre></td></tr></table></figure></p>
+<p>DirectByteBuffer是不能直接被外界引用的, 类成员变量如下:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><span class="line">DirectByteBuffer(int cap) &#123;</span><br><span class="line">    super(-1, 0, cap, cap);</span><br><span class="line">    //是否页对齐</span><br><span class="line">    boolean pa = VM.isDirectMemoryPageAligned();</span><br><span class="line">    //页的大小4K</span><br><span class="line">    int ps = Bits.pageSize();</span><br><span class="line">    //最小申请1K，若需要页对齐，那么多申请1页，以应对初始地址的页对齐问题</span><br><span class="line">    long size = Math.max(1L, (long)cap + (pa ? ps : 0));</span><br><span class="line">    //检查堆外内存是否够用, 并对分配的直接内存做一个记录</span><br><span class="line">    Bits.reserveMemory(size, cap);</span><br><span class="line">    long base = 0;</span><br><span class="line">    try &#123;</span><br><span class="line">        //直接内存的初始地址, 返回初始地址</span><br><span class="line">        base = unsafe.allocateMemory(size);</span><br><span class="line">    &#125; catch (OutOfMemoryError x) &#123;</span><br><span class="line">        Bits.unreserveMemory(size, cap);</span><br><span class="line">        throw x;</span><br><span class="line">    &#125;</span><br><span class="line">    //对直接内存初始化</span><br><span class="line">    unsafe.setMemory(base, size, (byte) 0);</span><br><span class="line">    //若需要页对其，并且不是页的整数倍，在需要将页对齐（默认是不需要进行页对齐的）</span><br><span class="line">    if (pa &amp;&amp; (base % ps != 0)) &#123;</span><br><span class="line">        // Round up to page boundary //初始地址取整页，注意申请的地址为取整数页</span><br><span class="line">        address = base + ps - (base &amp; (ps - 1));</span><br><span class="line">    &#125; else &#123;</span><br><span class="line">        address = base;</span><br><span class="line">    &#125;</span><br><span class="line">    //声明一个Cleaner对象用于清理该DirectBuffer内存</span><br><span class="line">    cleaner = Cleaner.create(this, new Deallocator(base, size, cap));</span><br><span class="line">    att = null;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>可以看到, DirectByteBuffer通过直接调用base=unsafe.allocateMemory(size)操作堆外内存, 返回的是该堆外内存的直接地址, 存放在address中, 以便通过address进行堆外数据的读取与写入。 unsafe的使用可以参考:<a href="https://kkewwei.github.io/elasticsearch_learning/2018/11/10/LockSupport%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB/">LockSupport原理分析</a><br>我们需要了解下, Bits.reserveMemory()如何判断堆外内存是否可用的:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br></pre></td><td class="code"><pre><span class="line">static void reserveMemory(long size, int cap) &#123;  ////对分配的直接内存做一个记录</span><br><span class="line">       synchronized (Bits.class) &#123;</span><br><span class="line">           if (!memoryLimitSet &amp;&amp; VM.isBooted())</span><br><span class="line">           &#123;</span><br><span class="line">               // DirectByteBuffer申请堆外内存大小受-XX:MaxDirectMemorySize限制</span><br><span class="line">               maxMemory = VM.maxDirectMemory();</span><br><span class="line">               memoryLimitSet = true;</span><br><span class="line">           &#125;</span><br><span class="line">           // -XX:MaxDirectMemorySize limits the total capacity rather than the</span><br><span class="line">           // actual memory usage, which will differ when buffers are page</span><br><span class="line">           // aligned.</span><br><span class="line">           //如果够分的话，则直接退出</span><br><span class="line">           if (cap &lt;= maxMemory - totalCapacity) &#123;</span><br><span class="line">               reservedMemory += size;</span><br><span class="line">               totalCapacity += cap; //</span><br><span class="line">               count++;</span><br><span class="line">               return;</span><br><span class="line">           &#125;</span><br><span class="line">       &#125;</span><br><span class="line">       //不够分的话，则调用System.gc()进行一次full gc. 一般不要在线程启动时添加-XX:+DisableExplicitGC（禁止代码显示调用gc）</span><br><span class="line">       System.gc(); //只是告知机器，这里应该GC一次， 但是实际并不一定进行垃圾回收</span><br><span class="line">       try &#123;</span><br><span class="line">            //再等待100ms使gc有时间完成，然后再看是否够分配</span><br><span class="line">           Thread.sleep(100);</span><br><span class="line">       &#125; catch (InterruptedException x) &#123;</span><br><span class="line">           // Restore interrupt status</span><br><span class="line">           Thread.currentThread().interrupt();</span><br><span class="line">       &#125;</span><br><span class="line">       synchronized (Bits.class) &#123;</span><br><span class="line">           //此时不够分的话，再调用向外抛出oom</span><br><span class="line">           if (totalCapacity + cap &gt; maxMemory)</span><br><span class="line">               throw new OutOfMemoryError(&quot;Direct buffer memory&quot;);</span><br><span class="line">           reservedMemory += size;</span><br><span class="line">           totalCapacity += cap;</span><br><span class="line">           count++;</span><br><span class="line">       &#125;</span><br><span class="line">   &#125;</span><br></pre></td></tr></table></figure></p>
+<p>可以看到:</p>
+<ul>
+<li>首先检查堆外内存是否够分</li>
+<li>若不够分的话, 再进行一次full gc显示推动对堆外内存的回收, 再次尝试分配堆外内存, 不够分的话, 则抛出OOM异常。</li>
+</ul>
+<h1 id="堆外内存的回收"><a href="#堆外内存的回收" class="headerlink" title="堆外内存的回收"></a>堆外内存的回收</h1><p>在DirectByteBuffer的构造函数中, 我们可以看到这样的一行代码<code>cleaner = Cleaner.create(this, new Deallocator(base, size, cap));</code>, 没错, 直接内存释放主要由cleaner来完成。 我们知道JVM GC并不能直接释放直接内存, 但是GC可以释放管理直接内存的DirectByteBuffer对象。 我们需要注意下cleaner的类型:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">public class Cleaner  extends PhantomReference&lt;Object&gt;</span><br></pre></td></tr></table></figure></p>
+<p>PhantomReference并不会对对象的垃圾回收产生任何影响, 当进行gc完成后, 当发现某个对象只剩下虚引用后, 会将该引用迁移至Reference类的pending队列进行回收. 这里可以看到DirectByteBuffer被Cleaner引用着。Reference操作回收代码如下:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br></pre></td><td class="code"><pre><span class="line">static private class Lock &#123; &#125;;</span><br><span class="line">private static Lock lock = new Lock();</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">/* List of References waiting to be enqueued.  The collector adds</span><br><span class="line"> * References to this list, while the Reference-handler thread removes</span><br><span class="line"> * them.  This list is protected by the above lock object. The</span><br><span class="line"> * list uses the discovered field to link its elements.</span><br><span class="line"> */</span><br><span class="line">//当gc时，发现DirectByteBuffer除了PhantomReference对象引用,没有其他对象引用， 会把DirectByteBuffer放入其中，等待被回收</span><br><span class="line">private static Reference&lt;Object&gt; pending = null;</span><br><span class="line"></span><br><span class="line">/* High-priority thread to enqueue pending References</span><br><span class="line"> */</span><br><span class="line">private static class ReferenceHandler extends Thread &#123;</span><br><span class="line"></span><br><span class="line">    ReferenceHandler(ThreadGroup g, String name) &#123;</span><br><span class="line">        super(g, name);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    public void run() &#123;</span><br><span class="line">        for (;;) &#123;</span><br><span class="line">            Reference&lt;Object&gt; r;</span><br><span class="line">            synchronized (lock) &#123;</span><br><span class="line">                if (pending != null) &#123;</span><br><span class="line">                    r = pending;</span><br><span class="line">                    pending = r.discovered;</span><br><span class="line">                    r.discovered = null;</span><br><span class="line">                &#125; else &#123;</span><br><span class="line">                    // The waiting on the lock may cause an OOME because it may try to allocate</span><br><span class="line">                    // exception objects, so also catch OOME here to avoid silent exit of the</span><br><span class="line">                    // reference handler thread.</span><br><span class="line">                    //</span><br><span class="line">                    // Explicitly define the order of the two exceptions we catch here</span><br><span class="line">                    // when waiting for the lock.</span><br><span class="line">                    //</span><br><span class="line">                    // We do not want to try to potentially load the InterruptedException class</span><br><span class="line">                    // (which would be done if this was its first use, and InterruptedException</span><br><span class="line">                    // were checked first) in this situation.</span><br><span class="line">                    //</span><br><span class="line">                    // This may lead to the VM not ever trying to load the InterruptedException</span><br><span class="line">                    // class again.</span><br><span class="line">                    try &#123;</span><br><span class="line">                        try &#123;</span><br><span class="line">                            //如果没有的话，会一直等待唤醒</span><br><span class="line">                            lock.wait();</span><br><span class="line">                        &#125; catch (OutOfMemoryError x) &#123; &#125;</span><br><span class="line">                    &#125; catch (InterruptedException x) &#123; &#125;</span><br><span class="line">                    continue;</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">            // Fast path for cleaners</span><br><span class="line">            if (r instanceof Cleaner) &#123;</span><br><span class="line">                 //从头开始进行clena()调用</span><br><span class="line">                ((Cleaner)r).clean();</span><br><span class="line">                continue;</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">            ReferenceQueue&lt;Object&gt; q = r.queue;</span><br><span class="line">            if (q != ReferenceQueue.NULL) q.enqueue(r);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">static &#123;</span><br><span class="line">    ThreadGroup tg = Thread.currentThread().getThreadGroup();</span><br><span class="line">    for (ThreadGroup tgn = tg;</span><br><span class="line">         tgn != null;</span><br><span class="line">         tg = tgn, tgn = tg.getParent());</span><br><span class="line">    Thread handler = new ReferenceHandler(tg, &quot;Reference Handler&quot;);</span><br><span class="line">    /* If there were a special system-only priority greater than</span><br><span class="line">     * MAX_PRIORITY, it would be used here</span><br><span class="line">     */</span><br><span class="line">    handler.setPriority(Thread.MAX_PRIORITY);</span><br><span class="line">    handler.setDaemon(true);</span><br><span class="line">    handler.start();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>可以看出来, JVM会新建名为<code>Reference Handler</code>的线程, 时刻回收被挂到pending上面的虚拟引用(该线程在JVM启动时就会产生)。 当DirectByteBuff对象仅被Cleaner引用时, Cleaner被放入pending队列, 之后调用Cleaner.clean()队列<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br></pre></td><td class="code"><pre><span class="line"> public void clean() &#123;  //这里的clean(）会在Reference回收时显示调用</span><br><span class="line">        if (!remove(this))</span><br><span class="line">            return;</span><br><span class="line">        try &#123;</span><br><span class="line">            thunk.run();</span><br><span class="line">        &#125; catch (final Throwable x) &#123;</span><br><span class="line">            AccessController.doPrivileged(new PrivilegedAction&lt;Void&gt;() &#123;</span><br><span class="line">                    public Void run() &#123;</span><br><span class="line">                        if (System.err != null)</span><br><span class="line">                            new Error(&quot;Cleaner terminated abnormally&quot;, x)</span><br><span class="line">                                .printStackTrace();</span><br><span class="line">                        System.exit(1);</span><br><span class="line">                        return null;</span><br><span class="line">                    &#125;&#125;);</span><br><span class="line">        &#125;</span><br><span class="line">&#125;</span><br><span class="line">//就是一个释放直接内存的线程</span><br><span class="line">private static class Deallocator  implements Runnable</span><br><span class="line">&#123;</span><br><span class="line"></span><br><span class="line">        private static Unsafe unsafe = Unsafe.getUnsafe();</span><br><span class="line"></span><br><span class="line">        private long address;</span><br><span class="line">        private long size;</span><br><span class="line">        private int capacity;</span><br><span class="line"></span><br><span class="line">        private Deallocator(long address, long size, int capacity) &#123;</span><br><span class="line">            assert (address != 0);</span><br><span class="line">            this.address = address;</span><br><span class="line">            this.size = size;</span><br><span class="line">            this.capacity = capacity;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        public void run() &#123;</span><br><span class="line">            if (address == 0) &#123;</span><br><span class="line">                // Paranoia</span><br><span class="line">                return;</span><br><span class="line">            &#125;</span><br><span class="line">            unsafe.freeMemory(address); //释放地址</span><br><span class="line">            address = 0;</span><br><span class="line">            Bits.unreserveMemory(size, capacity); //修改统计</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>可以看到, 此时完成了DirectByteBuff直接内存的释放（虚引用中保存有堆外内存的直接地址，来达到释放堆外地址的效果）。<br>可能有些人会好奇: 为什么IO操作不直接使用堆内内存? 这是因为堆内内存会发生GC移动操作, 对象移动后, 其绝对内存地址也会发生改变, 而gc时对象移动操作很频繁, 不可能每次移动堆内数据, IO时缓存的buffer也跟着一起移动。这样也是不合理的。 而IO操作直接使用堆外内存则没有了这一限制。同时jvm中IO操作的Buffer必须是DirectBuffer(可查看IO.write/read函数)。</p>
+<h1 id="堆外内存的检测"><a href="#堆外内存的检测" class="headerlink" title="堆外内存的检测"></a>堆外内存的检测</h1><ol>
+<li>通过DirectByteBuffer申请的堆外内存, 我们可以通过如下的方式获取到:<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">List&lt;BufferPoolMXBean&gt; bufferPools = ManagementFactory.getPlatformMXBeans(BufferPoolMXBean.class);</span><br><span class="line">    for (BufferPoolMXBean bufferPool : bufferPools) &#123;</span><br><span class="line">        System.out.println(&quot;name: &quot; + bufferPool.getName() + &quot;, getCount:  &quot; + bufferPool.getCount() +  &quot;, getTotalCapacity:  &quot; + bufferPool.getTotalCapacity() + &quot;, getMemoryUsed:  &quot; + bufferPool.getMemoryUsed());</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+</li>
+</ol>
+<p>将会打印如下结果:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">name: direct, getCount:  1, getTotalCapacity:  1073741824, getMemoryUsed:  1073741824</span><br><span class="line">name: mapped, getCount:  0, getTotalCapacity:  0, getMemoryUsed:  0</span><br></pre></td></tr></table></figure></p>
+<p>direct部分内存就是了。</p>
+<ol>
+<li>若我们直接通过base = unsafe.allocateMemory(size)申请内存, 申请内存大小（申请大小jvm参数都控制不了）及内存管理都已不受JVM控制的了, 我们不能再通过上面那种方式检测出来了，但是大小可以通过jcmd方式检测出来。此时jvm总的使用量（堆内+元数据+DirectByteBuff+unsafe申请内存空间）可以在top命令中RES可查看到。</li>
+</ol>
+<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>在JVM中, 一般只有通过DirectByteBuffer这一种方式操作堆外内存, 平时说的堆外内存泄漏, 也就是指的DirectByteBuffer里面的堆外内存发生泄漏。合理使用DirectByteBuffer对通信框架有着很重要的帮助, 比如netty大量的IO数据传输, 都是通过DirectByteBuffer完成的。 直接内存的申请与释放比较代价比较大, 一般都会辅助对象池来尽量高效的利用申请的对象。</p>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/elasticsearch_learning/categories/Java学习//" class="article-tag-list-link color2">Java学习</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/elasticsearch_learning/2018/07/27/DirectByteBuffer堆外内存详解/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
+    <article id="post-Netty-PoolSubpage原理探究" class="article article-type-post  article-index" itemscope itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/elasticsearch_learning/2018/07/22/Netty-PoolSubpage原理探究/">Netty-PoolSubpage原理探究</a>
+    </h1>
+  
+
+        
+        
+        <a href="/elasticsearch_learning/2018/07/22/Netty-PoolSubpage原理探究/" class="archive-article-date">
+  	<time datetime="2018-07-21T17:02:45.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2018-07-22</time>
+</a>
+        
+      </header>
+    
+
+    <!-- 目录内容 -->
+    
+    <!-- 目录内容结束 -->
+
+    <div class="article-entry" itemprop="articleBody">
+      
+        <p>Netty中大于8K的内存是通过PoolChunk来分配的, 小于8k的内存是通过PoolSubpage分配的, 本章将详细描述如何通过PoolSubpage分配小于8K的内存。当申请小于8K的内存时, 会从分配一个8k的叶子节点, 若用不完的话, 存在很大的浪费, 所以通过PoolSubpage来管理8K的内存, 如下图<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/PoolSubpage.png" height="400" width="450"><br>每一个PoolSubpage都会与PoolChunk里面的一个叶子节点映射起来, 然后将PoolSubpage根据用户申请的ElementSize化成几等分, 之后只要再次申请ElementSize大小的内存, 将直接从这个PoolSubpage中分配。<br>下面是PoolSubpage的构造函数:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br></pre></td><td class="code"><pre><span class="line">PoolSubpage(PoolSubpage&lt;T&gt; head, PoolChunk&lt;T&gt; chunk, int memoryMapIdx, int runOffset, int pageSize, int elemSize) &#123;</span><br><span class="line">     this.chunk = chunk;</span><br><span class="line">     //与PoolChunkPage中哪个节点映射一起来</span><br><span class="line">     this.memoryMapIdx = memoryMapIdx;</span><br><span class="line">     this.runOffset = runOffset;</span><br><span class="line">     //该叶子节点的大小</span><br><span class="line">     this.pageSize = pageSize;</span><br><span class="line">     //bitmap的每一位都描述的是一个element的使用情况</span><br><span class="line">     bitmap = new long[pageSize &gt;&gt;&gt; 10];</span><br><span class="line">     init(head, elemSize);</span><br><span class="line"> &#125;</span><br><span class="line"> //init根据当前需要分配的内存大小，确定需要多少个bitmap元素</span><br><span class="line"> void init(PoolSubpage&lt;T&gt; head, int elemSize) &#123;   ///elemSize代表此次申请的大小，比如申请64byte，那么这个page被分成了8k/64=2^7=128个</span><br><span class="line">     doNotDestroy = true;</span><br><span class="line">     this.elemSize = elemSize;</span><br><span class="line">     if (elemSize != 0) &#123;</span><br><span class="line">         maxNumElems = numAvail = pageSize / elemSize; //被分成了128份64大小的内存</span><br><span class="line">         nextAvail = 0;</span><br><span class="line">         bitmapLength = maxNumElems &gt;&gt;&gt; 6;  //6代表着long长度 = 2</span><br><span class="line">         if ((maxNumElems &amp; 63) != 0) &#123;//低6位</span><br><span class="line">             bitmapLength ++;</span><br><span class="line">         &#125;</span><br><span class="line"></span><br><span class="line">         for (int i = 0; i &lt; bitmapLength; i ++) &#123;</span><br><span class="line">             bitmap[i] = 0;</span><br><span class="line">         &#125;</span><br><span class="line">     &#125;</span><br><span class="line">     addToPool(head);</span><br><span class="line"> &#125;</span><br></pre></td></tr></table></figure></p>
+<p>有人会有疑问: 为啥bitmap = new long[pageSize &gt;&gt;&gt; 10], 因为小于8K的内存, 最小是以16b为单位来分配的, 一个long类型为64位, 最多需要pageSize/(16*64)个long就可以将一个PoolSubpage中所有element是否分配描述清楚了, log2(16*64)=10。<br>然后再调用init来对PoolSubpage结构进行初始化:</p>
+<ol>
+<li>总共可以分成<code>pageSize/elemSize</code>个element。 bitmap所有元素也不一定需要全部用上, 实际会用<code>maxNumElems &gt;&gt;&gt; 6</code>个long就可以了。</li>
+<li>然后根据头插法将该PoolSubpage插入tinySubpagePools或者smallSubpagePools(参考<a href="https://kkewwei.github.io/elasticsearch_learning/2018/05/23/Netty%E5%86%85%E5%AD%98%E5%AD%A6%E4%B9%A0/">Netty PoolArea原理探究</a>)对应级别的链中。</li>
+</ol>
+<h1 id="PoolSubpage的内存分配"><a href="#PoolSubpage的内存分配" class="headerlink" title="PoolSubpage的内存分配"></a>PoolSubpage的内存分配</h1><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line">long allocate() &#123; //找到一位</span><br><span class="line">    if (elemSize == 0) &#123;</span><br><span class="line">        return toHandle(0);</span><br><span class="line">    &#125;</span><br><span class="line">    if (numAvail == 0 || !doNotDestroy) &#123;</span><br><span class="line">        return -1;</span><br><span class="line">    &#125;</span><br><span class="line">    final int bitmapIdx = getNextAvail(); //64进制</span><br><span class="line">    int q = bitmapIdx &gt;&gt;&gt; 6;//第几位long</span><br><span class="line">    int r = bitmapIdx &amp; 63; //这个long第几位</span><br><span class="line">    assert (bitmap[q] &gt;&gt;&gt; r &amp; 1) == 0;</span><br><span class="line">    bitmap[q] |= 1L &lt;&lt; r;  //将相关位置置为1</span><br><span class="line">    if (-- numAvail == 0) &#123; //这个page没有再能够提供的bit位</span><br><span class="line">        removeFromPool(); //从可分配链中去掉</span><br><span class="line">    &#125;</span><br><span class="line">    return toHandle(bitmapIdx);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>若可分配的element个数为0, 则将相应可分配链中去掉(该链结构可参考<a href="https://kkewwei.github.io/elasticsearch_learning/2018/05/23/Netty%E5%86%85%E5%AD%98%E5%AD%A6%E4%B9%A0/">Netty PoolArea原理探究</a>)。 PoolSubpage在初始化时候已经规定了可分配内存块的大小, 所以调用的函数中不需要告诉需要分配的内存大小, 在PoolSubpage中查找可用的element通过findNextAvail0实现的:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line">private int findNextAvail0(int i, long bits) &#123;</span><br><span class="line">    final int maxNumElems = this.maxNumElems; //包含的段个数</span><br><span class="line">    final int baseVal = i &lt;&lt; 6; //64进制，第2位，最大数也只是8*64 + 64</span><br><span class="line"></span><br><span class="line">    for (int j = 0; j &lt; 64; j ++) &#123;</span><br><span class="line">        if ((bits &amp; 1) == 0) &#123; //bits哪位为0，局说明哪位可用</span><br><span class="line">            int val = baseVal | j; //第4个long+9  i&lt;&lt;6 + j</span><br><span class="line">            if (val &lt; maxNumElems) &#123; //不能大于总段数</span><br><span class="line">                return val;</span><br><span class="line">            &#125; else &#123;</span><br><span class="line">                break;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">        bits &gt;&gt;&gt;= 1;  //一位位找，直到找到某位为0</span><br><span class="line">    &#125;</span><br><span class="line">    return -1;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>主要做了如下事情:</p>
+<ol>
+<li>遍历bitmap中所有元素, 找到一个bit为0的元素, 说明还有element没有分配出去。</li>
+<li>检查该元素每一个bit是否为0, 找到后, 返回值为<code>i &lt;&lt; 6 | j</code>, 包含第几个元素 + 元素内第几个bit位。<br>再返回到allocate函数中, 将该元素对应的bit置为1, 并构造handle:<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">private long toHandle(int bitmapIdx) &#123;</span><br><span class="line">    ////高32放着一个PoolSubpage里面哪段的哪个，低32位放着哪个叶子节点</span><br><span class="line">    return 0x4000000000000000L | (long) bitmapIdx &lt;&lt; 32 | memoryMapIdx;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+</li>
+</ol>
+<p>可以得知针对小于8K的分配, 返回的handle一定是大于int类型的数据, 若handle高位不为0, 则该handle映射的内存块一定是小于8K的内存块。该handle将page、element的位置信息全部编码进去了, 这些信息也很容易解码出来。</p>
+<h1 id="PoolSubpage的内存释放"><a href="#PoolSubpage的内存释放" class="headerlink" title="PoolSubpage的内存释放"></a>PoolSubpage的内存释放</h1><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><span class="line">boolean free(PoolSubpage&lt;T&gt; head, int bitmapIdx) &#123;</span><br><span class="line">    if (elemSize == 0) &#123;</span><br><span class="line">        return true;</span><br><span class="line">    &#125;</span><br><span class="line">    int q = bitmapIdx &gt;&gt;&gt; 6;</span><br><span class="line">    int r = bitmapIdx &amp; 63;</span><br><span class="line">    assert (bitmap[q] &gt;&gt;&gt; r &amp; 1) != 0;</span><br><span class="line">    bitmap[q] ^= 1L &lt;&lt; r;</span><br><span class="line"></span><br><span class="line">    setNextAvail(bitmapIdx);</span><br><span class="line"></span><br><span class="line">    if (numAvail ++ == 0) &#123;</span><br><span class="line">        addToPool(head);</span><br><span class="line">        return true;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    if (numAvail != maxNumElems) &#123;</span><br><span class="line">        return true;</span><br><span class="line">    &#125; else &#123;</span><br><span class="line">        // Subpage not in use (numAvail == maxNumElems)</span><br><span class="line">        if (prev == next) &#123;</span><br><span class="line">            // Do not remove if this subpage is the only one left in the pool.</span><br><span class="line">            return true;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        // Remove this subpage from the pool if there are other subpages left in the pool.</span><br><span class="line">        doNotDestroy = false;</span><br><span class="line">        removeFromPool();</span><br><span class="line">        return false;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>释放的时候并不会将该PoolSubpage从subpages(见<a href="https://kkewwei.github.io/elasticsearch_learning/2018/07/20/Netty-PoolChunk%E5%8E%9F%E7%90%86%E6%8E%A2%E7%A9%B6/">Netty PoolChunk原理探究</a>)中取出, 释放逻辑也比较简单, 除了将bitmap中相应long置为0, 别的工作就是检查该PoolSubpage是否需要加入对应的链或者从对应的链中取出:</p>
+<ol>
+<li>若当前可用的element为0, 则说明已经从相应可分配链中去掉了, 此时再通过头插法加入对应的可分配链中, 说明还在使用。</li>
+<li>若目前剩余可用element小于最大剩余可用的, 同样说明还在使用。</li>
+<li>反之说明该PoolSubpage没有element被分配出去。 若该级别的链大于1个PoolSubpage还在使用, 则返回该链可以释放了; 只剩余这个PoolSubpage还没有释放, 那暂时先不释放等待之后的内存分配。</li>
+</ol>
+<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>PoolSubpage主要管理小于8K的内存分配, 内存返回的handle可以唯一确定PoolChunk、poolSubpage中具体哪个element。 当PoolSubpage没有使用的内存时, 可能从对应的链中取出。同时一定没有从subpages中去掉。</p>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/elasticsearch_learning/categories/Netty//" class="article-tag-list-link color1">Netty</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/elasticsearch_learning/2018/07/22/Netty-PoolSubpage原理探究/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
   
     <article id="post-Netty-PoolChunk原理探究" class="article article-type-post  article-index" itemscope itemprop="blogPost">
   <div class="article-inner">
@@ -1262,241 +1448,6 @@
 
 
   
-    <article id="post-ServerBootstrap初始篇" class="article article-type-post  article-index" itemscope itemprop="blogPost">
-  <div class="article-inner">
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/elasticsearch_learning/2018/01/14/ServerBootstrap初始篇/">ServerBootstrap初始篇</a>
-    </h1>
-  
-
-        
-        
-        <a href="/elasticsearch_learning/2018/01/14/ServerBootstrap初始篇/" class="archive-article-date">
-  	<time datetime="2018-01-14T10:32:43.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2018-01-14</time>
-</a>
-        
-      </header>
-    
-
-    <!-- 目录内容 -->
-    
-    <!-- 目录内容结束 -->
-
-    <div class="article-entry" itemprop="articleBody">
-      
-        <p>&emsp;本文将以一个最简单的netty服务器端代码进行讲解。</p>
-<h1 id="服务器示例"><a href="#服务器示例" class="headerlink" title="服务器示例"></a>服务器示例</h1> <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br></pre></td><td class="code"><pre><span class="line"> public class HelloServer &#123;</span><br><span class="line">    /**</span><br><span class="line">     * 服务端监听的端口地址</span><br><span class="line">     */</span><br><span class="line">    private static final int portNumber = 7878;</span><br><span class="line">    public static void main(String[] args) throws InterruptedException &#123;</span><br><span class="line">        EventLoopGroup bossGroup = new NioEventLoopGroup(1);</span><br><span class="line">        EventLoopGroup WorkGroup = new NioEventLoopGroup(4);</span><br><span class="line">        try &#123;</span><br><span class="line">            ServerBootstrap b = new ServerBootstrap();</span><br><span class="line">            b.group(bossGroup,WorkGroup);</span><br><span class="line">            b.channel(NioServerSocketChannel.class);</span><br><span class="line">            b.childHandler(new HelloServerInitializer());</span><br><span class="line">            ChannelFuture f = b.bind(portNumber).sync();</span><br><span class="line">            f.channel().closeFuture().sync();</span><br><span class="line">        &#125; finally &#123;</span><br><span class="line">            bossGroup.shutdownGracefully();</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">class HelloServerInitializer extends ChannelInitializer&lt;SocketChannel&gt; &#123;</span><br><span class="line">    @Override       //  ch = NioSocketChannel</span><br><span class="line">    protected void initChannel(SocketChannel ch) throws Exception &#123;</span><br><span class="line">        ChannelPipeline pipeline = ch.pipeline();</span><br><span class="line">        pipeline.addLast(&quot;frameDecoder&quot;, new LengthFieldBasedFrameDecoder(Integer.MAX_VALUE, 0, 4, 0, 4));</span><br><span class="line">        pipeline.addLast(&quot;frameEncoder&quot;, new LengthFieldPrepender(4));</span><br><span class="line">        pipeline.addLast(&quot;decoder&quot;, new StringDecoder(CharsetUtil.UTF_8));</span><br><span class="line">        pipeline.addLast(&quot;encoder&quot;, new StringEncoder(CharsetUtil.UTF_8));</span><br><span class="line">        // 自己的逻辑Handler</span><br><span class="line">        pipeline.addLast(&quot;handler&quot;, new HelloServerHandler());</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">class HelloServerHandler extends SimpleChannelInboundHandler&lt;String&gt; &#123;</span><br><span class="line">    @Override</span><br><span class="line">    protected void channelRead0(ChannelHandlerContext ctx, String msg) throws Exception &#123;</span><br><span class="line">        // 收到消息直接打印输出</span><br><span class="line">        System.out.println(ctx.channel().remoteAddress() + &quot; Say : &quot; + msg);</span><br><span class="line">        // 返回客户端消息 - 我已经接收到了你的消息</span><br><span class="line">        ctx.writeAndFlush(&quot;Received your message !\n&quot;);</span><br><span class="line">    &#125;</span><br><span class="line">    /*</span><br><span class="line">     *</span><br><span class="line">     * 覆盖 channelActive 方法 在channel被启用的时候触发 (在建立连接的时候)</span><br><span class="line">     *</span><br><span class="line">     * channelActive 和 channelInActive 在后面的内容中讲述，这里先不做详细的描述</span><br><span class="line">     * */</span><br><span class="line">    @Override</span><br><span class="line">    public void channelActive(ChannelHandlerContext ctx) throws Exception &#123;</span><br><span class="line">        ctx.writeAndFlush(&quot;Welcome to &quot; + InetAddress.getLocalHost().getHostName() + &quot; service!\n&quot;);</span><br><span class="line">        super.channelActive(ctx);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<h1 id="NioEventLoop和NioEventLoopGroup分析"><a href="#NioEventLoop和NioEventLoopGroup分析" class="headerlink" title="NioEventLoop和NioEventLoopGroup分析"></a>NioEventLoop和NioEventLoopGroup分析</h1><ul>
-<li>NioEventLoop:是一个单线程执行器(所有),所有task的具体执行者,每个task都是一个Runnable实例。NioEventLoop内的线程池线程,默认取值为<code>NettyRuntime.availableProcessors() * 2)</code></li>
-<li>NioEventLoopGroup:每个NioEventLoop都有一个分组,NioEventLoopGroup一般分为两组parentGroup、childGroup,parentGroup管理一类NioEventLoop,这类执行器主要生成boss类的线程,实际使用时,childGroup管理的一类NioEventLoop主要生成work类的线程。</li>
-</ul>
-<h1 id="一些概念对应关系"><a href="#一些概念对应关系" class="headerlink" title="一些概念对应关系"></a>一些概念对应关系</h1><ul>
-<li>一个NioEventLoop可以处理分配给多个Channel(包含NioServerSocketChannel), 是一对多的关系。</li>
-<li>NioEventLoop里面处理task的线程唯一。</li>
-<li>Channel与NioEventLoop绑定称之为register。在它的生命周期产生的所有task内只能由固定的某一个NioEventLoop处理。<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/Netty%E6%A6%82%E5%BF%B5.png"></li>
-</ul>
-<h1 id="具体过程分析"><a href="#具体过程分析" class="headerlink" title="具体过程分析"></a>具体过程分析</h1><h2 id="首先分析AbstractBootstrap-doBind"><a href="#首先分析AbstractBootstrap-doBind" class="headerlink" title="首先分析AbstractBootstrap.doBind()"></a>首先分析AbstractBootstrap.doBind()</h2> <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br></pre></td><td class="code"><pre><span class="line">private ChannelFuture doBind(final SocketAddress localAddress) &#123;</span><br><span class="line">   final ChannelFuture regFuture = initAndRegister();</span><br><span class="line">    final Channel channel = regFuture.channel(); //NioServerSocketChannel</span><br><span class="line">    if (regFuture.cause() != null) &#123;</span><br><span class="line">        return regFuture;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    if (regFuture.isDone()) &#123;</span><br><span class="line">        // At this point we know that the registration was complete and successful.</span><br><span class="line">        ChannelPromise promise = channel.newPromise();</span><br><span class="line">        doBind0(regFuture, channel, localAddress, promise);</span><br><span class="line">        return promise;</span><br><span class="line">    &#125; else &#123;</span><br><span class="line">        // Registration future is almost always fulfilled already, but just in case it&apos;s not.</span><br><span class="line">        final PendingRegistrationPromise promise = new PendingRegistrationPromise(channel);</span><br><span class="line">        regFuture.addListener(new ChannelFutureListener() &#123;</span><br><span class="line">            @Override</span><br><span class="line">            public void operationComplete(ChannelFuture future) throws Exception &#123;</span><br><span class="line">                Throwable cause = future.cause();</span><br><span class="line">                if (cause != null) &#123;</span><br><span class="line">                    // Registration on the EventLoop failed so fail the ChannelPromise directly to not cause an</span><br><span class="line">                    // IllegalStateException once we try to access the EventLoop of the Channel.</span><br><span class="line">                    promise.setFailure(cause);</span><br><span class="line">                &#125; else &#123;</span><br><span class="line">                    // Registration was successful, so set the correct executor to use.</span><br><span class="line">                    // See https://github.com/netty/netty/issues/2586</span><br><span class="line">                    promise.registered();</span><br><span class="line"></span><br><span class="line">                    doBind0(regFuture, channel, localAddress, promise);</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;);</span><br><span class="line">        return promise;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p>主要干的事:</p>
-<ol>
-<li>生成并初始化NioServerSocketChannel,见initAndRegister():</li>
-<li>检查该channel是否应注册到selector上。若注册上去后, 才会进行真正的channel与address、事件(OP_ACCEPT)绑定(见<code>doBind0</code>)。</li>
-</ol>
-<p>initAndRegister()主要作用:<br>(1) 生成一个NioServerSocketChannel, 实际使用的<code>SelectorProvider.provider().openServerSocketChannel()</code>;<br>NioServerSocketChannel构造函数如下:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line">this.parent = parent;</span><br><span class="line">id = newId();// 分配一个全局唯一的id，默认为MAC+进程id+自增的序列号+时间戳相关的数值+随机值</span><br><span class="line">// 初始化Unsafe, NioSocketChannel对应的是NioSocketChannelUnsafe; 而NioServerSocketChannel对应着NioMessageUnsafe</span><br><span class="line">unsafe = newUnsafe();</span><br><span class="line">pipeline = newChannelPipeline();//// 初始化pipeline，</span><br><span class="line">this.ch = ch;</span><br><span class="line">this.readInterestOp = readInterestOp;</span><br><span class="line">try &#123;</span><br><span class="line">    ch.configureBlocking(false); //</span><br><span class="line">&#125; catch (IOException e) &#123;</span><br><span class="line">    try &#123;</span><br><span class="line">        ch.close();</span><br><span class="line">    &#125; catch (IOException e2) &#123;</span><br><span class="line">        if (logger.isWarnEnabled()) &#123;</span><br><span class="line">            logger.warn(</span><br><span class="line">                    &quot;Failed to close a partially initialized socket.&quot;, e2);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    throw new ChannelException(&quot;Failed to enter non-blocking mode.&quot;, e);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
-<ul>
-<li>每一个channel都将独自拥有一个DefaultChannelPipeline, DefaultChannelPipeline主要的属性如下:<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">this.channel = ObjectUtil.checkNotNull(channel, &quot;channel&quot;);</span><br><span class="line">tail = new TailContext(this);   //只是in</span><br><span class="line">head = new HeadContext(this);  //只是out</span><br><span class="line"></span><br><span class="line">head.next = tail;</span><br><span class="line">tail.prev = head;</span><br></pre></td></tr></table></figure>
-</li>
-</ul>
-<p>基本含义就是每个DefaultChannelPipeline与一个channel绑定, 该channle对应的处理链由head和tail串联起来。</p>
-<ul>
-<li>TailContext和HeadContext是所有Pipeline默认拥有的,他们本身同时继承了AbstractChannelHandlerContext, 另外HeadContext继承了ChannelOutboundHandler, ChannelInboundHandler两种属性, TailContext继承了ChannelOutboundHandler一种, 返回handler都是本身</li>
-<li>ch传递过来的参数是SelectionKey.OP_ACCEPT, 之后会再次初始化成0(0并不是SelectionKey其中的一种), (见doRegister())</li>
-<li>将该channel设置为非block类型,这里是不是与NIO很像。<br>(2) 调用channel()对channel初始化(见<code>分析init(channel)</code>)<br>(3) 将产生的NioServerSocketChannel注册到对应EventLoop上,见register()部分。</li>
-</ul>
-<p>&emsp;regFuture.isDone()当且仅当执行NioServerSocketChannel.register(selector, SelectionKey)之后, 也就是将NioServerSocketChannel注册到parentGroup管理的NioEventLoop的selector上(代码见AbstractChannel.register0()), ChannelPromise状态才置为success。 后面会详细讲解doBind0函数。</p>
-<p><font size="6">分析init(channel)</font></p>
-<p></p><p>代码实际会跑到ServerBootstrap.init():</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">    ChannelPipeline p = channel.pipeline(); //DefaultChannalPipeLine</span><br><span class="line">    p.addLast(new ChannelInitializer&lt;Channel&gt;() &#123;</span><br><span class="line">    @Override</span><br><span class="line">    public void initChannel(final Channel ch) throws Exception &#123;//NioServerSocketChannel</span><br><span class="line">        final ChannelPipeline pipeline = ch.pipeline();</span><br><span class="line">        ChannelHandler handler = config.handler();</span><br><span class="line">        if (handler != null) &#123;</span><br><span class="line">            pipeline.addLast(handler);</span><br><span class="line">        &#125;</span><br><span class="line">        ch.eventLoop().execute(new Runnable() &#123;//ChannelInitializer和ServerBootstrapAcceptor都是Inbound,区别就是</span><br><span class="line">            @Override</span><br><span class="line">            public void run() &#123;</span><br><span class="line">                pipeline.addLast(new ServerBootstrapAcceptor(</span><br><span class="line">                        ch, currentChildGroup, currentChildHandler, currentChildOptions, currentChildAttrs));</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;);</span><br></pre></td></tr></table></figure>
-<p>主要干的事是向NioServerSocketChannel的DefaultChannalPipeLine对应的处理链添加ChannelInitializer(实际也是一个InBoundHandler), ChannelInitializer对于后面还有作用, 先留个印象。<br>此时, NioServerSocketChannel对应的pipeline中handler结构如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/PipeLine.png" height="200" width="450"></p>
-<p><font size="6">p.addLast</font></p>
-<p></p><p>具体添加代码操作如下:</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line">synchronized (this) &#123;</span><br><span class="line">    newCtx = newContext(group, filterName(name, handler), handler);</span><br><span class="line">    addLast0(newCtx);</span><br><span class="line">    if (!registered) &#123;//只有这个channel被register到某个具体的EventLoop后，才会考虑执行一些任务，这里考虑的任务是将对应的handler加入到对应的pipe中,DefaultChannelPipeline是与NioServerSocketChannel一一对应的</span><br><span class="line">        newCtx.setAddPending();</span><br><span class="line">        callHandlerCallbackLater(newCtx, true);</span><br><span class="line">        return this;</span><br><span class="line">    &#125;</span><br><span class="line">    EventExecutor executor = newCtx.executor();</span><br><span class="line">    if (!executor.inEventLoop()) &#123;</span><br><span class="line">        newCtx.setAddPending();</span><br><span class="line">        executor.execute(new Runnable() &#123;</span><br><span class="line">            @Override</span><br><span class="line">            public void run() &#123;</span><br><span class="line">                callHandlerAdded0(newCtx);</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;);</span><br><span class="line">        return this;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line">callHandlerAdded0(newCtx);</span><br><span class="line">return this;</span><br></pre></td></tr></table></figure>
-<p>主要操作就是:</p>
-<ul>
-<li>新产生一个DefaultChannelHandlerContext, 主要作用就是存放对应的handler,也就是ChannelInitializer。</li>
-<li>将DefaultChannelHandlerContext添加进DefaultChannalPipeLine的倒数第二个, 也就是tail之前。</li>
-<li><p>如果NioServerSocketChannel并没有注册到对应的selector上(代码见AbstractChannel.register0()), 那么将生成PendingHandlerAddedTask, 并将该task线程放入pendingHandlerCallbackHead(属于Pipeline), 等待NioServerSocketChannel被注册到对应的selector时执行(见NioMessageUnsafe.register());<br>若注册了, 那么调用callHandlerAdded0()-&gt;ChannelInitializer.initChannel(ChannelHandlerContext ctx)函数中,如下:</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">@SuppressWarnings(&quot;unchecked&quot;)</span><br><span class="line">  private boolean initChannel(ChannelHandlerContext ctx) throws Exception &#123;</span><br><span class="line">      if (initMap.putIfAbsent(ctx, Boolean.TRUE) == null) &#123; // Guard against re-entrance.</span><br><span class="line">          try &#123;</span><br><span class="line">              initChannel((C) ctx.channel());</span><br><span class="line">          &#125; catch (Throwable cause) &#123;</span><br><span class="line">              // Explicitly call exceptionCaught(...) as we removed the handler before calling initChannel(...).</span><br><span class="line">              // We do so to prevent multiple calls to initChannel(...).</span><br><span class="line">              exceptionCaught(ctx, cause);</span><br><span class="line">          &#125; finally &#123;</span><br><span class="line">              remove(ctx); //初始化完善后，删除自身。又要把最开始注册的HelloServerInitializer删掉，也是ChannelInboundHandler类型</span><br><span class="line">          &#125;</span><br><span class="line">          return true;</span><br><span class="line">      &#125;</span><br><span class="line">      return false;</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
-<ul>
-<li>这里会进入ChannelInitializer.initChannel(final Channel ch)(详见ServerBootstrap.init()), 把会向pipeLine添加ServerBootstrapAcceptor的操作当成一个task, 传递给NilEventLoop, 等待执行形成一个最终的handler链。 传递的参数也可以注意下, 有childGroup、以及自定义的HelloServerInitializer。之后新建立的连接请求SocketChannel, 将根据这两个参数创建, 之后会详解(见NioEventLoop篇)。</li>
-<li>这里还需要注意ChannelInitializer.remove(ctx)会将该匿名ChannelInitializer(见ServerBootstrap.init())从NioServerSocketChannel的pipeline中删掉。这样NioServerSocketChannel对应的pipeline结构如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/PipeLine2.png" height="200" width="650"></li>
-</ul>
-</li>
-</ul>
-<p><font size="6">register</font></p><p><br>根据<code>config().group().register(channel)</code>进行注册, 首先这里的group()使用的是ParentGroup里面的EventLoop, 具体从EventLoop选取哪个EventLoop来与该channel绑定呢,使用的轮训策略。每次选取都会+1。 这里分两种决策策略:PowerOfTwoEventExecutorChooser和GenericEventExecutorChooser,都实现了+1的效果, 两者的唯一区别就是求余的效果不同:<br>当该Group定义的EventLoop为2^n时, PowerOfTwoEventExecutorChooser使用的是位运算的方式求余, 位运算能减少计算的时间复杂度。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">public EventExecutor next() &#123;</span><br><span class="line">    return executors[idx.getAndIncrement() &amp; executors.length - 1];</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
-<p>如何判断一个数是否为2^n呢, 方法如下:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">private static boolean isPowerOfTwo(int val) &#123;</span><br><span class="line">    return (val &amp; -val) == val;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
-<p>选出一个NioEventLoop后, 最终会进入NioMessageUnsafe.register()中(是AbstractUnsafe的函数), 该对象在NioServerSocketChannel构造函数中生成。接着会进入AbstractUnsafe.register0(), 代码如下:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br></pre></td><td class="code"><pre><span class="line">try &#123;</span><br><span class="line">    // check if the channel is still open as it could be closed in the mean time when the register</span><br><span class="line">    // call was outside of the eventLoop</span><br><span class="line">    if (!promise.setUncancellable() || !ensureOpen(promise)) &#123;</span><br><span class="line">        return;</span><br><span class="line">    &#125;</span><br><span class="line">    boolean firstRegistration = neverRegistered;</span><br><span class="line">    doRegister();</span><br><span class="line">    neverRegistered = false;</span><br><span class="line">    registered = true;</span><br><span class="line">    pipeline.invokeHandlerAddedIfNeeded();</span><br><span class="line"></span><br><span class="line">    safeSetSuccess(promise);</span><br><span class="line">    pipeline.fireChannelRegistered();</span><br><span class="line">    // Only fire a channelActive if the channel has never been registered. This prevents firing</span><br><span class="line">    // multiple channel actives if the channel is deregistered and re-registered.</span><br><span class="line">    if (isActive()) &#123;</span><br><span class="line">        if (firstRegistration) &#123;</span><br><span class="line">            pipeline.fireChannelActive();</span><br><span class="line">        &#125; else if (config().isAutoRead()) &#123;</span><br><span class="line">            // This channel was registered before and autoRead() is set. This means we need to begin read</span><br><span class="line">            // again so that we process inbound data.</span><br><span class="line">            //</span><br><span class="line">            // See https://github.com/netty/netty/issues/4805</span><br><span class="line">            beginRead();</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125; catch (Throwable t) &#123;</span><br><span class="line">    // Close the channel directly to avoid FD leak.</span><br><span class="line">    closeForcibly();</span><br><span class="line">    closeFuture.setClosed();</span><br><span class="line">    safeSetFailure(promise, t);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
-<p>doRegister()函数将会跑到AbstractNioChannel.doRegister()里面, 如下:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line">for (;;) &#123;</span><br><span class="line">    try &#123;</span><br><span class="line">        selectionKey = javaChannel().register(eventLoop().unwrappedSelector(), 0, this);</span><br><span class="line">        return;</span><br><span class="line">    &#125; catch (CancelledKeyException e) &#123;</span><br><span class="line">        if (!selected) &#123;</span><br><span class="line">            // Force the Selector to select now as the &quot;canceled&quot; SelectionKey may still be</span><br><span class="line">            // cached and not removed because no Select.select(..) operation was called yet.</span><br><span class="line">            eventLoop().selectNow();</span><br><span class="line">            selected = true;</span><br><span class="line">        &#125; else &#123;</span><br><span class="line">            // We forced a select operation on the selector before but the SelectionKey is still cached</span><br><span class="line">            // for whatever reason. JDK bug ?</span><br><span class="line">            throw e;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
-<p>这里是不是很熟悉? 不断地轮训注册, 将该channel注册到NioEventLoop上面的Selector上面, 并且select_ops置为0, 表示什么都不感兴趣。<br>我们先了解NioServerSocketChannel与NioSocketChannel的继承关系:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/ServerBootstrap1.png" height="200" width="450"><br>可以看到:</p>
-<ul>
-<li>NioServerSocketChannel在初始化时候就声明readInterestOp为OP_ACCEPT, 而NioSocketChannel在初始化时声明readInterestOp为OP_READ。</li>
-<li>NioServerSocketChannel对应NioMessage, 当bossdui对应的NioEventLoop为新的连接建立NioSocketChannel时, 都会进入NioMessage.read()进行初始化。当NioSocketChannel对应着NioByteUnsafe, 当work对应的NioSocketchannel接收到数据时, 会进入NioByteUnsafe.read()只来接收数据。</li>
-</ul>
-<p>继续回到register()上,  channel与selector完成register之后:</p>
-<ol>
-<li>执行一些挂起的任务(invokeHandlerAddedIfNeeded()), 比如p.addLast所介绍的, 此时pileline对应的的handler链如下:HEAD-&gt;ServerBootstrapAcceptor-&gt;TAIL</li>
-<li>执行safeSetSuccess(promise), 最终会去调用AbstractBootstrap.doBind()里面介绍的ChannelFutureListener.operationComplete()函数, 注意doBind0()函数, 这里将完成channel与port的绑定和channel感兴趣事件为OP_ACCEPT,具体代码见AbstractChannel.bin(), 代码如下:<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">boolean wasActive = isActive();</span><br><span class="line">           try &#123;</span><br><span class="line">                //doBind0最终调用channel.bind方法对执行端口进行绑定</span><br><span class="line">               doBind(localAddress);</span><br><span class="line">           &#125; catch (Throwable t) &#123;</span><br><span class="line">               safeSetFailure(promise, t);</span><br><span class="line">               closeIfClosed();</span><br><span class="line">               return;</span><br><span class="line">           &#125;</span><br><span class="line">           //之前没有绑定，现在绑定了，绑定的意思是NioServerSocketChannel里面的SocketChannel的Address有值了</span><br><span class="line">           if (!wasActive &amp;&amp; isActive()) &#123;</span><br><span class="line">               invokeLater(new Runnable() &#123;</span><br><span class="line">                   @Override</span><br><span class="line">                   public void run() &#123;</span><br><span class="line">                       //最终修改的是NioServerSocketChannel的可Accept属性</span><br><span class="line">                       pipeline.fireChannelActive();</span><br><span class="line">                   &#125;</span><br><span class="line">               &#125;);</span><br><span class="line">           &#125;</span><br></pre></td></tr></table></figure>
-</li>
-</ol>
-<p>NioServerSocketChannel在初始化时只是将readInterestOp赋值为OP_ACCEPT, 而被注册感兴趣OP_ACCEPT是在这里, 真正调用了AbstractNioCHannel.doBeginRead来实现注册<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">@Override</span><br><span class="line">protected void doBeginRead() throws Exception &#123;</span><br><span class="line">    // Channel.read() or ChannelHandlerContext.read() was called</span><br><span class="line">    final SelectionKey selectionKey = this.selectionKey;</span><br><span class="line">    if (!selectionKey.isValid()) &#123;</span><br><span class="line">        return;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    readPending = true;</span><br><span class="line"></span><br><span class="line">    final int interestOps = selectionKey.interestOps();</span><br><span class="line">    if ((interestOps &amp; readInterestOp) == 0) &#123; //将设置可接受</span><br><span class="line">        selectionKey.interestOps(interestOps | readInterestOp);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
-<p>自此NioServerSocketChannel已经初始化完成, NioServerSocketChannel拥有的pipeLine的里面的上下文:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/PipeLine1.png" height="300" width="550"><br>其中第二个Context的handler为ServerBootstrapAcceptor, 它的构造时的代码如下:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">new ServerBootstrapAcceptor(ch, currentChildGroup, currentChildHandler, currentChildOptions, currentChildAttrs)</span><br></pre></td></tr></table></figure></p>
-<p>currentChildHandler就是我们自定的HelloServerInitializer, 该handler包含了我们所需要的所有逻辑,这些handler将在NioEventLoop篇构造NioSocketChannel时使用。</p>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color4">netty4, ServerBootstrap, Initiale</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/elasticsearch_learning/categories/Netty//" class="article-tag-list-link color1">Netty</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/elasticsearch_learning/2018/01/14/ServerBootstrap初始篇/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
-    <article id="post-ES索引创建流程" class="article article-type-post  article-index" itemscope itemprop="blogPost">
-  <div class="article-inner">
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/elasticsearch_learning/2017/12/17/ES索引创建流程/">ES索引创建流程</a>
-    </h1>
-  
-
-        
-        
-        <a href="/elasticsearch_learning/2017/12/17/ES索引创建流程/" class="archive-article-date">
-  	<time datetime="2017-12-17T15:25:54.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-12-17</time>
-</a>
-        
-      </header>
-    
-
-    <!-- 目录内容 -->
-    
-    <!-- 目录内容结束 -->
-
-    <div class="article-entry" itemprop="articleBody">
-      
-        
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/elasticsearch_learning/categories/Elasticsearch//" class="article-tag-list-link color4">Elasticsearch</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/elasticsearch_learning/2017/12/17/ES索引创建流程/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
   
     <nav id="page-nav">
       <a class="extend prev" rel="prev" href="/elasticsearch_learning/page/2/">&laquo; Prev</a><a class="page-number" href="/elasticsearch_learning/">1</a><a class="page-number" href="/elasticsearch_learning/page/2/">2</a><span class="page-number current">3</span><a class="page-number" href="/elasticsearch_learning/page/4/">4</a><a class="page-number" href="/elasticsearch_learning/page/5/">5</a><a class="extend next" rel="next" href="/elasticsearch_learning/page/4/">Next &raquo;</a>
@@ -1648,7 +1599,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">Lucene、StoredField</a>
+                <a href="javascript:void(0)" class="js-tag color2">NIO, write, read</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1656,11 +1607,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">NIO, write, read</a>
+                <a href="javascript:void(0)" class="js-tag color4">Lucene、StoredField</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">Lucene、DocValue</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1669,10 +1624,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">Cycler</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
               </li>
              
               <li class="article-tag-list-item">

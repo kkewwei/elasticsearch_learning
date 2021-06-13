@@ -42,57 +42,39 @@
   <div id="container" q-class="show:isCtnShow">
     <canvas id="anm-canvas" class="anm-canvas"></canvas>
     <div class="left-col" q-class="show:isShow">
-      
-<div class="overlay" style="background: #4d4d4d"></div>
+      <% var defaultBg = '#4d4d4d'; %>
+<div class="overlay" style="background: <%= theme.style && theme.style.header ? theme.style.header : defaultBg %>"></div>
 <div class="intrude-less">
 	<header id="header" class="inner">
-		<a href="/" class="profilepic">
-      <img src="https://kkewwei.github.io/elasticsearch_learning/img/myself.png" class="js-avatar">
+		<a href="<%=theme.root%>" class="profilepic">
+			<img src="<%=theme.avatar%>" class="js-avatar">
 		</a>
 		<hgroup>
-		  <h1 class="header-author"><a href="/">jianguo</a></h1>
+		  <h1 class="header-author"><a href="<%=theme.root%>"><%=theme.author%></a></h1>
 		</hgroup>
-		
-		<p class="header-subtitle">往事随风</p>
-		
+		<% if (theme.subtitle){ %>
+		<p class="header-subtitle"><%=theme.subtitle%></p>
+		<%}%>
 
 		<nav class="header-menu">
 			<ul>
-			
-				<li><a href="/elasticsearch_learning/">主页</a></li>
-	        
-				<li><a href="/elasticsearch_learning/tags/随笔/">随笔</a></li>
-	        
-				<li><a href="/elasticsearch_learning/categories">分类</a></li>
-	        
+			<% for (var i in theme.menu){ %>
+				<li><a href="<%- url_for(theme.menu[i]) %>"><%= i %></a></li>
+	        <%}%>
 			</ul>
 		</nav>
 		<nav class="header-smart-menu">
-    		
-    			
-    			<a q-on="click: openSlider(e, 'innerArchive')" href="javascript:void(0)">所有文章</a>
-    			
-            
-    			
-    			<a q-on="click: openSlider(e, 'friends')" href="javascript:void(0)">友链</a>
-    			
-            
-    			
-    			<a q-on="click: openSlider(e, 'aboutme')" href="javascript:void(0)">关于我</a>
-    			
-            
+    		<% for (var i in theme.smart_menu){ %>
+    			<% if(theme.smart_menu[i]){ %>
+    			<a q-on="click: openSlider(e, '<%-i%>')" href="javascript:void(0)"><%= theme.smart_menu[i] %></a>
+    			<% } %>
+            <%}%>
 		</nav>
 		<nav class="header-nav">
 			<div class="social">
-				
-					<a class="github" target="_blank" href="#" title="github"><i class="icon-github"></i></a>
-		        
-					<a class="weibo" target="_blank" href="#" title="weibo"><i class="icon-weibo"></i></a>
-		        
-					<a class="rss" target="_blank" href="#" title="rss"><i class="icon-rss"></i></a>
-		        
-					<a class="zhihu" target="_blank" href="#" title="zhihu"><i class="icon-zhihu"></i></a>
-		        
+				<% for (var i in theme.subnav){ %>
+					<a class="<%= i %>" target="_blank" href="<%- url_for(theme.subnav[i]) %>" title="<%= i %>"><i class="icon-<%= i %>"></i></a>
+		        <%}%>
 			</div>
 		</nav>
 	</header>
@@ -165,6 +147,241 @@
           </div>
           <div id="js-content" class="content-ll">
             
+  
+    <article id="post-ServerBootstrap初始篇" class="article article-type-post  article-index" itemscope itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/elasticsearch_learning/2018/01/14/ServerBootstrap初始篇/">ServerBootstrap初始篇</a>
+    </h1>
+  
+
+        
+        
+        <a href="/elasticsearch_learning/2018/01/14/ServerBootstrap初始篇/" class="archive-article-date">
+  	<time datetime="2018-01-14T10:32:43.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2018-01-14</time>
+</a>
+        
+      </header>
+    
+
+    <!-- 目录内容 -->
+    
+    <!-- 目录内容结束 -->
+
+    <div class="article-entry" itemprop="articleBody">
+      
+        <p>&emsp;本文将以一个最简单的netty服务器端代码进行讲解。</p>
+<h1 id="服务器示例"><a href="#服务器示例" class="headerlink" title="服务器示例"></a>服务器示例</h1> <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br></pre></td><td class="code"><pre><span class="line"> public class HelloServer &#123;</span><br><span class="line">    /**</span><br><span class="line">     * 服务端监听的端口地址</span><br><span class="line">     */</span><br><span class="line">    private static final int portNumber = 7878;</span><br><span class="line">    public static void main(String[] args) throws InterruptedException &#123;</span><br><span class="line">        EventLoopGroup bossGroup = new NioEventLoopGroup(1);</span><br><span class="line">        EventLoopGroup WorkGroup = new NioEventLoopGroup(4);</span><br><span class="line">        try &#123;</span><br><span class="line">            ServerBootstrap b = new ServerBootstrap();</span><br><span class="line">            b.group(bossGroup,WorkGroup);</span><br><span class="line">            b.channel(NioServerSocketChannel.class);</span><br><span class="line">            b.childHandler(new HelloServerInitializer());</span><br><span class="line">            ChannelFuture f = b.bind(portNumber).sync();</span><br><span class="line">            f.channel().closeFuture().sync();</span><br><span class="line">        &#125; finally &#123;</span><br><span class="line">            bossGroup.shutdownGracefully();</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">class HelloServerInitializer extends ChannelInitializer&lt;SocketChannel&gt; &#123;</span><br><span class="line">    @Override       //  ch = NioSocketChannel</span><br><span class="line">    protected void initChannel(SocketChannel ch) throws Exception &#123;</span><br><span class="line">        ChannelPipeline pipeline = ch.pipeline();</span><br><span class="line">        pipeline.addLast(&quot;frameDecoder&quot;, new LengthFieldBasedFrameDecoder(Integer.MAX_VALUE, 0, 4, 0, 4));</span><br><span class="line">        pipeline.addLast(&quot;frameEncoder&quot;, new LengthFieldPrepender(4));</span><br><span class="line">        pipeline.addLast(&quot;decoder&quot;, new StringDecoder(CharsetUtil.UTF_8));</span><br><span class="line">        pipeline.addLast(&quot;encoder&quot;, new StringEncoder(CharsetUtil.UTF_8));</span><br><span class="line">        // 自己的逻辑Handler</span><br><span class="line">        pipeline.addLast(&quot;handler&quot;, new HelloServerHandler());</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">class HelloServerHandler extends SimpleChannelInboundHandler&lt;String&gt; &#123;</span><br><span class="line">    @Override</span><br><span class="line">    protected void channelRead0(ChannelHandlerContext ctx, String msg) throws Exception &#123;</span><br><span class="line">        // 收到消息直接打印输出</span><br><span class="line">        System.out.println(ctx.channel().remoteAddress() + &quot; Say : &quot; + msg);</span><br><span class="line">        // 返回客户端消息 - 我已经接收到了你的消息</span><br><span class="line">        ctx.writeAndFlush(&quot;Received your message !\n&quot;);</span><br><span class="line">    &#125;</span><br><span class="line">    /*</span><br><span class="line">     *</span><br><span class="line">     * 覆盖 channelActive 方法 在channel被启用的时候触发 (在建立连接的时候)</span><br><span class="line">     *</span><br><span class="line">     * channelActive 和 channelInActive 在后面的内容中讲述，这里先不做详细的描述</span><br><span class="line">     * */</span><br><span class="line">    @Override</span><br><span class="line">    public void channelActive(ChannelHandlerContext ctx) throws Exception &#123;</span><br><span class="line">        ctx.writeAndFlush(&quot;Welcome to &quot; + InetAddress.getLocalHost().getHostName() + &quot; service!\n&quot;);</span><br><span class="line">        super.channelActive(ctx);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h1 id="NioEventLoop和NioEventLoopGroup分析"><a href="#NioEventLoop和NioEventLoopGroup分析" class="headerlink" title="NioEventLoop和NioEventLoopGroup分析"></a>NioEventLoop和NioEventLoopGroup分析</h1><ul>
+<li>NioEventLoop:是一个单线程执行器(所有),所有task的具体执行者,每个task都是一个Runnable实例。NioEventLoop内的线程池线程,默认取值为<code>NettyRuntime.availableProcessors() * 2)</code></li>
+<li>NioEventLoopGroup:每个NioEventLoop都有一个分组,NioEventLoopGroup一般分为两组parentGroup、childGroup,parentGroup管理一类NioEventLoop,这类执行器主要生成boss类的线程,实际使用时,childGroup管理的一类NioEventLoop主要生成work类的线程。</li>
+</ul>
+<h1 id="一些概念对应关系"><a href="#一些概念对应关系" class="headerlink" title="一些概念对应关系"></a>一些概念对应关系</h1><ul>
+<li>一个NioEventLoop可以处理分配给多个Channel(包含NioServerSocketChannel), 是一对多的关系。</li>
+<li>NioEventLoop里面处理task的线程唯一。</li>
+<li>Channel与NioEventLoop绑定称之为register。在它的生命周期产生的所有task内只能由固定的某一个NioEventLoop处理。<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/Netty%E6%A6%82%E5%BF%B5.png"></li>
+</ul>
+<h1 id="具体过程分析"><a href="#具体过程分析" class="headerlink" title="具体过程分析"></a>具体过程分析</h1><h2 id="首先分析AbstractBootstrap-doBind"><a href="#首先分析AbstractBootstrap-doBind" class="headerlink" title="首先分析AbstractBootstrap.doBind()"></a>首先分析AbstractBootstrap.doBind()</h2> <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br></pre></td><td class="code"><pre><span class="line">private ChannelFuture doBind(final SocketAddress localAddress) &#123;</span><br><span class="line">   final ChannelFuture regFuture = initAndRegister();</span><br><span class="line">    final Channel channel = regFuture.channel(); //NioServerSocketChannel</span><br><span class="line">    if (regFuture.cause() != null) &#123;</span><br><span class="line">        return regFuture;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    if (regFuture.isDone()) &#123;</span><br><span class="line">        // At this point we know that the registration was complete and successful.</span><br><span class="line">        ChannelPromise promise = channel.newPromise();</span><br><span class="line">        doBind0(regFuture, channel, localAddress, promise);</span><br><span class="line">        return promise;</span><br><span class="line">    &#125; else &#123;</span><br><span class="line">        // Registration future is almost always fulfilled already, but just in case it&apos;s not.</span><br><span class="line">        final PendingRegistrationPromise promise = new PendingRegistrationPromise(channel);</span><br><span class="line">        regFuture.addListener(new ChannelFutureListener() &#123;</span><br><span class="line">            @Override</span><br><span class="line">            public void operationComplete(ChannelFuture future) throws Exception &#123;</span><br><span class="line">                Throwable cause = future.cause();</span><br><span class="line">                if (cause != null) &#123;</span><br><span class="line">                    // Registration on the EventLoop failed so fail the ChannelPromise directly to not cause an</span><br><span class="line">                    // IllegalStateException once we try to access the EventLoop of the Channel.</span><br><span class="line">                    promise.setFailure(cause);</span><br><span class="line">                &#125; else &#123;</span><br><span class="line">                    // Registration was successful, so set the correct executor to use.</span><br><span class="line">                    // See https://github.com/netty/netty/issues/2586</span><br><span class="line">                    promise.registered();</span><br><span class="line"></span><br><span class="line">                    doBind0(regFuture, channel, localAddress, promise);</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;);</span><br><span class="line">        return promise;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>主要干的事:</p>
+<ol>
+<li>生成并初始化NioServerSocketChannel,见initAndRegister():</li>
+<li>检查该channel是否应注册到selector上。若注册上去后, 才会进行真正的channel与address、事件(OP_ACCEPT)绑定(见<code>doBind0</code>)。</li>
+</ol>
+<p>initAndRegister()主要作用:<br>(1) 生成一个NioServerSocketChannel, 实际使用的<code>SelectorProvider.provider().openServerSocketChannel()</code>;<br>NioServerSocketChannel构造函数如下:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line">this.parent = parent;</span><br><span class="line">id = newId();// 分配一个全局唯一的id，默认为MAC+进程id+自增的序列号+时间戳相关的数值+随机值</span><br><span class="line">// 初始化Unsafe, NioSocketChannel对应的是NioSocketChannelUnsafe; 而NioServerSocketChannel对应着NioMessageUnsafe</span><br><span class="line">unsafe = newUnsafe();</span><br><span class="line">pipeline = newChannelPipeline();//// 初始化pipeline，</span><br><span class="line">this.ch = ch;</span><br><span class="line">this.readInterestOp = readInterestOp;</span><br><span class="line">try &#123;</span><br><span class="line">    ch.configureBlocking(false); //</span><br><span class="line">&#125; catch (IOException e) &#123;</span><br><span class="line">    try &#123;</span><br><span class="line">        ch.close();</span><br><span class="line">    &#125; catch (IOException e2) &#123;</span><br><span class="line">        if (logger.isWarnEnabled()) &#123;</span><br><span class="line">            logger.warn(</span><br><span class="line">                    &quot;Failed to close a partially initialized socket.&quot;, e2);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    throw new ChannelException(&quot;Failed to enter non-blocking mode.&quot;, e);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<ul>
+<li>每一个channel都将独自拥有一个DefaultChannelPipeline, DefaultChannelPipeline主要的属性如下:<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">this.channel = ObjectUtil.checkNotNull(channel, &quot;channel&quot;);</span><br><span class="line">tail = new TailContext(this);   //只是in</span><br><span class="line">head = new HeadContext(this);  //只是out</span><br><span class="line"></span><br><span class="line">head.next = tail;</span><br><span class="line">tail.prev = head;</span><br></pre></td></tr></table></figure>
+</li>
+</ul>
+<p>基本含义就是每个DefaultChannelPipeline与一个channel绑定, 该channle对应的处理链由head和tail串联起来。</p>
+<ul>
+<li>TailContext和HeadContext是所有Pipeline默认拥有的,他们本身同时继承了AbstractChannelHandlerContext, 另外HeadContext继承了ChannelOutboundHandler, ChannelInboundHandler两种属性, TailContext继承了ChannelOutboundHandler一种, 返回handler都是本身</li>
+<li>ch传递过来的参数是SelectionKey.OP_ACCEPT, 之后会再次初始化成0(0并不是SelectionKey其中的一种), (见doRegister())</li>
+<li>将该channel设置为非block类型,这里是不是与NIO很像。<br>(2) 调用channel()对channel初始化(见<code>分析init(channel)</code>)<br>(3) 将产生的NioServerSocketChannel注册到对应EventLoop上,见register()部分。</li>
+</ul>
+<p>&emsp;regFuture.isDone()当且仅当执行NioServerSocketChannel.register(selector, SelectionKey)之后, 也就是将NioServerSocketChannel注册到parentGroup管理的NioEventLoop的selector上(代码见AbstractChannel.register0()), ChannelPromise状态才置为success。 后面会详细讲解doBind0函数。</p>
+<p><font size="6">分析init(channel)</font></p>
+<p></p><p>代码实际会跑到ServerBootstrap.init():</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">    ChannelPipeline p = channel.pipeline(); //DefaultChannalPipeLine</span><br><span class="line">    p.addLast(new ChannelInitializer&lt;Channel&gt;() &#123;</span><br><span class="line">    @Override</span><br><span class="line">    public void initChannel(final Channel ch) throws Exception &#123;//NioServerSocketChannel</span><br><span class="line">        final ChannelPipeline pipeline = ch.pipeline();</span><br><span class="line">        ChannelHandler handler = config.handler();</span><br><span class="line">        if (handler != null) &#123;</span><br><span class="line">            pipeline.addLast(handler);</span><br><span class="line">        &#125;</span><br><span class="line">        ch.eventLoop().execute(new Runnable() &#123;//ChannelInitializer和ServerBootstrapAcceptor都是Inbound,区别就是</span><br><span class="line">            @Override</span><br><span class="line">            public void run() &#123;</span><br><span class="line">                pipeline.addLast(new ServerBootstrapAcceptor(</span><br><span class="line">                        ch, currentChildGroup, currentChildHandler, currentChildOptions, currentChildAttrs));</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;);</span><br></pre></td></tr></table></figure>
+<p>主要干的事是向NioServerSocketChannel的DefaultChannalPipeLine对应的处理链添加ChannelInitializer(实际也是一个InBoundHandler), ChannelInitializer对于后面还有作用, 先留个印象。<br>此时, NioServerSocketChannel对应的pipeline中handler结构如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/PipeLine.png" height="200" width="450"></p>
+<p><font size="6">p.addLast</font></p>
+<p></p><p>具体添加代码操作如下:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line">synchronized (this) &#123;</span><br><span class="line">    newCtx = newContext(group, filterName(name, handler), handler);</span><br><span class="line">    addLast0(newCtx);</span><br><span class="line">    if (!registered) &#123;//只有这个channel被register到某个具体的EventLoop后，才会考虑执行一些任务，这里考虑的任务是将对应的handler加入到对应的pipe中,DefaultChannelPipeline是与NioServerSocketChannel一一对应的</span><br><span class="line">        newCtx.setAddPending();</span><br><span class="line">        callHandlerCallbackLater(newCtx, true);</span><br><span class="line">        return this;</span><br><span class="line">    &#125;</span><br><span class="line">    EventExecutor executor = newCtx.executor();</span><br><span class="line">    if (!executor.inEventLoop()) &#123;</span><br><span class="line">        newCtx.setAddPending();</span><br><span class="line">        executor.execute(new Runnable() &#123;</span><br><span class="line">            @Override</span><br><span class="line">            public void run() &#123;</span><br><span class="line">                callHandlerAdded0(newCtx);</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;);</span><br><span class="line">        return this;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line">callHandlerAdded0(newCtx);</span><br><span class="line">return this;</span><br></pre></td></tr></table></figure>
+<p>主要操作就是:</p>
+<ul>
+<li>新产生一个DefaultChannelHandlerContext, 主要作用就是存放对应的handler,也就是ChannelInitializer。</li>
+<li>将DefaultChannelHandlerContext添加进DefaultChannalPipeLine的倒数第二个, 也就是tail之前。</li>
+<li><p>如果NioServerSocketChannel并没有注册到对应的selector上(代码见AbstractChannel.register0()), 那么将生成PendingHandlerAddedTask, 并将该task线程放入pendingHandlerCallbackHead(属于Pipeline), 等待NioServerSocketChannel被注册到对应的selector时执行(见NioMessageUnsafe.register());<br>若注册了, 那么调用callHandlerAdded0()-&gt;ChannelInitializer.initChannel(ChannelHandlerContext ctx)函数中,如下:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">@SuppressWarnings(&quot;unchecked&quot;)</span><br><span class="line">  private boolean initChannel(ChannelHandlerContext ctx) throws Exception &#123;</span><br><span class="line">      if (initMap.putIfAbsent(ctx, Boolean.TRUE) == null) &#123; // Guard against re-entrance.</span><br><span class="line">          try &#123;</span><br><span class="line">              initChannel((C) ctx.channel());</span><br><span class="line">          &#125; catch (Throwable cause) &#123;</span><br><span class="line">              // Explicitly call exceptionCaught(...) as we removed the handler before calling initChannel(...).</span><br><span class="line">              // We do so to prevent multiple calls to initChannel(...).</span><br><span class="line">              exceptionCaught(ctx, cause);</span><br><span class="line">          &#125; finally &#123;</span><br><span class="line">              remove(ctx); //初始化完善后，删除自身。又要把最开始注册的HelloServerInitializer删掉，也是ChannelInboundHandler类型</span><br><span class="line">          &#125;</span><br><span class="line">          return true;</span><br><span class="line">      &#125;</span><br><span class="line">      return false;</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
+<ul>
+<li>这里会进入ChannelInitializer.initChannel(final Channel ch)(详见ServerBootstrap.init()), 把会向pipeLine添加ServerBootstrapAcceptor的操作当成一个task, 传递给NilEventLoop, 等待执行形成一个最终的handler链。 传递的参数也可以注意下, 有childGroup、以及自定义的HelloServerInitializer。之后新建立的连接请求SocketChannel, 将根据这两个参数创建, 之后会详解(见NioEventLoop篇)。</li>
+<li>这里还需要注意ChannelInitializer.remove(ctx)会将该匿名ChannelInitializer(见ServerBootstrap.init())从NioServerSocketChannel的pipeline中删掉。这样NioServerSocketChannel对应的pipeline结构如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/PipeLine2.png" height="200" width="650"></li>
+</ul>
+</li>
+</ul>
+<p><font size="6">register</font></p><p><br>根据<code>config().group().register(channel)</code>进行注册, 首先这里的group()使用的是ParentGroup里面的EventLoop, 具体从EventLoop选取哪个EventLoop来与该channel绑定呢,使用的轮训策略。每次选取都会+1。 这里分两种决策策略:PowerOfTwoEventExecutorChooser和GenericEventExecutorChooser,都实现了+1的效果, 两者的唯一区别就是求余的效果不同:<br>当该Group定义的EventLoop为2^n时, PowerOfTwoEventExecutorChooser使用的是位运算的方式求余, 位运算能减少计算的时间复杂度。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">public EventExecutor next() &#123;</span><br><span class="line">    return executors[idx.getAndIncrement() &amp; executors.length - 1];</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>如何判断一个数是否为2^n呢, 方法如下:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">private static boolean isPowerOfTwo(int val) &#123;</span><br><span class="line">    return (val &amp; -val) == val;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>选出一个NioEventLoop后, 最终会进入NioMessageUnsafe.register()中(是AbstractUnsafe的函数), 该对象在NioServerSocketChannel构造函数中生成。接着会进入AbstractUnsafe.register0(), 代码如下:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br></pre></td><td class="code"><pre><span class="line">try &#123;</span><br><span class="line">    // check if the channel is still open as it could be closed in the mean time when the register</span><br><span class="line">    // call was outside of the eventLoop</span><br><span class="line">    if (!promise.setUncancellable() || !ensureOpen(promise)) &#123;</span><br><span class="line">        return;</span><br><span class="line">    &#125;</span><br><span class="line">    boolean firstRegistration = neverRegistered;</span><br><span class="line">    doRegister();</span><br><span class="line">    neverRegistered = false;</span><br><span class="line">    registered = true;</span><br><span class="line">    pipeline.invokeHandlerAddedIfNeeded();</span><br><span class="line"></span><br><span class="line">    safeSetSuccess(promise);</span><br><span class="line">    pipeline.fireChannelRegistered();</span><br><span class="line">    // Only fire a channelActive if the channel has never been registered. This prevents firing</span><br><span class="line">    // multiple channel actives if the channel is deregistered and re-registered.</span><br><span class="line">    if (isActive()) &#123;</span><br><span class="line">        if (firstRegistration) &#123;</span><br><span class="line">            pipeline.fireChannelActive();</span><br><span class="line">        &#125; else if (config().isAutoRead()) &#123;</span><br><span class="line">            // This channel was registered before and autoRead() is set. This means we need to begin read</span><br><span class="line">            // again so that we process inbound data.</span><br><span class="line">            //</span><br><span class="line">            // See https://github.com/netty/netty/issues/4805</span><br><span class="line">            beginRead();</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125; catch (Throwable t) &#123;</span><br><span class="line">    // Close the channel directly to avoid FD leak.</span><br><span class="line">    closeForcibly();</span><br><span class="line">    closeFuture.setClosed();</span><br><span class="line">    safeSetFailure(promise, t);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>doRegister()函数将会跑到AbstractNioChannel.doRegister()里面, 如下:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line">for (;;) &#123;</span><br><span class="line">    try &#123;</span><br><span class="line">        selectionKey = javaChannel().register(eventLoop().unwrappedSelector(), 0, this);</span><br><span class="line">        return;</span><br><span class="line">    &#125; catch (CancelledKeyException e) &#123;</span><br><span class="line">        if (!selected) &#123;</span><br><span class="line">            // Force the Selector to select now as the &quot;canceled&quot; SelectionKey may still be</span><br><span class="line">            // cached and not removed because no Select.select(..) operation was called yet.</span><br><span class="line">            eventLoop().selectNow();</span><br><span class="line">            selected = true;</span><br><span class="line">        &#125; else &#123;</span><br><span class="line">            // We forced a select operation on the selector before but the SelectionKey is still cached</span><br><span class="line">            // for whatever reason. JDK bug ?</span><br><span class="line">            throw e;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>这里是不是很熟悉? 不断地轮训注册, 将该channel注册到NioEventLoop上面的Selector上面, 并且select_ops置为0, 表示什么都不感兴趣。<br>我们先了解NioServerSocketChannel与NioSocketChannel的继承关系:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/ServerBootstrap1.png" height="200" width="450"><br>可以看到:</p>
+<ul>
+<li>NioServerSocketChannel在初始化时候就声明readInterestOp为OP_ACCEPT, 而NioSocketChannel在初始化时声明readInterestOp为OP_READ。</li>
+<li>NioServerSocketChannel对应NioMessage, 当bossdui对应的NioEventLoop为新的连接建立NioSocketChannel时, 都会进入NioMessage.read()进行初始化。当NioSocketChannel对应着NioByteUnsafe, 当work对应的NioSocketchannel接收到数据时, 会进入NioByteUnsafe.read()只来接收数据。</li>
+</ul>
+<p>继续回到register()上,  channel与selector完成register之后:</p>
+<ol>
+<li>执行一些挂起的任务(invokeHandlerAddedIfNeeded()), 比如p.addLast所介绍的, 此时pileline对应的的handler链如下:HEAD-&gt;ServerBootstrapAcceptor-&gt;TAIL</li>
+<li>执行safeSetSuccess(promise), 最终会去调用AbstractBootstrap.doBind()里面介绍的ChannelFutureListener.operationComplete()函数, 注意doBind0()函数, 这里将完成channel与port的绑定和channel感兴趣事件为OP_ACCEPT,具体代码见AbstractChannel.bin(), 代码如下:<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">boolean wasActive = isActive();</span><br><span class="line">           try &#123;</span><br><span class="line">                //doBind0最终调用channel.bind方法对执行端口进行绑定</span><br><span class="line">               doBind(localAddress);</span><br><span class="line">           &#125; catch (Throwable t) &#123;</span><br><span class="line">               safeSetFailure(promise, t);</span><br><span class="line">               closeIfClosed();</span><br><span class="line">               return;</span><br><span class="line">           &#125;</span><br><span class="line">           //之前没有绑定，现在绑定了，绑定的意思是NioServerSocketChannel里面的SocketChannel的Address有值了</span><br><span class="line">           if (!wasActive &amp;&amp; isActive()) &#123;</span><br><span class="line">               invokeLater(new Runnable() &#123;</span><br><span class="line">                   @Override</span><br><span class="line">                   public void run() &#123;</span><br><span class="line">                       //最终修改的是NioServerSocketChannel的可Accept属性</span><br><span class="line">                       pipeline.fireChannelActive();</span><br><span class="line">                   &#125;</span><br><span class="line">               &#125;);</span><br><span class="line">           &#125;</span><br></pre></td></tr></table></figure>
+</li>
+</ol>
+<p>NioServerSocketChannel在初始化时只是将readInterestOp赋值为OP_ACCEPT, 而被注册感兴趣OP_ACCEPT是在这里, 真正调用了AbstractNioCHannel.doBeginRead来实现注册<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">@Override</span><br><span class="line">protected void doBeginRead() throws Exception &#123;</span><br><span class="line">    // Channel.read() or ChannelHandlerContext.read() was called</span><br><span class="line">    final SelectionKey selectionKey = this.selectionKey;</span><br><span class="line">    if (!selectionKey.isValid()) &#123;</span><br><span class="line">        return;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    readPending = true;</span><br><span class="line"></span><br><span class="line">    final int interestOps = selectionKey.interestOps();</span><br><span class="line">    if ((interestOps &amp; readInterestOp) == 0) &#123; //将设置可接受</span><br><span class="line">        selectionKey.interestOps(interestOps | readInterestOp);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>自此NioServerSocketChannel已经初始化完成, NioServerSocketChannel拥有的pipeLine的里面的上下文:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/PipeLine1.png" height="300" width="550"><br>其中第二个Context的handler为ServerBootstrapAcceptor, 它的构造时的代码如下:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">new ServerBootstrapAcceptor(ch, currentChildGroup, currentChildHandler, currentChildOptions, currentChildAttrs)</span><br></pre></td></tr></table></figure></p>
+<p>currentChildHandler就是我们自定的HelloServerInitializer, 该handler包含了我们所需要的所有逻辑,这些handler将在NioEventLoop篇构造NioSocketChannel时使用。</p>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color4">netty4, ServerBootstrap, Initiale</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/elasticsearch_learning/categories/Netty//" class="article-tag-list-link color1">Netty</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/elasticsearch_learning/2018/01/14/ServerBootstrap初始篇/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
+    <article id="post-ES索引创建流程" class="article article-type-post  article-index" itemscope itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/elasticsearch_learning/2017/12/17/ES索引创建流程/">ES索引创建流程</a>
+    </h1>
+  
+
+        
+        
+        <a href="/elasticsearch_learning/2017/12/17/ES索引创建流程/" class="archive-article-date">
+  	<time datetime="2017-12-17T15:25:54.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-12-17</time>
+</a>
+        
+      </header>
+    
+
+    <!-- 目录内容 -->
+    
+    <!-- 目录内容结束 -->
+
+    <div class="article-entry" itemprop="articleBody">
+      
+        
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/elasticsearch_learning/categories/Elasticsearch//" class="article-tag-list-link color4">Elasticsearch</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/elasticsearch_learning/2017/12/17/ES索引创建流程/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
   
     <article id="post-ConcurrentHashMap扩容过程介绍" class="article article-type-post  article-index" itemscope itemprop="blogPost">
   <div class="article-inner">
@@ -851,7 +1068,7 @@
     <div class="article-entry" itemprop="articleBody">
       
         <p>Semaphore信号量底层也是使用AQS(参考<a href="https://kkewwei.github.io/elasticsearch_learning/2017/07/23/ReentrantLock%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB/">ReentrantLock源码解读</a>)来进行锁的互斥。<br>基本使用如下:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">Semaphore semp = new Semaphore(2, fasle);</span><br><span class="line">//若被别的线程通过中断唤醒了, 那么就直接抛出异常</span><br><span class="line">public void acquire();</span><br><span class="line">//若被别的线程通过中断唤醒了, 那么将中断再放到本线程里退出</span><br><span class="line">public void acquireUninterruptibly()</span><br><span class="line">//尝试获取锁, 若获取不到就直接退出</span><br><span class="line">public boolean tryAcquire()</span><br><span class="line">//再unit内等待获取锁, 获取不到就直接抛出异常</span><br><span class="line">public boolean tryAcquire(long timeout, TimeUnit unit) throws InterruptedException</span><br><span class="line"></span><br><span class="line">//释放一个锁。</span><br><span class="line">public void release()</span><br></pre></td></tr></table></figure></p>
-<p>Semaphore构造函数中, 2代表获取锁的并发, false代表非公平锁。信号量Semaphore的用户是限制访问的并发, 最大只能两个线程获取锁, 别的线程线程获取时都只能等着。statue最大为2, 代表可剩余的锁个数<br>|锁类型|介绍|<br>|:-|:-|<br>|ReentrantLock|互斥可重入锁, 获取锁并发为1, 谁获取锁谁可以执行, 否则阻塞|<br>|CountDownLatch|共享锁, 类似n个钥匙一起才能打开一个锁, 打开之后会唤醒所有阻塞的线程再一起执行|<br>|ReentrantReadWriteLock|有读锁和写锁同时构成, 读锁之间共享锁, 写锁——读锁会互斥|<br>|Semaphore|并发控制所, 允许同时只有n个线程可以访问, 别的线程只能阻塞, 仅当一个线程释放锁才能唤醒另外一个阻塞的线程|</p>
+<p>Semaphore构造函数中, 2代表获取锁的并发, false代表非公平锁。信号量Semaphore的用户是限制访问的并发, 最大只能两个线程获取锁, 别的线程线程获取时都只能等着。statue最大为2, 代表可剩余的锁个数<br>|锁类型|介绍|<br>|:-|:-|<br>|ReentrantLock|互斥可重入锁, 获取锁并发为1, 谁获取锁谁可以执行, 否则阻塞|<br>|CountDownLatch|共享锁, 类似n个钥匙一起才能打开一个锁, 打开之后会唤醒所有阻塞的线程再一起执行|<br>|ReentrantReadWriteLock|有读锁和写锁同时构成, 读锁之间共享锁, 写锁——读锁会互斥|<br>|Semaphore|不是可重入锁，并发控制所, 允许同时只有n个线程可以访问, 别的线程只能阻塞, 仅当一个线程释放锁才能唤醒另外一个阻塞的线程|</p>
 <h1 id="acquire获取过程"><a href="#acquire获取过程" class="headerlink" title="acquire获取过程"></a>acquire获取过程</h1><p>锁获取与其他几个AQS获取过程一样:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"> public final void acquireSharedInterruptibly(int arg) throws InterruptedException &#123;</span><br><span class="line">    if (Thread.interrupted())</span><br><span class="line">        throw new InterruptedException();</span><br><span class="line">        //如果为0， 就说明获取到了，不为0， 则说明没有获取到</span><br><span class="line">    if (tryAcquireShared(arg) &lt; 0)</span><br><span class="line">        doAcquireSharedInterruptibly(arg);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
 <ul>
 <li>首先该线程是否有中断信号, 若有的话,直接退出</li>
@@ -1055,286 +1272,6 @@
 
 
   
-    <article id="post-ReentrantLock源码解读" class="article article-type-post  article-index" itemscope itemprop="blogPost">
-  <div class="article-inner">
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/elasticsearch_learning/2017/07/23/ReentrantLock源码解读/">ReentrantLock源码解读</a>
-    </h1>
-  
-
-        
-        
-        <a href="/elasticsearch_learning/2017/07/23/ReentrantLock源码解读/" class="archive-article-date">
-  	<time datetime="2017-07-23T11:47:30.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-07-23</time>
-</a>
-        
-      </header>
-    
-
-    <!-- 目录内容 -->
-    
-    <!-- 目录内容结束 -->
-
-    <div class="article-entry" itemprop="articleBody">
-      
-        <p>ReentrantLock作为线程之间相互通信的工具, 在实际项目中较多的被使用到, 了解ReentrantLock, 就不得不提AbstractQueuedSynchronizer(AQS), 本文章将对这两个类展开详述。<br>基本使用如下:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">ReentrantLock lock = new ReentrantLock(true);</span><br><span class="line">//尝试获取锁,获取不到就阻塞</span><br><span class="line">lock.lock();</span><br><span class="line">......</span><br><span class="line">//释放锁,获取完了唤醒被阻塞的线程</span><br><span class="line">lock.unlock();</span><br></pre></td></tr></table></figure></p>
-<p>我们需要注意, 调用lock.lock()和lock.unlock()的线程必须是一个, lock.unlock()会对线程检查, 只有当调用lock.lock()的线程和本线程一致, 才可以解锁。可以看到, 是不是很像关键字synchronized的作用?</p>
-<h1 id="简介"><a href="#简介" class="headerlink" title="简介"></a>简介</h1><p>AbstractQueuedSynchronizer，顾名思义，抽象队列同步器，作为抽象类，使用FIFO链，实现了锁的语义, 在CountDownLatch、Semaphore都可以看到该类的实现。</p>
-<h2 id="AbstractQueuedSynchronizer详解"><a href="#AbstractQueuedSynchronizer详解" class="headerlink" title="AbstractQueuedSynchronizer详解"></a>AbstractQueuedSynchronizer详解</h2><p>接下来将首先介绍两个重要的属性变量:<br><code>state</code><br>AbstractQueuedSynchronizer主要针对属性state来实现锁的含义，用户通过针对state赋予不同的值，实现不同锁的含义。 在多线程针对state的操作，必须保证state状态的原子性，使用了<code>volatile</code>关键字，这里没使用Synchronized来保证原子性的原因:</p>
-<ul>
-<li>state的状态修改不依赖历史的值，很适合volatile使用场景，设置了volatile后，也能保证state修改的可见性。</li>
-<li>Synchronized实现互斥的成本要比volatile很高。<br><code>Node</code><br>AbstractQueuedSynchronizer实现了FIFO队列，该队列存放着目前阻塞的线程，每个元素都是都由一个Node构成，Node结构如下：<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">&#123;</span><br><span class="line">     volatile int waitStatus;</span><br><span class="line">     volatile Node prev;</span><br><span class="line">     volatile Node next;</span><br><span class="line">     volatile Thread thread;</span><br><span class="line">     Node nextWaiter;</span><br><span class="line"></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-</li>
-</ul>
-<table>
-<thead>
-<tr>
-<th style="text-align:left">属性</th>
-<th style="text-align:left">介绍</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td style="text-align:left">waitStatus</td>
-<td style="text-align:left">当前节点的状态:<br>CANCELLED:当前线程取消执行, 值为1，<br>SIGNAL:当该节点释放锁的时候,需要唤醒后继节点, 值为-1<br>CONDITION:当前节点在等待某种condition发生, 值为-2<br>PROPAGATE: 当前节点主要共享锁, 当节点设置为该值, 那么无条件向后传递锁释放的的信号, 值为-3<br>0: 表示初始状态</td>
-</tr>
-<tr>
-<td style="text-align:left">prev</td>
-<td style="text-align:left">当前节点的前一个节点</td>
-</tr>
-<tr>
-<td style="text-align:left">next</td>
-<td style="text-align:left">当前节点的后继节点</td>
-</tr>
-<tr>
-<td style="text-align:left">thread</td>
-<td style="text-align:left">当前节点所拥有的线程</td>
-</tr>
-<tr>
-<td style="text-align:left">nextWaiter</td>
-<td style="text-align:left">表明本线程和下游公用一个获取获取锁的信号, 该线程被唤醒后, 该线程?又顺便把下一个节点也唤醒, 比如CountDownLatch中, 上游把锁释放了, 会向后继续传递释放锁的信号。</td>
-</tr>
-</tbody>
-</table>
-<p>nextWaiter=signal与waitStatus=shared的区别是: waitStatus=signal主要体现在线程主动调用释放锁操作unlock()后, 去唤醒等待队列中第一个线程。 waitStatus=shared体现在, 若当前线程尝试获取锁被阻塞后, 被别的线程唤醒后, 当前线程把获取锁的信号向后传递, 也去主动唤醒阻塞的线程。<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/AQS6.png" height="200" width="600"><br>上图可知, 当share时, 线程在获取锁后, 首先唤醒下一个线程再继续run运行; 而signal时, 线程在获取锁后, 首先运行, 在run运行中, 通过主动调用unlock()来唤醒下一个阻塞的线程。</p>
-<p>AQS中等待锁的线程队列与运行线程结构如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/AQS.png" height="250" width="450"></p>
-<h3 id="ReentrantLock详解"><a href="#ReentrantLock详解" class="headerlink" title="ReentrantLock详解"></a>ReentrantLock详解</h3><p>ReentrantLock作为可重入的独享锁, 分为两类, 公平锁FairSync和非公平锁NonfairSync, 公平的体现在于: 当已经有线程处于等待状态时(等待队列不为空), 新来需要获取锁的线程能否可能插队先获取锁, 可以的话, 就是非公平锁; 不能立马获取到锁, 而必须排队的就是公平锁。<br>本文就以公平锁的获取与释放作为主线进行讲解。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">public static ReentrantLock lock = new ReentrantLock(true);</span><br><span class="line">lock.lock()</span><br></pre></td></tr></table></figure></p>
-<p>这样开始尝试获取锁, 实际调用的FairSync.acquire(1), 这里取值<code>1</code>的含义可以理解为尝试将state状态从0设置为1, 当status状态为0时, 说明是没有锁的。 真正调用的是AbstractQueuedSynchronizer函数的acquire:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">public final void acquire(int arg) &#123;</span><br><span class="line">    if (!tryAcquire(arg) &amp;&amp; acquireQueued(addWaiter(Node.EXCLUSIVE), arg))</span><br><span class="line">        //说明本次退出中间有线程调用过thread.interrput(), 这里将中断信号复原。</span><br><span class="line">        selfInterrupt();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
-<p>主要做了如下几个事情:</p>
-<ul>
-<li>尝试去获取锁, 若获取到了, 就直接退出。</li>
-<li>若没有获取到锁, 那么将当前线程构成一个Node, 放入线程阻塞队列, 线程进入睡眠等待。</li>
-<li>若本次没有获取到锁、从阻塞队列中被唤醒, 并且acquireQueued()返回true, 那么说明该线程被别人调用了中断, 我们需要将该中断再置位向外传递。(parkAndCheckInterrup()把中断信号清掉了)<h3 id="尝试获取锁"><a href="#尝试获取锁" class="headerlink" title="尝试获取锁"></a>尝试获取锁</h3>代码在FairSync中定义了:<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line">protected final boolean tryAcquire(int acquires) &#123;</span><br><span class="line">     final Thread current = Thread.currentThread();</span><br><span class="line">    int c = getState();//首先读取state变量</span><br><span class="line">    if (c == 0) &#123;</span><br><span class="line">         ////判断sate值是否为0,在这里0就表示初始状态</span><br><span class="line">        if (!hasQueuedPredecessors() &amp;&amp;</span><br><span class="line">            //采用CAS原子操作修改sate的值，</span><br><span class="line">            compareAndSetState(0, acquires)) &#123;</span><br><span class="line">            //如果修改成功，则将AQS的执行者设置为currentThread；这里的执行者其实就是获得执行权的线程</span><br><span class="line">            setExclusiveOwnerThread(current);</span><br><span class="line">            return true;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    //当前线程就是抢占线程，那么是可以直接进入的</span><br><span class="line">    else if (current == getExclusiveOwnerThread()) &#123;</span><br><span class="line">        //注意这里，会+acquires，可重入式的，每次都得释放，不然锁就不会释放</span><br><span class="line">        int nextc = c + acquires;</span><br><span class="line">        if (nextc &lt; 0)</span><br><span class="line">            throw new Error(&quot;Maximum lock count exceeded&quot;);</span><br><span class="line">        setState(nextc);</span><br><span class="line">        return true;</span><br><span class="line">    &#125;</span><br><span class="line">    //否则就不能获取到，获取不到锁，但是不会改变state的值</span><br><span class="line">    return false;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-</li>
-</ul>
-<p>FairSync尝试获取锁的过程比较简单: 若status为0, 那么说明锁还没有被使用, 可以获取返回true, 否则就返回false, 我们需要注意的几个地方:</p>
-<ol>
-<li>若status为0, 这里会进行hasQueuedPredecessors()判断, 只有等待队列中没有节点, 才能立刻获取到, 这里可以体现公平锁FIFO的属性, 只要有线程处于等待队里, 那么该节点就该去等待</li>
-<li>第二个条件体现了可重入锁的性质, 只要获取锁的线程就是当前线程, 那么该线程照样可以获取到, 只是将state增加了。 同时说明, 同一线程两次调用lock.lock(), 那么一定需要两次lock.unlock()进行解锁才行。</li>
-<li>若当前线程获取不到锁, 是不会对status的值产生任何改变的。</li>
-</ol>
-<h4 id="加入等待队列"><a href="#加入等待队列" class="headerlink" title="加入等待队列"></a>加入等待队列</h4><p>若没有获取到锁, 则开始将线程加入等待队列addWaiter:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">private Node addWaiter(Node mode) &#123;</span><br><span class="line">    Node node = new Node(Thread.currentThread(), mode);</span><br><span class="line">    // Try the fast path of enq; backup to full enq on failure</span><br><span class="line">    Node pred = tail;</span><br><span class="line">    //尾插法，尾部不为空</span><br><span class="line">    if (pred != null) &#123;</span><br><span class="line">        node.prev = pred;</span><br><span class="line">        if (compareAndSetTail(pred, node)) &#123;</span><br><span class="line">            pred.next = node;</span><br><span class="line">            return node;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    enq(node);</span><br><span class="line">    return node;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
-<p>首先将当前线程作为参数构造等待节点Node, 传递的mode为EXCLUSIVE, 然后进行尾插法, 若等待队列不为空, 通过compareAndSetTail()原子操作将当前节点node设置为tail节点。<br>若目前还没有等待的节点, 那么构造等待队列:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">private Node enq(final Node node) &#123;</span><br><span class="line">    for (;;) &#123;</span><br><span class="line">        Node t = tail;</span><br><span class="line">        //初始化，只要没值，先把头和尾给初始化了再继续</span><br><span class="line">        if (t == null) &#123; // Must initialize</span><br><span class="line">            //头部应该是空，这里要设置成new node()</span><br><span class="line">            if (compareAndSetHead(new Node()))</span><br><span class="line">                tail = head;</span><br><span class="line">        &#125; else &#123;</span><br><span class="line">            node.prev = t;</span><br><span class="line">            //尾部目前应该是t,然后尾部设置为node，里面尾部tail已经设置指向了node</span><br><span class="line">            if (compareAndSetTail(t, node)) &#123;</span><br><span class="line">                t.next = node;</span><br><span class="line">                return t;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
-<p>注意这里for()死循环, 直到当前节点构建出来了等待队列才会退出, 否则不停地重试(重试的原因是可能其他线程也在构造或者向等待线程插入节点, 允许操作失败), 构建完成后, 等待队列如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/AQS1.png" height="200" width="250"><br>这里需要注意的是, 最开始的的时候, 会虚构出来了一个Node()作为head节点, 可以理解代表着当前拥有锁的那个线程对应的节点。</p>
-<h4 id="设置等待队列"><a href="#设置等待队列" class="headerlink" title="设置等待队列"></a>设置等待队列</h4><p>线程加入等待队列后, 是不能够立马跑去睡眠的, 还需要检查等待队列前继节点是否符合要求, 只有当前继节点waitState为SIGNAL, 那么本节点才可以去睡觉:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line">//如果在整个等待过程中被中断过，则返回true，否则返回false。</span><br><span class="line">final boolean acquireQueued(final Node node, int arg) &#123;</span><br><span class="line">    //说明没有获取成功，退出时因为发生异常了</span><br><span class="line">    boolean failed = true;</span><br><span class="line">    try &#123;</span><br><span class="line">        boolean interrupted = false;</span><br><span class="line">        for (;;) &#123; //开始自旋</span><br><span class="line">            final Node p = node.predecessor(); //查找前继节点</span><br><span class="line">            //该节点前节点是头结点，并且获取到了锁,只要不满足这个条件，该节点将一直阻塞下去</span><br><span class="line">            if (p == head &amp;&amp; tryAcquire(arg)) &#123;</span><br><span class="line">                setHead(node); //那么设置该节点为头结点,将该线程对应的节点清空,变成无状态的头</span><br><span class="line">                p.next = null; // help GC 抛弃该节点，等待被回收</span><br><span class="line">                failed = false;</span><br><span class="line">                return interrupted;</span><br><span class="line">            &#125; //说明没有获取到锁，是否需要睡眠等待</span><br><span class="line">            if (shouldParkAfterFailedAcquire(p, node) &amp;&amp;</span><br><span class="line">               //等待又唤醒，可能是别人调用了LockSupport.unlock()，也有可能别人调用了thread.interrupt()唤醒的</span><br><span class="line">               parkAndCheckInterrupt())</span><br><span class="line">                //如果因为是被别人用thread.interrupt()唤醒的话，并不会退出并继续等待</span><br><span class="line">                interrupted = true;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125; finally &#123;</span><br><span class="line">        if (failed)  //这里基本是执行不到的，除非遇到非运行时异常</span><br><span class="line">            cancelAcquire(node);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
-<p>注意该函数中p.next = null操作, 此时p已经从等待队列链中完全脱离了, 该节点就可以等待gc回收了。 该线程开始<code>自旋</code>, 主要做了如下检查:</p>
-<ul>
-<li>检查前继节点是否是head, 尝试获取锁(此时statue为0) ,若能够获取到锁, 说明头结点已经对应的那个线程已经释放了锁, 本节点又是作为等待队列排在最前面那个节点(head节点指向了释放锁那个线程), 直接获取锁。</li>
-<li>否则说明没有获取到锁, 那么检查该线程是否可以睡眠:<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br></pre></td><td class="code"><pre><span class="line">private static boolean shouldParkAfterFailedAcquire(Node pred, Node node) &#123;</span><br><span class="line">    int ws = pred.waitStatus;//头结点，waitState默认为0</span><br><span class="line">    //前驱节点为消息通知模式，当释放锁或者取消时，会通知下个节点</span><br><span class="line">    if (ws == Node.SIGNAL)</span><br><span class="line">        /*</span><br><span class="line">         * This node has already set status asking a release</span><br><span class="line">         * to signal it, so it can safely park.</span><br><span class="line">         */</span><br><span class="line">        return true; //那么本节点可以放心睡眠</span><br><span class="line">    //前节点被取消了，自己加塞到前面，前继节点被无引用了，过会就会被丢弃</span><br><span class="line">    if (ws &gt; 0) &#123;</span><br><span class="line">        /*</span><br><span class="line">         * Predecessor was cancelled. Skip over predecessors and</span><br><span class="line">         * indicate retry.</span><br><span class="line">         */</span><br><span class="line">        do &#123;</span><br><span class="line">            node.prev = pred = pred.prev; //改变链路</span><br><span class="line">        &#125; while (pred.waitStatus &gt; 0);</span><br><span class="line">        pred.next = node;</span><br><span class="line">    &#125; else &#123;</span><br><span class="line">        /*</span><br><span class="line">         * waitStatus must be 0 or PROPAGATE.  Indicate that we</span><br><span class="line">         * need a signal, but don&apos;t park yet.  Caller will need to</span><br><span class="line">         * retry to make sure it cannot acquire before parking.</span><br><span class="line">         */ //</span><br><span class="line">         //若是非cancel和非signal(比如任何节点加入时， statue都是0，等待后继节点改变)，将前节点设置为通知信号，等待被通知</span><br><span class="line">        compareAndSetWaitStatus(pred, ws, Node.SIGNAL);</span><br><span class="line">    &#125;</span><br><span class="line">    return false;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-</li>
-</ul>
-<p>这里主要检查前继节点的waitStatus字段, 最前面介绍node时对取值也有详细的介绍:</p>
-<ol>
-<li>当前继节点为SIGNAL, 那么说明本节点可以放心去睡眠了, 因为前继节点的线程释放锁的时候, 会通过LockSupport.unlock()唤醒。</li>
-<li>若前继节点为cancel状态, 那么向前找, 直到找到一个不为cancel的节点, 并将为cancel的节点从整个等待队列中去掉, 以便gc回收。</li>
-<li>若找到一个非signal、非cancel的前继节点, 将该前继续节点状态置为signal, 以便前继节点唤醒后继节点。<br>在释放节点时(release()), 只要当前状态不为0, 就会唤醒后继节点。此时等待队列如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/AQS2.png" height="200" width="250"></li>
-</ol>
-<p>有个问题: 这里为啥在else那里不直接可以去睡眠呢?<br>假如前继节点释放锁的时候，此时发现自己不为SIGNAL，那么就不唤醒后继节点， 此时后继节点将自己设置为了SIGNAL， 那么此时设置也是无用的，形成了死等待。 所以自己在睡眠之前，再去检查下前继节点是否已经释放了锁，若释放了锁，就直接执行，没有释放锁，才能安慰睡觉。</p>
-<ul>
-<li>若可以睡眠了, 那么线程就通过LockSupport.park(this)进入睡眠。<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">private final boolean parkAndCheckInterrupt() &#123;</span><br><span class="line">    //能否响应中断请求, 从等待中退出，但是不会抛出异常</span><br><span class="line">    LockSupport.park(this);</span><br><span class="line">    //检测当前线程是否有中断，若有中断, 那么清空中断,把信号向外传递</span><br><span class="line">    return Thread.interrupted();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-</li>
-</ul>
-<p>这里我们需要知道, 该线程从睡眠中被唤醒, 有可能是通过LockSupport.unpark(this)、也有可能是通过thread.interrupt()方式唤醒的, 第一种唤醒是有意义的, 对于第二种唤醒并没有意义,我们在acquireQueued中自旋时会忽略这种情况。<br>至此, 获取锁的过程已经全部完成, 整体过程如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/AQS4.png" height="260" width="800"><br>要么获取到锁, 那么线程进入等待队列安心睡眠。</p>
-<h3 id="释放锁"><a href="#释放锁" class="headerlink" title="释放锁"></a>释放锁</h3><p>释放锁只需要调用sync.release(1)就行了, 实际调用的AbstractQueuedSynchronizer里面的函数:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">public final boolean release(int arg) &#123;</span><br><span class="line">    if (tryRelease(arg)) &#123;</span><br><span class="line">        Node h = head;</span><br><span class="line">        //当前节点为signal状态，需要唤醒后继节点</span><br><span class="line">        if (h != null &amp;&amp; h.waitStatus != 0)</span><br><span class="line">            unparkSuccessor(h);</span><br><span class="line">        return true;</span><br><span class="line">    &#125;</span><br><span class="line">    return false;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
-<p>主要做了两个事情:</p>
-<ul>
-<li>尝试将状态复位, 比如status置为0, 排他线程置为null.<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">protected final boolean tryRelease(int releases) &#123;</span><br><span class="line">    int c = getState() - releases;</span><br><span class="line">    if (Thread.currentThread() != getExclusiveOwnerThread())</span><br><span class="line">        throw new IllegalMonitorStateException();</span><br><span class="line">    boolean free = false;</span><br><span class="line">    if (c == 0) &#123; //释放的时候，把status给清0了</span><br><span class="line">        free = true;</span><br><span class="line">        setExclusiveOwnerThread(null);</span><br><span class="line">    &#125;</span><br><span class="line">    setState(c);</span><br><span class="line">    return free;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-</li>
-</ul>
-<p>这里实现有个需要注意的地方, ReentrantLock释放了, c为啥不为0, 因为ReentrantLock支持锁的可重入, 允许同一个线程两次获取锁。</p>
-<ul>
-<li>若等待队列有节点, 并且当前节点不为0(初始化), 那么就会去尝试唤醒后继一个有效的节点:<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line">  private void unparkSuccessor(Node node) &#123;</span><br><span class="line">    /*</span><br><span class="line">     * If status is negative (i.e., possibly needing signal) try</span><br><span class="line">     * to clear in anticipation of signalling.  It is OK if this</span><br><span class="line">     * fails or if status is changed by waiting thread.</span><br><span class="line">     */</span><br><span class="line">    int ws = node.waitStatus;</span><br><span class="line">    //置零当前线程所在的结点状态，允许失败。</span><br><span class="line">    if (ws &lt; 0)</span><br><span class="line">        compareAndSetWaitStatus(node, ws, 0);</span><br><span class="line">    /*</span><br><span class="line">     * Thread to unpark is held in successor, which is normally</span><br><span class="line">     * just the next node.  But if cancelled or apparently null,</span><br><span class="line">     * traverse backwards from tail to find the actual</span><br><span class="line">     * non-cancelled successor.</span><br><span class="line">     */</span><br><span class="line">    Node s = node.next;</span><br><span class="line">    //节点被取消了，cancel 才大于1</span><br><span class="line">    if (s == null || s.waitStatus &gt; 0) &#123;</span><br><span class="line">        s = null;</span><br><span class="line">        for (Node t = tail; t != null &amp;&amp; t != node; t = t.prev)</span><br><span class="line">            //从后向前找，找到最近一个有效的节点</span><br><span class="line">            if (t.waitStatus &lt;= 0)</span><br><span class="line">                s = t;</span><br><span class="line">    &#125;</span><br><span class="line">    if (s != null) //反正叫醒后继节点</span><br><span class="line">        LockSupport.unpark(s.thread);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-</li>
-</ul>
-<p>唤醒后继节点也是比较简单的:</p>
-<ol>
-<li>首先将本节点waitStatus置为0(初始值)</li>
-<li>如果后继节点被取消了(waitStatus&gt;0), 那么在后继节点中找到一个最靠近的、非cancel状态的节点, 然后唤醒这个节点上的线程。 这里不用将cancel状态的节点从队列中去掉, 在节点尝试获取锁的时候会自动干这个事。<br>释放锁过程如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/AQS5.png" height="200" width="450"><br>注意, 对阻塞队列的结构的修改都是被唤醒线程进行的, 释放锁的线程没有做这些操作<h3 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h3>线程在获取锁的时候, 主要根据ReentrantLock里面的状态status来识别是否可以获取锁, 若为0, 那么锁未被获取; 若为1, 说明锁被一个线程获取; 若大于1, 说明发生了线程重入。 若没有获取到, 则将自己加入等待队列, 然后睡眠。 线程在释放锁时, 也会唤醒等待队列排在前面的线程。</li>
-</ol>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color4">ReentrantLock</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/elasticsearch_learning/categories/Netty//" class="article-tag-list-link color1">Netty</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/elasticsearch_learning/2017/07/23/ReentrantLock源码解读/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
-    <article id="post-JAVA-JNI实现hello-world" class="article article-type-post  article-index" itemscope itemprop="blogPost">
-  <div class="article-inner">
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/elasticsearch_learning/2017/06/15/JAVA-JNI实现hello-world/">JAVA JNI实现hello world</a>
-    </h1>
-  
-
-        
-        
-        <a href="/elasticsearch_learning/2017/06/15/JAVA-JNI实现hello-world/" class="archive-article-date">
-  	<time datetime="2017-06-15T10:15:08.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-06-15</time>
-</a>
-        
-      </header>
-    
-
-    <!-- 目录内容 -->
-    
-    <!-- 目录内容结束 -->
-
-    <div class="article-entry" itemprop="articleBody">
-      
-        <p>jvm作为扩平台执行的环境, 屏蔽了代码与底层操作系统打交道, 这样代码就可以在不同平台下无缝迁移。但是也有一个坏处, java不能访问底层硬件资源并且执行速度相对c/c++很慢, 要是可以在java代码中调用c/c++语言, 那就可以弥补这方面的不足。 JNI(java native interface)就是来作为沟通桥梁的。 当函数被定义为native, 就说明本函数不是用java语言编写的。 本文展示java 如何使用native来调用c++代码的。</p>
-<h1 id="使用"><a href="#使用" class="headerlink" title="使用"></a>使用</h1><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">public class Native1&#123;</span><br><span class="line">    public int a = 0;</span><br><span class="line">    public native void satA();</span><br><span class="line"></span><br><span class="line">    public static void main(String[] args) &#123;</span><br><span class="line">        System.loadLibrary(&quot;hellworld&quot;);</span><br><span class="line">        Native1 Native1 = new Native1()</span><br><span class="line">        Native1.satA();</span><br><span class="line">        System.out.println(&quot;a:&quot; + a);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p>我们定义了sayHello函数为native属性的。这里System.loadLibrary(“hellworld”)必不可少, 否则会报如下异常<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">Exception in thread &quot;main&quot; java.lang.UnsatisfiedLinkError: Native1.sayA()V</span><br><span class="line">        at Native1.saya(Native Method)</span><br><span class="line">        at Native1.main(Native1.java:6)</span><br></pre></td></tr></table></figure></p>
-<p>之后再讲解这行代码, 主要步骤如下:</p>
-<ol>
-<li>首先执行javac Native1.java, 这样获得了Native1.class文件</li>
-<li>执行javah Native1, 获得Native1.h。 javah用于输出对应c语言头文件, 生成代码如下<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line">/* DO NOT EDIT THIS FILE - it is machine generated */</span><br><span class="line">#include &lt;jni.h&gt;</span><br><span class="line">/* Header for class Natives1 */</span><br><span class="line"></span><br><span class="line">#ifndef _Included_Natives1</span><br><span class="line">#define _Included_Natives1</span><br><span class="line">#ifdef __cplusplus</span><br><span class="line">extern &quot;C&quot; &#123;</span><br><span class="line">#endif</span><br><span class="line">/*</span><br><span class="line"> * Class:     Natives1</span><br><span class="line"> * Method:    setA</span><br><span class="line"> * Signature: ()V</span><br><span class="line"> */</span><br><span class="line">JNIEXPORT void JNICALL Java_Natives1_setA</span><br><span class="line">  (JNIEnv *, jobject);</span><br><span class="line"></span><br><span class="line">#ifdef __cplusplus</span><br><span class="line">&#125;</span><br><span class="line">#endif</span><br><span class="line">#endif</span><br></pre></td></tr></table></figure>
-</li>
-</ol>
-<p>java的native方法转变为c++函数的规则如下：Java_{package_and<em>classname}</em>{function_name}(JNI arguments)。包名中的点换成单下划线。需要说明的是生成函数中的两个参数：<br>++ JNIEnv *：这是一个指向JNI运行环境的指针，后面我们会看到，我们通过这个指针访问JNI函数<br>++ jobject：这里指代java中的this对象。 如果定义为static函数,这里类型将是jclass<br>我们需要在myNative.c(.cpp文件也是支持的, 此文件名称不需要与java类名一致, 只需要动态链接库名与调用的库名有对应关系即可)里面实现Java_Natives1_setA函数:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">#include &quot;/Users/xiaoyu/Workspace_10.28/es2.3/es2.3/src/main/java/Native1.h&quot;</span><br><span class="line">#include &lt;stdio.h&gt;</span><br><span class="line">JNIEXPORT void JNICALL Java_Native1_sayHello(JNIEnv *env, jobject thisObj)</span><br><span class="line">&#123;</span><br><span class="line">    // 获取thisObj对象的类</span><br><span class="line">    jclass clazz = env -&gt; GetObjectClass(thisObj);</span><br><span class="line">    // 获取该类中字段a的签名</span><br><span class="line">    jfieldID id_number = env -&gt; GetFieldID(clazz, &quot;a&quot;, &quot;I&quot;);</span><br><span class="line">    // 获取该字段的值</span><br><span class="line">    jint number = env -&gt; GetIntField(thisObj, id_number);</span><br><span class="line">    printf(&quot;%d&quot;, number);</span><br><span class="line">    // 修改该该字段的值</span><br><span class="line">    env -&gt; SetIntField(thisObj, id_number, 1000);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
-<p>头文件指明了Native1.h。这里主要定义了Java_Natives1_setA函数。</p>
-<ol>
-<li>生成动态链接库libhelloworld.jnilib<br><code>gcc -I/Library/Java/JavaVirtualMachines/jdk1.8.0_74.jdk/Contents/Home/include/darwin -I/Library/Java/JavaVirtualMachines/jdk1.8.0_74.jdk/Contents/Home/include -dynamiclib /Users/xiaoyu/TEST/c++/Native1.c -o libhelloworld.jnilib</code><br>这样的话, 会生成一个动态链接库文件:libhelloworld.jnilib 注意这里的名称不是随便起的。在mac系统上, 库名必须libXXX.jnilib这种结构, 我们在代码中加上这句:System.loadLibrary(“hellworld”); 系统才能正常识别。</li>
-<li>执行java -Djava.library.path=$path{libhelloworld.jnilib} Native1, 获得如下结果(这里需要声明动态文件库位置)。<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">a:1000</span><br><span class="line">0%</span><br></pre></td></tr></table></figure>
-</li>
-</ol>
-<h1 id="参考"><a href="#参考" class="headerlink" title="参考"></a>参考</h1><p><a href="https://www.chilkatsoft.com/java-loadLibrary-MacOSX.asp" target="_blank" rel="noopener">https://www.chilkatsoft.com/java-loadLibrary-MacOSX.asp</a><br><a href="https://blog.csdn.net/createchance/article/details/53783490" target="_blank" rel="noopener">https://blog.csdn.net/createchance/article/details/53783490</a><br><a href="https://blog.csdn.net/abc5382334/article/details/18052757" target="_blank" rel="noopener">https://blog.csdn.net/abc5382334/article/details/18052757</a></p>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/elasticsearch_learning/categories/Java-NIO及网络通信//" class="article-tag-list-link color4">Java NIO及网络通信</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/elasticsearch_learning/2017/06/15/JAVA-JNI实现hello-world/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
   
     <nav id="page-nav">
       <a class="extend prev" rel="prev" href="/elasticsearch_learning/page/3/">&laquo; Prev</a><a class="page-number" href="/elasticsearch_learning/">1</a><a class="page-number" href="/elasticsearch_learning/page/2/">2</a><a class="page-number" href="/elasticsearch_learning/page/3/">3</a><span class="page-number current">4</span><a class="page-number" href="/elasticsearch_learning/page/5/">5</a><a class="extend next" rel="next" href="/elasticsearch_learning/page/5/">Next &raquo;</a>
@@ -1486,7 +1423,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">Lucene、StoredField</a>
+                <a href="javascript:void(0)" class="js-tag color2">NIO, write, read</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1494,11 +1431,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">NIO, write, read</a>
+                <a href="javascript:void(0)" class="js-tag color4">Lucene、StoredField</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">Lucene、DocValue</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1507,10 +1448,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">Cycler</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
               </li>
              
               <li class="article-tag-list-item">
