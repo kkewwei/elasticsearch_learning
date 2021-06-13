@@ -18,7 +18,7 @@
 <meta property="og:description" content="ES中在refresh、flush过程中, 都有可能触发段合并, 段合并是将小的段合并成大的段, merge过程有两个好处:  加快查询速度 减少内存空间的占用本文主要从ES7.3层面讲解是如何进行小的段文件合并成大的段文件的, 至于lucene层面的段合并, 之后也会整理一篇文档出来。  merge触发条件Merge首先会进入到IndexWriter的如下代码:12345final void m">
 <meta property="og:locale" content="default">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/es_merge1.png">
-<meta property="og:updated_time" content="2021-06-13T08:35:25.138Z">
+<meta property="og:updated_time" content="2021-06-13T08:52:53.033Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="ES7.9.1段合并原理详解">
 <meta name="twitter:description" content="ES中在refresh、flush过程中, 都有可能触发段合并, 段合并是将小的段合并成大的段, merge过程有两个好处:  加快查询速度 减少内存空间的占用本文主要从ES7.3层面讲解是如何进行小的段文件合并成大的段文件的, 至于lucene层面的段合并, 之后也会整理一篇文档出来。  merge触发条件Merge首先会进入到IndexWriter的如下代码:12345final void m">
@@ -46,57 +46,39 @@
   <div id="container" q-class="show:isCtnShow">
     <canvas id="anm-canvas" class="anm-canvas"></canvas>
     <div class="left-col" q-class="show:isShow">
-      
-<div class="overlay" style="background: #4d4d4d"></div>
+      <% var defaultBg = '#4d4d4d'; %>
+<div class="overlay" style="background: <%= theme.style && theme.style.header ? theme.style.header : defaultBg %>"></div>
 <div class="intrude-less">
 	<header id="header" class="inner">
-		<a href="/" class="profilepic">
-      <img src="https://kkewwei.github.io/elasticsearch_learning/img/myself.png" class="js-avatar">
+		<a href="<%=theme.root%>" class="profilepic">
+			<img src="<%=theme.avatar%>" class="js-avatar">
 		</a>
 		<hgroup>
-		  <h1 class="header-author"><a href="/">jianguo</a></h1>
+		  <h1 class="header-author"><a href="<%=theme.root%>"><%=theme.author%></a></h1>
 		</hgroup>
-		
-		<p class="header-subtitle">往事随风</p>
-		
+		<% if (theme.subtitle){ %>
+		<p class="header-subtitle"><%=theme.subtitle%></p>
+		<%}%>
 
 		<nav class="header-menu">
 			<ul>
-			
-				<li><a href="/elasticsearch_learning/">主页</a></li>
-	        
-				<li><a href="/elasticsearch_learning/tags/随笔/">随笔</a></li>
-	        
-				<li><a href="/elasticsearch_learning/categories">分类</a></li>
-	        
+			<% for (var i in theme.menu){ %>
+				<li><a href="<%- url_for(theme.menu[i]) %>"><%= i %></a></li>
+	        <%}%>
 			</ul>
 		</nav>
 		<nav class="header-smart-menu">
-    		
-    			
-    			<a q-on="click: openSlider(e, 'innerArchive')" href="javascript:void(0)">所有文章</a>
-    			
-            
-    			
-    			<a q-on="click: openSlider(e, 'friends')" href="javascript:void(0)">友链</a>
-    			
-            
-    			
-    			<a q-on="click: openSlider(e, 'aboutme')" href="javascript:void(0)">关于我</a>
-    			
-            
+    		<% for (var i in theme.smart_menu){ %>
+    			<% if(theme.smart_menu[i]){ %>
+    			<a q-on="click: openSlider(e, '<%-i%>')" href="javascript:void(0)"><%= theme.smart_menu[i] %></a>
+    			<% } %>
+            <%}%>
 		</nav>
 		<nav class="header-nav">
 			<div class="social">
-				
-					<a class="github" target="_blank" href="#" title="github"><i class="icon-github"></i></a>
-		        
-					<a class="weibo" target="_blank" href="#" title="weibo"><i class="icon-weibo"></i></a>
-		        
-					<a class="rss" target="_blank" href="#" title="rss"><i class="icon-rss"></i></a>
-		        
-					<a class="zhihu" target="_blank" href="#" title="zhihu"><i class="icon-zhihu"></i></a>
-		        
+				<% for (var i in theme.subnav){ %>
+					<a class="<%= i %>" target="_blank" href="<%- url_for(theme.subnav[i]) %>" title="<%= i %>"><i class="icon-<%= i %>"></i></a>
+		        <%}%>
 			</div>
 		</nav>
 	</header>
@@ -306,12 +288,13 @@
 </ul>
 <p>有两个参数比较重要, 需要注意下: maxMergeCount和maxThreadCount:</p>
 <ol>
-<li>maxMergeCount主要是从写入的方面限制的, 应用在merge线程真正进行merge前, 检查当前正在合并的线程个数是否超过该阈值, 若超过了的话, 该shard上所有写入都将被禁止。</li>
+<li>maxMergeCount主要是从ES写入的方面限制的, 应用在merge线程真正进行merge前, 检查当前正在合并的线程个数是否超过该阈值, 若超过了的话, 该shard上所有写入都将被禁止。</li>
 <li>maxThreadCount主要是从限制merge合并速度的方向限制的, 用在两个地方:</li>
 </ol>
 <ul>
 <li>确定当前正在进行的merge是否超过该阈值, 超过后, 就认为当前已存在的merge合并速度慢了(若没超过,且正在合并的merge没有相同level的mege, 就会降10%合并速度)</li>
 <li>在更新全局合并速度时, 若大于50MB的合并线程数大于该阈值, 超过的merge都会被直接暂停合并。</li>
+<li>若合并线程的merge小于50M，将不受限速的影响。</li>
 </ul>
 <h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>本文着重从merge调度层面讲解的, 比如如何选择segment, 如何动态调整merge速度的。至于lucene层面的合并, 将在之后的文档中详细介绍。从分析角度看, merge还是有些问题的, 比如只考虑单个shard的合并速度, 却没有在node层面进行限速。</p>
 
@@ -634,19 +617,19 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">随笔</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">gdb</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">maven, 插件, 打包</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">随笔</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">gdb</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -666,19 +649,19 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">ReentrantLock</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">Cycler</a>
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">netty4, ServerBootstrap, Initiale</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">ReentrantLock</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -706,11 +689,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">Lucene、词典、tim、tip、doc、pos、fst、倒排索引</a>
+                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
+                <a href="javascript:void(0)" class="js-tag color5">Lucene、词典、tim、tip、doc、pos、fst、倒排索引</a>
               </li>
             
             <div class="clearfix"></div>
