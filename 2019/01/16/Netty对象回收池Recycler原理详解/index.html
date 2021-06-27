@@ -47,39 +47,57 @@
   <div id="container" q-class="show:isCtnShow">
     <canvas id="anm-canvas" class="anm-canvas"></canvas>
     <div class="left-col" q-class="show:isShow">
-      <% var defaultBg = '#4d4d4d'; %>
-<div class="overlay" style="background: <%= theme.style && theme.style.header ? theme.style.header : defaultBg %>"></div>
+      
+<div class="overlay" style="background: #4d4d4d"></div>
 <div class="intrude-less">
 	<header id="header" class="inner">
-		<a href="<%=theme.root%>" class="profilepic">
-			<img src="<%=theme.avatar%>" class="js-avatar">
+		<a href="/" class="profilepic">
+      <img src="https://kkewwei.github.io/elasticsearch_learning/img/myself.png" class="js-avatar">
 		</a>
 		<hgroup>
-		  <h1 class="header-author"><a href="<%=theme.root%>"><%=theme.author%></a></h1>
+		  <h1 class="header-author"><a href="/">jianguo</a></h1>
 		</hgroup>
-		<% if (theme.subtitle){ %>
-		<p class="header-subtitle"><%=theme.subtitle%></p>
-		<%}%>
+		
+		<p class="header-subtitle">往事随风</p>
+		
 
 		<nav class="header-menu">
 			<ul>
-			<% for (var i in theme.menu){ %>
-				<li><a href="<%- url_for(theme.menu[i]) %>"><%= i %></a></li>
-	        <%}%>
+			
+				<li><a href="/elasticsearch_learning/">主页</a></li>
+	        
+				<li><a href="/elasticsearch_learning/tags/随笔/">随笔</a></li>
+	        
+				<li><a href="/elasticsearch_learning/categories">分类</a></li>
+	        
 			</ul>
 		</nav>
 		<nav class="header-smart-menu">
-    		<% for (var i in theme.smart_menu){ %>
-    			<% if(theme.smart_menu[i]){ %>
-    			<a q-on="click: openSlider(e, '<%-i%>')" href="javascript:void(0)"><%= theme.smart_menu[i] %></a>
-    			<% } %>
-            <%}%>
+    		
+    			
+    			<a q-on="click: openSlider(e, 'innerArchive')" href="javascript:void(0)">所有文章</a>
+    			
+            
+    			
+    			<a q-on="click: openSlider(e, 'friends')" href="javascript:void(0)">友链</a>
+    			
+            
+    			
+    			<a q-on="click: openSlider(e, 'aboutme')" href="javascript:void(0)">关于我</a>
+    			
+            
 		</nav>
 		<nav class="header-nav">
 			<div class="social">
-				<% for (var i in theme.subnav){ %>
-					<a class="<%= i %>" target="_blank" href="<%- url_for(theme.subnav[i]) %>" title="<%= i %>"><i class="icon-<%= i %>"></i></a>
-		        <%}%>
+				
+					<a class="github" target="_blank" href="#" title="github"><i class="icon-github"></i></a>
+		        
+					<a class="weibo" target="_blank" href="#" title="weibo"><i class="icon-weibo"></i></a>
+		        
+					<a class="rss" target="_blank" href="#" title="rss"><i class="icon-rss"></i></a>
+		        
+					<a class="zhihu" target="_blank" href="#" title="zhihu"><i class="icon-zhihu"></i></a>
+		        
 			</div>
 		</nav>
 	</header>
@@ -551,11 +569,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
           <ul class="article-tag-list" q-show="showTags">
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">Linux, close</a>
+                <a href="javascript:void(0)" class="js-tag color1">Lucene、ByteBlockPool</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">Lucene、ByteBlockPool</a>
+                <a href="javascript:void(0)" class="js-tag color3">Linux, close</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -591,15 +609,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">Cycler</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">ReentrantLock</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">Cycler</a>
               </li>
              
               <li class="article-tag-list-item">
