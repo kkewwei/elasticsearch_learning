@@ -17,7 +17,7 @@
 <meta property="og:description" content="在ES段合并逻辑分析我们详细介绍了如何进行查找一个合并的段，本文主要讲解合并线程的Merge内如何进行StoredFields合并的。StoredFields合并过程其实新的StoredFields构建过程，构建过程可参考Lucene8.2.0底层架构-fdt/fdx构建过程，本文以Lucene8.6.2结构为基础，StoredFields底层索引结构相对Lucene8.2.0有较小改变，为了便于">
 <meta property="og:locale" content="default">
 <meta property="og:image" content="https://kkewwei.github.io/elasticsearch_learning/img/lucene7.8.2_segment_fdt1.png">
-<meta property="og:updated_time" content="2021-06-27T15:30:08.472Z">
+<meta property="og:updated_time" content="2021-06-27T15:33:59.130Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Lucene8.6.2底层架构-Segment StoredFields合并原理详解">
 <meta name="twitter:description" content="在ES段合并逻辑分析我们详细介绍了如何进行查找一个合并的段，本文主要讲解合并线程的Merge内如何进行StoredFields合并的。StoredFields合并过程其实新的StoredFields构建过程，构建过程可参考Lucene8.2.0底层架构-fdt/fdx构建过程，本文以Lucene8.6.2结构为基础，StoredFields底层索引结构相对Lucene8.2.0有较小改变，为了便于">
@@ -45,57 +45,39 @@
   <div id="container" q-class="show:isCtnShow">
     <canvas id="anm-canvas" class="anm-canvas"></canvas>
     <div class="left-col" q-class="show:isShow">
-      
-<div class="overlay" style="background: #4d4d4d"></div>
+      <% var defaultBg = '#4d4d4d'; %>
+<div class="overlay" style="background: <%= theme.style && theme.style.header ? theme.style.header : defaultBg %>"></div>
 <div class="intrude-less">
 	<header id="header" class="inner">
-		<a href="/" class="profilepic">
-      <img src="https://kkewwei.github.io/elasticsearch_learning/img/myself.png" class="js-avatar">
+		<a href="<%=theme.root%>" class="profilepic">
+			<img src="<%=theme.avatar%>" class="js-avatar">
 		</a>
 		<hgroup>
-		  <h1 class="header-author"><a href="/">jianguo</a></h1>
+		  <h1 class="header-author"><a href="<%=theme.root%>"><%=theme.author%></a></h1>
 		</hgroup>
-		
-		<p class="header-subtitle">往事随风</p>
-		
+		<% if (theme.subtitle){ %>
+		<p class="header-subtitle"><%=theme.subtitle%></p>
+		<%}%>
 
 		<nav class="header-menu">
 			<ul>
-			
-				<li><a href="/elasticsearch_learning/">主页</a></li>
-	        
-				<li><a href="/elasticsearch_learning/tags/随笔/">随笔</a></li>
-	        
-				<li><a href="/elasticsearch_learning/categories">分类</a></li>
-	        
+			<% for (var i in theme.menu){ %>
+				<li><a href="<%- url_for(theme.menu[i]) %>"><%= i %></a></li>
+	        <%}%>
 			</ul>
 		</nav>
 		<nav class="header-smart-menu">
-    		
-    			
-    			<a q-on="click: openSlider(e, 'innerArchive')" href="javascript:void(0)">所有文章</a>
-    			
-            
-    			
-    			<a q-on="click: openSlider(e, 'friends')" href="javascript:void(0)">友链</a>
-    			
-            
-    			
-    			<a q-on="click: openSlider(e, 'aboutme')" href="javascript:void(0)">关于我</a>
-    			
-            
+    		<% for (var i in theme.smart_menu){ %>
+    			<% if(theme.smart_menu[i]){ %>
+    			<a q-on="click: openSlider(e, '<%-i%>')" href="javascript:void(0)"><%= theme.smart_menu[i] %></a>
+    			<% } %>
+            <%}%>
 		</nav>
 		<nav class="header-nav">
 			<div class="social">
-				
-					<a class="github" target="_blank" href="#" title="github"><i class="icon-github"></i></a>
-		        
-					<a class="weibo" target="_blank" href="#" title="weibo"><i class="icon-weibo"></i></a>
-		        
-					<a class="rss" target="_blank" href="#" title="rss"><i class="icon-rss"></i></a>
-		        
-					<a class="zhihu" target="_blank" href="#" title="zhihu"><i class="icon-zhihu"></i></a>
-		        
+				<% for (var i in theme.subnav){ %>
+					<a class="<%= i %>" target="_blank" href="<%- url_for(theme.subnav[i]) %>" title="<%= i %>"><i class="icon-<%= i %>"></i></a>
+		        <%}%>
 			</div>
 		</nav>
 	</header>
@@ -232,9 +214,9 @@
 <p>2.若我们想估算第i个元素(一个元素就是一个chunk的个数)的取值范围：<br>第i个元素=mins[block] + (long) (avgs[block] <em> blockIndex) + delta,那么下列等式将成立：<br>lowerBound = mins[block] + (long) (avgs[block] </em> blockIndex)<br>upperBound = lowerBound + maxDelta = lowerBound + (1 &lt;&lt; bitsRequired -1)<br>这个也就是<code>DirectMonotonicReader.getBounds(mid)</code>的定义:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"> // index=第i个chunk</span><br><span class="line">private long[] getBounds(long index) &#123;</span><br><span class="line">  // 这个chunk在第几个block上上</span><br><span class="line">  final int block = Math.toIntExact(index &gt;&gt;&gt; blockShift); </span><br><span class="line">  // 落到某个block内的chunk数</span><br><span class="line">  final long blockIndex = index &amp; ((1 &lt;&lt; blockShift) - 1); </span><br><span class="line">  // 这个chunk的下限</span><br><span class="line">  final long lowerBound = mins[block] + (long) (avgs[block] * blockIndex);</span><br><span class="line">  // 这个chunk的上限 </span><br><span class="line">  final long upperBound = lowerBound + (1L &lt;&lt; bpvs[block]) - 1;</span><br><span class="line">  if (bpvs[block] == 64 || upperBound &lt; lowerBound) &#123;</span><br><span class="line">    return new long[] &#123; Long.MIN_VALUE, Long.MAX_VALUE &#125;;</span><br><span class="line">  &#125; else &#123;</span><br><span class="line">    return new long[] &#123; lowerBound, upperBound &#125;;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
 <h3 id="从fdt中循环读取每个chunk"><a href="#从fdt中循环读取每个chunk" class="headerlink" title="从fdt中循环读取每个chunk"></a>从fdt中循环读取每个chunk</h3><p>当前已知chunkId编号，则直接从fdm中该chunk的filePointer部分，根据前面提到的<code>DirectMonotonicReader.get()</code>取出该doc所在chunk在fdt中的存储位置。然后进入BlockState.reset(int docID)加载具体的chunk内容：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br></pre></td><td class="code"><pre><span class="line">void reset(int docID) throws IOException &#123;</span><br><span class="line">  boolean success = false;</span><br><span class="line">  try &#123;</span><br><span class="line">  //读取这个docID所在chunk的所有原始数据</span><br><span class="line">    doReset(docID); </span><br><span class="line">    success = true;</span><br><span class="line">  &#125; finally &#123;</span><br><span class="line">    if (success == false) &#123;</span><br><span class="line">      // if the read failed, set chunkDocs to 0 so that it does not</span><br><span class="line">      // contain any docs anymore and is not reused. This should help</span><br><span class="line">      // get consistent exceptions when trying to get several</span><br><span class="line">      // documents which are in the same corrupted block since it will</span><br><span class="line">      // force the header to be decoded again</span><br><span class="line">      chunkDocs = 0;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br><span class="line">private void doReset(int docID) throws IOException &#123;</span><br><span class="line">  // 获取这个docID所在的chnk在fdt中的起始位置</span><br><span class="line">  docBase = fieldsStream.readVInt(); </span><br><span class="line">  final int token = fieldsStream.readVInt();</span><br><span class="line">  chunkDocs = token &gt;&gt;&gt; 1;</span><br><span class="line">   // 是否压缩了</span><br><span class="line">  sliced = (token &amp; 1) != 0;</span><br><span class="line">  offsets = ArrayUtil.grow(offsets, chunkDocs + 1);</span><br><span class="line">  numStoredFields = ArrayUtil.grow(numStoredFields, chunkDocs);</span><br><span class="line">  if (chunkDocs == 1) &#123;</span><br><span class="line">    numStoredFields[0] = fieldsStream.readVInt();</span><br><span class="line">    offsets[1] = fieldsStream.readVInt();</span><br><span class="line">  &#125; else &#123;</span><br><span class="line">    // Number of stored fields per document</span><br><span class="line">    final int bitsPerStoredFields = fieldsStream.readVInt();</span><br><span class="line">    // 首先读取numDoc个numStoredFields</span><br><span class="line">    if (bitsPerStoredFields == 0) &#123; </span><br><span class="line">      Arrays.fill(numStoredFields, 0, chunkDocs, fieldsStream.readVInt());</span><br><span class="line">    &#125; else &#123;</span><br><span class="line">      final PackedInts.ReaderIterator it = PackedInts.getReaderIteratorNoHeader(fieldsStream, PackedInts.Format.PACKED, packedIntsVersion, chunkDocs, bitsPerStoredFields, 1);</span><br><span class="line">      for (int i = 0; i &lt; chunkDocs; ++i) &#123;</span><br><span class="line">        numStoredFields[i] = (int) it.next();</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    // The stream encodes the length of each document and we decode</span><br><span class="line">    // it into a list of monotonically increasing offsets  其次读取numDoc个docLength</span><br><span class="line">    final int bitsPerLength = fieldsStream.readVInt();</span><br><span class="line">    // 长度一致</span><br><span class="line">    if (bitsPerLength == 0) &#123; </span><br><span class="line">      final int length = fieldsStream.readVInt();</span><br><span class="line">      for (int i = 0; i &lt; chunkDocs; ++i) &#123;</span><br><span class="line">        offsets[1 + i] = (1 + i) * length; //</span><br><span class="line">      &#125;</span><br><span class="line">    &#125; else &#123;</span><br><span class="line">       // 一般都跑到这里，计算出这个doc在fdt中的偏移量。</span><br><span class="line">      final PackedInts.ReaderIterator it = PackedInts.getReaderIteratorNoHeader(fieldsStream, PackedInts.Format.PACKED, packedIntsVersion, chunkDocs, bitsPerLength, 1);</span><br><span class="line">      for (int i = 0; i &lt; chunkDocs; ++i) &#123;</span><br><span class="line">        offsets[i + 1] = (int) it.next();</span><br><span class="line">      &#125;</span><br><span class="line">      for (int i = 0; i &lt; chunkDocs; ++i) &#123;</span><br><span class="line">        // 在fdt中每个doc的偏移量</span><br><span class="line">        offsets[i + 1] += offsets[i]; </span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    // Additional validation: only the empty document has a serialized length of 0</span><br><span class="line">    for (int i = 0; i &lt; chunkDocs; ++i) &#123;</span><br><span class="line">      final int len = offsets[i + 1] - offsets[i];</span><br><span class="line">      final int storedFields = numStoredFields[i];</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">  // 读取当前读到的地方</span><br><span class="line">  startPointer = fieldsStream.getFilePointer();</span><br><span class="line">  // 读取真正的doc 原始压缩数据</span><br><span class="line">  if (merging) &#123;</span><br><span class="line">    final int totalLength = offsets[chunkDocs];</span><br><span class="line">    // decompress eagerly</span><br><span class="line">    if (sliced) &#123;</span><br><span class="line">      bytes.offset = bytes.length = 0;</span><br><span class="line">      for (int decompressed = 0; decompressed &lt; totalLength; ) &#123;</span><br><span class="line">        final int toDecompress = Math.min(totalLength - decompressed, chunkSize);</span><br><span class="line">        decompressor.decompress(fieldsStream, toDecompress, 0, toDecompress, spare);</span><br><span class="line">        bytes.bytes = ArrayUtil.grow(bytes.bytes, bytes.length + spare.length);</span><br><span class="line">        System.arraycopy(spare.bytes, spare.offset, bytes.bytes, bytes.length, spare.length);</span><br><span class="line">        bytes.length += spare.length;</span><br><span class="line">        decompressed += toDecompress;</span><br><span class="line">      &#125;</span><br><span class="line">    &#125; else &#123;</span><br><span class="line">      decompressor.decompress(fieldsStream, totalLength, 0, totalLength, bytes);</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
 <p>读取每个chunk具体的过程，和写chunk过程是一一对应的，要是感兴趣的话，可以看下<code>CompressingStoredFieldsWriter.flush</code>过程，这里就不再赘述。</p>
-<h2 id="有删除或者脏chunk占比过大"><a href="#有删除或者脏chunk占比过大" class="headerlink" title="有删除或者脏chunk占比过大"></a>有删除或者脏chunk占比过大</h2><p>有删除的segment，我们需要再新的Segment中踢掉已经处于删除状态的文档；脏chunk占比过大，会影响压缩效率，我们也需要重建Segment, 基于此只能读取旧StoredFields中的每个文档，重新逐条写入新的的Segments中。具体操作如下：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">for (int docID = 0; docID &lt; maxDoc; docID++) &#123;</span><br><span class="line">   if (liveDocs != null &amp;&amp; liveDocs.get(docID) == false) &#123; // 这个节点需要被删除，那么直接忽略</span><br><span class="line">     continue;</span><br><span class="line">   &#125;</span><br><span class="line">   SerializedDocument doc = matchingFieldsReader.document(docID);</span><br><span class="line">   startDocument();</span><br><span class="line">   bufferedDocs.copyBytes(doc.in, doc.length); // 读取出来</span><br><span class="line">   numStoredFieldsInDoc = doc.numStoredFields;</span><br><span class="line">   finishDocument();</span><br><span class="line">   ++docCount;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
-<p>由于需要重新组织chunk结构，那么久需要每个live文档从旧StoredFields读取出来，写入新的chunk中。会轮循每个文档，每个文档都做了两个事情：<br>1.检查该文档所在的chunk是否已经加载到内存中，若没有加载到的话，那么调用<code>BlockState.reset(int docID)</code>加载chunk，然后放入内存中<br>2.从内存中读取这个文档的value,写入即将创建的chunk中，此时新写入的文档，将在最后的finish统一刷入文件形成一个新的chunk。</p>
-<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>StoredFields合并过程主要是循环每个segment，针对每个segment都从文档中读取出来，写入新的chunk中。读取每个segment过程分为两种，一种是批量copy整个chunk的值，写入新的chunk，然后再copy下个chunk，一种方式是读取该segment中每个文档，然后写入新的chunk，当然批量copy整个chunk的效率更高。选取哪种方式读取，取决于这个sement是否存在删除，或者存在dirtyChunk过多的情况。</p>
+<h2 id="有删除或者脏chunk占比过大"><a href="#有删除或者脏chunk占比过大" class="headerlink" title="有删除或者脏chunk占比过大"></a>有删除或者脏chunk占比过大</h2><p>针对以下两种情况：对有文档删除的segment，我们需要在新的Segment中踢掉已经处于删除状态的文档；脏chunk占比过大，会影响压缩效率，我们也需要重建Segment, 基于此只能读取旧StoredFields中的每个文档，重新逐条写入新的的Segments中。具体操作如下：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">for (int docID = 0; docID &lt; maxDoc; docID++) &#123;</span><br><span class="line">   // 这个节点需要被删除，那么直接忽略</span><br><span class="line">   if (liveDocs != null &amp;&amp; liveDocs.get(docID) == false) &#123; </span><br><span class="line">     continue;</span><br><span class="line">   &#125;</span><br><span class="line">   SerializedDocument doc = matchingFieldsReader.document(docID);</span><br><span class="line">   startDocument();</span><br><span class="line">   // 读取出来</span><br><span class="line">   bufferedDocs.copyBytes(doc.in, doc.length);</span><br><span class="line">   numStoredFieldsInDoc = doc.numStoredFields;</span><br><span class="line">   finishDocument();</span><br><span class="line">   ++docCount;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>由于需要重新组织新的chunk结构，那么就需要每个live文档从旧StoredFields读取出来，写入新的chunk中。会轮循每个文档，每个文档都做了两个事情：<br>1.检查该文档所在的chunk是否已经加载到内存中，若没有加载到的话，那么调用<code>BlockState.reset(int docID)</code>加载chunk，然后放入内存中。<br>2.从内存中读取这个文档的value,写入即将创建的chunk中，此时新写入缓存的文档，将在最后的finish统一刷入文件形成一个新的chunk。</p>
+<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>StoredFields合并过程主要是循环每个segment，针对每个segment都从文档中读取出来，写入新的chunk中。读取每个segment过程分为两种；一种是批量copy整个chunk的值，写入新的chunk，然后再copy下个chunk，一种方式是读取该segment中每个文档，然后写入新的chunk，当然批量copy整个chunk的效率更高。选取哪种方式读取，取决于这个sement是否存在删除，或者存在dirtyChunk过多的情况。</p>
 
       
 
@@ -559,11 +541,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">Lucene、DocValue</a>
+                <a href="javascript:void(0)" class="js-tag color4">Lucene、StoredField</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">Lucene、StoredField</a>
+                <a href="javascript:void(0)" class="js-tag color1">Lucene、DocValue</a>
               </li>
              
               <li class="article-tag-list-item">
