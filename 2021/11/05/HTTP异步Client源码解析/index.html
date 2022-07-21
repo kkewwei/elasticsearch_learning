@@ -190,7 +190,9 @@
     
     <div class="article-entry" itemprop="articleBody">
       
-        <p>我们知道Netty作为高性能通信框架，优点在于内部封装了管道的连接通信等操作，用户只需要调用封装好的接口，便可以很便捷的进行高并发通信。类似，在Http请求时，我们通过调用HttpClient，内部使用java NIO技术，通过引入连接池概念，来提高Http的并发能力，本文主要讲解该客户端内部是如何实现并发能力提高的原理。Http客户端分为同步和异步方式，以下示例展示了最基本的异步使用：</p>
+
+	
+		<p>我们知道Netty作为高性能通信框架，优点在于内部封装了管道的连接通信等操作，用户只需要调用封装好的接口，便可以很便捷的进行高并发通信。类似，在Http请求时，我们通过调用HttpClient，内部使用java NIO技术，通过引入连接池概念，来提高Http的并发能力，本文主要讲解该客户端内部是如何实现并发能力提高的原理。Http客户端分为同步和异步方式，以下示例展示了最基本的异步使用：</p>
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br></pre></td><td class="code"><pre><span class="line">RequestConfig.Builder requestConfigBuilder = RequestConfig.custom()</span><br><span class="line">        .setConnectTimeout(5000)</span><br><span class="line">        .setSocketTimeout(0)</span><br><span class="line">        .setConnectionRequestTimeout(3000);</span><br><span class="line">HttpAsyncClientBuilder httpClientBuilder = HttpAsyncClientBuilder.create().setDefaultRequestConfig(requestConfigBuilder.build())</span><br><span class="line">// 这些参数会用来生成PoolingNHttpClientConnectionManager，若PoolingNHttpClientConnectionManager自定义了，那么这些参数也就无效了</span><br><span class="line">        .setMaxConnPerRoute(10).setMaxConnTotal(30);</span><br><span class="line">//配置io线程</span><br><span class="line">IOReactorConfig ioReactorConfig = IOReactorConfig.custom().</span><br><span class="line">        setIoThreadCount(Runtime.getRuntime().availableProcessors())</span><br><span class="line">        .setSoKeepAlive(true)</span><br><span class="line">        .build();</span><br><span class="line">DefaultConnectingIOReactor ioReactor = new DefaultConnectingIOReactor(ioReactorConfig);</span><br><span class="line"></span><br><span class="line">ioReactor.setExceptionHandler(new IOReactorExceptionHandler() &#123;</span><br><span class="line">    @Override</span><br><span class="line">    public boolean handle(IOException e) &#123;</span><br><span class="line">        System.out.println(&quot;dsdsdsd&quot;);</span><br><span class="line">        return true;</span><br><span class="line">    &#125;</span><br><span class="line">    @Override</span><br><span class="line">    public boolean handle(RuntimeException e) &#123;</span><br><span class="line">        System.out.println(&quot;dsssd&quot;);</span><br><span class="line">        return true;</span><br><span class="line"></span><br><span class="line">    &#125;</span><br><span class="line">&#125;);</span><br><span class="line">// 设置channel连接池并发参数</span><br><span class="line">PoolingNHttpClientConnectionManager poolingNHttpClientConnectionManager = new PoolingNHttpClientConnectionManager(ioReactor);</span><br><span class="line">poolingNHttpClientConnectionManager.setDefaultMaxPerRoute(5);</span><br><span class="line">poolingNHttpClientConnectionManager.setMaxTotal(80);</span><br><span class="line">httpClientBuilder.setConnectionManager(poolingNHttpClientConnectionManager);</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">// 初始化Client并启动</span><br><span class="line">CloseableHttpAsyncClient client = HttpAsyncClients.custom().</span><br><span class="line">        setConnectionManager(poolingNHttpClientConnectionManager)</span><br><span class="line">        .build();</span><br><span class="line">client.start();</span><br><span class="line"></span><br><span class="line">final HttpGet request = new HttpGet(&quot;http://1.1.1.2:9200/indexName/_search&quot;);</span><br><span class="line"></span><br><span class="line">// 异步查询</span><br><span class="line">client.execute(request, new FutureCallback&lt;HttpResponse&gt;() &#123;</span><br><span class="line">    @Override</span><br><span class="line">    public void completed(HttpResponse result)&#123;</span><br><span class="line">        try &#123;</span><br><span class="line"></span><br><span class="line">            System.out.println(EntityUtils.toString(result.getEntity()));</span><br><span class="line">        &#125; catch (Exception e) &#123;</span><br><span class="line">            e.fillInStackTrace();</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    @Override</span><br><span class="line">    public void failed(Exception ex) &#123;</span><br><span class="line">        ex.fillInStackTrace();</span><br><span class="line">    &#125;</span><br><span class="line">    @Override</span><br><span class="line">    public void cancelled() &#123;</span><br><span class="line">        System.out.println(&quot;cancelled&quot;);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;);</span><br><span class="line">Thread.sleep(10000);</span><br><span class="line">client.close();</span><br></pre></td></tr></table></figure>
 
 <p>使用上没啥好说的，我们就直接以数据流流向为主线，看内部是如何使用连接池进行请求处理的。需要注意的是，若我们自定义了poolingNHttpClientConnectionManager对象，那么在requestConfigBuilder中设置的连接并发将不生效。</p>
@@ -299,30 +301,8 @@
 <p>该函数主要做了如下事情：<br>1.首先将之前8k中未读取的content放入dst中<br>2.再依次从管道中读取剩余所有的content放入dst中。<br>此时整个content部分也读取完成了。</p>
 <h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>http请求发送时存在3种可能，1.连接池无可用管道，连接也没达到上限，那么将请求交给boss线程新建管道，再交给worker线程发送请求。2.连接池有可用管道，那么直接将请求交给worker发送。3.连接池无可用管道，且连接个数已达上限，那么请求阻塞等待。每个管道一次只能发送一次请求，下个请求只能等当前请求完成、管道释放后才能进行，通过管道个数来限制连接并发，导致管道利用率不高，这里也许可以进行部分优化。</p>
 
-      
+	
 
-      
-        <div class="page-reward">
-          <a href="javascript:;" class="page-reward-btn tooltip-top">
-            <div class="tooltip tooltip-east">
-            <span class="tooltip-item">
-              赏
-            </span>
-            <span class="tooltip-content">
-              <span class="tooltip-text">
-                <span class="tooltip-inner">
-                  <p class="reward-p"><i class="icon icon-quo-left"></i>谢谢阅读<i class="icon icon-quo-right"></i></p>
-                  <div class="reward-box">
-                    
-                    
-                  </div>
-                </span>
-              </span>
-            </span>
-          </div>
-          </a>
-        </div>
-      
     </div>
     <div class="article-info article-info-index">
       
@@ -443,7 +423,7 @@
 
 
   
-  
+
   
 
   
@@ -567,10 +547,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">Flink、Slot分配、SubTask申请slot, SubTask部署</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">NIO, write, read</a>
               </li>
              
@@ -579,7 +555,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
+                <a href="javascript:void(0)" class="js-tag color3">Flink、Slot分配、SubTask申请slot, SubTask部署</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">Lucene、ByteBlockPool</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -587,11 +567,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">Lucene、词典、FST</a>
+                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">Lucene、ByteBlockPool</a>
+                <a href="javascript:void(0)" class="js-tag color4">Lucene、词典、FST</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -603,19 +583,19 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">Lucene、BKW树、Point</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">Lucene、词典、tim、tip、doc、pos、fst、倒排索引</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
+                <a href="javascript:void(0)" class="js-tag color3">Lucene、BKW树、Point</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">Cycler</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -627,7 +607,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">maven, 插件, 打包</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -639,15 +627,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
               </li>
             
             <div class="clearfix"></div>

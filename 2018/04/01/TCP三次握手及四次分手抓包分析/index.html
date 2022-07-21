@@ -190,7 +190,9 @@
     
     <div class="article-entry" itemprop="articleBody">
       
-        <p>对于TCP建立连接时的三次握手及断开连接时的四次分手, 相信我们大致原理都是很熟悉的, 具体介绍可以百度搜索, 今天我们将仅从抓包的角度实际验证时, 以更好地掌握这2个过程。<br>我们以如下代码来实验:</p>
+
+	
+		<p>对于TCP建立连接时的三次握手及断开连接时的四次分手, 相信我们大致原理都是很熟悉的, 具体介绍可以百度搜索, 今天我们将仅从抓包的角度实际验证时, 以更好地掌握这2个过程。<br>我们以如下代码来实验:</p>
 <h2 id="Linux通信过程"><a href="#Linux通信过程" class="headerlink" title="Linux通信过程"></a>Linux通信过程</h2><p>server:</p>
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br></pre></td><td class="code"><pre><span class="line">#include &lt;stdio.h&gt;</span><br><span class="line">#include &lt;string.h&gt;</span><br><span class="line">#include &lt;stdlib.h&gt;</span><br><span class="line">#include &lt;unistd.h&gt;</span><br><span class="line">#include &lt;arpa/inet.h&gt;</span><br><span class="line">#include &lt;sys/socket.h&gt;</span><br><span class="line">#include &lt;sys/fcntl.h&gt;</span><br><span class="line">#include &lt;netinet/in.h&gt;</span><br><span class="line">#include &lt;errno.h&gt;</span><br><span class="line">int main()&#123;</span><br><span class="line">    //创建套接字</span><br><span class="line">    int serv_sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);</span><br><span class="line">    //将套接字和IP、端口绑定</span><br><span class="line">    struct sockaddr_in serv_addr;</span><br><span class="line">    memset(&amp;serv_addr, 0, sizeof(serv_addr));  //每个字节都用0填充</span><br><span class="line">    serv_addr.sin_family = AF_INET;  //使用IPv4地址</span><br><span class="line">    serv_addr.sin_addr.s_addr = inet_addr(&quot;0.0.0.0&quot;);  //具体的IP地址</span><br><span class="line">    serv_addr.sin_port = htons(1234);  //端口</span><br><span class="line">    bind(serv_sock, (struct sockaddr*)&amp;serv_addr, sizeof(serv_addr));</span><br><span class="line">    // 可执行各种描述符控制操作</span><br><span class="line">    // int flags = fcntl(serv_sock, F_GETFL);</span><br><span class="line">    // int newflags = (flags | O_NONBLOCK);</span><br><span class="line">    // fcntl(serv_sock, F_SETFL, newflags);</span><br><span class="line">    //进入监听状态，等待用户发起请求</span><br><span class="line">    listen(serv_sock, 20);</span><br><span class="line">    //接收客户端请求</span><br><span class="line">    struct sockaddr_in clnt_addr;</span><br><span class="line">    socklen_t clnt_addr_size = sizeof(clnt_addr);</span><br><span class="line">    int clnt_sock = accept(serv_sock, (struct sockaddr*)&amp;clnt_addr, &amp;clnt_addr_size);</span><br><span class="line">    char str[] = &quot;http://c.biancheng.net/socket/&quot;;</span><br><span class="line">    int j = write(clnt_sock, str, sizeof(str));</span><br><span class="line">    sleep(6);</span><br><span class="line">    close(clnt_sock);</span><br><span class="line">    sleep(100);</span><br><span class="line">    return 0;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
@@ -225,30 +227,8 @@
 <li>8-9是server发送数据及client 回应RST过程。<br> 此后任何发送及read操作, 都将失败, 并产生SIGPIPE信号。<img src="https://kkewwei.github.io/elasticsearch_learning/img/tcp_connect_close3.png" height="200" width="900"></li>
 </ul>
 
-      
+	
 
-      
-        <div class="page-reward">
-          <a href="javascript:;" class="page-reward-btn tooltip-top">
-            <div class="tooltip tooltip-east">
-            <span class="tooltip-item">
-              赏
-            </span>
-            <span class="tooltip-content">
-              <span class="tooltip-text">
-                <span class="tooltip-inner">
-                  <p class="reward-p"><i class="icon icon-quo-left"></i>谢谢阅读<i class="icon icon-quo-right"></i></p>
-                  <div class="reward-box">
-                    
-                    
-                  </div>
-                </span>
-              </span>
-            </span>
-          </div>
-          </a>
-        </div>
-      
     </div>
     <div class="article-info article-info-index">
       
@@ -378,7 +358,7 @@
 
 
   
-  
+
   
 
   
@@ -502,10 +482,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">Flink、Slot分配、SubTask申请slot, SubTask部署</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">NIO, write, read</a>
               </li>
              
@@ -514,7 +490,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
+                <a href="javascript:void(0)" class="js-tag color3">Flink、Slot分配、SubTask申请slot, SubTask部署</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">Lucene、ByteBlockPool</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -522,11 +502,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">Lucene、词典、FST</a>
+                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">Lucene、ByteBlockPool</a>
+                <a href="javascript:void(0)" class="js-tag color4">Lucene、词典、FST</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -538,19 +518,19 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">Lucene、BKW树、Point</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">Lucene、词典、tim、tip、doc、pos、fst、倒排索引</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
+                <a href="javascript:void(0)" class="js-tag color3">Lucene、BKW树、Point</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">Cycler</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -562,7 +542,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">maven, 插件, 打包</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -574,15 +562,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
               </li>
             
             <div class="clearfix"></div>

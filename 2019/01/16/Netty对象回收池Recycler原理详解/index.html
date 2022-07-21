@@ -188,7 +188,9 @@
     
     <div class="article-entry" itemprop="articleBody">
       
-        <p>同Netty内存池(可参考<a href="https://kkewwei.github.io/elasticsearch_learning/2018/05/23/Netty%E5%86%85%E5%AD%98%E5%AD%A6%E4%B9%A0/">Netty PoolArea原理探究</a>)一样, 为了增强Netty高性能并发能力, 减少通用对象分配的损耗, 也采用了对象池的概念。 当需要某个对象时, 首先从对象池中获取该对象, 当使用完成后, 将对象释放到对象池中, 这样达到重复使用对象的效果。基本使用如下:</p>
+
+	
+		<p>同Netty内存池(可参考<a href="https://kkewwei.github.io/elasticsearch_learning/2018/05/23/Netty%E5%86%85%E5%AD%98%E5%AD%A6%E4%B9%A0/">Netty PoolArea原理探究</a>)一样, 为了增强Netty高性能并发能力, 减少通用对象分配的损耗, 也采用了对象池的概念。 当需要某个对象时, 首先从对象池中获取该对象, 当使用完成后, 将对象释放到对象池中, 这样达到重复使用对象的效果。基本使用如下:</p>
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br></pre></td><td class="code"><pre><span class="line">public class Cycli &#123;</span><br><span class="line">    private static final Recycler&lt;Cycler&gt; CyclerRecycler = new Recycler&lt;Cycler&gt;() &#123;</span><br><span class="line">        @Override</span><br><span class="line">        protected Cycler newObject(Handle&lt;Cycler&gt; handle) &#123;</span><br><span class="line">            return new Cycler(handle);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;;</span><br><span class="line">    static final class Cycler &#123;</span><br><span class="line">        private String value;</span><br><span class="line">        public void setValue(String value) &#123;</span><br><span class="line">            this.value = value;</span><br><span class="line">        &#125;</span><br><span class="line">        private Recycler.Handle&lt;Cycler&gt; handle;</span><br><span class="line">        public Cycler(Recycler.Handle&lt;Cycler&gt; handle) &#123;</span><br><span class="line">            this.handle = handle;</span><br><span class="line">        &#125;</span><br><span class="line">        public void recycle() &#123;</span><br><span class="line">            handle.recycle(this);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    public static void  main(String[] args) &#123;</span><br><span class="line">        // 1、从回收池获取对象</span><br><span class="line">        Cycler cycler1 = CyclerRecycler.get();</span><br><span class="line">        // 2、开始使用对象</span><br><span class="line">        cycler1.setValue(&quot;hello,java&quot;);</span><br><span class="line">        // 3、回收对象到对象池</span><br><span class="line">        cycler1.recycle();</span><br><span class="line">        // 4、从回收池获取对象</span><br><span class="line">        Cycler cycler2 = CyclerRecycler.get();</span><br><span class="line">        //比较从对象池中获取的对象即为之前释放的对象</span><br><span class="line">        System.out.print(cycler1 == cycler2);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
 <p>使用比较简单, 主要定义了如下几个对象:</p>
@@ -240,30 +242,8 @@
 <p>可以看到, 向Link中插入对象时, 仅改变对象的lastRecycledId值, 而没有改变recycledId值。</p>
 <h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>Netty回收对象也不是把所有对象全部回收, 为了防止回收对象过多, 会在直接存入stack的elements和从Link转移到stack的elements时会丢弃7&#x2F;8的废弃对象。Netty中使用对象回收的地方很多, 一个高频使用就是PooledUnsafeDirectByteBuf, 首先申请16M内存作为内存池时, 按需分配小的内存块, 这些小内存块都会被PooledUnsafeDirectByteBuf管理着。 而减少PooledUnsafeDirectByteBuf对象创建次数, 也增强了netty高性能传输数据的能力。</p>
 
-      
+	
 
-      
-        <div class="page-reward">
-          <a href="javascript:;" class="page-reward-btn tooltip-top">
-            <div class="tooltip tooltip-east">
-            <span class="tooltip-item">
-              赏
-            </span>
-            <span class="tooltip-content">
-              <span class="tooltip-text">
-                <span class="tooltip-inner">
-                  <p class="reward-p"><i class="icon icon-quo-left"></i>谢谢阅读<i class="icon icon-quo-right"></i></p>
-                  <div class="reward-box">
-                    
-                    
-                  </div>
-                </span>
-              </span>
-            </span>
-          </div>
-          </a>
-        </div>
-      
     </div>
     <div class="article-info article-info-index">
       
@@ -404,7 +384,7 @@
 
 
   
-  
+
   
 
   
@@ -528,10 +508,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">Flink、Slot分配、SubTask申请slot, SubTask部署</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">NIO, write, read</a>
               </li>
              
@@ -540,7 +516,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
+                <a href="javascript:void(0)" class="js-tag color3">Flink、Slot分配、SubTask申请slot, SubTask部署</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">Lucene、ByteBlockPool</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -548,11 +528,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">Lucene、词典、FST</a>
+                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">Lucene、ByteBlockPool</a>
+                <a href="javascript:void(0)" class="js-tag color4">Lucene、词典、FST</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -564,19 +544,19 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">Lucene、BKW树、Point</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">Lucene、词典、tim、tip、doc、pos、fst、倒排索引</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
+                <a href="javascript:void(0)" class="js-tag color3">Lucene、BKW树、Point</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">Cycler</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -588,7 +568,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">maven, 插件, 打包</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -600,15 +588,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
               </li>
             
             <div class="clearfix"></div>

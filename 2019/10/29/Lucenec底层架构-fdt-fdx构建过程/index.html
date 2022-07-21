@@ -189,7 +189,9 @@
     
     <div class="article-entry" itemprop="articleBody">
       
-        <p>StoredField文件主要存放文档-&gt;域-&gt;value的关系, 每个文档的所有域都保存一起,再保存下一行, 行式存储, 正排索引结果, 不对字段分词, 便于读取任何字段的value。 fdt存放文档的value及一级索引索引, fdx存放二级索引结构。 本文就以这两个文件结构的建立-&gt;文件写入磁盘的过程来进行详细介绍, 代码主要可见CompressingStoredFieldsWriter。</p>
+
+	
+		<p>StoredField文件主要存放文档-&gt;域-&gt;value的关系, 每个文档的所有域都保存一起,再保存下一行, 行式存储, 正排索引结果, 不对字段分词, 便于读取任何字段的value。 fdt存放文档的value及一级索引索引, fdx存放二级索引结构。 本文就以这两个文件结构的建立-&gt;文件写入磁盘的过程来进行详细介绍, 代码主要可见CompressingStoredFieldsWriter。</p>
 <h1 id="内存索引结构的建立"><a href="#内存索引结构的建立" class="headerlink" title="内存索引结构的建立"></a>内存索引结构的建立</h1><p>索引结构建立是指将文档按照规范存储到内存中, 当对字段进行如下设置时, 才会建立该索引文档:</p>
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">FieldType fieldType = new FieldType();</span><br><span class="line">fieldType.setStored(true);</span><br></pre></td></tr></table></figure>
 
@@ -244,30 +246,8 @@
 <p>writeBlock主要记录以下几个指标:<br>1.blockChunks: 当前block的chunks数。<br>2.docBase: 这个block的其实文档在整个fdt中的文档起始位置, 一个fdt可能存放不只一个block。<br>3.avgChunkDocs: 该block所有chunk的平均文档数<br>4.bitsPerDocBase: 每个chunk文档书与平均文档数相差个数需要几位bit表示: 比如chunk文档数分别是: 5,3,8, 则需要1位。 该参数是为了保存他们的差值, 减少存储所需要的空间。<br>5.blockChunks个docBaseDelta: 存储blockChunks个chunk与标准文档的差值, 这里不存储每个文档的原值, 而是存储差值, 是为了减少存储所需的空间。<br>6.firstStartPointer: 该block在整个fdt存储的起始位置<br>7.avgChunksSize: 该block所有chunk的平均length<br>8.blockChunks个startPointDelta: 存储blockChunks个chunk与标准size的差值。 通过该值可以知道每个chunk在fdt中的起始位置, 存储原理与第5项一致。<br>9.numberChunks: 所有block中总的chunk个数。<br>10.numberDirtyChunks: fdx可能存放多个block, 一个block最多存放1024个chunk, 该值统计的是所有block的chunk小于1024的个数, 其中有的chunk可能不够128个文档, 称之为dirtyChunk。一般fdx文件中, 只有最后一个block的最后一个chunk小于128个文档。<br>下图展示了fdt文件和fdx文件的结构:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/lucene_fdt.png" height="350" width="900"></p>
 <h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>整体过程可以总结如下: 依次将文档写入内存中, 若缓存的文档数或者bufferedDocs占用的内存超过阈值, 则触发一次flush, 该flush将之前的存储在内存中的文档产生一个chunk, 当达到blockSize次flush后, 产生一个block。当达到一个block后, 才开始向fdt文件和fdx文件写入索引结构。一个fdx可能包含多个block的索引结构。</p>
 
-      
+	
 
-      
-        <div class="page-reward">
-          <a href="javascript:;" class="page-reward-btn tooltip-top">
-            <div class="tooltip tooltip-east">
-            <span class="tooltip-item">
-              赏
-            </span>
-            <span class="tooltip-content">
-              <span class="tooltip-text">
-                <span class="tooltip-inner">
-                  <p class="reward-p"><i class="icon icon-quo-left"></i>谢谢阅读<i class="icon icon-quo-right"></i></p>
-                  <div class="reward-box">
-                    
-                    
-                  </div>
-                </span>
-              </span>
-            </span>
-          </div>
-          </a>
-        </div>
-      
     </div>
     <div class="article-info article-info-index">
       
@@ -408,7 +388,7 @@
 
 
   
-  
+
   
 
   
@@ -532,10 +512,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">Flink、Slot分配、SubTask申请slot, SubTask部署</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">NIO, write, read</a>
               </li>
              
@@ -544,7 +520,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
+                <a href="javascript:void(0)" class="js-tag color3">Flink、Slot分配、SubTask申请slot, SubTask部署</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">Lucene、ByteBlockPool</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -552,11 +532,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">Lucene、词典、FST</a>
+                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">Lucene、ByteBlockPool</a>
+                <a href="javascript:void(0)" class="js-tag color4">Lucene、词典、FST</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -568,19 +548,19 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">Lucene、BKW树、Point</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">Lucene、词典、tim、tip、doc、pos、fst、倒排索引</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
+                <a href="javascript:void(0)" class="js-tag color3">Lucene、BKW树、Point</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">Cycler</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -592,7 +572,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">maven, 插件, 打包</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -604,15 +592,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
               </li>
             
             <div class="clearfix"></div>

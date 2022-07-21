@@ -185,7 +185,9 @@
     
     <div class="article-entry" itemprop="articleBody">
       
-        <p>Netty堆外内存通过DirectByteBuffer实现管理, 它会首先申请16M的直接内存块大小, 放入DirectByteBuffer, 由PoolChunk映射这16MB的内存块, 通过PoolChunk的分配来完成该直接内存块使用与释放。 每当用户申请小块内存时, 都从这16M的内存中分配, 当该部分内存使用完后, 会释放到PoolChunk内存池中, 而不是彻底释放。 可以看出, netty每次释放直接内存并没有使用DirectByteBuffer自带Cleaner来释放(具体可以参考<a href="https://kkewwei.github.io/elasticsearch_learning/2018/07/27/DirectByteBuffer%E5%A0%86%E5%A4%96%E5%86%85%E5%AD%98%E8%AF%A6%E8%A7%A3/">DirectByteBuffer堆外内存详解</a>), 使用PoolChunk管理直接内存的使用情况的好处也是很清晰的: 直接申请与释放堆外内存是个很大的开销, 若通过PoolChunk管理直接内存使用后, 可以循环使用该部分直接内存, 这样才能满足netty的高性能特性。 本文将讲述netty释放直接内存的原理及细节。<br>而DirectByteBuffer封装在PooledUnsafeDirectByteBuf, netty层面也主要操作后者, 两者的关系图如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/Netty堆外内存回收1.png" height="250" width="350"><br>了解这两者对应关系, 对理解该文有一定的帮助。</p>
+
+	
+		<p>Netty堆外内存通过DirectByteBuffer实现管理, 它会首先申请16M的直接内存块大小, 放入DirectByteBuffer, 由PoolChunk映射这16MB的内存块, 通过PoolChunk的分配来完成该直接内存块使用与释放。 每当用户申请小块内存时, 都从这16M的内存中分配, 当该部分内存使用完后, 会释放到PoolChunk内存池中, 而不是彻底释放。 可以看出, netty每次释放直接内存并没有使用DirectByteBuffer自带Cleaner来释放(具体可以参考<a href="https://kkewwei.github.io/elasticsearch_learning/2018/07/27/DirectByteBuffer%E5%A0%86%E5%A4%96%E5%86%85%E5%AD%98%E8%AF%A6%E8%A7%A3/">DirectByteBuffer堆外内存详解</a>), 使用PoolChunk管理直接内存的使用情况的好处也是很清晰的: 直接申请与释放堆外内存是个很大的开销, 若通过PoolChunk管理直接内存使用后, 可以循环使用该部分直接内存, 这样才能满足netty的高性能特性。 本文将讲述netty释放直接内存的原理及细节。<br>而DirectByteBuffer封装在PooledUnsafeDirectByteBuf, netty层面也主要操作后者, 两者的关系图如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/Netty堆外内存回收1.png" height="250" width="350"><br>了解这两者对应关系, 对理解该文有一定的帮助。</p>
 <h1 id="PlatformDependent及PlatformDependent0简介"><a href="#PlatformDependent及PlatformDependent0简介" class="headerlink" title="PlatformDependent及PlatformDependent0简介"></a>PlatformDependent及PlatformDependent0简介</h1><p>PlatformDependent及PlatformDependent0主要是用来确定重要参数配置的, 比如netty是否需要使用Unsfa, 当前使用的java版本等, 了解这些参数变量, 有助于更方面了解直接内存的使用。</p>
 <h3 id="PlatformDependent"><a href="#PlatformDependent" class="headerlink" title="PlatformDependent"></a>PlatformDependent</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br></pre></td><td class="code"><pre><span class="line">//是否有Unsafe, 拥有了Unsafe, 我们可以方便的操控直接内存,可以通过-Dio.netty.noUnsafe及-Dio.netty.tryUnsafe参数来决定, 默认是可以</span><br><span class="line">private static final boolean HAS_UNSAFE = hasUnsafe0();</span><br><span class="line">//用户优先使用堆外内存还是堆内内存, 通过-Dio.netty.noPreferDirect参数控制</span><br><span class="line">private static final boolean DIRECT_BUFFER_PREFERRED =HAS_UNSAFE &amp;&amp; !SystemPropertyUtil.getBoolean(&quot;io.netty.noPreferDirect&quot;, false);</span><br><span class="line">//当前netty能够使用的最大堆外内存, 默认与堆内内存相等</span><br><span class="line">private static final long MAX_DIRECT_MEMORY = maxDirectMemory0();</span><br><span class="line"> //与unsafe结合可以直接获取任何堆内array对象的直接地址</span><br><span class="line">private static final long BYTE_ARRAY_BASE_OFFSET = byteArrayBaseOffset0();</span><br><span class="line">//与unsafe结合可以获取任何对象的直接内存地址</span><br><span class="line">private static final int ADDRESS_SIZE = addressSize0();</span><br><span class="line"> //默认为true，则代表着netty将自己通过PoolCHunk来实现直接内存的回收与分配, 而不是使用DirectByteBuffer自带的功能来回收直接内存</span><br><span class="line">private static final boolean USE_DIRECT_BUFFER_NO_CLEANER;</span><br><span class="line">//直接内存地址的使用量, 每次新申请和释放16M堆外内存, 都会统计到该变量中, 实际项目中, 我们可以通过反射拿到该变量值以观察堆外内存是否出现泄漏</span><br><span class="line">private static final AtomicLong DIRECT_MEMORY_COUNTER;</span><br><span class="line">//最大堆外内存</span><br><span class="line">private static final long DIRECT_MEMORY_LIMIT;</span><br><span class="line">private static final ThreadLocalRandomProvider RANDOM_PROVIDER;</span><br><span class="line">//自己弄一个cleaner, 当16M内存被完全释放时, 会调用该变量完成。</span><br><span class="line">private static final Cleaner CLEANER;</span><br><span class="line">static &#123;</span><br><span class="line">     ......</span><br><span class="line">    long maxDirectMemory = SystemPropertyUtil.getLong(&quot;io.netty.maxDirectMemory&quot;, -1);</span><br><span class="line">    //PlatformDependent0.hasDirectBufferNoCleanerConstructor()会检查可以通过反射+直接内存地址来构建DirectByteBuffer对象</span><br><span class="line">    if (maxDirectMemory == 0 || !hasUnsafe() || !PlatformDependent0.hasDirectBufferNoCleanerConstructor()) &#123;</span><br><span class="line">        USE_DIRECT_BUFFER_NO_CLEANER = false;</span><br><span class="line">        DIRECT_MEMORY_COUNTER = null;</span><br><span class="line">    &#125; else &#123;</span><br><span class="line">        //代表释放DirectByteBuffer里面的直接内存, 不使用自带的cleaner机制, 通过UNSAFE.freeMemory(address)释放的。具体见PoolArea.destroyChunk()方法选择。</span><br><span class="line">        USE_DIRECT_BUFFER_NO_CLEANER = true;</span><br><span class="line">        if (maxDirectMemory &lt; 0) &#123;</span><br><span class="line">            maxDirectMemory = maxDirectMemory0();</span><br><span class="line">            if (maxDirectMemory &lt;= 0) &#123;</span><br><span class="line">                DIRECT_MEMORY_COUNTER = null;</span><br><span class="line">            &#125; else &#123;</span><br><span class="line">                DIRECT_MEMORY_COUNTER = new AtomicLong();</span><br><span class="line">            &#125;</span><br><span class="line">        &#125; else &#123;</span><br><span class="line">            DIRECT_MEMORY_COUNTER = new AtomicLong();</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    DIRECT_MEMORY_LIMIT = maxDirectMemory;</span><br><span class="line">    if (!isAndroid() &amp;&amp; hasUnsafe()) &#123;</span><br><span class="line">        if (javaVersion() &gt;= 9) &#123;</span><br><span class="line">            CLEANER = CleanerJava9.isSupported() ? new CleanerJava9() : NOOP;</span><br><span class="line">        &#125; else &#123;</span><br><span class="line">            CLEANER = CleanerJava6.isSupported() ? new CleanerJava6() : NOOP;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125; else &#123;</span><br><span class="line">        CLEANER = NOOP;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
@@ -230,9 +232,8 @@
 
 <h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>整个netty池化内存回收过程如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/Netty堆外内存回收.png" height="400" width="990"><br>netty默认释放管理直接内存方式与DirectByteBuffer默认释放内存的方式不一致, 释放时会依次检查缓存、公共内存池, 若Poolchunk使用率为0, 那么16M直接内存将直接释放。</p>
 
-      
+	
 
-      
     </div>
     <div class="article-info article-info-index">
       
@@ -302,7 +303,9 @@
     
     <div class="article-entry" itemprop="articleBody">
       
-        <p>LinkedTransferQueue作为无边界的阻塞队列, 同时继承了TransferQueue和AbstractQueue。 相较于其他的阻塞队列:  LinkedTransferQueue特殊之处在于TransferQueue接口。 TransferQueue说明如下:</p>
+
+	
+		<p>LinkedTransferQueue作为无边界的阻塞队列, 同时继承了TransferQueue和AbstractQueue。 相较于其他的阻塞队列:  LinkedTransferQueue特殊之处在于TransferQueue接口。 TransferQueue说明如下:</p>
 <blockquote>
 <ul>
 <li>Transfers the element to a waiting consumer immediately, if possible. More precisely, transfers the specified element immediately if there exists a consumer already waiting to receive it (in {@link #take} or timed {@link #poll(long,TimeUnit) poll}), otherwise returning {@code false} without enqueuing the element.</li>
@@ -383,9 +386,8 @@ tansfer()主要是将节点尾插法进入队列; 若tail离最后的节点相�
 <h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>LinkedTransferQueue与其他阻塞队列相比, 比较大的区别就是也可以阻塞put线程, 此时当有当take()操作时, take线程是不会进入队列的, 而是直接将put()线程唤醒。 结构上采取松弛距离&lt;2来达到在高并发下减少互斥锁的操作而加快了效率。</p>
 <h1 id="参考"><a href="#参考" class="headerlink" title="参考"></a>参考</h1><p><a href="https://segmentfault.com/a/1190000016460411" target="_blank" rel="noopener">https://segmentfault.com/a/1190000016460411</a><br><a href="https://www.zybuluo.com/eric1989/note/698826" target="_blank" rel="noopener">https://www.zybuluo.com/eric1989/note/698826</a><br><a href="http://ifeve.com/buglinkedtransferqueue-bug/" target="_blank" rel="noopener">http://ifeve.com/buglinkedtransferqueue-bug/</a></p>
 
-      
+	
 
-      
     </div>
     <div class="article-info article-info-index">
       
@@ -455,7 +457,9 @@ tansfer()主要是将节点尾插法进入队列; 若tail离最后的节点相�
     
     <div class="article-entry" itemprop="articleBody">
       
-        <p>LockSupport作为并发的基础, 在CountDownLatch、ReentrantLock、Semaphore、ReentrantReadWriteLock中都是作为阻塞&#x2F;唤醒线程的基本工具, 因此, 很有必要了解LockSupport的用法及原理, 本文将从LockSupport基本用法、 类主要函数及相关知识、底层基本原理三方面分别描述。</p>
+
+	
+		<p>LockSupport作为并发的基础, 在CountDownLatch、ReentrantLock、Semaphore、ReentrantReadWriteLock中都是作为阻塞&#x2F;唤醒线程的基本工具, 因此, 很有必要了解LockSupport的用法及原理, 本文将从LockSupport基本用法、 类主要函数及相关知识、底层基本原理三方面分别描述。</p>
 <h1 id="使用"><a href="#使用" class="headerlink" title="使用"></a>使用</h1><p>基本用法:</p>
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line">class Thread1 extends Thread &#123;</span><br><span class="line">    public void run() &#123;</span><br><span class="line">        try &#123;</span><br><span class="line">            ......</span><br><span class="line">            LockSupport.park();</span><br><span class="line">            ......</span><br><span class="line">        &#125; catch (Exception e) &#123;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line">Thread thread1 = new Thread1();</span><br><span class="line">class Thread2 extends Thread &#123;</span><br><span class="line">    public void run() &#123;</span><br><span class="line">        try &#123;</span><br><span class="line">            ......</span><br><span class="line">            LockSupport.unpark(thread1);</span><br><span class="line">            ......</span><br><span class="line">        &#125; catch (Exception e) &#123;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
@@ -505,9 +509,8 @@ tansfer()主要是将节点尾插法进入队列; 若tail离最后的节点相�
 </ul>
 <h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>LockSupport在阻塞线程时, 更多的是依靠操作系统实现来进行的, 在底层实现时, 也是不忘考虑线程中断。 整体来说LockSupport灵活简单而且功能强大。<br>参考:<br><a href="https://www.ibm.com/developerworks/cn/linux/thread/posix_thread1/index.html" target="_blank" rel="noopener">https://www.ibm.com/developerworks/cn/linux/thread/posix_thread1/index.html</a><br><a href="https://www.ibm.com/developerworks/cn/linux/thread/posix_thread2/index.html" target="_blank" rel="noopener">https://www.ibm.com/developerworks/cn/linux/thread/posix_thread2/index.html</a><br><a href="https://www.ibm.com/developerworks/cn/linux/thread/posix_thread3/index.html" target="_blank" rel="noopener">https://www.ibm.com/developerworks/cn/linux/thread/posix_thread3/index.html</a><br><a href="http://www.fanyilun.me/2016/11/19/Thread.interrupt()%E7%9B%B8%E5%85%B3%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90/" target="_blank" rel="noopener">http://www.fanyilun.me/2016/11/19/Thread.interrupt()%E7%9B%B8%E5%85%B3%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90/</a></p>
 
-      
+	
 
-      
     </div>
     <div class="article-info article-info-index">
       
@@ -588,7 +591,9 @@ tansfer()主要是将节点尾插法进入队列; 若tail离最后的节点相�
     
     <div class="article-entry" itemprop="articleBody">
       
-        <p>我们知道, 在使用IO传输数据时, 首先会将数据传输到堆外直接内存中, 然后才通过网络发送出去。这样的话, 数据多了次中间copy, 能否不经过copy而直接将数据发送出去呢, 其实是可以的, 存放的位置就是本文要讲的主角:DirectByteBuffer 。JVM内存主要分为heap内存和堆外内存(一般我们也会称呼为直接内存), heap内存我们不用care, jvm能自动帮我们管理, 而堆外内存回收不受JVM GC控制, 因此, 堆外内存使用必须小心。本文就主要讲jvm中堆外内存的实现及原理。</p>
+
+	
+		<p>我们知道, 在使用IO传输数据时, 首先会将数据传输到堆外直接内存中, 然后才通过网络发送出去。这样的话, 数据多了次中间copy, 能否不经过copy而直接将数据发送出去呢, 其实是可以的, 存放的位置就是本文要讲的主角:DirectByteBuffer 。JVM内存主要分为heap内存和堆外内存(一般我们也会称呼为直接内存), heap内存我们不用care, jvm能自动帮我们管理, 而堆外内存回收不受JVM GC控制, 因此, 堆外内存使用必须小心。本文就主要讲jvm中堆外内存的实现及原理。</p>
 <h2 id="DirectByteBuffer使用"><a href="#DirectByteBuffer使用" class="headerlink" title="DirectByteBuffer使用"></a>DirectByteBuffer使用</h2><p>在程序中, 我们可以通过如下方式获取到DirectByteBuffer, 并且直接作为IO的缓存:</p>
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">public void sendAndRecv(String words) throws IOException</span><br><span class="line">   &#123;</span><br><span class="line">       byte[] msg = new String(words).getBytes();</span><br><span class="line">       ByteBuffer buffer = ByteBuffer.allocateDirect(msg.length);</span><br><span class="line">       buffer.put(msg);</span><br><span class="line">       //读写模式相互转化写</span><br><span class="line">       buffer.flip();</span><br><span class="line">       System.out.println(&quot;Client sending: &quot; + words);</span><br><span class="line">       channel.write(buffer);</span><br><span class="line">       channel.close();</span><br><span class="line">   &#125;</span><br></pre></td></tr></table></figure>
 
@@ -622,9 +627,8 @@ tansfer()主要是将节点尾插法进入队列; 若tail离最后的节点相�
 <p>direct部分内存就是了。<br>2. 若我们直接通过base &#x3D; unsafe.allocateMemory(size)申请内存, 申请内存大小（申请大小jvm参数都控制不了）及内存管理都已不受JVM控制的了, 我们不能再通过上面那种方式检测出来了，但是大小可以通过jcmd方式检测出来。此时jvm总的使用量（堆内+元数据+DirectByteBuff+unsafe申请内存空间）可以在top命令中RES可查看到。</p>
 <h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>在JVM中, 一般只有通过DirectByteBuffer这一种方式操作堆外内存, 平时说的堆外内存泄漏, 也就是指的DirectByteBuffer里面的堆外内存发生泄漏。合理使用DirectByteBuffer对通信框架有着很重要的帮助, 比如netty大量的IO数据传输, 都是通过DirectByteBuffer完成的。 直接内存的申请与释放比较代价比较大, 一般都会辅助对象池来尽量高效的利用申请的对象。</p>
 
-      
+	
 
-      
     </div>
     <div class="article-info article-info-index">
       
@@ -694,7 +698,9 @@ tansfer()主要是将节点尾插法进入队列; 若tail离最后的节点相�
     
     <div class="article-entry" itemprop="articleBody">
       
-        <p>Netty中大于8K的内存是通过PoolChunk来分配的, 小于8k的内存是通过PoolSubpage分配的, 本章将详细描述如何通过PoolSubpage分配小于8K的内存。当申请小于8K的内存时, 会从分配一个8k的叶子节点, 若用不完的话, 存在很大的浪费, 所以通过PoolSubpage来管理8K的内存, 如下图<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/PoolSubpage.png" height="400" width="450"><br>每一个PoolSubpage都会与PoolChunk里面的一个叶子节点映射起来, 然后将PoolSubpage根据用户申请的ElementSize化成几等分, 之后只要再次申请ElementSize大小的内存, 将直接从这个PoolSubpage中分配。<br>下面是PoolSubpage的构造函数:</p>
+
+	
+		<p>Netty中大于8K的内存是通过PoolChunk来分配的, 小于8k的内存是通过PoolSubpage分配的, 本章将详细描述如何通过PoolSubpage分配小于8K的内存。当申请小于8K的内存时, 会从分配一个8k的叶子节点, 若用不完的话, 存在很大的浪费, 所以通过PoolSubpage来管理8K的内存, 如下图<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/PoolSubpage.png" height="400" width="450"><br>每一个PoolSubpage都会与PoolChunk里面的一个叶子节点映射起来, 然后将PoolSubpage根据用户申请的ElementSize化成几等分, 之后只要再次申请ElementSize大小的内存, 将直接从这个PoolSubpage中分配。<br>下面是PoolSubpage的构造函数:</p>
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br></pre></td><td class="code"><pre><span class="line">PoolSubpage(PoolSubpage&lt;T&gt; head, PoolChunk&lt;T&gt; chunk, int memoryMapIdx, int runOffset, int pageSize, int elemSize) &#123;</span><br><span class="line">     this.chunk = chunk;</span><br><span class="line">     //与PoolChunkPage中哪个节点映射一起来</span><br><span class="line">     this.memoryMapIdx = memoryMapIdx;</span><br><span class="line">     this.runOffset = runOffset;</span><br><span class="line">     //该叶子节点的大小</span><br><span class="line">     this.pageSize = pageSize;</span><br><span class="line">     //bitmap的每一位都描述的是一个element的使用情况</span><br><span class="line">     bitmap = new long[pageSize &gt;&gt;&gt; 10];</span><br><span class="line">     init(head, elemSize);</span><br><span class="line"> &#125;</span><br><span class="line"> //init根据当前需要分配的内存大小，确定需要多少个bitmap元素</span><br><span class="line"> void init(PoolSubpage&lt;T&gt; head, int elemSize) &#123;   ///elemSize代表此次申请的大小，比如申请64byte，那么这个page被分成了8k/64=2^7=128个</span><br><span class="line">     doNotDestroy = true;</span><br><span class="line">     this.elemSize = elemSize;</span><br><span class="line">     if (elemSize != 0) &#123;</span><br><span class="line">         maxNumElems = numAvail = pageSize / elemSize; //被分成了128份64大小的内存</span><br><span class="line">         nextAvail = 0;</span><br><span class="line">         bitmapLength = maxNumElems &gt;&gt;&gt; 6;  //6代表着long长度 = 2</span><br><span class="line">         if ((maxNumElems &amp; 63) != 0) &#123;//低6位</span><br><span class="line">             bitmapLength ++;</span><br><span class="line">         &#125;</span><br><span class="line"></span><br><span class="line">         for (int i = 0; i &lt; bitmapLength; i ++) &#123;</span><br><span class="line">             bitmap[i] = 0;</span><br><span class="line">         &#125;</span><br><span class="line">     &#125;</span><br><span class="line">     addToPool(head);</span><br><span class="line"> &#125;</span><br></pre></td></tr></table></figure>
 
 <p>有人会有疑问: 为啥bitmap &#x3D; new long[pageSize &gt;&gt;&gt; 10], 因为小于8K的内存, 最小是以16b为单位来分配的, 一个long类型为64位, 最多需要pageSize&#x2F;(16*64)个long就可以将一个PoolSubpage中所有element是否分配描述清楚了, log2(16*64)&#x3D;10。<br>然后再调用init来对PoolSubpage结构进行初始化:</p>
@@ -723,9 +729,8 @@ tansfer()主要是将节点尾插法进入队列; 若tail离最后的节点相�
 </ol>
 <h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>PoolSubpage主要管理小于8K的内存分配, 内存返回的handle可以唯一确定PoolChunk、poolSubpage中具体哪个element。 当PoolSubpage没有使用的内存时, 可能从对应的链中取出。同时一定没有从subpages中去掉。</p>
 
-      
+	
 
-      
     </div>
     <div class="article-info article-info-index">
       
@@ -795,7 +800,9 @@ tansfer()主要是将节点尾插法进入队列; 若tail离最后的节点相�
     
     <div class="article-entry" itemprop="articleBody">
       
-        <p>Netty分配内存(0~16M)与回收主要是在PoolChunk上完成的, 在内存分配时希望是有序的。当没有内存可分配时, 一次申请到16M PoolChunk内存, 用户实际使用时可能一次性不能使用16M, 所以逻辑上将PoolChunk划分成不同的块, 使用平衡二叉树进行管理内存的分配, 构建的二叉树结构如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/PoolChunk1.png" height="400" width="450"><br>该二叉树将PoolChunk分11层, 第一层为1个16M, 第二层为2个8MB,第三层为4个4MB的内存块, 直到第11层为2048个8KB的内存块,  8kb的内存块称之为page。</p>
+
+	
+		<p>Netty分配内存(0~16M)与回收主要是在PoolChunk上完成的, 在内存分配时希望是有序的。当没有内存可分配时, 一次申请到16M PoolChunk内存, 用户实际使用时可能一次性不能使用16M, 所以逻辑上将PoolChunk划分成不同的块, 使用平衡二叉树进行管理内存的分配, 构建的二叉树结构如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/PoolChunk1.png" height="400" width="450"><br>该二叉树将PoolChunk分11层, 第一层为1个16M, 第二层为2个8MB,第三层为4个4MB的内存块, 直到第11层为2048个8KB的内存块,  8kb的内存块称之为page。</p>
 <ul>
 <li>如果我们申请16M的内存, 那么将直接在该二叉树第一层申请。</li>
 <li>若申请32K的内存, 那么在该二叉树第8层申请。</li>
@@ -865,9 +872,8 @@ tansfer()主要是将节点尾插法进入队列; 若tail离最后的节点相�
 </ul>
 <h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>Netty PoolChunk讲完了, 主要理解二叉树的构建, 当分配大于8K的内存时, 怎么从二叉树中查找合适的节点, 怎么释放该二叉树上的节点块就可以了。 若分配小于8K的内存块, 主要是在子节点内部分配, 将放在<a href="https://kkewwei.github.io/elasticsearch_learning/2018/07/22/Netty-PoolSubpage%E5%8E%9F%E7%90%86%E6%8E%A2%E7%A9%B6/">Netty-PoolSubpage原理探究</a>详细探究。</p>
 
-      
+	
 
-      
     </div>
     <div class="article-info article-info-index">
       
@@ -937,7 +943,9 @@ tansfer()主要是将节点尾插法进入队列; 若tail离最后的节点相�
     
     <div class="article-entry" itemprop="articleBody">
       
-        <p>NioEventLoop在为数据分配存放的内存时, 会首先尝试从线程本地缓存中去申请, 只有当本地缓存中申请失败, 才会考虑从全局内存中申请, 本地缓存的管理者就是PoolThreadCache对象。 Netty自己实现了类似LocalThread的类来充当线程缓存: PoolThreadLocalCache, 本节将充分围绕这两个类的源代码进行描述。</p>
+
+	
+		<p>NioEventLoop在为数据分配存放的内存时, 会首先尝试从线程本地缓存中去申请, 只有当本地缓存中申请失败, 才会考虑从全局内存中申请, 本地缓存的管理者就是PoolThreadCache对象。 Netty自己实现了类似LocalThread的类来充当线程缓存: PoolThreadLocalCache, 本节将充分围绕这两个类的源代码进行描述。</p>
 <h1 id="PoolThreadCache"><a href="#PoolThreadCache" class="headerlink" title="PoolThreadCache"></a>PoolThreadCache</h1><p>Netty自己进行内存管理, 将内存主要分为Tiny, small, normal等size不等的区间。 在PoolThreadCache中将缓存也按照size进行划分, 下图是PoolThreadCache的内部整体结构图:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/PoolThreadCache2.png" height="400" width="450"><br>图中只展示了small类型数组的大小(为4), 而tiny、normal数组的大小分别分32、 3。 每个数据元素代表着缓存不同类型大小的对象。 比如回收size为32B的对象, 将相应的内存块放在tiny类型数组、下标为1 (log(32&gt;&gt;4))的queue中。 本文章大量用到某一级别的缓存块, 举个例子:normal级别的缓存块有[8k, 16k, 32k]。<br>下面大致介绍下PoolThreadCache里面的属性作用:</p>
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line">final PoolArena&lt;byte[]&gt; heapArena;</span><br><span class="line">final PoolArena&lt;ByteBuffer&gt; directArena;</span><br><span class="line"></span><br><span class="line">// Hold the caches for the different size classes, which are tiny, small and normal.</span><br><span class="line">//tiny内存缓存的个数。默认为512</span><br><span class="line">private final MemoryRegionCache&lt;byte[]&gt;[] tinySubPageHeapCaches;</span><br><span class="line">//small内存缓存的个数,默认为256个</span><br><span class="line">private final MemoryRegionCache&lt;byte[]&gt;[] smallSubPageHeapCaches;</span><br><span class="line">private final MemoryRegionCache&lt;ByteBuffer&gt;[] tinySubPageDirectCaches;</span><br><span class="line">private final MemoryRegionCache&lt;ByteBuffer&gt;[] smallSubPageDirectCaches;</span><br><span class="line">//normalCacheSize缓存的个数，默认为64</span><br><span class="line">private final MemoryRegionCache&lt;byte[]&gt;[] normalHeapCaches;</span><br><span class="line">private final MemoryRegionCache&lt;ByteBuffer&gt;[] normalDirectCaches;</span><br><span class="line"></span><br><span class="line">private final int freeSweepAllocationThreshold;</span><br><span class="line"></span><br><span class="line">private final Thread deathWatchThread;</span><br><span class="line">//线程消亡后，释放资源</span><br><span class="line">private final Runnable freeTask;</span><br><span class="line">//freeSweepAllocationThreshold  在本地线程每分配freeSweepAllocationThreshold 次内存后，检测一下是否需要释放内存。</span><br><span class="line">private int allocations;</span><br></pre></td></tr></table></figure>
 
@@ -969,9 +977,8 @@ tansfer()主要是将节点尾插法进入队列; 若tail离最后的节点相�
 
 <p>这里我们需要注意leastUsedArena()函数。 Netty默认会产生NioEventLoop |work|个PoolArea块, 至于该线程绑定哪个PoolArea呢, 是根据该PoolArea被多少线程绑定次数来依据的。 被越少的线程绑定到一起, 分配内存发生冲突的概率越小。 这里选择被绑定次数最低的那个PoolArea来构建PoolThreadCache。<br>至此, 线程与PoolThreadCache实现了一一绑定。 之后该线程分配内存, 都会利用PoolThreadLocalCache.get()获取PoolThreadCache, 然后利用里面的PoolArea来完成的。</p>
 
-      
+	
 
-      
     </div>
     <div class="article-info article-info-index">
       
@@ -1041,7 +1048,9 @@ tansfer()主要是将节点尾插法进入队列; 若tail离最后的节点相�
     
     <div class="article-entry" itemprop="articleBody">
       
-        <h1 id="简介"><a href="#简介" class="headerlink" title="简介"></a>简介</h1><p>Netty内存主要分为两种: DirectByteBuf和HeapByteBuf, 实际上就是堆外内存和堆内内存。堆外内存又称直接内存, 通过io.netty.noPreferDirect参数设置。 自从JDK1.4开始, 增加了NIO, 可以直接Native函数在堆外构建直接内存。Netty作为服务器架构技术, 拥有大量的网络数据传输, 当我们进行网络传输时, 必须将数据拷贝到直接内存, 合理利用好直接内存, 能够大量减少堆内数据和直接内存考虑, 显著地提高性能。 但是堆外内存也有一定的缺点, 它进程主动垃圾回收,垃圾回收效率也极低, 因此, netty主动创建了Pool和Unpool的概念。</p>
+
+	
+		<h1 id="简介"><a href="#简介" class="headerlink" title="简介"></a>简介</h1><p>Netty内存主要分为两种: DirectByteBuf和HeapByteBuf, 实际上就是堆外内存和堆内内存。堆外内存又称直接内存, 通过io.netty.noPreferDirect参数设置。 自从JDK1.4开始, 增加了NIO, 可以直接Native函数在堆外构建直接内存。Netty作为服务器架构技术, 拥有大量的网络数据传输, 当我们进行网络传输时, 必须将数据拷贝到直接内存, 合理利用好直接内存, 能够大量减少堆内数据和直接内存考虑, 显著地提高性能。 但是堆外内存也有一定的缺点, 它进程主动垃圾回收,垃圾回收效率也极低, 因此, netty主动创建了Pool和Unpool的概念。</p>
 <h2 id="Pool和Unpool区别"><a href="#Pool和Unpool区别" class="headerlink" title="Pool和Unpool区别"></a>Pool和Unpool区别</h2><p>字面意思, 分别是池化内存和非池化内存。<code>池化内存</code>的管理方式是首先申请一大块内存, 然后再慢慢使用, 当使用完成释放后, 再将该部分内存放入池子中, 等待下一次的使用, 这样的话, 可以减少垃圾回收次数, 提高处理性能。<code>非池化内存</code>就是普通的内存使用, 需要时直接申请, 释放时直接释放。 可以通过参数<code>Dio.netty.allocator.type</code>确定netty默认使用内存的方式, 目前netty针对pool做了大量的支持, 这样内存使用直接交给了netty管理, 减轻了直接内存回收的压力。 所以在netty4时候, 默认使用pool方式。<br>这样的话, 内存分为四种: PoolDireBuf、UnpoolDireBuf、PoolHeapBuf、UnpoolHeapBuf。netty底层默认使用的PoolDireBuf类型的内存, 这些内存主要由PoolArea管理, 这也是本文的重点。</p>
 <h1 id="内存分配"><a href="#内存分配" class="headerlink" title="内存分配"></a>内存分配</h1><p>线程调用如下接口来获取内存:</p>
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">protected ByteBuf newDirectBuffer(int initialCapacity, int maxCapacity) &#123;</span><br><span class="line">    PoolThreadCache cache = threadCache.get();</span><br><span class="line">    PoolArena&lt;ByteBuffer&gt; directArena = cache.directArena;</span><br><span class="line"></span><br><span class="line">    final ByteBuf buf;</span><br><span class="line">    if (directArena != null) &#123;</span><br><span class="line">        buf = directArena.allocate(cache, initialCapacity, maxCapacity);</span><br><span class="line">    &#125; else &#123;</span><br><span class="line">        buf = PlatformDependent.hasUnsafe() ?</span><br><span class="line">                UnsafeByteBufUtil.newUnsafeDirectByteBuf(this, initialCapacity, maxCapacity) :</span><br><span class="line">                new UnpooledDirectByteBuf(this, initialCapacity, maxCapacity);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    return toLeakAwareBuffer(buf);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
@@ -1095,9 +1104,8 @@ tansfer()主要是将节点尾插法进入队列; 若tail离最后的节点相�
 </ul>
 <h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>非内存池化的内存分配没有什么好说的, 并没有组织成什么结构来分配, 内存的释放主要由PoolChunk和PoolSubpage来释放。 本文主要讲了从poolArena上层结构tinySubpagePools、mallSubpagePools、050、q025、q000、qInit、q075分配内存、 大致的步骤, 至于从每个对象具体如何分配内存, 请看相关文章<a href="https://kkewwei.github.io/elasticsearch_learning/2018/07/20/Netty-PoolChunk%E5%8E%9F%E7%90%86%E6%8E%A2%E7%A9%B6/">Netty PoolChunk原理探究</a>、<a href="https://kkewwei.github.io/elasticsearch_learning/2018/07/22/Netty-PoolSubpage%E5%8E%9F%E7%90%86%E6%8E%A2%E7%A9%B6/">Netty-PoolSubpage原理探究</a>.</p>
 
-      
+	
 
-      
     </div>
     <div class="article-info article-info-index">
       
@@ -1178,7 +1186,9 @@ tansfer()主要是将节点尾插法进入队列; 若tail离最后的节点相�
     
     <div class="article-entry" itemprop="articleBody">
       
-        <p>解码过程仍以<a href="https://kkewwei.github.io/elasticsearch_learning/2018/04/16/Netty-Http%E9%80%9A%E4%BF%A1%E8%A7%A3%E7%A0%81%E6%BA%90%E7%A0%81%E9%98%85%E8%AF%BB/">Netty Http通信源码一(解码)阅读</a>提供的示例为例, 编码发送的主体DefaultFullHttpResponse如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/DefaultFullHttpResponse.png" height="250" width="500"><br>涉及到的ChannelOutboundHandler类有:HttpContentCompressor、HttpObjectEncoder, 及其父类。 本wiki仍然以数据的流向作为引导线。<br>开始向外发送数据时, 如下:</p>
+
+	
+		<p>解码过程仍以<a href="https://kkewwei.github.io/elasticsearch_learning/2018/04/16/Netty-Http%E9%80%9A%E4%BF%A1%E8%A7%A3%E7%A0%81%E6%BA%90%E7%A0%81%E9%98%85%E8%AF%BB/">Netty Http通信源码一(解码)阅读</a>提供的示例为例, 编码发送的主体DefaultFullHttpResponse如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/DefaultFullHttpResponse.png" height="250" width="500"><br>涉及到的ChannelOutboundHandler类有:HttpContentCompressor、HttpObjectEncoder, 及其父类。 本wiki仍然以数据的流向作为引导线。<br>开始向外发送数据时, 如下:</p>
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line">private void write(Object msg, boolean flush, ChannelPromise promise) &#123;</span><br><span class="line">        AbstractChannelHandlerContext next = findContextOutbound(); //向外发送，找到一个拥有out的context</span><br><span class="line">        final Object m = pipeline.touch(msg, next);</span><br><span class="line">        EventExecutor executor = next.executor();</span><br><span class="line">        if (executor.inEventLoop()) &#123;</span><br><span class="line">            if (flush) &#123;</span><br><span class="line">                next.invokeWriteAndFlush(m, promise);</span><br><span class="line">            &#125; else &#123;</span><br><span class="line">                next.invokeWrite(m, promise);</span><br><span class="line">            &#125;</span><br><span class="line">        &#125; else &#123;</span><br><span class="line">            AbstractWriteTask task;</span><br><span class="line">            if (flush) &#123;</span><br><span class="line">                task = WriteAndFlushTask.newInstance(next, m, promise); //这个task是一个Runnable, 只需要向里面放， 后期自然会执行</span><br><span class="line">            &#125;  else &#123;</span><br><span class="line">                task = WriteTask.newInstance(next, m, promise);</span><br><span class="line">            &#125;</span><br><span class="line">            safeExecute(executor, task, promise, m);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure>
 
 <p>当自定义handler向外发送数据时, 走的是else部分; 若我们调用了flush()方法, 此时, 会产生WriteAndFlushTask对象,  其为Runnable类, 在run函数中, 会直接调用write(), write定义如下:</p>
@@ -1328,9 +1338,8 @@ tailEntry: 当前缓存message时, 新增message都是尾部追加。 我们需�
 <p>可以看到safeSuccess(promise), 在这里面完成了将Promise置为True, 同时调用notifyListeners()来唤醒监听器。</p>
 <p>至此, write到缓存、flush到网络部分全部讲完了。</p>
 
-      
+	
 
-      
     </div>
     <div class="article-info article-info-index">
       
@@ -1400,7 +1409,9 @@ tailEntry: 当前缓存message时, 新增message都是尾部追加。 我们需�
     
     <div class="article-entry" itemprop="articleBody">
       
-        <p>首先给出一个http server pipiLine里面的处理器的组成结构的示例:</p>
+
+	
+		<p>首先给出一个http server pipiLine里面的处理器的组成结构的示例:</p>
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">@Override</span><br><span class="line">protected void initChannel(Channel ch) throws Exception &#123;</span><br><span class="line">    final HttpRequestDecoder decoder = new HttpRequestDecoder(4096, 8192, 8192);</span><br><span class="line">    decoder.setCumulator(ByteToMessageDecoder.COMPOSITE_CUMULATOR);  //默认是另一个</span><br><span class="line">    ch.pipeline().addLast(&quot;decoder&quot;, decoder);</span><br><span class="line">    ch.pipeline().addLast(&quot;encoder&quot;, new HttpResponseEncoder());</span><br><span class="line">    final HttpObjectAggregator aggregator = new HttpObjectAggregator(Math.toIntExact(transport.maxContentLength.getBytes()));</span><br><span class="line">    ch.pipeline().addLast(&quot;aggregator&quot;, aggregator);  //包的聚合</span><br><span class="line">    ch.pipeline().addLast(&quot;encoder_compress&quot;, new HttpContentCompressor(transport.compressionLevel));</span><br><span class="line">    ch.pipeline().addLast(&quot;pipelining&quot;, new HttpPipeliningHandler(transport.logger, transport.pipeliningMaxEvents));</span><br><span class="line">    ch.pipeline().addLast(&quot;handler&quot;, requestHandler);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
 <p>其中只有HttpRequestDecoder属于ByteToMessageDecoder类型, 主要作用是从byte中拼接处每一个帧, 其余处理器大部分是根据自定义的语义对这个帧转化, 本文将以示例中的重要的handler为处理器, 以POST请求解析过程为串分析下去。<br>http处理方式是每次将缓冲池放满(默认65536个), 然后将65536个字符按照虚拟的chunk分片(默认一个HttpChunk 8192个字符),通过handler, 最后在HttpObjectAggregator聚合, 然后发向后面。<br>这里有一个问题:<br><code>为什么不将65536个字符一下发送到最终handler, 而需要先分解成虚拟的chunked, 一个一个发送到后面再聚合起来?</code><br>服务器端数据真正接收到客户端网络的数据是在NioSocketChannel里面的NioByteUnsafe(NioSocketChannelUnsafe父类)里面的read()里面。</p>
@@ -1462,9 +1473,8 @@ tailEntry: 当前缓存message时, 新增message都是尾部追加。 我们需�
 <p>至此,一个完整地AggregatedFullHttpRequest已经解析出来了,组成如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/DefaultLastHttpContent.png"></p>
 <h1 id="附"><a href="#附" class="headerlink" title="附"></a>附</h1><p>如何将Composite转换为一个连续的堆内buf呢?<br>通过Unpooled.copiedBuffer(request.content())方法即可。</p>
 
-      
+	
 
-      
     </div>
     <div class="article-info article-info-index">
       
@@ -1619,10 +1629,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">Flink、Slot分配、SubTask申请slot, SubTask部署</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">NIO, write, read</a>
               </li>
              
@@ -1631,7 +1637,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
+                <a href="javascript:void(0)" class="js-tag color3">Flink、Slot分配、SubTask申请slot, SubTask部署</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">Lucene、ByteBlockPool</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1639,11 +1649,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">Lucene、词典、FST</a>
+                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">Lucene、ByteBlockPool</a>
+                <a href="javascript:void(0)" class="js-tag color4">Lucene、词典、FST</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1655,19 +1665,19 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">Lucene、BKW树、Point</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">Lucene、词典、tim、tip、doc、pos、fst、倒排索引</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
+                <a href="javascript:void(0)" class="js-tag color3">Lucene、BKW树、Point</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">Cycler</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1679,7 +1689,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">maven, 插件, 打包</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1691,15 +1709,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
               </li>
             
             <div class="clearfix"></div>

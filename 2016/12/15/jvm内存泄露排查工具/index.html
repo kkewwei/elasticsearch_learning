@@ -188,7 +188,9 @@
     
     <div class="article-entry" itemprop="articleBody">
       
-        <p>本文介绍几个不常用的内存泄露排查工具:perftools、pmap、jcmd。</p>
+
+	
+		<p>本文介绍几个不常用的内存泄露排查工具:perftools、pmap、jcmd。</p>
 <h1 id="堆外内存分类"><a href="#堆外内存分类" class="headerlink" title="堆外内存分类"></a>堆外内存分类</h1><p> 1.通过<code>ByteBuffer.allocateDirect</code>方式申请的内存。可以通过编写<code>ManagementFactory.getPlatformMXBeans(BufferPoolMXBean.class)</code>、jcmd方式监控到<br> 2.通过<code>UNSAFE.allocateMemory()</code>方式申请的内存, 可以通过jcmd方式监控到。<br> 3.通过mmap0()方式分配内存,<br> 4.线程栈使用的内存, 通过统计线程个数查看(jcmd中也有统计)<br> 5.java8的metaspace元数据空间<br> 6.JNI里分配的内存(一般需要pmap、perf工具检测)</p>
 <h2 id="jcmd"><a href="#jcmd" class="headerlink" title="jcmd"></a>jcmd</h2><p>jcm是一个多功能工具, 功能如下:</p>
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line">$user@host: /usr/local/java18/bin/jcmd 25266 help</span><br><span class="line">25266:</span><br><span class="line">The following commands are available:</span><br><span class="line">JFR.stop</span><br><span class="line">JFR.start</span><br><span class="line">JFR.dump</span><br><span class="line">JFR.check</span><br><span class="line">VM.native_memory</span><br><span class="line">VM.check_commercial_features</span><br><span class="line">VM.unlock_commercial_features</span><br><span class="line">ManagementAgent.stop</span><br><span class="line">ManagementAgent.start_local</span><br><span class="line">ManagementAgent.start</span><br><span class="line">GC.rotate_log</span><br><span class="line">Thread.print         // 与jstack功能相同</span><br><span class="line">GC.class_stats</span><br><span class="line">GC.class_histogram    // 与jmap -histo功能相同</span><br><span class="line">GC.heap_dump         //与jmap -dump功能相同</span><br><span class="line">GC.run_finalization</span><br><span class="line">GC.run</span><br><span class="line">VM.uptime</span><br><span class="line">VM.flags                   //查看更完整的启动命令, 包括默认的参数, 比如垃圾回收器</span><br><span class="line">VM.system_properties      //查看系统参数</span><br><span class="line">VM.command_line          //查看启动命令</span><br><span class="line">VM.version</span><br><span class="line">help</span><br></pre></td></tr></table></figure>
@@ -274,30 +276,8 @@ The third column is a cumulative sum of the second column (i.e., the kth entry i
 </ul>
 <h1 id="参考"><a href="#参考" class="headerlink" title="参考"></a>参考</h1><p><a href="http://goog-perftools.sourceforge.net/doc/heap_profiler.html" target="_blank" rel="noopener">http://goog-perftools.sourceforge.net/doc/heap_profiler.html</a><br><a href="https://docs.oracle.com/javase/8/docs/technotes/guides/troubleshoot/tooldescr007.html" target="_blank" rel="noopener">https://docs.oracle.com/javase/8/docs/technotes/guides/troubleshoot/tooldescr007.html</a><br><a href="https://www.cnblogs.com/duanxz/archive/2012/08/09/2630284.html" target="_blank" rel="noopener">https://www.cnblogs.com/duanxz/archive/2012/08/09/2630284.html</a><br><a href="https://tech.xxxx.com/2019/01/03/spring-boot-native-memory-leak.html" target="_blank" rel="noopener">https://tech.xxxx.com/2019/01/03/spring-boot-native-memory-leak.html</a><br><a href="https://www.cnblogs.com/sidesky/p/10009241.html" target="_blank" rel="noopener">https://www.cnblogs.com/sidesky/p/10009241.html</a><br><a href="https://yq.aliyun.com/articles/227924" target="_blank" rel="noopener">https://yq.aliyun.com/articles/227924</a><br><a href="https://www.cnblogs.com/ggjucheng/p/3348439.html" target="_blank" rel="noopener">https://www.cnblogs.com/ggjucheng/p/3348439.html</a><br><a href="https://coldwalker.com/2018/08//troubleshooter_native_memory_increase/" target="_blank" rel="noopener">https://coldwalker.com/2018/08//troubleshooter_native_memory_increase/</a></p>
 
-      
+	
 
-      
-        <div class="page-reward">
-          <a href="javascript:;" class="page-reward-btn tooltip-top">
-            <div class="tooltip tooltip-east">
-            <span class="tooltip-item">
-              赏
-            </span>
-            <span class="tooltip-content">
-              <span class="tooltip-text">
-                <span class="tooltip-inner">
-                  <p class="reward-p"><i class="icon icon-quo-left"></i>谢谢阅读<i class="icon icon-quo-right"></i></p>
-                  <div class="reward-box">
-                    
-                    
-                  </div>
-                </span>
-              </span>
-            </span>
-          </div>
-          </a>
-        </div>
-      
     </div>
     <div class="article-info article-info-index">
       
@@ -438,7 +418,7 @@ The third column is a cumulative sum of the second column (i.e., the kth entry i
 
 
   
-  
+
   
 
   
@@ -562,10 +542,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">Flink、Slot分配、SubTask申请slot, SubTask部署</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">NIO, write, read</a>
               </li>
              
@@ -574,7 +550,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
+                <a href="javascript:void(0)" class="js-tag color3">Flink、Slot分配、SubTask申请slot, SubTask部署</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">Lucene、ByteBlockPool</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -582,11 +562,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">Lucene、词典、FST</a>
+                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">Lucene、ByteBlockPool</a>
+                <a href="javascript:void(0)" class="js-tag color4">Lucene、词典、FST</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -598,19 +578,19 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">Lucene、BKW树、Point</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">Lucene、词典、tim、tip、doc、pos、fst、倒排索引</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
+                <a href="javascript:void(0)" class="js-tag color3">Lucene、BKW树、Point</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">Cycler</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -622,7 +602,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">maven, 插件, 打包</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -634,15 +622,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
               </li>
             
             <div class="clearfix"></div>

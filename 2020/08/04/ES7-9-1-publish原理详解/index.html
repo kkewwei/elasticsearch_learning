@@ -184,7 +184,9 @@
     
     <div class="article-entry" itemprop="articleBody">
       
-        <p>ES集群中，master负责实施维护集群元数据的更新，然后再分发给data节点，分发的过程就是publish，也就是本文的重点。本文将以索引创建的流程来讲解这个过程。</p>
+
+	
+		<p>ES集群中，master负责实施维护集群元数据的更新，然后再分发给data节点，分发的过程就是publish，也就是本文的重点。本文将以索引创建的流程来讲解这个过程。</p>
 <h1 id="master首先创建新的集群元数据"><a href="#master首先创建新的集群元数据" class="headerlink" title="master首先创建新的集群元数据"></a>master首先创建新的集群元数据</h1><p>当master接收到创建索引的请求后，首先进入如下MetadataCreateIndexService.onlyCreateIndex()函数：</p>
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">private void onlyCreateIndex(final CreateIndexClusterStateUpdateRequest request,</span><br><span class="line">                                final ActionListener&lt;ClusterStateUpdateResponse&gt; listener) &#123;</span><br><span class="line">       clusterService.submitStateUpdateTask(</span><br><span class="line">           &quot;create-index [&quot; + request.index() + &quot;], cause [&quot; + request.cause() + &quot;]&quot;,</span><br><span class="line">           // 每个create使用这惟一的key</span><br><span class="line">           new AckedClusterStateUpdateTask&lt;ClusterStateUpdateResponse&gt;(Priority.URGENT, request, listener) &#123; </span><br><span class="line">               protected ClusterStateUpdateResponse newResponse(boolean acknowledged) &#123;</span><br><span class="line">                   return new ClusterStateUpdateResponse(acknowledged);</span><br><span class="line">               &#125;</span><br><span class="line">               @Override</span><br><span class="line">               public ClusterState execute(ClusterState currentState) throws Exception &#123;</span><br><span class="line">                   // 产生新的ClusterState，还没成为本地的ClusterState</span><br><span class="line">                   return applyCreateIndexRequest(currentState, request, false); </span><br><span class="line">               &#125;</span><br><span class="line">           &#125;);</span><br><span class="line">   &#125;</span><br></pre></td></tr></table></figure>
 
@@ -271,30 +273,8 @@
 
 <h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>master广播全过程分为第一次广播+第二次commit请求，只有过半master节点响应才能继续第二次广播。在30s超时时间后，主动设置publish状态为true, 在规定时间内元数据更新较慢的节点，master会主动将其剔除集群。</p>
 
-      
+	
 
-      
-        <div class="page-reward">
-          <a href="javascript:;" class="page-reward-btn tooltip-top">
-            <div class="tooltip tooltip-east">
-            <span class="tooltip-item">
-              赏
-            </span>
-            <span class="tooltip-content">
-              <span class="tooltip-text">
-                <span class="tooltip-inner">
-                  <p class="reward-p"><i class="icon icon-quo-left"></i>谢谢阅读<i class="icon icon-quo-right"></i></p>
-                  <div class="reward-box">
-                    
-                    
-                  </div>
-                </span>
-              </span>
-            </span>
-          </div>
-          </a>
-        </div>
-      
     </div>
     <div class="article-info article-info-index">
       
@@ -424,7 +404,7 @@
 
 
   
-  
+
   
 
   
@@ -548,10 +528,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">Flink、Slot分配、SubTask申请slot, SubTask部署</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">NIO, write, read</a>
               </li>
              
@@ -560,7 +536,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
+                <a href="javascript:void(0)" class="js-tag color3">Flink、Slot分配、SubTask申请slot, SubTask部署</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">Lucene、ByteBlockPool</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -568,11 +548,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">Lucene、词典、FST</a>
+                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">Lucene、ByteBlockPool</a>
+                <a href="javascript:void(0)" class="js-tag color4">Lucene、词典、FST</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -584,19 +564,19 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">Lucene、BKW树、Point</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">Lucene、词典、tim、tip、doc、pos、fst、倒排索引</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
+                <a href="javascript:void(0)" class="js-tag color3">Lucene、BKW树、Point</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">Cycler</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -608,7 +588,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">maven, 插件, 打包</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -620,15 +608,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
               </li>
             
             <div class="clearfix"></div>

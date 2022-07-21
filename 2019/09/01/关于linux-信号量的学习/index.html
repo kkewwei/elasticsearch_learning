@@ -187,7 +187,9 @@
     
     <div class="article-entry" itemprop="articleBody">
       
-        <p>我们可能经常会使用kill -9 pid 来kill某个进程, 其实-9就是某一种信号量, 今天我们将简单讲解下信号量的使用。 linux中信号就是软件中断, 它提供了一种处理异步时间的方法: 终端用户键入中断键, 则会通过信号机构停止一个程序。产生信号的事件对于进程而言则是随机出现的。 进程表態只测试一个变量来判别是否发生了一个信号, 而是必须告诉内核”在此信号发生时, 请执行以下操作”, 可以要求系统在某个信号按照以下三种的其中一种方式操作:<br>(1) 忽略信号, 大多数信号都可使用这种方式处理, 但是有两只中信号决不能被忽略, 它们是SIGKILL和SIGSTOP。这两种信号不能被忽略的原因是: 它们向超级用户提供一种使进程终止或者停止的可靠方法。另外, 如果忽略某种由硬件异常产生的信号(例如非法存储访问或者除以0), 则金恒的行为是未定义的。<br>(2) 捕获信号, 为了做到这一点要通知内核在某种信号发生时, 调用一个用户函数。在用户函数中, 可执行用户希望对这种事件进行的处理, 例如, 若编写一个命令解释器, 当用户用键盘产生中断信号后, 很可能希望用户返回到程序的主循环, 终止系统正在为用户执行的命令。 若果捕获到SIGCHILD信号, 则表示子进程已经终止, 所以此信号的捕获可以调用waitpid以取得该子进程的进程ID已经它的最终状态。 又例如, 如果进程创建了临时文件, 那么可能要为SIGTERM信号编写一个信号捕获函数以清理临时文件(kill命令传送的信号默认信号时终止信号)。<br>(3) 执行系统默认动作。对于大部分信号的系统默认动作是终止该进程。<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/signal_1.png" height="450" width="500"><br><img src="https://kkewwei.github.io/elasticsearch_learning/img/signal_2.png" height="250" width="480"><br>想了解每个信号的含义, 可以参考《Unix环境高级编程》一书, 每种信号可以由一个数字表示, 这里罗列一些常见的:</p>
+
+	
+		<p>我们可能经常会使用kill -9 pid 来kill某个进程, 其实-9就是某一种信号量, 今天我们将简单讲解下信号量的使用。 linux中信号就是软件中断, 它提供了一种处理异步时间的方法: 终端用户键入中断键, 则会通过信号机构停止一个程序。产生信号的事件对于进程而言则是随机出现的。 进程表態只测试一个变量来判别是否发生了一个信号, 而是必须告诉内核”在此信号发生时, 请执行以下操作”, 可以要求系统在某个信号按照以下三种的其中一种方式操作:<br>(1) 忽略信号, 大多数信号都可使用这种方式处理, 但是有两只中信号决不能被忽略, 它们是SIGKILL和SIGSTOP。这两种信号不能被忽略的原因是: 它们向超级用户提供一种使进程终止或者停止的可靠方法。另外, 如果忽略某种由硬件异常产生的信号(例如非法存储访问或者除以0), 则金恒的行为是未定义的。<br>(2) 捕获信号, 为了做到这一点要通知内核在某种信号发生时, 调用一个用户函数。在用户函数中, 可执行用户希望对这种事件进行的处理, 例如, 若编写一个命令解释器, 当用户用键盘产生中断信号后, 很可能希望用户返回到程序的主循环, 终止系统正在为用户执行的命令。 若果捕获到SIGCHILD信号, 则表示子进程已经终止, 所以此信号的捕获可以调用waitpid以取得该子进程的进程ID已经它的最终状态。 又例如, 如果进程创建了临时文件, 那么可能要为SIGTERM信号编写一个信号捕获函数以清理临时文件(kill命令传送的信号默认信号时终止信号)。<br>(3) 执行系统默认动作。对于大部分信号的系统默认动作是终止该进程。<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/signal_1.png" height="450" width="500"><br><img src="https://kkewwei.github.io/elasticsearch_learning/img/signal_2.png" height="250" width="480"><br>想了解每个信号的含义, 可以参考《Unix环境高级编程》一书, 每种信号可以由一个数字表示, 这里罗列一些常见的:</p>
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">Some of the more commonly used signals:</span><br><span class="line">1       HUP (hang up)</span><br><span class="line">2       INT (interrupt)</span><br><span class="line">3       QUIT (quit)</span><br><span class="line">6       ABRT (abort, 调用abort时触发)</span><br><span class="line">9       KILL (non-catchable, non-ignorable kill)</span><br><span class="line">14      ALRM (alarm clock)</span><br><span class="line">15      TERM (software termination signal)</span><br><span class="line">30      SIGUSR1 (user defined signal 1)</span><br><span class="line">31      SIGUSR2 (user defined signal 2)</span><br></pre></td></tr></table></figure>
 
 <p>在系统默认动作列中, “终止w&#x2F;core”表示在进程当前工作目录的core文件中复制了该进程的存储图像(该文件名为core)。 在以下条件下不产生core文件:<br>(a) 程是设置-用户-ID, 而且当前用户并非程序文件的所有者<br>(b) 进程是设置-组-ID ,而且当前用户并非该程序文件的组所有者<br>(c)用户没有写当前工作目录的许可权<br>(d) 文件太大。我们经常使用<code>ulimit -c unlimited</code>设置core文件大小。</p>
@@ -200,30 +202,8 @@
 </ol>
 <p>参考:<br>《Unix环境高级编程》第十章 信 号</p>
 
-      
+	
 
-      
-        <div class="page-reward">
-          <a href="javascript:;" class="page-reward-btn tooltip-top">
-            <div class="tooltip tooltip-east">
-            <span class="tooltip-item">
-              赏
-            </span>
-            <span class="tooltip-content">
-              <span class="tooltip-text">
-                <span class="tooltip-inner">
-                  <p class="reward-p"><i class="icon icon-quo-left"></i>谢谢阅读<i class="icon icon-quo-right"></i></p>
-                  <div class="reward-box">
-                    
-                    
-                  </div>
-                </span>
-              </span>
-            </span>
-          </div>
-          </a>
-        </div>
-      
     </div>
     <div class="article-info article-info-index">
       
@@ -353,7 +333,7 @@
 
 
   
-  
+
   
 
   
@@ -477,10 +457,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">Flink、Slot分配、SubTask申请slot, SubTask部署</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">NIO, write, read</a>
               </li>
              
@@ -489,7 +465,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
+                <a href="javascript:void(0)" class="js-tag color3">Flink、Slot分配、SubTask申请slot, SubTask部署</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">Lucene、ByteBlockPool</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -497,11 +477,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">Lucene、词典、FST</a>
+                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">Lucene、ByteBlockPool</a>
+                <a href="javascript:void(0)" class="js-tag color4">Lucene、词典、FST</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -513,19 +493,19 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">Lucene、BKW树、Point</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">Lucene、词典、tim、tip、doc、pos、fst、倒排索引</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
+                <a href="javascript:void(0)" class="js-tag color3">Lucene、BKW树、Point</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">Cycler</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -537,7 +517,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">maven, 插件, 打包</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -549,15 +537,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
               </li>
             
             <div class="clearfix"></div>

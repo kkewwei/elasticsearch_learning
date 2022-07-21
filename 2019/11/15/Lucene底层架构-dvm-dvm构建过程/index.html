@@ -191,7 +191,9 @@
     
     <div class="article-entry" itemprop="articleBody">
       
-        <p>DocValue主要作用是聚合, 不对字段分词, 属于正排索引结构, 面向列式存储。   分为两部分: DocValueData(dvd)、DocValueMeta(dvm)、</p>
+
+	
+		<p>DocValue主要作用是聚合, 不对字段分词, 属于正排索引结构, 面向列式存储。   分为两部分: DocValueData(dvd)、DocValueMeta(dvm)、</p>
 <h1 id="内存索引结构的建立"><a href="#内存索引结构的建立" class="headerlink" title="内存索引结构的建立"></a>内存索引结构的建立</h1><p>DocValue不对域的value分词, 而termVector会对域进行分词, 也就是说, 若设置了docValue, 那么再设置termVector将抛异常。对于每次即将刷新到文档dvd&#x2F;dvm中缓存的文档, 对于相同域名称的域的term将存放到一起, 形成列式存储, 然后再放下个域的term。 字段只有如下设置, 才会存储DocValue索引:</p>
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">fieldType.setDocValuesType(DocValuesType.SORTED_SET);</span><br><span class="line">document.add(new Field(&quot;city&quot;, &quot;sssaas&quot;.getBytes(), fieldType));</span><br></pre></td></tr></table></figure>
 
@@ -258,30 +260,8 @@
 <p>该函数主要是为了构建二级索引结构, 遍历排序好的词典:<br>1.每隔1024<em>x+1023个词, 记录当前termId<br>2.每1024</em>x+1023+1个词, 将该词与前面一个词进行比较, 记录prefix长度并累加到offset, 存放在dvm中, 记录suffix内容到dvd中。<br>同时存放了如下变量: TERMS_DICT_REVERSE_INDEX_SHIFT, 提示二级索引间隔为1024个term。</p>
 <h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>docValue作为列式存储, 不对域值分词, 所以整个域就会当成一个单独的term存储。在dvd&#x2F;dvm中, 每次将一个域的所有term存储完后, 再接着存储第二个域的所有词。dvd中主要存储termId、termValue。 dvm中存储term的一级、二级索引元素, 以便于快速找到termDict中的每个词。一级索引是每16个词,存储一个词的value, 其中前15个词由于已经排序存储, 采用相同前缀压缩存储, 词典存储可以节省很多空间。对于二级索引, 每1024个词, 取样一个节点作为索引节点。</p>
 
-      
+	
 
-      
-        <div class="page-reward">
-          <a href="javascript:;" class="page-reward-btn tooltip-top">
-            <div class="tooltip tooltip-east">
-            <span class="tooltip-item">
-              赏
-            </span>
-            <span class="tooltip-content">
-              <span class="tooltip-text">
-                <span class="tooltip-inner">
-                  <p class="reward-p"><i class="icon icon-quo-left"></i>谢谢阅读<i class="icon icon-quo-right"></i></p>
-                  <div class="reward-box">
-                    
-                    
-                  </div>
-                </span>
-              </span>
-            </span>
-          </div>
-          </a>
-        </div>
-      
     </div>
     <div class="article-info article-info-index">
       
@@ -422,7 +402,7 @@
 
 
   
-  
+
   
 
   
@@ -546,10 +526,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">Flink、Slot分配、SubTask申请slot, SubTask部署</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">NIO, write, read</a>
               </li>
              
@@ -558,7 +534,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
+                <a href="javascript:void(0)" class="js-tag color3">Flink、Slot分配、SubTask申请slot, SubTask部署</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">Lucene、ByteBlockPool</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -566,11 +546,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">Lucene、词典、FST</a>
+                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">Lucene、ByteBlockPool</a>
+                <a href="javascript:void(0)" class="js-tag color4">Lucene、词典、FST</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -582,19 +562,19 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">Lucene、BKW树、Point</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">Lucene、词典、tim、tip、doc、pos、fst、倒排索引</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
+                <a href="javascript:void(0)" class="js-tag color3">Lucene、BKW树、Point</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">Cycler</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -606,7 +586,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">maven, 插件, 打包</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -618,15 +606,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
               </li>
             
             <div class="clearfix"></div>

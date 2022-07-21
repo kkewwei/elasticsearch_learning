@@ -186,7 +186,9 @@
     
     <div class="article-entry" itemprop="articleBody">
       
-        <p>NioEventLoop在为数据分配存放的内存时, 会首先尝试从线程本地缓存中去申请, 只有当本地缓存中申请失败, 才会考虑从全局内存中申请, 本地缓存的管理者就是PoolThreadCache对象。 Netty自己实现了类似LocalThread的类来充当线程缓存: PoolThreadLocalCache, 本节将充分围绕这两个类的源代码进行描述。</p>
+
+	
+		<p>NioEventLoop在为数据分配存放的内存时, 会首先尝试从线程本地缓存中去申请, 只有当本地缓存中申请失败, 才会考虑从全局内存中申请, 本地缓存的管理者就是PoolThreadCache对象。 Netty自己实现了类似LocalThread的类来充当线程缓存: PoolThreadLocalCache, 本节将充分围绕这两个类的源代码进行描述。</p>
 <h1 id="PoolThreadCache"><a href="#PoolThreadCache" class="headerlink" title="PoolThreadCache"></a>PoolThreadCache</h1><p>Netty自己进行内存管理, 将内存主要分为Tiny, small, normal等size不等的区间。 在PoolThreadCache中将缓存也按照size进行划分, 下图是PoolThreadCache的内部整体结构图:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/PoolThreadCache2.png" height="400" width="450"><br>图中只展示了small类型数组的大小(为4), 而tiny、normal数组的大小分别分32、 3。 每个数据元素代表着缓存不同类型大小的对象。 比如回收size为32B的对象, 将相应的内存块放在tiny类型数组、下标为1 (log(32&gt;&gt;4))的queue中。 本文章大量用到某一级别的缓存块, 举个例子:normal级别的缓存块有[8k, 16k, 32k]。<br>下面大致介绍下PoolThreadCache里面的属性作用:</p>
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line">final PoolArena&lt;byte[]&gt; heapArena;</span><br><span class="line">final PoolArena&lt;ByteBuffer&gt; directArena;</span><br><span class="line"></span><br><span class="line">// Hold the caches for the different size classes, which are tiny, small and normal.</span><br><span class="line">//tiny内存缓存的个数。默认为512</span><br><span class="line">private final MemoryRegionCache&lt;byte[]&gt;[] tinySubPageHeapCaches;</span><br><span class="line">//small内存缓存的个数,默认为256个</span><br><span class="line">private final MemoryRegionCache&lt;byte[]&gt;[] smallSubPageHeapCaches;</span><br><span class="line">private final MemoryRegionCache&lt;ByteBuffer&gt;[] tinySubPageDirectCaches;</span><br><span class="line">private final MemoryRegionCache&lt;ByteBuffer&gt;[] smallSubPageDirectCaches;</span><br><span class="line">//normalCacheSize缓存的个数，默认为64</span><br><span class="line">private final MemoryRegionCache&lt;byte[]&gt;[] normalHeapCaches;</span><br><span class="line">private final MemoryRegionCache&lt;ByteBuffer&gt;[] normalDirectCaches;</span><br><span class="line"></span><br><span class="line">private final int freeSweepAllocationThreshold;</span><br><span class="line"></span><br><span class="line">private final Thread deathWatchThread;</span><br><span class="line">//线程消亡后，释放资源</span><br><span class="line">private final Runnable freeTask;</span><br><span class="line">//freeSweepAllocationThreshold  在本地线程每分配freeSweepAllocationThreshold 次内存后，检测一下是否需要释放内存。</span><br><span class="line">private int allocations;</span><br></pre></td></tr></table></figure>
 
@@ -218,30 +220,8 @@
 
 <p>这里我们需要注意leastUsedArena()函数。 Netty默认会产生NioEventLoop |work|个PoolArea块, 至于该线程绑定哪个PoolArea呢, 是根据该PoolArea被多少线程绑定次数来依据的。 被越少的线程绑定到一起, 分配内存发生冲突的概率越小。 这里选择被绑定次数最低的那个PoolArea来构建PoolThreadCache。<br>至此, 线程与PoolThreadCache实现了一一绑定。 之后该线程分配内存, 都会利用PoolThreadLocalCache.get()获取PoolThreadCache, 然后利用里面的PoolArea来完成的。</p>
 
-      
+	
 
-      
-        <div class="page-reward">
-          <a href="javascript:;" class="page-reward-btn tooltip-top">
-            <div class="tooltip tooltip-east">
-            <span class="tooltip-item">
-              赏
-            </span>
-            <span class="tooltip-content">
-              <span class="tooltip-text">
-                <span class="tooltip-inner">
-                  <p class="reward-p"><i class="icon icon-quo-left"></i>谢谢阅读<i class="icon icon-quo-right"></i></p>
-                  <div class="reward-box">
-                    
-                    
-                  </div>
-                </span>
-              </span>
-            </span>
-          </div>
-          </a>
-        </div>
-      
     </div>
     <div class="article-info article-info-index">
       
@@ -371,7 +351,7 @@
 
 
   
-  
+
   
 
   
@@ -495,10 +475,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">Flink、Slot分配、SubTask申请slot, SubTask部署</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">NIO, write, read</a>
               </li>
              
@@ -507,7 +483,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
+                <a href="javascript:void(0)" class="js-tag color3">Flink、Slot分配、SubTask申请slot, SubTask部署</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">Lucene、ByteBlockPool</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -515,11 +495,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">Lucene、词典、FST</a>
+                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">Lucene、ByteBlockPool</a>
+                <a href="javascript:void(0)" class="js-tag color4">Lucene、词典、FST</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -531,19 +511,19 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">Lucene、BKW树、Point</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">Lucene、词典、tim、tip、doc、pos、fst、倒排索引</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
+                <a href="javascript:void(0)" class="js-tag color3">Lucene、BKW树、Point</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">Cycler</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -555,7 +535,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">maven, 插件, 打包</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -567,15 +555,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
               </li>
             
             <div class="clearfix"></div>

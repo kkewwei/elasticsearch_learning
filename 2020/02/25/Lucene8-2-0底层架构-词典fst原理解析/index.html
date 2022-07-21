@@ -191,7 +191,9 @@
     
     <div class="article-entry" itemprop="articleBody">
       
-        <p>lucene中使用fst(Finite State Transducer)来对字典压缩存储、快速查询词典, fst结构紧凑, 在时间复杂度和空间复杂度之间均衡, 和HashMap结构相比, 该结构体共享字符串前缀和后缀以达到精简内存使用, FST逻辑上构成了一个有向无环图, 本文将对fst结构体的构建过程进行分析。</p>
+
+	
+		<p>lucene中使用fst(Finite State Transducer)来对字典压缩存储、快速查询词典, fst结构紧凑, 在时间复杂度和空间复杂度之间均衡, 和HashMap结构相比, 该结构体共享字符串前缀和后缀以达到精简内存使用, FST逻辑上构成了一个有向无环图, 本文将对fst结构体的构建过程进行分析。</p>
 <h1 id="使用示例"><a href="#使用示例" class="headerlink" title="使用示例"></a>使用示例</h1><p>在输入字符串时词典时, 必须经过排序, 这样产生的fst才最小。</p>
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">// 输入字符串</span><br><span class="line">String inputValues[] = &#123;&quot;abcde&quot;,&quot;abdde&quot;,&quot;abede&quot;,&quot;accde&quot;,&quot;adcde&quot;&#125;;</span><br><span class="line">// 对应字符串的附加output</span><br><span class="line">Long outputValues[] = &#123;1L,2L,3L,4L,5L&#125;;</span><br><span class="line">PositiveIntOutputs outputs = PositiveIntOutputs.getSingleton();</span><br><span class="line">//构建FST</span><br><span class="line">Builder&lt;Long&gt; builder = new Builder&lt;&gt;(FST.INPUT_TYPE.BYTE1,outputs);</span><br><span class="line">IntsRefBuilder scratchInts = new IntsRefBuilder();</span><br><span class="line">for (int i = 0; i &lt; inputValues.length; i++) &#123;</span><br><span class="line">    BytesRef scratchBytes =  new BytesRef(inputValues[i].getBytes());</span><br><span class="line">    scratchInts.copyUTF8Bytes(scratchBytes);</span><br><span class="line">    builder.add(scratchInts.toIntsRef(),outputValues[i]);</span><br><span class="line">&#125;</span><br><span class="line">// 构建fst结构</span><br><span class="line">FST&lt;Long&gt; fst = builder.finish();</span><br><span class="line">// 读取该字符串对应的值</span><br><span class="line">Long value = Util.get(fst, new BytesRef(&quot;abcde&quot;));</span><br><span class="line">System.out.println(value);</span><br></pre></td></tr></table></figure>
 
@@ -251,30 +253,8 @@
 <p>从该节点的所有边查找条件分4种情况:<br>1.若根缓存有数据, 那么直接从缓存中查找数据。<br>2.使用ARCS_AS_ARRAY_WITH_GAPS方式读取边。(满足等长存储的情况下, 是否直接存储。已经废弃, 可参考写入时FST类中656行, writeDirectly直接被置为false).<br>3.若该节点所有边都按照等长排序, 那么二分查找该节点下所有的边。这里存储时, 若边太多或者太深, 将使用空间换时间的方式加快查找速度, 每条边使用相同的存储空间以快速遍历。<br>4.否则线性遍历该节点下所有的边, 直到找到符合的边。</p>
 <h1 id="参考"><a href="#参考" class="headerlink" title="参考"></a>参考</h1><p><a href="https://blog.51cto.com/sbp810050504/1361551" target="_blank" rel="noopener">https://blog.51cto.com/sbp810050504/1361551</a><br><a href="http://examples.mikemccandless.com/fst.py" target="_blank" rel="noopener">http://examples.mikemccandless.com/fst.py</a></p>
 
-      
+	
 
-      
-        <div class="page-reward">
-          <a href="javascript:;" class="page-reward-btn tooltip-top">
-            <div class="tooltip tooltip-east">
-            <span class="tooltip-item">
-              赏
-            </span>
-            <span class="tooltip-content">
-              <span class="tooltip-text">
-                <span class="tooltip-inner">
-                  <p class="reward-p"><i class="icon icon-quo-left"></i>谢谢阅读<i class="icon icon-quo-right"></i></p>
-                  <div class="reward-box">
-                    
-                    
-                  </div>
-                </span>
-              </span>
-            </span>
-          </div>
-          </a>
-        </div>
-      
     </div>
     <div class="article-info article-info-index">
       
@@ -415,7 +395,7 @@
 
 
   
-  
+
   
 
   
@@ -539,10 +519,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">Flink、Slot分配、SubTask申请slot, SubTask部署</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">NIO, write, read</a>
               </li>
              
@@ -551,7 +527,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
+                <a href="javascript:void(0)" class="js-tag color3">Flink、Slot分配、SubTask申请slot, SubTask部署</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">Lucene、ByteBlockPool</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -559,11 +539,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">Lucene、词典、FST</a>
+                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">Lucene、ByteBlockPool</a>
+                <a href="javascript:void(0)" class="js-tag color4">Lucene、词典、FST</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -575,19 +555,19 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">Lucene、BKW树、Point</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">Lucene、词典、tim、tip、doc、pos、fst、倒排索引</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
+                <a href="javascript:void(0)" class="js-tag color3">Lucene、BKW树、Point</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">Cycler</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -599,7 +579,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">maven, 插件, 打包</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -611,15 +599,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
               </li>
             
             <div class="clearfix"></div>

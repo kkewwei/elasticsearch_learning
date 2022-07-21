@@ -185,172 +185,19 @@
     
     <div class="article-entry" itemprop="articleBody">
       
-        <p>jvm进程崩溃时, 可以产生coredump文件, 该dump文件记录了崩溃时cpu、jvm当前线程、当前内存的使用情况, 学会分析该coredump对于我们排查问题十分重要, 本文将主要讲解如何通过gdb分析该coredump文件。</p>
-<h1 id="coredump产生"><a href="#coredump产生" class="headerlink" title="coredump产生"></a>coredump产生</h1><p>第一步检查系统是否允许产生coredump文件<br>操作系统默认禁止coredump文件的产生, 可以通过<code>ulimit -c</code>查看是否允许产生coredump文件, 若显示为0, 则禁止线程崩溃时产生该core文件, 可以通过<code>echo &quot;ulimit  -c unlimited&quot; &gt;&gt; /etc/profile</code>. 我们也可以通过cat &#x2F;pro&#x2F;$pid&#x2F;limits 查看设置情况</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line">Limit                     Soft Limit           Hard Limit           Units</span><br><span class="line">Max cpu time              unlimited            unlimited            seconds</span><br><span class="line">Max file size             unlimited            unlimited            bytes</span><br><span class="line">Max data size             unlimited            unlimited            bytes</span><br><span class="line">Max stack size            8388608              unlimited            bytes</span><br><span class="line">Max core file size        unlimited            unlimited            bytes</span><br><span class="line">Max resident set          unlimited            unlimited            bytes</span><br><span class="line">Max processes             23262                23262                processes</span><br><span class="line">Max open files            4096                 4096                 files</span><br><span class="line">Max locked memory         65536                65536                bytes</span><br><span class="line">Max address space         unlimited            unlimited            bytes</span><br><span class="line">Max file locks            unlimited            unlimited            locks</span><br><span class="line">Max pending signals       23262                23262                signals</span><br><span class="line">Max msgqueue size         819200               819200               bytes</span><br><span class="line">Max nice priority         0                    0</span><br><span class="line">Max realtime priority     0                    0</span><br><span class="line">Max realtime timeout      unlimited            unlimited            us</span><br></pre></td></tr></table></figure>
 
-<p>可以看到Max core file size设置为unlimited, 是运行产生core 文件的。<br>第二步, 通过kill -6 pid 向进程发送abort信号产生core文件(默认文件名称,不是kill -9)。</p>
-<h1 id="gdb基本使用"><a href="#gdb基本使用" class="headerlink" title="gdb基本使用"></a>gdb基本使用</h1><table>
-<thead>
-<tr>
-<th align="left">命令</th>
-<th align="left">简写</th>
-<th align="left">说明</th>
-</tr>
-</thead>
-<tbody><tr>
-<td align="left">list</td>
-<td align="left">l</td>
-<td align="left">显示多行源代码</td>
-</tr>
-<tr>
-<td align="left">break</td>
-<td align="left">b</td>
-<td align="left">设置断点,程序运行到断点的位置会停下来</td>
-</tr>
-<tr>
-<td align="left">info</td>
-<td align="left">i</td>
-<td align="left">描述程序的状态</td>
-</tr>
-<tr>
-<td align="left">run</td>
-<td align="left"></td>
-<td align="left">r</td>
-</tr>
-<tr>
-<td align="left">display</td>
-<td align="left">disp</td>
-<td align="left">跟踪查看某个变量,每次停下来都显示它的值</td>
-</tr>
-<tr>
-<td align="left">step</td>
-<td align="left">s</td>
-<td align="left">执行下一条语句,如果该语句为函数调用,则进入函数执行其中的第一条语句</td>
-</tr>
-<tr>
-<td align="left">next</td>
-<td align="left">n</td>
-<td align="left">执行下一条语句,如果该语句为函数调用,不会进入函数内部执行(即不会一步步地调试函数内部语句)</td>
-</tr>
-<tr>
-<td align="left">print</td>
-<td align="left">p</td>
-<td align="left">打印内部变量值</td>
-</tr>
-<tr>
-<td align="left">continue</td>
-<td align="left">c</td>
-<td align="left">继续程序的运行,直到遇到下一个断点</td>
-</tr>
-<tr>
-<td align="left">set var name&#x3D;v</td>
-<td align="left"></td>
-<td align="left">设置变量的值</td>
-</tr>
-<tr>
-<td align="left">start</td>
-<td align="left">st</td>
-<td align="left">开始执行程序,在main函数的第一条语句前面停下来</td>
-</tr>
-<tr>
-<td align="left">file</td>
-<td align="left"></td>
-<td align="left">装入需要调试的程序</td>
-</tr>
-<tr>
-<td align="left">kill</td>
-<td align="left">k</td>
-<td align="left">终止正在调试的程序</td>
-</tr>
-<tr>
-<td align="left">watch</td>
-<td align="left"></td>
-<td align="left">监视变量值的变化</td>
-</tr>
-<tr>
-<td align="left">backtrace</td>
-<td align="left">bt</td>
-<td align="left">产看函数调用信息(堆栈)</td>
-</tr>
-<tr>
-<td align="left">frame</td>
-<td align="left">f</td>
-<td align="left">查看栈帧, 比如打印当前线程栈第5行详细信息: f 5</td>
-</tr>
-<tr>
-<td align="left">quit</td>
-<td align="left">q</td>
-<td align="left">退出GDB环境</td>
-</tr>
-<tr>
-<td align="left">(参考<a href="https://blog.csdn.net/zdy0_2004/article/details/80102076" target="_blank" rel="noopener">gdb调试的基本使用</a>)</td>
-<td align="left"></td>
-<td align="left"></td>
-</tr>
-</tbody></table>
-<h1 id="分析coredump文件"><a href="#分析coredump文件" class="headerlink" title="分析coredump文件"></a>分析coredump文件</h1><ul>
-<li>gdb java core<br>调用如上命令加载core文件(这里的core指的是core文件名称)。</li>
-</ul>
-<ol>
-<li>执行<code>info threads</code>, 其实可以通过<code>info</code>查看需要详细数据<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">#0  0xb776b424 in __kernel_vsyscall ()</span><br><span class="line">(gdb) info threads</span><br><span class="line">  Id   Target Id         Frame</span><br><span class="line">  12   Thread 0xb6a84b40 (LWP 5553) 0xb776b424 in __kernel_vsyscall ()</span><br><span class="line">  11   Thread 0xad2ffb40 (LWP 5563) 0xb776b424 in __kernel_vsyscall ()</span><br><span class="line">  10   Thread 0xad350b40 (LWP 5562) 0xb776b424 in __kernel_vsyscall ()</span><br><span class="line">  9    Thread 0xad3d1b40 (LWP 5561) 0xb776b424 in __kernel_vsyscall ()</span><br><span class="line">  8    Thread 0xad422b40 (LWP 5560) 0xb776b424 in __kernel_vsyscall ()</span><br><span class="line">  7    Thread 0xad473b40 (LWP 5559) 0xb776b424 in __kernel_vsyscall ()</span><br><span class="line">  6    Thread 0xad6c4b40 (LWP 5558) 0xb776b424 in __kernel_vsyscall ()</span><br><span class="line">  5    Thread 0xad715b40 (LWP 5557) 0xb776b424 in __kernel_vsyscall ()</span><br><span class="line">  4    Thread 0xad796b40 (LWP 5556) 0xb776b424 in __kernel_vsyscall ()</span><br><span class="line">  3    Thread 0xadee6b40 (LWP 5555) 0xb776b424 in __kernel_vsyscall ()</span><br><span class="line">  2    Thread 0xb4817b40 (LWP 5554) 0xb776b424 in __kernel_vsyscall ()</span><br><span class="line">* 1    Thread 0xb756f700 (LWP 5552) 0xb776b424 in __kernel_vsyscall ()</span><br><span class="line">(gdb)</span><br></pre></td></tr></table></figure></li>
-</ol>
-<p>这里将展示目前已知的所有线程, *开头的代表当前处于调试的线程。这里可以通过输入info可以查看所有的命令。 切换当前调试线程可以通过<code>thread ID</code>方式, id取值上图第一列。其实我们查看每个线程在干什么, 也可以直接使用<code>pstack pid</code>即可<br>2. 假如想查看id为1的线程当前栈调用情况, 那么执行继续<code>bt</code></p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">#0  0xb776b424 in __kernel_vsyscall ()</span><br><span class="line">(gdb) bt</span><br><span class="line">#0  0xb776b424 in __kernel_vsyscall ()</span><br><span class="line">#1  0xb7742178 in pthread_join (threadid=3064482624, thread_return=0xbfb1b944) at pthread_join.c:92</span><br><span class="line">#2  0xb772eeda in ContinueInNewThread0 () from /home/kewei/Downloads/work_soft/jdk1.8.0_121/bin/../lib/i386/jli/libjli.so</span><br><span class="line">#3  0xb772a266 in ContinueInNewThread () from /home/kewei/Downloads/work_soft/jdk1.8.0_121/bin/../lib/i386/jli/libjli.so</span><br><span class="line">#4  0xb772edab in JVMInit () from /home/kewei/Downloads/work_soft/jdk1.8.0_121/bin/../lib/i386/jli/libjli.so</span><br><span class="line">#5  0xb772d149 in JLI_Launch () from /home/kewei/Downloads/work_soft/jdk1.8.0_121/bin/../lib/i386/jli/libjli.so</span><br><span class="line">#6  0x0804858d in main ()</span><br></pre></td></tr></table></figure>
+<div class="category-all-page">
+	<div class="category-all-title">
+	counter.categories
+	</div>
 
-<ol start="3">
-<li>查看每个register值: <code>info registers</code>(简写<code>i r</code>)<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">        0xfffffe00	-512</span><br><span class="line">ecx            0x0	0</span><br><span class="line">edx            0x25d5	9685</span><br><span class="line">ebx            0xb6a5dba8	-1230644312</span><br><span class="line">esp            0xbfd1a6e0	0xbfd1a6e0</span><br><span class="line">ebp            0xb6a5db40	0xb6a5db40</span><br><span class="line">esi            0x0	0</span><br><span class="line">edi            0xb772c000	-1217216512</span><br><span class="line">eip            0xb7744424	0xb7744424 &lt;__kernel_vsyscall+16&gt;</span><br><span class="line">eflags         0x246	[ PF ZF IF ]</span><br><span class="line">......</span><br></pre></td></tr></table></figure></li>
-</ol>
-<p>左边是寄存器名称, 中间是寄存器地址, 右边是寄存器值, 可以通过<code>print $ecx</code>验证寄存器值</p>
-<ul>
-<li>查看反汇编语言<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line">(gdb) disassemble</span><br><span class="line">Dump of assembler code for function __kernel_vsyscall:</span><br><span class="line">   0xb7744414 &lt;+0&gt;:	push   %ecx</span><br><span class="line">   0xb7744415 &lt;+1&gt;:	push   %edx</span><br><span class="line">   0xb7744416 &lt;+2&gt;:	push   %ebp</span><br><span class="line">   0xb7744417 &lt;+3&gt;:	mov    %esp,%ebp</span><br><span class="line">   0xb7744419 &lt;+5&gt;:	sysenter</span><br><span class="line">   0xb774441b &lt;+7&gt;:	nop</span><br><span class="line">   0xb774441c &lt;+8&gt;:	nop</span><br><span class="line">   0xb774441d &lt;+9&gt;:	nop</span><br><span class="line">   0xb774441e &lt;+10&gt;:	nop</span><br><span class="line">   0xb774441f &lt;+11&gt;:	nop</span><br><span class="line">   0xb7744420 &lt;+12&gt;:	nop</span><br><span class="line">   0xb7744421 &lt;+13&gt;:	nop</span><br><span class="line">   0xb7744422 &lt;+14&gt;:	int    $0x80</span><br><span class="line">=&gt; 0xb7744424 &lt;+16&gt;:	pop    %ebp</span><br><span class="line">   0xb7744425 &lt;+17&gt;:	pop    %edx</span><br><span class="line">   0xb7744426 &lt;+18&gt;:	pop    %ecx</span><br><span class="line">   0xb7744427 &lt;+19&gt;:	ret</span><br><span class="line">End of assembler dump.</span><br></pre></td></tr></table></figure></li>
-</ul>
-<p>也可以反汇编一个函数<code>disass func_name</code>, 如下:</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">(gdb) disass main</span><br><span class="line">Dump of assembler code for function main:</span><br><span class="line">   0x0000000000400620 &lt;+0&gt;:	push   %rbp</span><br><span class="line">   0x0000000000400621 &lt;+1&gt;:	mov    %rsp,%rbp</span><br><span class="line">   0x0000000000400624 &lt;+4&gt;:	sub    $0x40,%rsp</span><br><span class="line">   0x0000000000400628 &lt;+8&gt;:	mov    0x200271(%rip),%rdx        # 0x6008a0 &lt;const_launcher&gt;</span><br><span class="line">   0x000000000040062f &lt;+15&gt;:	test   %rdx,%rdx</span><br><span class="line">   0x0000000000400632 &lt;+18&gt;:	je     0x4006a0 &lt;main+128&gt;</span><br><span class="line">   0x0000000000400634 &lt;+20&gt;:	mov    0x20026d(%rip),%rax        # 0x6008a8 &lt;const_progname&gt;</span><br><span class="line">   0x000000000040063b &lt;+27&gt;:	test   %rax,%rax</span><br><span class="line">   0x000000000040063e &lt;+30&gt;:	je     0x4006b0 &lt;main+144&gt;</span><br><span class="line">   0x0000000000400640 &lt;+32&gt;:	mov    %rax,0x10(%rsp)</span><br></pre></td></tr></table></figure>
+	<div class="category-all">
+	<ul class="category-list"><li class="category-list-item"><a class="category-list-link" href="/elasticsearch_learning/categories/Elasticsearch/">Elasticsearch</a><span class="category-list-count">4</span></li><li class="category-list-item"><a class="category-list-link" href="/elasticsearch_learning/categories/Flink/">Flink</a><span class="category-list-count">4</span></li><li class="category-list-item"><a class="category-list-link" href="/elasticsearch_learning/categories/Java-NIO及网络通信/">Java NIO及网络通信</a><span class="category-list-count">3</span></li><li class="category-list-item"><a class="category-list-link" href="/elasticsearch_learning/categories/Java学习/">Java学习</a><span class="category-list-count">14</span></li><li class="category-list-item"><a class="category-list-link" href="/elasticsearch_learning/categories/Linux网络编程/">Linux网络编程</a><span class="category-list-count">3</span></li><li class="category-list-item"><a class="category-list-link" href="/elasticsearch_learning/categories/Lucene/">Lucene</a><span class="category-list-count">8</span></li><li class="category-list-item"><a class="category-list-link" href="/elasticsearch_learning/categories/Netty/">Netty</a><span class="category-list-count">11</span></li><li class="category-list-item"><a class="category-list-link" href="/elasticsearch_learning/categories/工具学习/">工具学习</a><span class="category-list-count">4</span></li></ul>
+	</div>
 
-<ul>
-<li>查看当前线程情况<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line">xxxxxx@slave1:~$jstack /home/kewei/Downloads/work_soft/jdk1.8.0_121/bin/java core</span><br><span class="line">Attaching to core core from executable /home/kewei/Downloads/work_soft/jdk1.8.0_121/bin/java, please wait...</span><br><span class="line">Debugger attached successfully.</span><br><span class="line">Client compiler detected.</span><br><span class="line">JVM version is 25.121-b13</span><br><span class="line">Deadlock Detection:</span><br><span class="line"></span><br><span class="line">No deadlocks found.</span><br><span class="line"></span><br><span class="line">Thread 9692: (state = BLOCKED)</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">Thread 9691: (state = BLOCKED)</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">Thread 9690: (state = BLOCKED)</span><br><span class="line"> - java.lang.Object.wait(long) @bci=0 (Interpreted frame)</span><br><span class="line"> - java.lang.ref.ReferenceQueue.remove(long) @bci=59, line=143 (Interpreted frame)</span><br><span class="line"> - java.lang.ref.ReferenceQueue.remove() @bci=2, line=164 (Interpreted frame)</span><br><span class="line"> - java.lang.ref.Finalizer$FinalizerThread.run() @bci=36, line=209 (Interpreted frame)</span><br><span class="line">......</span><br></pre></td></tr></table></figure></li>
-</ul>
-<p>注意java命令的路径不能省略, 否则会报如下异常:</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">Attaching to core core from executable java, please wait...</span><br><span class="line">Error attaching to core file: cannot open binary file</span><br><span class="line">sun.jvm.hotspot.debugger.DebuggerException: cannot open binary file</span><br><span class="line">	at sun.jvm.hotspot.debugger.linux.LinuxDebuggerLocal.attach0(Native Method)</span><br></pre></td></tr></table></figure>
+</div>
 
-<ul>
-<li><p>查看当前内存使用</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line">xxxxx@slave1:~$ jmap /home/kewei/Downloads/work_soft/jdk1.8.0_121/bin/java core</span><br><span class="line">Attaching to core core from executable /home/kewei/Downloads/work_soft/jdk1.8.0_121/bin/java, please wait...</span><br><span class="line">Debugger attached successfully.</span><br><span class="line">Client compiler detected.</span><br><span class="line">JVM version is 25.121-b13</span><br><span class="line">0x08048000	5K	/home/kewei/Downloads/work_soft/jdk1.8.0_121/bin/java</span><br><span class="line">0xb7713000	127K	/lib/i386-linux-gnu/libpthread.so.0</span><br><span class="line">0xb76fd000	93K	/home/kewei/Downloads/work_soft/jdk1.8.0_121/bin/../lib/i386/jli/libjli.so</span><br><span class="line">0xb76f8000	13K	/lib/i386-linux-gnu/libdl.so.2</span><br><span class="line">0xb7549000	1717K	/lib/i386-linux-gnu/libc.so.6</span><br><span class="line">0xb7745000	131K	/lib/ld-linux.so.2</span><br><span class="line">0xb6aa4000	8162K	/home/kewei/Downloads/work_soft/jdk1.8.0_121/jre/lib/i386/client/libjvm.so</span><br><span class="line">0xb6a5e000	273K	/lib/i386-linux-gnu/libm.so.6</span><br><span class="line">0xb6a04000	29K	/lib/i386-linux-gnu/librt.so.1</span><br><span class="line">0xb7736000	54K	/home/kewei/Downloads/work_soft/jdk1.8.0_121/jre/lib/i386/libverify.so</span><br><span class="line">0xb68db000	187K	/home/kewei/Downloads/work_soft/jdk1.8.0_121/jre/lib/i386/libjava.so</span><br><span class="line">0xb68bf000	29K	/lib/i386-linux-gnu/libnss_compat.so.2</span><br><span class="line">0xb68a6000	89K	/lib/i386-linux-gnu/libnsl.so.1</span><br><span class="line">0xb689a000	41K	/lib/i386-linux-gnu/libnss_nis.so.2</span><br><span class="line">0xb688d000	45K	/lib/i386-linux-gnu/libnss_files.so.2</span><br><span class="line">0xb6873000	114K	/home/kewei/Downloads/work_soft/jdk1.8.0_121/jre/lib/i386/libzip.so</span><br></pre></td></tr></table></figure>
-</li>
-<li><p>通过core文件产生heapdump文件<br><code>xxxxx@slave1:~$ jmap -dump:format=b,file=dump.hprof $JAVA_HOME/bin/java core</code></p>
-</li>
-</ul>
-<h1 id="在线dump虚拟地址内的数据"><a href="#在线dump虚拟地址内的数据" class="headerlink" title="在线dump虚拟地址内的数据"></a>在线dump虚拟地址内的数据</h1><p>1.<code>使用gdb -pid $pid</code>,该命令使用将小心, 它会直接hung住进程, 禁止直接对线上进程设置。<br>2.接着可以dump某个内存中的内容放入memory.bin1中:<code>dump memory memory.bin1 startoffset endoffset</code>, 其中startoffset、endoffset取值可以从&#x2F;proc&#x2F;$pids&#x2F;maps中获取:</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">Reading symbols from /usr/local/jdk1.8.0_45/jre/lib/amd64/libnio.so...(no debugging symbols found)...done.</span><br><span class="line">Loaded symbols for /usr/local/jdk1.8.0_45/jre/lib/amd64/libnio.so</span><br><span class="line">0x00007fd979de22fd in pthread_join () from /lib64/libpthread.so.0</span><br><span class="line">Missing separate debuginfos, use: debuginfo-install jdk-1.8.0-45.x86_64</span><br><span class="line">No symbol table is loaded.  Use the &quot;file&quot; command.</span><br><span class="line">(gdb) dump memory memory.bin1 0x7fd8bc000000 0x7fd8bc029000</span><br></pre></td></tr></table></figure>
 
-<p>3.使用<code>strings memory.bin1</code>查找包含的字符创, 或者使用<code>hexDump -C memory.bin1</code>, 以二进制打开内存dump。(若内存区域无值, 此方法将无用)</p>
-<h1 id="参考"><a href="#参考" class="headerlink" title="参考"></a>参考</h1><p><a href="https://blog.csdn.net/zdy0_2004/article/details/80102076" target="_blank" rel="noopener">https://blog.csdn.net/zdy0_2004/article/details/80102076</a><br><a href="https://www.cnblogs.com/xuxm2007/archive/2011/04/01/2002162.html" target="_blank" rel="noopener">https://www.cnblogs.com/xuxm2007/archive/2011/04/01/2002162.html</a></p>
-
-      
-
-      
-        <div class="page-reward">
-          <a href="javascript:;" class="page-reward-btn tooltip-top">
-            <div class="tooltip tooltip-east">
-            <span class="tooltip-item">
-              赏
-            </span>
-            <span class="tooltip-content">
-              <span class="tooltip-text">
-                <span class="tooltip-inner">
-                  <p class="reward-p"><i class="icon icon-quo-left"></i>谢谢阅读<i class="icon icon-quo-right"></i></p>
-                  <div class="reward-box">
-                    
-                    
-                  </div>
-                </span>
-              </span>
-            </span>
-          </div>
-          </a>
-        </div>
-      
     </div>
     <div class="article-info article-info-index">
       
@@ -495,7 +342,7 @@
 
 
   
-  
+
   
 
   
@@ -619,10 +466,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">Flink、Slot分配、SubTask申请slot, SubTask部署</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">NIO, write, read</a>
               </li>
              
@@ -631,7 +474,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
+                <a href="javascript:void(0)" class="js-tag color3">Flink、Slot分配、SubTask申请slot, SubTask部署</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">Lucene、ByteBlockPool</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -639,11 +486,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">Lucene、词典、FST</a>
+                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">Lucene、ByteBlockPool</a>
+                <a href="javascript:void(0)" class="js-tag color4">Lucene、词典、FST</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -655,19 +502,19 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">Lucene、BKW树、Point</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">Lucene、词典、tim、tip、doc、pos、fst、倒排索引</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
+                <a href="javascript:void(0)" class="js-tag color3">Lucene、BKW树、Point</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">Cycler</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -679,7 +526,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">maven, 插件, 打包</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -691,15 +546,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
               </li>
             
             <div class="clearfix"></div>

@@ -194,7 +194,9 @@
     
     <div class="article-entry" itemprop="articleBody">
       
-        <p>Lucene中主要有两类倒排索引结构， 一种是词典结构， 涉及tim、tip、doc、pos。另外一种就是词典向量,统计的是单个词在文档内的，涉及tvd,tvm（参考<a href="https://kkewwei.github.io/elasticsearch_learning/2020/03/02/Lucene8-2-0%E5%BA%95%E5%B1%82%E6%9E%B6%E6%9E%84-tvd-tvm%E8%AF%8D%E5%85%B8%E5%90%91%E9%87%8F%E7%BB%93%E6%9E%84%E7%A0%94%E7%A9%B6/">Lucene8.2.0底层架构-tvd&#x2F;tvm词典向量结构研究</a>）, 这者统计的信息大体相同，这两个类都继承自<code>TermsHashPerField</code>，都是对segment内相同域名所有文档共享这两个类。<br>前者由<code>FreqProxTermsWriterPerField</code>构建, 后者由<code>TermVectorsConsumerPerField</code>构建。两者之间结构相似，前者统计单个词在segment内所有文档当前域的词频等，后者统计单个词在当前文档当前域的词频等。先放一张图让大家对这两个对象有个大致的了解：<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/lucene_tim1.png" height="500" width="400"><br>可以看到，将两者连接起来的是bytePool（结构可参考<a href="https://kkewwei.github.io/elasticsearch_learning/2019/10/06/Lucene8-2-0%E5%BA%95%E5%B1%82%E6%9E%B6%E6%9E%84-ByteBlockPool%E7%BB%93%E6%9E%84%E5%88%86%E6%9E%90/">Lucene8.2.0底层架构-ByteBlockPool结构分析</a>）,该对象就是存放的term内容，在词典和TermVector构建之间共享以节约内存使用，不过前者产生的termId在当前segment相同域内唯一的，而后者仅仅在文档该域内唯一。<br>Lucene查询中使用最多的就是词典结构, 根据term查询在哪些文档中存在, 也被称为倒排索引， 倒排索引结构如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/lucene_tim2.png" height="350" width="400"><br>由图可知，只要知道termId，我们就可以很好地知道该term在每个document每个域的词频，位置，offset等信息，本文就以词典构建过程来进行深入研究。</p>
+
+	
+		<p>Lucene中主要有两类倒排索引结构， 一种是词典结构， 涉及tim、tip、doc、pos。另外一种就是词典向量,统计的是单个词在文档内的，涉及tvd,tvm（参考<a href="https://kkewwei.github.io/elasticsearch_learning/2020/03/02/Lucene8-2-0%E5%BA%95%E5%B1%82%E6%9E%B6%E6%9E%84-tvd-tvm%E8%AF%8D%E5%85%B8%E5%90%91%E9%87%8F%E7%BB%93%E6%9E%84%E7%A0%94%E7%A9%B6/">Lucene8.2.0底层架构-tvd&#x2F;tvm词典向量结构研究</a>）, 这者统计的信息大体相同，这两个类都继承自<code>TermsHashPerField</code>，都是对segment内相同域名所有文档共享这两个类。<br>前者由<code>FreqProxTermsWriterPerField</code>构建, 后者由<code>TermVectorsConsumerPerField</code>构建。两者之间结构相似，前者统计单个词在segment内所有文档当前域的词频等，后者统计单个词在当前文档当前域的词频等。先放一张图让大家对这两个对象有个大致的了解：<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/lucene_tim1.png" height="500" width="400"><br>可以看到，将两者连接起来的是bytePool（结构可参考<a href="https://kkewwei.github.io/elasticsearch_learning/2019/10/06/Lucene8-2-0%E5%BA%95%E5%B1%82%E6%9E%B6%E6%9E%84-ByteBlockPool%E7%BB%93%E6%9E%84%E5%88%86%E6%9E%90/">Lucene8.2.0底层架构-ByteBlockPool结构分析</a>）,该对象就是存放的term内容，在词典和TermVector构建之间共享以节约内存使用，不过前者产生的termId在当前segment相同域内唯一的，而后者仅仅在文档该域内唯一。<br>Lucene查询中使用最多的就是词典结构, 根据term查询在哪些文档中存在, 也被称为倒排索引， 倒排索引结构如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/lucene_tim2.png" height="350" width="400"><br>由图可知，只要知道termId，我们就可以很好地知道该term在每个document每个域的词频，位置，offset等信息，本文就以词典构建过程来进行深入研究。</p>
 <h1 id="词典在内存中构建"><a href="#词典在内存中构建" class="headerlink" title="词典在内存中构建"></a>词典在内存中构建</h1><p>在对字典字段设置时, 可以进行如下设置:</p>
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">FieldType fieldType = new FieldType();</span><br><span class="line">// 对term建立倒排索引存储的数据</span><br><span class="line">fieldType.setIndexOptions(IndexOptions.DOCS_AND_FREQS_AND_POSITIONS_AND_OFFSETS);</span><br><span class="line">fieldType.setTokenized(true);//分词</span><br><span class="line">fieldType.setStoreTermVectors(true);//分词</span><br><span class="line">fieldType.setOmitNorms(true);//分词</span><br><span class="line">fieldType.setStoreTermVectorOffsets(true);//分词</span><br><span class="line">fieldType.setStoreTermVectorPayloads(true);//分词</span><br><span class="line">fieldType.setStoreTermVectorPositions(true);//分词</span><br></pre></td></tr></table></figure>
 
@@ -295,30 +297,8 @@ output能够快速定位block在tim中的存储位置，主要由一下几部分
 <h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>单个term的词频等信息保存正在Doc文件中，使用跳表结构来快速索引。segment每个域都有个词典结构，词典索引结构FST存放在tip文件中， tim中存放了每个PendingBlock里所有term的内容，以及每个词的统计信息， 每个词的倒排索引结构其实是存放在doc文件中。doc中存放了跳表结构，可以快速定位某个词的词频等信息。</p>
 <h1 id="参考"><a href="#参考" class="headerlink" title="参考"></a>参考</h1><p><a href="https://kkewwei.github.io/elasticsearch_learning/2020/02/25/Lucene8-2-0%E5%BA%95%E5%B1%82%E6%9E%B6%E6%9E%84-%E8%AF%8D%E5%85%B8fst%E5%8E%9F%E7%90%86%E8%A7%A3%E6%9E%90/">https://kkewwei.github.io/elasticsearch_learning/2020/02/25/Lucene8-2-0%E5%BA%95%E5%B1%82%E6%9E%B6%E6%9E%84-%E8%AF%8D%E5%85%B8fst%E5%8E%9F%E7%90%86%E8%A7%A3%E6%9E%90/</a><br><a href="https://www.amazingkoala.com.cn/Lucene/suoyinwenjian/2019/0401/43.html" target="_blank" rel="noopener">https://www.amazingkoala.com.cn/Lucene/suoyinwenjian/2019/0401/43.html</a></p>
 
-      
+	
 
-      
-        <div class="page-reward">
-          <a href="javascript:;" class="page-reward-btn tooltip-top">
-            <div class="tooltip tooltip-east">
-            <span class="tooltip-item">
-              赏
-            </span>
-            <span class="tooltip-content">
-              <span class="tooltip-text">
-                <span class="tooltip-inner">
-                  <p class="reward-p"><i class="icon icon-quo-left"></i>谢谢阅读<i class="icon icon-quo-right"></i></p>
-                  <div class="reward-box">
-                    
-                    
-                  </div>
-                </span>
-              </span>
-            </span>
-          </div>
-          </a>
-        </div>
-      
     </div>
     <div class="article-info article-info-index">
       
@@ -459,7 +439,7 @@ output能够快速定位block在tim中的存储位置，主要由一下几部分
 
 
   
-  
+
   
 
   
@@ -583,10 +563,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">Flink、Slot分配、SubTask申请slot, SubTask部署</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">NIO, write, read</a>
               </li>
              
@@ -595,7 +571,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
+                <a href="javascript:void(0)" class="js-tag color3">Flink、Slot分配、SubTask申请slot, SubTask部署</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">Lucene、ByteBlockPool</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -603,11 +583,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">Lucene、词典、FST</a>
+                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">Lucene、ByteBlockPool</a>
+                <a href="javascript:void(0)" class="js-tag color4">Lucene、词典、FST</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -619,19 +599,19 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">Lucene、BKW树、Point</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">Lucene、词典、tim、tip、doc、pos、fst、倒排索引</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
+                <a href="javascript:void(0)" class="js-tag color3">Lucene、BKW树、Point</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">Cycler</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -643,7 +623,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">maven, 插件, 打包</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -655,15 +643,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
               </li>
             
             <div class="clearfix"></div>

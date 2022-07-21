@@ -193,7 +193,9 @@
     
     <div class="article-entry" itemprop="articleBody">
       
-        <p>为了加快ConcurrentHashMap查找数据的速度, 若链表长度过长, 会将链表转化为红黑树, 本文主要讲解相关知识。</p>
+
+	
+		<p>为了加快ConcurrentHashMap查找数据的速度, 若链表长度过长, 会将链表转化为红黑树, 本文主要讲解相关知识。</p>
 <h1 id="红黑树介绍"><a href="#红黑树介绍" class="headerlink" title="红黑树介绍"></a>红黑树介绍</h1><p>一棵二叉查找树如果满足下面的红黑性质, 则为一棵红黑树:<br>1）每个节点或者是黑的，或者是红的。<br>2）根节点是黑的。<br>3）每个叶子节点（NIL）是黑的。 [注意：这里叶子节点，是指为空(NIL或NULL)的叶子节点！]<br>4）如果一个节点是红的，则它的两个儿子都是黑的。<br>5）对每个节点, 从该节点到其子孙节点的所有路径上包含相同数目的黑节点。<br>红黑树示例如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/ConcurrentHashMap3.png" height="300" width="350"></p>
 <h2 id="链表转化为红黑树"><a href="#链表转化为红黑树" class="headerlink" title="链表转化为红黑树"></a>链表转化为红黑树</h2><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br></pre></td><td class="code"><pre><span class="line">TreeBin(TreeNode&lt;K,V&gt; b) &#123;</span><br><span class="line">    super(TREEBIN, null, null, null);</span><br><span class="line">    this.first = b;</span><br><span class="line">    //设置前置节点</span><br><span class="line">    TreeNode&lt;K,V&gt; r = null;</span><br><span class="line">    for (TreeNode&lt;K,V&gt; x = b, next; x != null; x = next) &#123;</span><br><span class="line">        next = (TreeNode&lt;K,V&gt;)x.next;</span><br><span class="line">        x.left = x.right = null;</span><br><span class="line">        //初始化节点</span><br><span class="line">        if (r == null) &#123;</span><br><span class="line">            x.parent = null;</span><br><span class="line">            x.red = false;</span><br><span class="line">            r = x;</span><br><span class="line">        &#125;</span><br><span class="line">        else &#123;</span><br><span class="line">            K k = x.key;</span><br><span class="line">            int h = x.hash;</span><br><span class="line">            Class&lt;?&gt; kc = null;</span><br><span class="line">            //从根节点开始找到合适的地方存放</span><br><span class="line">            for (TreeNode&lt;K,V&gt; p = r;;) &#123;</span><br><span class="line">                int dir, ph;</span><br><span class="line">                K pk = p.key;</span><br><span class="line">                //左边</span><br><span class="line">                if ((ph = p.hash) &gt; h)</span><br><span class="line">                    dir = -1;</span><br><span class="line">                //右边</span><br><span class="line">                else if (ph &lt; h)</span><br><span class="line">                    dir = 1;</span><br><span class="line">                else if ((kc == null &amp;&amp; //继续比较，类名接口名、hash值等方面来比较</span><br><span class="line">                          (kc = comparableClassFor(k)) == null) ||</span><br><span class="line">                         (dir = compareComparables(kc, k, pk)) == 0)</span><br><span class="line">                    dir = tieBreakOrder(k, pk);</span><br><span class="line">                    TreeNode&lt;K,V&gt; xp = p;</span><br><span class="line">                if ((p = (dir &lt;= 0) ? p.left : p.right) == null) &#123; //判断是否找到头了，</span><br><span class="line">                    x.parent = xp;</span><br><span class="line">                    if (dir &lt;= 0)</span><br><span class="line">                        xp.left = x;</span><br><span class="line">                    else</span><br><span class="line">                        xp.right = x;</span><br><span class="line">                    //开始调整</span><br><span class="line">                    r = balanceInsertion(r, x);</span><br><span class="line">                    break;</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    this.root = r;</span><br><span class="line">    assert checkInvariants(root);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
@@ -212,30 +214,8 @@
 <p>若删除了红节点, 那么对二叉树没有任何影响, 调整的都是删除节点是黑色的情况; 若删除节点的父节点是红色的,直接变成黑的就over, 这里仅仅讨论删除节点的父节点是左孩子(右孩子类似)的情况.<br>这里的x需要看成双重黑色, 平衡的目的是将这个双重黑色分摊到别的节点, 变成单黑色, 调整节点迁移到父节点<br>case1: 兄弟是红色的<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/ConcurrentHashMap12.png" height="350" width="400"><br>调整: 情况1: 若无右兄弟, 则将调整节点上移到父节点A; 若有右兄弟C, 对父节点A左旋, 父节点A变成红色, 兄弟节点C变成黑色<br>case2: 兄弟是黑色的, 兄弟的两个孩子(存在2个、1个、或者0个)没有一个是红色的<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/ConcurrentHashMap13.png" height="250" width="400"><br>调整: 将兄弟节点C变成红色, 调整节点上移到父节点C。<br>case3: 兄弟是黑色的, 兄弟的左孩子是红色。<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/ConcurrentHashMap14.png" height="250" width="400"><br>调整: 右旋兄弟节点C, 兄弟节点左孩子变成黑色, 兄弟节点C变成红色, 变成case4。<br>case3: 兄弟是黑色的, 兄弟的右孩子是红色。<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/ConcurrentHashMap15.png" height="250" width="400"><br>调整: 左旋父节点A, 将父节点A的颜色给兄弟节点, 父节点A变成黑色, 调整完成, 退出函数。</p>
 <h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>红黑树重点是定义, 每次插入节点或者删除节点都会破坏红黑树的性能, 然后再通过调整修复这些性质就好了。</p>
 
-      
+	
 
-      
-        <div class="page-reward">
-          <a href="javascript:;" class="page-reward-btn tooltip-top">
-            <div class="tooltip tooltip-east">
-            <span class="tooltip-item">
-              赏
-            </span>
-            <span class="tooltip-content">
-              <span class="tooltip-text">
-                <span class="tooltip-inner">
-                  <p class="reward-p"><i class="icon icon-quo-left"></i>谢谢阅读<i class="icon icon-quo-right"></i></p>
-                  <div class="reward-box">
-                    
-                    
-                  </div>
-                </span>
-              </span>
-            </span>
-          </div>
-          </a>
-        </div>
-      
     </div>
     <div class="article-info article-info-index">
       
@@ -365,7 +345,7 @@
 
 
   
-  
+
   
 
   
@@ -489,10 +469,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">Flink、Slot分配、SubTask申请slot, SubTask部署</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">NIO, write, read</a>
               </li>
              
@@ -501,7 +477,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
+                <a href="javascript:void(0)" class="js-tag color3">Flink、Slot分配、SubTask申请slot, SubTask部署</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">Lucene、ByteBlockPool</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -509,11 +489,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">Lucene、词典、FST</a>
+                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">Lucene、ByteBlockPool</a>
+                <a href="javascript:void(0)" class="js-tag color4">Lucene、词典、FST</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -525,19 +505,19 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">Lucene、BKW树、Point</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">Lucene、词典、tim、tip、doc、pos、fst、倒排索引</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
+                <a href="javascript:void(0)" class="js-tag color3">Lucene、BKW树、Point</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">Cycler</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -549,7 +529,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">maven, 插件, 打包</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -561,15 +549,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
               </li>
             
             <div class="clearfix"></div>

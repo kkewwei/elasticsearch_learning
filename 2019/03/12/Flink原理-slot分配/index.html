@@ -189,7 +189,9 @@
     
     <div class="article-entry" itemprop="articleBody">
       
-        <p>本文将从ExecutionGraph开始向后讲起, ExecutionGraph定义了Job的并发逻辑结构, 作为任务执行的以后一层逻辑结构, 也是最核心数据结构。为了让大家有全局的了解, 先盗一张广为引用的Graph转换图:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/Flink_Graph.png" height="900" width="800"><br>具体来说, 本文讲述在JobManager端subTask申请slot以及部署到TaskManager上的过程。</p>
+
+	
+		<p>本文将从ExecutionGraph开始向后讲起, ExecutionGraph定义了Job的并发逻辑结构, 作为任务执行的以后一层逻辑结构, 也是最核心数据结构。为了让大家有全局的了解, 先盗一张广为引用的Graph转换图:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/Flink_Graph.png" height="900" width="800"><br>具体来说, 本文讲述在JobManager端subTask申请slot以及部署到TaskManager上的过程。</p>
 <h1 id="Task分配slot及部署"><a href="#Task分配slot及部署" class="headerlink" title="Task分配slot及部署"></a>Task分配slot及部署</h1><p>代码将从ExecutionGraph.scheduleExecutionGraph()开始讲解, 进入:</p>
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line">public void scheduleForExecution() throws JobException &#123;</span><br><span class="line">	final long currentGlobalModVersion = globalModVersion;</span><br><span class="line">	if (transitionState(JobStatus.CREATED, JobStatus.RUNNING)) &#123;</span><br><span class="line">		final CompletableFuture&lt;Void&gt; newSchedulingFuture;</span><br><span class="line">		switch (scheduleMode) &#123;</span><br><span class="line">			case LAZY_FROM_SOURCES:</span><br><span class="line">				newSchedulingFuture = scheduleLazy(slotProvider);</span><br><span class="line">				break;</span><br><span class="line">			case EAGER:</span><br><span class="line">				newSchedulingFuture = scheduleEager(slotProvider, allocationTimeout);</span><br><span class="line">				break;</span><br><span class="line">			default:</span><br><span class="line">				throw new JobException(&quot;Schedule mode is invalid.&quot;);</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line">	...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
@@ -304,30 +306,8 @@
 <h1 id="MultiTaskSlot及SingleTaskSlot"><a href="#MultiTaskSlot及SingleTaskSlot" class="headerlink" title="MultiTaskSlot及SingleTaskSlot"></a>MultiTaskSlot及SingleTaskSlot</h1><p>MultiTaskSlot及SingleTaskSlot都继承TaskSlot, 每当subTask申请到一个未被共享的slot时, 就会产生一个MultiTaskSlot, 它代表着一个TM上的slot, 管理着该slot被共享的情况。 实际分配给每个subTask时, 会单独产生一个SingleTaskSlot, 然后每次被MultiTaskSlot管理着。之后若共享slot时, 分配到的都是同一个MultiTaskSlot, 不同的是每次每次分配都产生新的SingleTaskSlot。</p>
 <h1 id="参考文档"><a href="#参考文档" class="headerlink" title="参考文档"></a>参考文档</h1><p><a href="https://ci.apache.org/projects/flink/flink-docs-release-1.8/concepts/runtime.html" target="_blank" rel="noopener">https://ci.apache.org/projects/flink/flink-docs-release-1.8/concepts/runtime.html</a><br><a href="https://ci.apache.org/projects/flink/flink-docs-release-1.8/internals/job_scheduling.html" target="_blank" rel="noopener">https://ci.apache.org/projects/flink/flink-docs-release-1.8/internals/job_scheduling.html</a><br><a href="http://wuchong.me/blog/2016/05/03/flink-internals-overview/" target="_blank" rel="noopener">http://wuchong.me/blog/2016/05/03/flink-internals-overview/</a><br><a href="http://wuchong.me/blog/2016/05/09/flink-internals-understanding-execution-resources/" target="_blank" rel="noopener">http://wuchong.me/blog/2016/05/09/flink-internals-understanding-execution-resources/</a></p>
 
-      
+	
 
-      
-        <div class="page-reward">
-          <a href="javascript:;" class="page-reward-btn tooltip-top">
-            <div class="tooltip tooltip-east">
-            <span class="tooltip-item">
-              赏
-            </span>
-            <span class="tooltip-content">
-              <span class="tooltip-text">
-                <span class="tooltip-inner">
-                  <p class="reward-p"><i class="icon icon-quo-left"></i>谢谢阅读<i class="icon icon-quo-right"></i></p>
-                  <div class="reward-box">
-                    
-                    
-                  </div>
-                </span>
-              </span>
-            </span>
-          </div>
-          </a>
-        </div>
-      
     </div>
     <div class="article-info article-info-index">
       
@@ -468,7 +448,7 @@
 
 
   
-  
+
   
 
   
@@ -592,10 +572,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">Flink、Slot分配、SubTask申请slot, SubTask部署</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">NIO, write, read</a>
               </li>
              
@@ -604,7 +580,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
+                <a href="javascript:void(0)" class="js-tag color3">Flink、Slot分配、SubTask申请slot, SubTask部署</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">Lucene、ByteBlockPool</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -612,11 +592,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">Lucene、词典、FST</a>
+                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">Lucene、ByteBlockPool</a>
+                <a href="javascript:void(0)" class="js-tag color4">Lucene、词典、FST</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -628,19 +608,19 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">Lucene、BKW树、Point</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">Lucene、词典、tim、tip、doc、pos、fst、倒排索引</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
+                <a href="javascript:void(0)" class="js-tag color3">Lucene、BKW树、Point</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">Cycler</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -652,7 +632,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">maven, 插件, 打包</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -664,15 +652,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
               </li>
             
             <div class="clearfix"></div>

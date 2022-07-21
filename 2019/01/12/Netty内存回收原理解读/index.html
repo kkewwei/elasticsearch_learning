@@ -187,7 +187,9 @@
     
     <div class="article-entry" itemprop="articleBody">
       
-        <p>Netty堆外内存通过DirectByteBuffer实现管理, 它会首先申请16M的直接内存块大小, 放入DirectByteBuffer, 由PoolChunk映射这16MB的内存块, 通过PoolChunk的分配来完成该直接内存块使用与释放。 每当用户申请小块内存时, 都从这16M的内存中分配, 当该部分内存使用完后, 会释放到PoolChunk内存池中, 而不是彻底释放。 可以看出, netty每次释放直接内存并没有使用DirectByteBuffer自带Cleaner来释放(具体可以参考<a href="https://kkewwei.github.io/elasticsearch_learning/2018/07/27/DirectByteBuffer%E5%A0%86%E5%A4%96%E5%86%85%E5%AD%98%E8%AF%A6%E8%A7%A3/">DirectByteBuffer堆外内存详解</a>), 使用PoolChunk管理直接内存的使用情况的好处也是很清晰的: 直接申请与释放堆外内存是个很大的开销, 若通过PoolChunk管理直接内存使用后, 可以循环使用该部分直接内存, 这样才能满足netty的高性能特性。 本文将讲述netty释放直接内存的原理及细节。<br>而DirectByteBuffer封装在PooledUnsafeDirectByteBuf, netty层面也主要操作后者, 两者的关系图如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/Netty堆外内存回收1.png" height="250" width="350"><br>了解这两者对应关系, 对理解该文有一定的帮助。</p>
+
+	
+		<p>Netty堆外内存通过DirectByteBuffer实现管理, 它会首先申请16M的直接内存块大小, 放入DirectByteBuffer, 由PoolChunk映射这16MB的内存块, 通过PoolChunk的分配来完成该直接内存块使用与释放。 每当用户申请小块内存时, 都从这16M的内存中分配, 当该部分内存使用完后, 会释放到PoolChunk内存池中, 而不是彻底释放。 可以看出, netty每次释放直接内存并没有使用DirectByteBuffer自带Cleaner来释放(具体可以参考<a href="https://kkewwei.github.io/elasticsearch_learning/2018/07/27/DirectByteBuffer%E5%A0%86%E5%A4%96%E5%86%85%E5%AD%98%E8%AF%A6%E8%A7%A3/">DirectByteBuffer堆外内存详解</a>), 使用PoolChunk管理直接内存的使用情况的好处也是很清晰的: 直接申请与释放堆外内存是个很大的开销, 若通过PoolChunk管理直接内存使用后, 可以循环使用该部分直接内存, 这样才能满足netty的高性能特性。 本文将讲述netty释放直接内存的原理及细节。<br>而DirectByteBuffer封装在PooledUnsafeDirectByteBuf, netty层面也主要操作后者, 两者的关系图如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/Netty堆外内存回收1.png" height="250" width="350"><br>了解这两者对应关系, 对理解该文有一定的帮助。</p>
 <h1 id="PlatformDependent及PlatformDependent0简介"><a href="#PlatformDependent及PlatformDependent0简介" class="headerlink" title="PlatformDependent及PlatformDependent0简介"></a>PlatformDependent及PlatformDependent0简介</h1><p>PlatformDependent及PlatformDependent0主要是用来确定重要参数配置的, 比如netty是否需要使用Unsfa, 当前使用的java版本等, 了解这些参数变量, 有助于更方面了解直接内存的使用。</p>
 <h3 id="PlatformDependent"><a href="#PlatformDependent" class="headerlink" title="PlatformDependent"></a>PlatformDependent</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br></pre></td><td class="code"><pre><span class="line">//是否有Unsafe, 拥有了Unsafe, 我们可以方便的操控直接内存,可以通过-Dio.netty.noUnsafe及-Dio.netty.tryUnsafe参数来决定, 默认是可以</span><br><span class="line">private static final boolean HAS_UNSAFE = hasUnsafe0();</span><br><span class="line">//用户优先使用堆外内存还是堆内内存, 通过-Dio.netty.noPreferDirect参数控制</span><br><span class="line">private static final boolean DIRECT_BUFFER_PREFERRED =HAS_UNSAFE &amp;&amp; !SystemPropertyUtil.getBoolean(&quot;io.netty.noPreferDirect&quot;, false);</span><br><span class="line">//当前netty能够使用的最大堆外内存, 默认与堆内内存相等</span><br><span class="line">private static final long MAX_DIRECT_MEMORY = maxDirectMemory0();</span><br><span class="line"> //与unsafe结合可以直接获取任何堆内array对象的直接地址</span><br><span class="line">private static final long BYTE_ARRAY_BASE_OFFSET = byteArrayBaseOffset0();</span><br><span class="line">//与unsafe结合可以获取任何对象的直接内存地址</span><br><span class="line">private static final int ADDRESS_SIZE = addressSize0();</span><br><span class="line"> //默认为true，则代表着netty将自己通过PoolCHunk来实现直接内存的回收与分配, 而不是使用DirectByteBuffer自带的功能来回收直接内存</span><br><span class="line">private static final boolean USE_DIRECT_BUFFER_NO_CLEANER;</span><br><span class="line">//直接内存地址的使用量, 每次新申请和释放16M堆外内存, 都会统计到该变量中, 实际项目中, 我们可以通过反射拿到该变量值以观察堆外内存是否出现泄漏</span><br><span class="line">private static final AtomicLong DIRECT_MEMORY_COUNTER;</span><br><span class="line">//最大堆外内存</span><br><span class="line">private static final long DIRECT_MEMORY_LIMIT;</span><br><span class="line">private static final ThreadLocalRandomProvider RANDOM_PROVIDER;</span><br><span class="line">//自己弄一个cleaner, 当16M内存被完全释放时, 会调用该变量完成。</span><br><span class="line">private static final Cleaner CLEANER;</span><br><span class="line">static &#123;</span><br><span class="line">     ......</span><br><span class="line">    long maxDirectMemory = SystemPropertyUtil.getLong(&quot;io.netty.maxDirectMemory&quot;, -1);</span><br><span class="line">    //PlatformDependent0.hasDirectBufferNoCleanerConstructor()会检查可以通过反射+直接内存地址来构建DirectByteBuffer对象</span><br><span class="line">    if (maxDirectMemory == 0 || !hasUnsafe() || !PlatformDependent0.hasDirectBufferNoCleanerConstructor()) &#123;</span><br><span class="line">        USE_DIRECT_BUFFER_NO_CLEANER = false;</span><br><span class="line">        DIRECT_MEMORY_COUNTER = null;</span><br><span class="line">    &#125; else &#123;</span><br><span class="line">        //代表释放DirectByteBuffer里面的直接内存, 不使用自带的cleaner机制, 通过UNSAFE.freeMemory(address)释放的。具体见PoolArea.destroyChunk()方法选择。</span><br><span class="line">        USE_DIRECT_BUFFER_NO_CLEANER = true;</span><br><span class="line">        if (maxDirectMemory &lt; 0) &#123;</span><br><span class="line">            maxDirectMemory = maxDirectMemory0();</span><br><span class="line">            if (maxDirectMemory &lt;= 0) &#123;</span><br><span class="line">                DIRECT_MEMORY_COUNTER = null;</span><br><span class="line">            &#125; else &#123;</span><br><span class="line">                DIRECT_MEMORY_COUNTER = new AtomicLong();</span><br><span class="line">            &#125;</span><br><span class="line">        &#125; else &#123;</span><br><span class="line">            DIRECT_MEMORY_COUNTER = new AtomicLong();</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    DIRECT_MEMORY_LIMIT = maxDirectMemory;</span><br><span class="line">    if (!isAndroid() &amp;&amp; hasUnsafe()) &#123;</span><br><span class="line">        if (javaVersion() &gt;= 9) &#123;</span><br><span class="line">            CLEANER = CleanerJava9.isSupported() ? new CleanerJava9() : NOOP;</span><br><span class="line">        &#125; else &#123;</span><br><span class="line">            CLEANER = CleanerJava6.isSupported() ? new CleanerJava6() : NOOP;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125; else &#123;</span><br><span class="line">        CLEANER = NOOP;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
@@ -232,30 +234,8 @@
 
 <h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>整个netty池化内存回收过程如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/Netty堆外内存回收.png" height="400" width="990"><br>netty默认释放管理直接内存方式与DirectByteBuffer默认释放内存的方式不一致, 释放时会依次检查缓存、公共内存池, 若Poolchunk使用率为0, 那么16M直接内存将直接释放。</p>
 
-      
+	
 
-      
-        <div class="page-reward">
-          <a href="javascript:;" class="page-reward-btn tooltip-top">
-            <div class="tooltip tooltip-east">
-            <span class="tooltip-item">
-              赏
-            </span>
-            <span class="tooltip-content">
-              <span class="tooltip-text">
-                <span class="tooltip-inner">
-                  <p class="reward-p"><i class="icon icon-quo-left"></i>谢谢阅读<i class="icon icon-quo-right"></i></p>
-                  <div class="reward-box">
-                    
-                    
-                  </div>
-                </span>
-              </span>
-            </span>
-          </div>
-          </a>
-        </div>
-      
     </div>
     <div class="article-info article-info-index">
       
@@ -385,7 +365,7 @@
 
 
   
-  
+
   
 
   
@@ -509,10 +489,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">Flink、Slot分配、SubTask申请slot, SubTask部署</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">NIO, write, read</a>
               </li>
              
@@ -521,7 +497,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
+                <a href="javascript:void(0)" class="js-tag color3">Flink、Slot分配、SubTask申请slot, SubTask部署</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">Lucene、ByteBlockPool</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -529,11 +509,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">Lucene、词典、FST</a>
+                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">Lucene、ByteBlockPool</a>
+                <a href="javascript:void(0)" class="js-tag color4">Lucene、词典、FST</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -545,19 +525,19 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">Lucene、BKW树、Point</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">Lucene、词典、tim、tip、doc、pos、fst、倒排索引</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
+                <a href="javascript:void(0)" class="js-tag color3">Lucene、BKW树、Point</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">Cycler</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -569,7 +549,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">maven, 插件, 打包</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -581,15 +569,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
               </li>
             
             <div class="clearfix"></div>

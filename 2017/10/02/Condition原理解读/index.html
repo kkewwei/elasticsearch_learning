@@ -188,7 +188,9 @@
     
     <div class="article-entry" itemprop="articleBody">
       
-        <p>任何一个java对象都拥有wait()&#x2F;nitify方法, 它们通过与synchronized结合(参考<a href="https://kkewwei.github.io/elasticsearch_learning/2016/10/27/Java%E7%BA%BF%E7%A8%8B%E7%9F%A5%E8%AF%86%E5%B0%8F%E7%BB%93/">Java 线程知识小结(-)</a>)来实现线程之间的通信机制。 在锁方面Lock与Condition接口配合也实现了相同的功能, 但是它们之间的原理是不相同的。使用上两者的区别如下(图片摘自<a href="https://www.jianshu.com/p/be2dc7c878dc" target="_blank" rel="noopener">java并发编程之Condition</a>)):<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/Condition1.png" height="400" width="500"><br>最直观的理解是: 在Condition中, 在生产者和消费者模型, 生产者消费者可以在不同的队列上阻塞。而通过object阻塞时, 消费者和生产者都在同一个object上被阻塞。</p>
+
+	
+		<p>任何一个java对象都拥有wait()&#x2F;nitify方法, 它们通过与synchronized结合(参考<a href="https://kkewwei.github.io/elasticsearch_learning/2016/10/27/Java%E7%BA%BF%E7%A8%8B%E7%9F%A5%E8%AF%86%E5%B0%8F%E7%BB%93/">Java 线程知识小结(-)</a>)来实现线程之间的通信机制。 在锁方面Lock与Condition接口配合也实现了相同的功能, 但是它们之间的原理是不相同的。使用上两者的区别如下(图片摘自<a href="https://www.jianshu.com/p/be2dc7c878dc" target="_blank" rel="noopener">java并发编程之Condition</a>)):<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/Condition1.png" height="400" width="500"><br>最直观的理解是: 在Condition中, 在生产者和消费者模型, 生产者消费者可以在不同的队列上阻塞。而通过object阻塞时, 消费者和生产者都在同一个object上被阻塞。</p>
 <h1 id="基本使用"><a href="#基本使用" class="headerlink" title="基本使用"></a>基本使用</h1><p>我们将以最简单的消费者与生产者的示例讲解Condition与Lock配合使用的例子:</p>
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br></pre></td><td class="code"><pre><span class="line">public class ConditonTest &#123;</span><br><span class="line">    //当前产品个数</span><br><span class="line">    public static int count = 0;</span><br><span class="line">    static ReentrantLock reentrantLock = new ReentrantLock();</span><br><span class="line">    //产品为空时, 那么消费者就得生产者来唤醒, 消费者就得等待生产者生产商品这个条件</span><br><span class="line">    static  Condition empty = reentrantLock.newCondition();</span><br><span class="line">    public static void main(String[] args) &#123;</span><br><span class="line">        ExecutorService pool = Executors.newFixedThreadPool(2);</span><br><span class="line">        Thread t3 = new Consumer(&quot;A&quot;, ConditonTest.reentrantLock, ConditonTest.empty);</span><br><span class="line">        Thread t1 = new Producder(&quot;B&quot;, ConditonTest.reentrantLock, ConditonTest.empty);</span><br><span class="line">        Thread t2 = new Producder(&quot;C&quot;, ConditonTest.reentrantLock, ConditonTest.empty);</span><br><span class="line">        Thread t4 = new Consumer(&quot;D&quot;, ConditonTest.reentrantLock, ConditonTest.empty);</span><br><span class="line">        Thread t5 = new Consumer(&quot;E&quot;, ConditonTest.reentrantLock, ConditonTest.empty);</span><br><span class="line">        // 执行各个线程</span><br><span class="line">        pool.execute(t1);</span><br><span class="line">        pool.execute(t2);</span><br><span class="line">        pool.execute(t3);</span><br><span class="line">        pool.execute(t4);</span><br><span class="line">        pool.execute(t5);</span><br><span class="line">        pool.shutdown();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line">class Producder extends Thread &#123;</span><br><span class="line">    private String name;</span><br><span class="line">    Lock lock;</span><br><span class="line">    Condition empty;</span><br><span class="line">    public Producder(String name, Lock lock, Condition empty) &#123;</span><br><span class="line">        this.name = name;</span><br><span class="line">        this.lock = lock;</span><br><span class="line">        this.empty = empty;</span><br><span class="line">    &#125;</span><br><span class="line">    public void run() &#123;</span><br><span class="line">        lock.lock(); // 获取锁</span><br><span class="line">        ConditonTest.count ++;</span><br><span class="line">        System.out.println(name + &quot;产生一个&quot;);</span><br><span class="line">        empty.signalAll(); // 唤醒所有等待线程。</span><br><span class="line">        lock.unlock(); // 释放锁</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line">class Consumer extends Thread &#123;</span><br><span class="line">    private String name;</span><br><span class="line">    Lock lock;</span><br><span class="line">    Condition empty;</span><br><span class="line">    public Consumer(String name, Lock lock, Condition empty) &#123;</span><br><span class="line">        this.name = name;</span><br><span class="line">        this.lock = lock;</span><br><span class="line">        this.empty = empty;</span><br><span class="line">    &#125;</span><br><span class="line">    public void run() &#123;</span><br><span class="line">        lock.lock(); // 获取锁</span><br><span class="line">        try &#123;</span><br><span class="line">            while ( ConditonTest.count == 0) &#123;</span><br><span class="line">                System.out.println(name + &quot;阻塞中&quot;);</span><br><span class="line">                // 阻塞取款操作, await之后就隐示自动释放了lock，直到被唤醒自动获取</span><br><span class="line">                empty.await();</span><br><span class="line">                System.out.println(name + &quot;被唤醒&quot;);</span><br><span class="line">            &#125;</span><br><span class="line">            ConditonTest.count --;</span><br><span class="line">            System.out.println(name + &quot;消费一个&quot;);</span><br><span class="line">        &#125; catch (InterruptedException e) &#123;</span><br><span class="line">            e.printStackTrace();</span><br><span class="line">        &#125; finally &#123;</span><br><span class="line">            lock.unlock(); // 释放锁</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
@@ -231,30 +233,8 @@
 <p>我们现在回顾下, Condition的wait和signal整体逻辑如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/Condition3.png" height="270" width="600"></p>
 <h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>Condition的wait和signal必须和锁配合使用, 以上只是结合ReentrantLock使用。ArrayBlockingQueue的实现原理与开头的示例类似, 基于ReentrantLock及Condition实现, Condition也可以与其他AQS结合, 比如CountDownLatch、ReentrantReadWriteLock, Semaphore, 使用大同小异, 这里就不一一讲解了。</p>
 
-      
+	
 
-      
-        <div class="page-reward">
-          <a href="javascript:;" class="page-reward-btn tooltip-top">
-            <div class="tooltip tooltip-east">
-            <span class="tooltip-item">
-              赏
-            </span>
-            <span class="tooltip-content">
-              <span class="tooltip-text">
-                <span class="tooltip-inner">
-                  <p class="reward-p"><i class="icon icon-quo-left"></i>谢谢阅读<i class="icon icon-quo-right"></i></p>
-                  <div class="reward-box">
-                    
-                    
-                  </div>
-                </span>
-              </span>
-            </span>
-          </div>
-          </a>
-        </div>
-      
     </div>
     <div class="article-info article-info-index">
       
@@ -384,7 +364,7 @@
 
 
   
-  
+
   
 
   
@@ -508,10 +488,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">Flink、Slot分配、SubTask申请slot, SubTask部署</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">NIO, write, read</a>
               </li>
              
@@ -520,7 +496,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
+                <a href="javascript:void(0)" class="js-tag color3">Flink、Slot分配、SubTask申请slot, SubTask部署</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">Lucene、ByteBlockPool</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -528,11 +508,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">Lucene、词典、FST</a>
+                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">Lucene、ByteBlockPool</a>
+                <a href="javascript:void(0)" class="js-tag color4">Lucene、词典、FST</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -544,19 +524,19 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">Lucene、BKW树、Point</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">Lucene、词典、tim、tip、doc、pos、fst、倒排索引</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
+                <a href="javascript:void(0)" class="js-tag color3">Lucene、BKW树、Point</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">Cycler</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -568,7 +548,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">maven, 插件, 打包</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -580,15 +568,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
               </li>
             
             <div class="clearfix"></div>

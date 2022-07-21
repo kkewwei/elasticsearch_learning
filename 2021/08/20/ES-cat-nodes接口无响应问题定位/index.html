@@ -185,7 +185,9 @@
     
     <div class="article-entry" itemprop="articleBody">
       
-        <h1 id="现象"><a href="#现象" class="headerlink" title="现象"></a>现象</h1><p>目前对ES集群的报警的一个重要接口是_cat&#x2F;nodes，在线上环境，该接口经常超时无响应。</p>
+
+	
+		<h1 id="现象"><a href="#现象" class="headerlink" title="现象"></a>现象</h1><p>目前对ES集群的报警的一个重要接口是_cat&#x2F;nodes，在线上环境，该接口经常超时无响应。</p>
 <h1 id="定位"><a href="#定位" class="headerlink" title="定位"></a>定位</h1><h2 id="根据代码入手"><a href="#根据代码入手" class="headerlink" title="根据代码入手"></a>根据代码入手</h2><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line">   final ClusterStateRequest clusterStateRequest = new ClusterStateRequest();</span><br><span class="line">    clusterStateRequest.clear().nodes(true);</span><br><span class="line">    return channel -&gt; client.admin().cluster().state(clusterStateRequest, new RestActionListener&lt;ClusterStateResponse&gt;(channel) &#123; </span><br><span class="line">        @Override </span><br><span class="line">        public void processResponse(final ClusterStateResponse clusterStateResponse) &#123; </span><br><span class="line">            ......</span><br><span class="line">            //  向每个节点发送将发送_nodes/&#123;nodeId&#125;</span><br><span class="line">            client.admin().cluster().nodesInfo(nodesInfoRequest, new RestActionListener&lt;NodesInfoResponse&gt;(channel) &#123;</span><br><span class="line">                @Override</span><br><span class="line">                public void processResponse(final NodesInfoResponse nodesInfoResponse) &#123;</span><br><span class="line">                    ...</span><br><span class="line">                    // 向每个节点发送将发送_nodes/stats</span><br><span class="line">                    client.admin().cluster().nodesStats(nodesStatsRequest, new RestResponseListener&lt;NodesStatsResponse&gt;(channel) &#123;</span><br><span class="line">                        @Override // </span><br><span class="line">                        public RestResponse buildResponse(NodesStatsResponse nodesStatsResponse) throws Exception &#123;</span><br><span class="line">                            return ...</span><br><span class="line">                        &#125;</span><br><span class="line">                    &#125;);</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
 <p>当client 发送_cat&#x2F;nodes请求后，协调节点依次做如下3件事情：<br>1.协调节点向master请求_cluster&#x2F;state集群，以便获取所有节点，其中超时30s。<br>2.协调节点向每个节点发送&#x2F;_nodes&#x2F;{nodeId}请求，获取所有节点的运行信息，包括jvm,os,http,process等运行信息，没有超时时间设置。<br>3.协调节点向每个节点发送&#x2F;_nodes&#x2F;{nodeId}&#x2F;stats请求，获取所有节点当前jvm,os,fs,process运行指标，没有超时时间设置。<br>结论: 首先怀疑肯定是第2、3步出问题，在获取某个指标的时候某些节点超时无响应了。</p>
@@ -218,30 +220,8 @@
 <p>发现management线程在被别的命令拿来使用IO落盘操作，因为IO压力大，导致落盘效率极低，导致请求出现严重堆积情况。问题原因彻底找到了。扫描整个代码中，management线程池在许多接口中使用。<br>目前<a href="https://github.com/elastic/elasticsearch/pull/62753#issuecomment-948551092" target="_blank" rel="noopener">向社区反馈</a>，社区还未给出解决办法。</p>
 <h1 id="结论"><a href="#结论" class="headerlink" title="结论"></a>结论</h1><p>协调节点使用management线程池处理&#x2F;_nodes&#x2F;{nodeId}&#x2F;stats请求，但是management线程池与其他接口一起共用，其他接口有落盘操作，IO打满导致落盘落不下去，极大降低了management线程工作效率，进而影响到_cat&#x2F;nodes请求。根本原因还是IO压力大导致的。</p>
 
-      
+	
 
-      
-        <div class="page-reward">
-          <a href="javascript:;" class="page-reward-btn tooltip-top">
-            <div class="tooltip tooltip-east">
-            <span class="tooltip-item">
-              赏
-            </span>
-            <span class="tooltip-content">
-              <span class="tooltip-text">
-                <span class="tooltip-inner">
-                  <p class="reward-p"><i class="icon icon-quo-left"></i>谢谢阅读<i class="icon icon-quo-right"></i></p>
-                  <div class="reward-box">
-                    
-                    
-                  </div>
-                </span>
-              </span>
-            </span>
-          </div>
-          </a>
-        </div>
-      
     </div>
     <div class="article-info article-info-index">
       
@@ -382,7 +362,7 @@
 
 
   
-  
+
   
 
   
@@ -506,10 +486,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">Flink、Slot分配、SubTask申请slot, SubTask部署</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">NIO, write, read</a>
               </li>
              
@@ -518,7 +494,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
+                <a href="javascript:void(0)" class="js-tag color3">Flink、Slot分配、SubTask申请slot, SubTask部署</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">Lucene、ByteBlockPool</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -526,11 +506,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">Lucene、词典、FST</a>
+                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">Lucene、ByteBlockPool</a>
+                <a href="javascript:void(0)" class="js-tag color4">Lucene、词典、FST</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -542,19 +522,19 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">Lucene、BKW树、Point</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">Lucene、词典、tim、tip、doc、pos、fst、倒排索引</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
+                <a href="javascript:void(0)" class="js-tag color3">Lucene、BKW树、Point</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">Cycler</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -566,7 +546,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">maven, 插件, 打包</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -578,15 +566,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
               </li>
             
             <div class="clearfix"></div>

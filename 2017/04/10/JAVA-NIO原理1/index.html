@@ -187,7 +187,9 @@
     
     <div class="article-entry" itemprop="articleBody">
       
-        <p>JAVA NIO作为Java网络通信模块最基本的单元, 而在实践中, 我们都会接触到网络通信, 搞懂JAVA NIO, 对我们排查问题起到事半功倍的效果。 本文将带你进入JAVA NIO函数及底层本地函数的世界。</p>
+
+	
+		<p>JAVA NIO作为Java网络通信模块最基本的单元, 而在实践中, 我们都会接触到网络通信, 搞懂JAVA NIO, 对我们排查问题起到事半功倍的效果。 本文将带你进入JAVA NIO函数及底层本地函数的世界。</p>
 <h1 id="JAVA-NIO的基本使用"><a href="#JAVA-NIO的基本使用" class="headerlink" title="JAVA NIO的基本使用"></a>JAVA NIO的基本使用</h1><p>我们仍然以一个网上的典型示例入手:</p>
 <h2 id="java版实现"><a href="#java版实现" class="headerlink" title="java版实现"></a>java版实现</h2><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br></pre></td><td class="code"><pre><span class="line">import java.io.IOException;</span><br><span class="line">import java.net.InetSocketAddress;</span><br><span class="line">import java.net.SocketOptions;</span><br><span class="line">import java.nio.ByteBuffer;</span><br><span class="line">import java.nio.channels.SelectionKey;</span><br><span class="line">import java.nio.channels.Selector;</span><br><span class="line">import java.nio.channels.ServerSocketChannel;</span><br><span class="line">import java.nio.channels.SocketChannel;</span><br><span class="line">import java.util.Iterator;</span><br><span class="line">public class NIOServer &#123;</span><br><span class="line">    static Selector selector;  // 选择器</span><br><span class="line">    public static void main(String[] args) throws Exception</span><br><span class="line">    &#123;</span><br><span class="line">        //打开一个通道</span><br><span class="line">        ServerSocketChannel serverSocketChannel = ServerSocketChannel.open();</span><br><span class="line">        serverSocketChannel.socket().setSoTimeout(10000);</span><br><span class="line">        serverSocketChannel.socket().setReuseAddress(true);</span><br><span class="line">        //通道设置非阻塞</span><br><span class="line">        serverSocketChannel.configureBlocking(false);</span><br><span class="line">        //绑定端口号, 100表示该端口可以支持的最大连接数</span><br><span class="line">        serverSocketChannel.bind(new InetSocketAddress(&quot;localhost&quot;, 8080, 100));</span><br><span class="line">        //注册</span><br><span class="line">        selector = Selector.open(); // KQueueSelectorImpl</span><br><span class="line">        serverSocketChannel.register(selector, SelectionKey.OP_ACCEPT);</span><br><span class="line">        while (true)</span><br><span class="line">        &#123;</span><br><span class="line">            selector.select();</span><br><span class="line">            Iterator&lt;SelectionKey&gt; ite = selector.selectedKeys().iterator();</span><br><span class="line">            while (ite.hasNext())</span><br><span class="line">            &#123;</span><br><span class="line">                SelectionKey key = ite.next();</span><br><span class="line">                if (key.isAcceptable())</span><br><span class="line">                &#123;</span><br><span class="line">                    SocketChannel channel = serverSocketChannel.accept();</span><br><span class="line">                    //SocketChannelImp，返回的是一个已完成三次三次握手的链接</span><br><span class="line">                    channel.configureBlocking(false);</span><br><span class="line">                    channel.register(selector, SelectionKey.OP_READ);</span><br><span class="line">                &#125;</span><br><span class="line">                else if (key.isReadable())</span><br><span class="line">                &#123;</span><br><span class="line">                    SocketChannel channel = (SocketChannel) key.channel();</span><br><span class="line">                    ByteBuffer buffer = ByteBuffer.allocate(256);</span><br><span class="line">                    int i = channel.read(buffer);</span><br><span class="line">                    if (i != -1)</span><br><span class="line">                    &#123;</span><br><span class="line">                        String msg = new String(buffer.array()).trim();</span><br><span class="line">                        System.out.println(&quot;NIO server received message =  &quot; + msg);</span><br><span class="line">                        channel.write(ByteBuffer.wrap( msg.getBytes()));</span><br><span class="line">                    &#125; else</span><br><span class="line">                    &#123;</span><br><span class="line">                        channel.close();</span><br><span class="line">                    &#125;</span><br><span class="line">                &#125;</span><br><span class="line">                ite.remove();</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
@@ -308,30 +310,8 @@
 <p>accept操作做了如下事情:<br>1.调用begin()以便支持当调用accept0时被阻塞时, 可以被别的线程唤醒。<br>2.循环调用accept0, 直到成功获取和client建立连接的套接字。成功返回的标志就是n&#x3D;1。<br>3.调用IOUtil.configureBlocking(newfd, true)将该套接字设置成默认true。<br>4.建立SocketChannelImpl对象, 并绑定和client保持连接的套接字newfd。<br>然后调用<code>channel.register(this.selector, SelectionKey.OP_READ)</code>将SocketChannelImpl和selector注册到一起，产生新的SelectionKeyImpl放入selector中。</p>
 <h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>JAVA NIO底层函数实现基本都是靠网络套接字实现的, 服务器端建立连接主要分为以下几个步骤: 建立ServersocketChannel, 绑定端口, 建立Selector, 注册感兴趣的事件, 开始监听端口, 调用select()等待建立连接的响应事件, 和client建立连接。所有事件只用注册一次，之后只要再发生了该事件，就会不停的触发响应。</p>
 
-      
+	
 
-      
-        <div class="page-reward">
-          <a href="javascript:;" class="page-reward-btn tooltip-top">
-            <div class="tooltip tooltip-east">
-            <span class="tooltip-item">
-              赏
-            </span>
-            <span class="tooltip-content">
-              <span class="tooltip-text">
-                <span class="tooltip-inner">
-                  <p class="reward-p"><i class="icon icon-quo-left"></i>谢谢阅读<i class="icon icon-quo-right"></i></p>
-                  <div class="reward-box">
-                    
-                    
-                  </div>
-                </span>
-              </span>
-            </span>
-          </div>
-          </a>
-        </div>
-      
     </div>
     <div class="article-info article-info-index">
       
@@ -472,7 +452,7 @@
 
 
   
-  
+
   
 
   
@@ -596,10 +576,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">Flink、Slot分配、SubTask申请slot, SubTask部署</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">NIO, write, read</a>
               </li>
              
@@ -608,7 +584,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
+                <a href="javascript:void(0)" class="js-tag color3">Flink、Slot分配、SubTask申请slot, SubTask部署</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">Lucene、ByteBlockPool</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -616,11 +596,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">Lucene、词典、FST</a>
+                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">Lucene、ByteBlockPool</a>
+                <a href="javascript:void(0)" class="js-tag color4">Lucene、词典、FST</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -632,19 +612,19 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">Lucene、BKW树、Point</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">Lucene、词典、tim、tip、doc、pos、fst、倒排索引</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
+                <a href="javascript:void(0)" class="js-tag color3">Lucene、BKW树、Point</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">Cycler</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -656,7 +636,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">maven, 插件, 打包</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -668,15 +656,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
               </li>
             
             <div class="clearfix"></div>

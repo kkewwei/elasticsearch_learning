@@ -187,7 +187,9 @@
     
     <div class="article-entry" itemprop="articleBody">
       
-        <p>在<a href="https://kkewwei.github.io/elasticsearch_learning/2017/04/10/JAVA-NIO%E5%8E%9F%E7%90%861/#JAVA-NIO%E7%9A%84%E5%9F%BA%E6%9C%AC%E4%BD%BF%E7%94%A8">JAVA NIO通信分析</a>中, 说明了客户端与服务器端是如何建立连接的, 那么本文将在上文的基础上, 了解服务器端是如何根据建立的连接进行写和读的。由于读写流程基本一致, 这里只分析如何进行写入的。</p>
+
+	
+		<p>在<a href="https://kkewwei.github.io/elasticsearch_learning/2017/04/10/JAVA-NIO%E5%8E%9F%E7%90%861/#JAVA-NIO%E7%9A%84%E5%9F%BA%E6%9C%AC%E4%BD%BF%E7%94%A8">JAVA NIO通信分析</a>中, 说明了客户端与服务器端是如何建立连接的, 那么本文将在上文的基础上, 了解服务器端是如何根据建立的连接进行写和读的。由于读写流程基本一致, 这里只分析如何进行写入的。</p>
 <h1 id="write"><a href="#write" class="headerlink" title="write"></a>write</h1><p>服务器端调用了<code>SocketChannel.write(ByteBuffer.wrap( msg.getBytes()));</code>, 此时开启了写的流程:</p>
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br></pre></td><td class="code"><pre><span class="line">public int write(ByteBuffer buf) throws IOException &#123; \</span><br><span class="line">      if (buf == null)</span><br><span class="line">          throw new NullPointerException();</span><br><span class="line">      // 可以看到, 管道只要有一个在写, 那么久不让别的线程使用了</span><br><span class="line">      synchronized (writeLock) &#123;</span><br><span class="line">          // SocketChannelImp state=ST_CONNECTED</span><br><span class="line">          ensureWriteOpen();</span><br><span class="line">          int n = 0;</span><br><span class="line">          try &#123;</span><br><span class="line">              begin();</span><br><span class="line">              synchronized (stateLock) &#123;</span><br><span class="line">                  if (!isOpen())</span><br><span class="line">                      return 0;</span><br><span class="line">                  writerThread = NativeThread.current();</span><br><span class="line">              &#125;</span><br><span class="line">              for (;;) &#123;</span><br><span class="line">                  n = IOUtil.write(fd, buf, -1, nd); // 成功的话，就是写入成功的size</span><br><span class="line">                  // 如果发现退出时因为中断原因, 并且管道还正常打开的话, 那么就继续写入。</span><br><span class="line">                  if ((n == IOStatus.INTERRUPTED) &amp;&amp; isOpen())</span><br><span class="line">                      continue;</span><br><span class="line">                  // 这里对IOS_UNAVAILABLE/EOF进行了识别, 若异常为IOS_UNAVAILABLE/EOF, 则没有问题, 但是还是直接退出了。</span><br><span class="line">                  //返回的是成功写入的条数, -1 代表写入到文件末尾了, -2代表写入缓存满了/没有可以读取的了</span><br><span class="line">                  return IOStatus.normalize(n);</span><br><span class="line">              &#125;</span><br><span class="line">          &#125; finally &#123;</span><br><span class="line">              writerCleanup();</span><br><span class="line">              end(n &gt; 0 || (n == IOStatus.UNAVAILABLE));</span><br><span class="line">              synchronized (stateLock) &#123;</span><br><span class="line">                  if ((n &lt;= 0) &amp;&amp; (!isOutputOpen))</span><br><span class="line">                      throw new AsynchronousCloseException();</span><br><span class="line">              &#125;</span><br><span class="line">              assert IOStatus.check(n);</span><br><span class="line">          &#125;</span><br><span class="line">      &#125;</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
 
@@ -245,30 +247,8 @@
 <h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>write&#x2F;read返回值主要分为四种: 正常写入byte大小; EOF代表读取完成了; UNAVAILABLE将被转变为0, 表示写入时网络缓存没有了, 或者读取时网络缓存没有可以读取的了; 以及其他的异常类型。</p>
 <p>参考:<br><a href="https://www.oschina.net/question/138146_26027" target="_blank" rel="noopener">https://www.oschina.net/question/138146_26027</a></p>
 
-      
+	
 
-      
-        <div class="page-reward">
-          <a href="javascript:;" class="page-reward-btn tooltip-top">
-            <div class="tooltip tooltip-east">
-            <span class="tooltip-item">
-              赏
-            </span>
-            <span class="tooltip-content">
-              <span class="tooltip-text">
-                <span class="tooltip-inner">
-                  <p class="reward-p"><i class="icon icon-quo-left"></i>谢谢阅读<i class="icon icon-quo-right"></i></p>
-                  <div class="reward-box">
-                    
-                    
-                  </div>
-                </span>
-              </span>
-            </span>
-          </div>
-          </a>
-        </div>
-      
     </div>
     <div class="article-info article-info-index">
       
@@ -409,7 +389,7 @@
 
 
   
-  
+
   
 
   
@@ -533,10 +513,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">Flink、Slot分配、SubTask申请slot, SubTask部署</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">NIO, write, read</a>
               </li>
              
@@ -545,7 +521,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
+                <a href="javascript:void(0)" class="js-tag color3">Flink、Slot分配、SubTask申请slot, SubTask部署</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">Lucene、ByteBlockPool</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -553,11 +533,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">Lucene、词典、FST</a>
+                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">Lucene、ByteBlockPool</a>
+                <a href="javascript:void(0)" class="js-tag color4">Lucene、词典、FST</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -569,19 +549,19 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">Lucene、BKW树、Point</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">Lucene、词典、tim、tip、doc、pos、fst、倒排索引</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
+                <a href="javascript:void(0)" class="js-tag color3">Lucene、BKW树、Point</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">Cycler</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -593,7 +573,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">maven, 插件, 打包</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -605,15 +593,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
               </li>
             
             <div class="clearfix"></div>

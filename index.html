@@ -185,7 +185,9 @@
     
     <div class="article-entry" itemprop="articleBody">
       
-        <p>我们知道Netty作为高性能通信框架，优点在于内部封装了管道的连接通信等操作，用户只需要调用封装好的接口，便可以很便捷的进行高并发通信。类似，在Http请求时，我们通过调用HttpClient，内部使用java NIO技术，通过引入连接池概念，来提高Http的并发能力，本文主要讲解该客户端内部是如何实现并发能力提高的原理。Http客户端分为同步和异步方式，以下示例展示了最基本的异步使用：</p>
+
+	
+		<p>我们知道Netty作为高性能通信框架，优点在于内部封装了管道的连接通信等操作，用户只需要调用封装好的接口，便可以很便捷的进行高并发通信。类似，在Http请求时，我们通过调用HttpClient，内部使用java NIO技术，通过引入连接池概念，来提高Http的并发能力，本文主要讲解该客户端内部是如何实现并发能力提高的原理。Http客户端分为同步和异步方式，以下示例展示了最基本的异步使用：</p>
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br></pre></td><td class="code"><pre><span class="line">RequestConfig.Builder requestConfigBuilder = RequestConfig.custom()</span><br><span class="line">        .setConnectTimeout(5000)</span><br><span class="line">        .setSocketTimeout(0)</span><br><span class="line">        .setConnectionRequestTimeout(3000);</span><br><span class="line">HttpAsyncClientBuilder httpClientBuilder = HttpAsyncClientBuilder.create().setDefaultRequestConfig(requestConfigBuilder.build())</span><br><span class="line">// 这些参数会用来生成PoolingNHttpClientConnectionManager，若PoolingNHttpClientConnectionManager自定义了，那么这些参数也就无效了</span><br><span class="line">        .setMaxConnPerRoute(10).setMaxConnTotal(30);</span><br><span class="line">//配置io线程</span><br><span class="line">IOReactorConfig ioReactorConfig = IOReactorConfig.custom().</span><br><span class="line">        setIoThreadCount(Runtime.getRuntime().availableProcessors())</span><br><span class="line">        .setSoKeepAlive(true)</span><br><span class="line">        .build();</span><br><span class="line">DefaultConnectingIOReactor ioReactor = new DefaultConnectingIOReactor(ioReactorConfig);</span><br><span class="line"></span><br><span class="line">ioReactor.setExceptionHandler(new IOReactorExceptionHandler() &#123;</span><br><span class="line">    @Override</span><br><span class="line">    public boolean handle(IOException e) &#123;</span><br><span class="line">        System.out.println(&quot;dsdsdsd&quot;);</span><br><span class="line">        return true;</span><br><span class="line">    &#125;</span><br><span class="line">    @Override</span><br><span class="line">    public boolean handle(RuntimeException e) &#123;</span><br><span class="line">        System.out.println(&quot;dsssd&quot;);</span><br><span class="line">        return true;</span><br><span class="line"></span><br><span class="line">    &#125;</span><br><span class="line">&#125;);</span><br><span class="line">// 设置channel连接池并发参数</span><br><span class="line">PoolingNHttpClientConnectionManager poolingNHttpClientConnectionManager = new PoolingNHttpClientConnectionManager(ioReactor);</span><br><span class="line">poolingNHttpClientConnectionManager.setDefaultMaxPerRoute(5);</span><br><span class="line">poolingNHttpClientConnectionManager.setMaxTotal(80);</span><br><span class="line">httpClientBuilder.setConnectionManager(poolingNHttpClientConnectionManager);</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">// 初始化Client并启动</span><br><span class="line">CloseableHttpAsyncClient client = HttpAsyncClients.custom().</span><br><span class="line">        setConnectionManager(poolingNHttpClientConnectionManager)</span><br><span class="line">        .build();</span><br><span class="line">client.start();</span><br><span class="line"></span><br><span class="line">final HttpGet request = new HttpGet(&quot;http://1.1.1.2:9200/indexName/_search&quot;);</span><br><span class="line"></span><br><span class="line">// 异步查询</span><br><span class="line">client.execute(request, new FutureCallback&lt;HttpResponse&gt;() &#123;</span><br><span class="line">    @Override</span><br><span class="line">    public void completed(HttpResponse result)&#123;</span><br><span class="line">        try &#123;</span><br><span class="line"></span><br><span class="line">            System.out.println(EntityUtils.toString(result.getEntity()));</span><br><span class="line">        &#125; catch (Exception e) &#123;</span><br><span class="line">            e.fillInStackTrace();</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    @Override</span><br><span class="line">    public void failed(Exception ex) &#123;</span><br><span class="line">        ex.fillInStackTrace();</span><br><span class="line">    &#125;</span><br><span class="line">    @Override</span><br><span class="line">    public void cancelled() &#123;</span><br><span class="line">        System.out.println(&quot;cancelled&quot;);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;);</span><br><span class="line">Thread.sleep(10000);</span><br><span class="line">client.close();</span><br></pre></td></tr></table></figure>
 
 <p>使用上没啥好说的，我们就直接以数据流流向为主线，看内部是如何使用连接池进行请求处理的。需要注意的是，若我们自定义了poolingNHttpClientConnectionManager对象，那么在requestConfigBuilder中设置的连接并发将不生效。</p>
@@ -294,9 +296,8 @@
 <p>该函数主要做了如下事情：<br>1.首先将之前8k中未读取的content放入dst中<br>2.再依次从管道中读取剩余所有的content放入dst中。<br>此时整个content部分也读取完成了。</p>
 <h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>http请求发送时存在3种可能，1.连接池无可用管道，连接也没达到上限，那么将请求交给boss线程新建管道，再交给worker线程发送请求。2.连接池有可用管道，那么直接将请求交给worker发送。3.连接池无可用管道，且连接个数已达上限，那么请求阻塞等待。每个管道一次只能发送一次请求，下个请求只能等当前请求完成、管道释放后才能进行，通过管道个数来限制连接并发，导致管道利用率不高，这里也许可以进行部分优化。</p>
 
-      
+	
 
-      
     </div>
     <div class="article-info article-info-index">
       
@@ -366,7 +367,9 @@
     
     <div class="article-entry" itemprop="articleBody">
       
-        <h1 id="现象"><a href="#现象" class="headerlink" title="现象"></a>现象</h1><p>目前对ES集群的报警的一个重要接口是_cat&#x2F;nodes，在线上环境，该接口经常超时无响应。</p>
+
+	
+		<h1 id="现象"><a href="#现象" class="headerlink" title="现象"></a>现象</h1><p>目前对ES集群的报警的一个重要接口是_cat&#x2F;nodes，在线上环境，该接口经常超时无响应。</p>
 <h1 id="定位"><a href="#定位" class="headerlink" title="定位"></a>定位</h1><h2 id="根据代码入手"><a href="#根据代码入手" class="headerlink" title="根据代码入手"></a>根据代码入手</h2><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line">   final ClusterStateRequest clusterStateRequest = new ClusterStateRequest();</span><br><span class="line">    clusterStateRequest.clear().nodes(true);</span><br><span class="line">    return channel -&gt; client.admin().cluster().state(clusterStateRequest, new RestActionListener&lt;ClusterStateResponse&gt;(channel) &#123; </span><br><span class="line">        @Override </span><br><span class="line">        public void processResponse(final ClusterStateResponse clusterStateResponse) &#123; </span><br><span class="line">            ......</span><br><span class="line">            //  向每个节点发送将发送_nodes/&#123;nodeId&#125;</span><br><span class="line">            client.admin().cluster().nodesInfo(nodesInfoRequest, new RestActionListener&lt;NodesInfoResponse&gt;(channel) &#123;</span><br><span class="line">                @Override</span><br><span class="line">                public void processResponse(final NodesInfoResponse nodesInfoResponse) &#123;</span><br><span class="line">                    ...</span><br><span class="line">                    // 向每个节点发送将发送_nodes/stats</span><br><span class="line">                    client.admin().cluster().nodesStats(nodesStatsRequest, new RestResponseListener&lt;NodesStatsResponse&gt;(channel) &#123;</span><br><span class="line">                        @Override // </span><br><span class="line">                        public RestResponse buildResponse(NodesStatsResponse nodesStatsResponse) throws Exception &#123;</span><br><span class="line">                            return ...</span><br><span class="line">                        &#125;</span><br><span class="line">                    &#125;);</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
 <p>当client 发送_cat&#x2F;nodes请求后，协调节点依次做如下3件事情：<br>1.协调节点向master请求_cluster&#x2F;state集群，以便获取所有节点，其中超时30s。<br>2.协调节点向每个节点发送&#x2F;_nodes&#x2F;{nodeId}请求，获取所有节点的运行信息，包括jvm,os,http,process等运行信息，没有超时时间设置。<br>3.协调节点向每个节点发送&#x2F;_nodes&#x2F;{nodeId}&#x2F;stats请求，获取所有节点当前jvm,os,fs,process运行指标，没有超时时间设置。<br>结论: 首先怀疑肯定是第2、3步出问题，在获取某个指标的时候某些节点超时无响应了。</p>
@@ -399,9 +402,8 @@
 <p>发现management线程在被别的命令拿来使用IO落盘操作，因为IO压力大，导致落盘效率极低，导致请求出现严重堆积情况。问题原因彻底找到了。扫描整个代码中，management线程池在许多接口中使用。<br>目前<a href="https://github.com/elastic/elasticsearch/pull/62753#issuecomment-948551092" target="_blank" rel="noopener">向社区反馈</a>，社区还未给出解决办法。</p>
 <h1 id="结论"><a href="#结论" class="headerlink" title="结论"></a>结论</h1><p>协调节点使用management线程池处理&#x2F;_nodes&#x2F;{nodeId}&#x2F;stats请求，但是management线程池与其他接口一起共用，其他接口有落盘操作，IO打满导致落盘落不下去，极大降低了management线程工作效率，进而影响到_cat&#x2F;nodes请求。根本原因还是IO压力大导致的。</p>
 
-      
+	
 
-      
     </div>
     <div class="article-info article-info-index">
       
@@ -482,7 +484,9 @@
     
     <div class="article-entry" itemprop="articleBody">
       
-        <p>在<a href="https://kkewwei.github.io/elasticsearch_learning/2019/10/17/ES%E6%AE%B5%E5%90%88%E5%B9%B6%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90/">ES段合并逻辑分析</a>我们详细介绍了如何进行查找一个合并的段，本文主要讲解合并线程的Merge内如何进行StoredFields合并的。StoredFields合并过程其实新的StoredFields构建过程，构建过程可参考<a href="https://kkewwei.github.io/elasticsearch_learning/2019/10/29/Lucenec%E5%BA%95%E5%B1%82%E6%9E%B6%E6%9E%84-fdt-fdx%E6%9E%84%E5%BB%BA%E8%BF%87%E7%A8%8B/">Lucene8.2.0底层架构-fdt&#x2F;fdx构建过程</a>，本文以Lucene8.6.2结构为基础，StoredFields底层索引结构相对Lucene8.2.0有较小改变，为了便于本文详解，这里首先贴出StoredFields底层文件的索引结构：<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/lucene7.8.2_segment_fdt1.png" height="400" width="1000"></p>
+
+	
+		<p>在<a href="https://kkewwei.github.io/elasticsearch_learning/2019/10/17/ES%E6%AE%B5%E5%90%88%E5%B9%B6%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90/">ES段合并逻辑分析</a>我们详细介绍了如何进行查找一个合并的段，本文主要讲解合并线程的Merge内如何进行StoredFields合并的。StoredFields合并过程其实新的StoredFields构建过程，构建过程可参考<a href="https://kkewwei.github.io/elasticsearch_learning/2019/10/29/Lucenec%E5%BA%95%E5%B1%82%E6%9E%B6%E6%9E%84-fdt-fdx%E6%9E%84%E5%BB%BA%E8%BF%87%E7%A8%8B/">Lucene8.2.0底层架构-fdt&#x2F;fdx构建过程</a>，本文以Lucene8.6.2结构为基础，StoredFields底层索引结构相对Lucene8.2.0有较小改变，为了便于本文详解，这里首先贴出StoredFields底层文件的索引结构：<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/lucene7.8.2_segment_fdt1.png" height="400" width="1000"></p>
 <h1 id="构建CompressingStoredFieldsWriter对象"><a href="#构建CompressingStoredFieldsWriter对象" class="headerlink" title="构建CompressingStoredFieldsWriter对象"></a>构建CompressingStoredFieldsWriter对象</h1><p>merge的过程就是将几个Segment重新合并、写到一个segment中，其中必然需要先创建一个新的Merge，并构建新Segment storedFields写入的Writer，本文将以<code>SegmentMerger.mergeFields()</code>开始介绍：首先构建CompressingStoredFieldsWriter对象，然后进行StoredFields的写入：</p>
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">private int mergeFields() throws IOException &#123;</span><br><span class="line">  try (StoredFieldsWriter fieldsWriter = codec.storedFieldsFormat().fieldsWriter(directory, mergeState.segmentInfo, context)) &#123;</span><br><span class="line">    return fieldsWriter.merge(mergeState);</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
@@ -518,9 +522,8 @@
 <p>由于需要重新组织新的chunk结构，那么就需要每个live文档从旧StoredFields读取出来，写入新的chunk中。会轮循每个文档，每个文档都做了两个事情：<br>1.检查该文档所在的chunk是否已经加载到内存中，若没有加载到的话，那么调用<code>BlockState.reset(int docID)</code>加载chunk，然后放入内存中。<br>2.从内存中读取这个文档的value,写入即将创建的chunk中，此时新写入缓存的文档，将在最后的finish统一刷入文件形成一个新的chunk。</p>
 <h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>StoredFields合并过程主要是循环每个segment，针对每个segment都从文档中读取出来，写入新的chunk中。读取每个segment过程分为两种；一种是批量copy整个chunk的值，写入新的chunk，然后再copy下个chunk，一种方式是读取该segment中每个文档，然后写入新的chunk，当然批量copy整个chunk的效率更高。选取哪种方式读取，取决于这个sement是否存在删除，或者存在dirtyChunk过多的情况。</p>
 
-      
+	
 
-      
     </div>
     <div class="article-info article-info-index">
       
@@ -590,10 +593,11 @@
     
     <div class="article-entry" itemprop="articleBody">
       
-        
-      
 
-      
+	
+		
+	
+
     </div>
     <div class="article-info article-info-index">
       
@@ -663,7 +667,9 @@
     
     <div class="article-entry" itemprop="articleBody">
       
-        <p>针对数值型的倒排索引，Lecene从6.X引入了BKD树结构，BKD全称：Block K-Dimension Balanced Tree。在此之前，数值型查找和String结构一样，使用<a href="https://kkewwei.github.io/elasticsearch_learning/2020/02/25/Lucene8-2-0%E5%BA%95%E5%B1%82%E6%9E%B6%E6%9E%84-%E8%AF%8D%E5%85%B8fst%E5%8E%9F%E7%90%86%E8%A7%A3%E6%9E%90/">FST结构</a>）建立索引，FST结构针对精确匹配存在较大的优势，但是数值型很大部分使用场景为范围查找, BKD树就是解决这类使用场景的。若我们将多维简化为一维时，结构就是bst(二叉查找树)。</p>
+
+	
+		<p>针对数值型的倒排索引，Lecene从6.X引入了BKD树结构，BKD全称：Block K-Dimension Balanced Tree。在此之前，数值型查找和String结构一样，使用<a href="https://kkewwei.github.io/elasticsearch_learning/2020/02/25/Lucene8-2-0%E5%BA%95%E5%B1%82%E6%9E%B6%E6%9E%84-%E8%AF%8D%E5%85%B8fst%E5%8E%9F%E7%90%86%E8%A7%A3%E6%9E%90/">FST结构</a>）建立索引，FST结构针对精确匹配存在较大的优势，但是数值型很大部分使用场景为范围查找, BKD树就是解决这类使用场景的。若我们将多维简化为一维时，结构就是bst(二叉查找树)。</p>
 <h1 id="数据放入内存中"><a href="#数据放入内存中" class="headerlink" title="数据放入内存中"></a>数据放入内存中</h1><p>BKD树支持多维范围，数值型包括int,float,point等， 这里就以int类型写入作为示例，将<code>age</code>建构为三维：</p>
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">Document document = new Document();</span><br><span class="line">document.add(new IntPoint(&quot;age&quot;, i, i*i, i%20));</span><br><span class="line">indexWriter.addDocument(document);</span><br></pre></td></tr></table></figure>
 
@@ -711,9 +717,8 @@
 
 <h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>BKD树主要运用在范围多维查找，在空间上，按照完全二叉树结构，将数据分为左右两部分，找到所有point每个维度[min,max]差距最大的维度，在该维度按照照左子树完全小于中间值，右子树完全大于间的值。通过范围查找，能够快速定位出docId。</p>
 
-      
+	
 
-      
     </div>
     <div class="article-info article-info-index">
       
@@ -794,7 +799,9 @@
     
     <div class="article-entry" itemprop="articleBody">
       
-        <p>ES集群中，master负责实施维护集群元数据的更新，然后再分发给data节点，分发的过程就是publish，也就是本文的重点。本文将以索引创建的流程来讲解这个过程。</p>
+
+	
+		<p>ES集群中，master负责实施维护集群元数据的更新，然后再分发给data节点，分发的过程就是publish，也就是本文的重点。本文将以索引创建的流程来讲解这个过程。</p>
 <h1 id="master首先创建新的集群元数据"><a href="#master首先创建新的集群元数据" class="headerlink" title="master首先创建新的集群元数据"></a>master首先创建新的集群元数据</h1><p>当master接收到创建索引的请求后，首先进入如下MetadataCreateIndexService.onlyCreateIndex()函数：</p>
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">private void onlyCreateIndex(final CreateIndexClusterStateUpdateRequest request,</span><br><span class="line">                                final ActionListener&lt;ClusterStateUpdateResponse&gt; listener) &#123;</span><br><span class="line">       clusterService.submitStateUpdateTask(</span><br><span class="line">           &quot;create-index [&quot; + request.index() + &quot;], cause [&quot; + request.cause() + &quot;]&quot;,</span><br><span class="line">           // 每个create使用这惟一的key</span><br><span class="line">           new AckedClusterStateUpdateTask&lt;ClusterStateUpdateResponse&gt;(Priority.URGENT, request, listener) &#123; </span><br><span class="line">               protected ClusterStateUpdateResponse newResponse(boolean acknowledged) &#123;</span><br><span class="line">                   return new ClusterStateUpdateResponse(acknowledged);</span><br><span class="line">               &#125;</span><br><span class="line">               @Override</span><br><span class="line">               public ClusterState execute(ClusterState currentState) throws Exception &#123;</span><br><span class="line">                   // 产生新的ClusterState，还没成为本地的ClusterState</span><br><span class="line">                   return applyCreateIndexRequest(currentState, request, false); </span><br><span class="line">               &#125;</span><br><span class="line">           &#125;);</span><br><span class="line">   &#125;</span><br></pre></td></tr></table></figure>
 
@@ -881,9 +888,8 @@
 
 <h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>master广播全过程分为第一次广播+第二次commit请求，只有过半master节点响应才能继续第二次广播。在30s超时时间后，主动设置publish状态为true, 在规定时间内元数据更新较慢的节点，master会主动将其剔除集群。</p>
 
-      
+	
 
-      
     </div>
     <div class="article-info article-info-index">
       
@@ -953,7 +959,9 @@
     
     <div class="article-entry" itemprop="articleBody">
       
-        <p>Lucene中主要有两类倒排索引结构， 一种是词典结构， 涉及tim、tip、doc、pos。另外一种就是词典向量,统计的是单个词在文档内的，涉及tvd,tvm（参考<a href="https://kkewwei.github.io/elasticsearch_learning/2020/03/02/Lucene8-2-0%E5%BA%95%E5%B1%82%E6%9E%B6%E6%9E%84-tvd-tvm%E8%AF%8D%E5%85%B8%E5%90%91%E9%87%8F%E7%BB%93%E6%9E%84%E7%A0%94%E7%A9%B6/">Lucene8.2.0底层架构-tvd&#x2F;tvm词典向量结构研究</a>）, 这者统计的信息大体相同，这两个类都继承自<code>TermsHashPerField</code>，都是对segment内相同域名所有文档共享这两个类。<br>前者由<code>FreqProxTermsWriterPerField</code>构建, 后者由<code>TermVectorsConsumerPerField</code>构建。两者之间结构相似，前者统计单个词在segment内所有文档当前域的词频等，后者统计单个词在当前文档当前域的词频等。先放一张图让大家对这两个对象有个大致的了解：<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/lucene_tim1.png" height="500" width="400"><br>可以看到，将两者连接起来的是bytePool（结构可参考<a href="https://kkewwei.github.io/elasticsearch_learning/2019/10/06/Lucene8-2-0%E5%BA%95%E5%B1%82%E6%9E%B6%E6%9E%84-ByteBlockPool%E7%BB%93%E6%9E%84%E5%88%86%E6%9E%90/">Lucene8.2.0底层架构-ByteBlockPool结构分析</a>）,该对象就是存放的term内容，在词典和TermVector构建之间共享以节约内存使用，不过前者产生的termId在当前segment相同域内唯一的，而后者仅仅在文档该域内唯一。<br>Lucene查询中使用最多的就是词典结构, 根据term查询在哪些文档中存在, 也被称为倒排索引， 倒排索引结构如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/lucene_tim2.png" height="350" width="400"><br>由图可知，只要知道termId，我们就可以很好地知道该term在每个document每个域的词频，位置，offset等信息，本文就以词典构建过程来进行深入研究。</p>
+
+	
+		<p>Lucene中主要有两类倒排索引结构， 一种是词典结构， 涉及tim、tip、doc、pos。另外一种就是词典向量,统计的是单个词在文档内的，涉及tvd,tvm（参考<a href="https://kkewwei.github.io/elasticsearch_learning/2020/03/02/Lucene8-2-0%E5%BA%95%E5%B1%82%E6%9E%B6%E6%9E%84-tvd-tvm%E8%AF%8D%E5%85%B8%E5%90%91%E9%87%8F%E7%BB%93%E6%9E%84%E7%A0%94%E7%A9%B6/">Lucene8.2.0底层架构-tvd&#x2F;tvm词典向量结构研究</a>）, 这者统计的信息大体相同，这两个类都继承自<code>TermsHashPerField</code>，都是对segment内相同域名所有文档共享这两个类。<br>前者由<code>FreqProxTermsWriterPerField</code>构建, 后者由<code>TermVectorsConsumerPerField</code>构建。两者之间结构相似，前者统计单个词在segment内所有文档当前域的词频等，后者统计单个词在当前文档当前域的词频等。先放一张图让大家对这两个对象有个大致的了解：<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/lucene_tim1.png" height="500" width="400"><br>可以看到，将两者连接起来的是bytePool（结构可参考<a href="https://kkewwei.github.io/elasticsearch_learning/2019/10/06/Lucene8-2-0%E5%BA%95%E5%B1%82%E6%9E%B6%E6%9E%84-ByteBlockPool%E7%BB%93%E6%9E%84%E5%88%86%E6%9E%90/">Lucene8.2.0底层架构-ByteBlockPool结构分析</a>）,该对象就是存放的term内容，在词典和TermVector构建之间共享以节约内存使用，不过前者产生的termId在当前segment相同域内唯一的，而后者仅仅在文档该域内唯一。<br>Lucene查询中使用最多的就是词典结构, 根据term查询在哪些文档中存在, 也被称为倒排索引， 倒排索引结构如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/lucene_tim2.png" height="350" width="400"><br>由图可知，只要知道termId，我们就可以很好地知道该term在每个document每个域的词频，位置，offset等信息，本文就以词典构建过程来进行深入研究。</p>
 <h1 id="词典在内存中构建"><a href="#词典在内存中构建" class="headerlink" title="词典在内存中构建"></a>词典在内存中构建</h1><p>在对字典字段设置时, 可以进行如下设置:</p>
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">FieldType fieldType = new FieldType();</span><br><span class="line">// 对term建立倒排索引存储的数据</span><br><span class="line">fieldType.setIndexOptions(IndexOptions.DOCS_AND_FREQS_AND_POSITIONS_AND_OFFSETS);</span><br><span class="line">fieldType.setTokenized(true);//分词</span><br><span class="line">fieldType.setStoreTermVectors(true);//分词</span><br><span class="line">fieldType.setOmitNorms(true);//分词</span><br><span class="line">fieldType.setStoreTermVectorOffsets(true);//分词</span><br><span class="line">fieldType.setStoreTermVectorPayloads(true);//分词</span><br><span class="line">fieldType.setStoreTermVectorPositions(true);//分词</span><br></pre></td></tr></table></figure>
 
@@ -1054,9 +1062,8 @@ output能够快速定位block在tim中的存储位置，主要由一下几部分
 <h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>单个term的词频等信息保存正在Doc文件中，使用跳表结构来快速索引。segment每个域都有个词典结构，词典索引结构FST存放在tip文件中， tim中存放了每个PendingBlock里所有term的内容，以及每个词的统计信息， 每个词的倒排索引结构其实是存放在doc文件中。doc中存放了跳表结构，可以快速定位某个词的词频等信息。</p>
 <h1 id="参考"><a href="#参考" class="headerlink" title="参考"></a>参考</h1><p><a href="https://kkewwei.github.io/elasticsearch_learning/2020/02/25/Lucene8-2-0%E5%BA%95%E5%B1%82%E6%9E%B6%E6%9E%84-%E8%AF%8D%E5%85%B8fst%E5%8E%9F%E7%90%86%E8%A7%A3%E6%9E%90/">https://kkewwei.github.io/elasticsearch_learning/2020/02/25/Lucene8-2-0%E5%BA%95%E5%B1%82%E6%9E%B6%E6%9E%84-%E8%AF%8D%E5%85%B8fst%E5%8E%9F%E7%90%86%E8%A7%A3%E6%9E%90/</a><br><a href="https://www.amazingkoala.com.cn/Lucene/suoyinwenjian/2019/0401/43.html" target="_blank" rel="noopener">https://www.amazingkoala.com.cn/Lucene/suoyinwenjian/2019/0401/43.html</a></p>
 
-      
+	
 
-      
     </div>
     <div class="article-info article-info-index">
       
@@ -1137,7 +1144,9 @@ output能够快速定位block在tim中的存储位置，主要由一下几部分
     
     <div class="article-entry" itemprop="articleBody">
       
-        <p>lucene中使用fst(Finite State Transducer)来对字典压缩存储、快速查询词典, fst结构紧凑, 在时间复杂度和空间复杂度之间均衡, 和HashMap结构相比, 该结构体共享字符串前缀和后缀以达到精简内存使用, FST逻辑上构成了一个有向无环图, 本文将对fst结构体的构建过程进行分析。</p>
+
+	
+		<p>lucene中使用fst(Finite State Transducer)来对字典压缩存储、快速查询词典, fst结构紧凑, 在时间复杂度和空间复杂度之间均衡, 和HashMap结构相比, 该结构体共享字符串前缀和后缀以达到精简内存使用, FST逻辑上构成了一个有向无环图, 本文将对fst结构体的构建过程进行分析。</p>
 <h1 id="使用示例"><a href="#使用示例" class="headerlink" title="使用示例"></a>使用示例</h1><p>在输入字符串时词典时, 必须经过排序, 这样产生的fst才最小。</p>
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">// 输入字符串</span><br><span class="line">String inputValues[] = &#123;&quot;abcde&quot;,&quot;abdde&quot;,&quot;abede&quot;,&quot;accde&quot;,&quot;adcde&quot;&#125;;</span><br><span class="line">// 对应字符串的附加output</span><br><span class="line">Long outputValues[] = &#123;1L,2L,3L,4L,5L&#125;;</span><br><span class="line">PositiveIntOutputs outputs = PositiveIntOutputs.getSingleton();</span><br><span class="line">//构建FST</span><br><span class="line">Builder&lt;Long&gt; builder = new Builder&lt;&gt;(FST.INPUT_TYPE.BYTE1,outputs);</span><br><span class="line">IntsRefBuilder scratchInts = new IntsRefBuilder();</span><br><span class="line">for (int i = 0; i &lt; inputValues.length; i++) &#123;</span><br><span class="line">    BytesRef scratchBytes =  new BytesRef(inputValues[i].getBytes());</span><br><span class="line">    scratchInts.copyUTF8Bytes(scratchBytes);</span><br><span class="line">    builder.add(scratchInts.toIntsRef(),outputValues[i]);</span><br><span class="line">&#125;</span><br><span class="line">// 构建fst结构</span><br><span class="line">FST&lt;Long&gt; fst = builder.finish();</span><br><span class="line">// 读取该字符串对应的值</span><br><span class="line">Long value = Util.get(fst, new BytesRef(&quot;abcde&quot;));</span><br><span class="line">System.out.println(value);</span><br></pre></td></tr></table></figure>
 
@@ -1197,9 +1206,8 @@ output能够快速定位block在tim中的存储位置，主要由一下几部分
 <p>从该节点的所有边查找条件分4种情况:<br>1.若根缓存有数据, 那么直接从缓存中查找数据。<br>2.使用ARCS_AS_ARRAY_WITH_GAPS方式读取边。(满足等长存储的情况下, 是否直接存储。已经废弃, 可参考写入时FST类中656行, writeDirectly直接被置为false).<br>3.若该节点所有边都按照等长排序, 那么二分查找该节点下所有的边。这里存储时, 若边太多或者太深, 将使用空间换时间的方式加快查找速度, 每条边使用相同的存储空间以快速遍历。<br>4.否则线性遍历该节点下所有的边, 直到找到符合的边。</p>
 <h1 id="参考"><a href="#参考" class="headerlink" title="参考"></a>参考</h1><p><a href="https://blog.51cto.com/sbp810050504/1361551" target="_blank" rel="noopener">https://blog.51cto.com/sbp810050504/1361551</a><br><a href="http://examples.mikemccandless.com/fst.py" target="_blank" rel="noopener">http://examples.mikemccandless.com/fst.py</a></p>
 
-      
+	
 
-      
     </div>
     <div class="article-info article-info-index">
       
@@ -1280,7 +1288,9 @@ output能够快速定位block在tim中的存储位置，主要由一下几部分
     
     <div class="article-entry" itemprop="articleBody">
       
-        <p>DocValue主要作用是聚合, 不对字段分词, 属于正排索引结构, 面向列式存储。   分为两部分: DocValueData(dvd)、DocValueMeta(dvm)、</p>
+
+	
+		<p>DocValue主要作用是聚合, 不对字段分词, 属于正排索引结构, 面向列式存储。   分为两部分: DocValueData(dvd)、DocValueMeta(dvm)、</p>
 <h1 id="内存索引结构的建立"><a href="#内存索引结构的建立" class="headerlink" title="内存索引结构的建立"></a>内存索引结构的建立</h1><p>DocValue不对域的value分词, 而termVector会对域进行分词, 也就是说, 若设置了docValue, 那么再设置termVector将抛异常。对于每次即将刷新到文档dvd&#x2F;dvm中缓存的文档, 对于相同域名称的域的term将存放到一起, 形成列式存储, 然后再放下个域的term。 字段只有如下设置, 才会存储DocValue索引:</p>
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">fieldType.setDocValuesType(DocValuesType.SORTED_SET);</span><br><span class="line">document.add(new Field(&quot;city&quot;, &quot;sssaas&quot;.getBytes(), fieldType));</span><br></pre></td></tr></table></figure>
 
@@ -1347,9 +1357,8 @@ output能够快速定位block在tim中的存储位置，主要由一下几部分
 <p>该函数主要是为了构建二级索引结构, 遍历排序好的词典:<br>1.每隔1024<em>x+1023个词, 记录当前termId<br>2.每1024</em>x+1023+1个词, 将该词与前面一个词进行比较, 记录prefix长度并累加到offset, 存放在dvm中, 记录suffix内容到dvd中。<br>同时存放了如下变量: TERMS_DICT_REVERSE_INDEX_SHIFT, 提示二级索引间隔为1024个term。</p>
 <h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>docValue作为列式存储, 不对域值分词, 所以整个域就会当成一个单独的term存储。在dvd&#x2F;dvm中, 每次将一个域的所有term存储完后, 再接着存储第二个域的所有词。dvd中主要存储termId、termValue。 dvm中存储term的一级、二级索引元素, 以便于快速找到termDict中的每个词。一级索引是每16个词,存储一个词的value, 其中前15个词由于已经排序存储, 采用相同前缀压缩存储, 词典存储可以节省很多空间。对于二级索引, 每1024个词, 取样一个节点作为索引节点。</p>
 
-      
+	
 
-      
     </div>
     <div class="article-info article-info-index">
       
@@ -1430,7 +1439,9 @@ output能够快速定位block在tim中的存储位置，主要由一下几部分
     
     <div class="article-entry" itemprop="articleBody">
       
-        <p>StoredField文件主要存放文档-&gt;域-&gt;value的关系, 每个文档的所有域都保存一起,再保存下一行, 行式存储, 正排索引结果, 不对字段分词, 便于读取任何字段的value。 fdt存放文档的value及一级索引索引, fdx存放二级索引结构。 本文就以这两个文件结构的建立-&gt;文件写入磁盘的过程来进行详细介绍, 代码主要可见CompressingStoredFieldsWriter。</p>
+
+	
+		<p>StoredField文件主要存放文档-&gt;域-&gt;value的关系, 每个文档的所有域都保存一起,再保存下一行, 行式存储, 正排索引结果, 不对字段分词, 便于读取任何字段的value。 fdt存放文档的value及一级索引索引, fdx存放二级索引结构。 本文就以这两个文件结构的建立-&gt;文件写入磁盘的过程来进行详细介绍, 代码主要可见CompressingStoredFieldsWriter。</p>
 <h1 id="内存索引结构的建立"><a href="#内存索引结构的建立" class="headerlink" title="内存索引结构的建立"></a>内存索引结构的建立</h1><p>索引结构建立是指将文档按照规范存储到内存中, 当对字段进行如下设置时, 才会建立该索引文档:</p>
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">FieldType fieldType = new FieldType();</span><br><span class="line">fieldType.setStored(true);</span><br></pre></td></tr></table></figure>
 
@@ -1485,9 +1496,8 @@ output能够快速定位block在tim中的存储位置，主要由一下几部分
 <p>writeBlock主要记录以下几个指标:<br>1.blockChunks: 当前block的chunks数。<br>2.docBase: 这个block的其实文档在整个fdt中的文档起始位置, 一个fdt可能存放不只一个block。<br>3.avgChunkDocs: 该block所有chunk的平均文档数<br>4.bitsPerDocBase: 每个chunk文档书与平均文档数相差个数需要几位bit表示: 比如chunk文档数分别是: 5,3,8, 则需要1位。 该参数是为了保存他们的差值, 减少存储所需要的空间。<br>5.blockChunks个docBaseDelta: 存储blockChunks个chunk与标准文档的差值, 这里不存储每个文档的原值, 而是存储差值, 是为了减少存储所需的空间。<br>6.firstStartPointer: 该block在整个fdt存储的起始位置<br>7.avgChunksSize: 该block所有chunk的平均length<br>8.blockChunks个startPointDelta: 存储blockChunks个chunk与标准size的差值。 通过该值可以知道每个chunk在fdt中的起始位置, 存储原理与第5项一致。<br>9.numberChunks: 所有block中总的chunk个数。<br>10.numberDirtyChunks: fdx可能存放多个block, 一个block最多存放1024个chunk, 该值统计的是所有block的chunk小于1024的个数, 其中有的chunk可能不够128个文档, 称之为dirtyChunk。一般fdx文件中, 只有最后一个block的最后一个chunk小于128个文档。<br>下图展示了fdt文件和fdx文件的结构:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/lucene_fdt.png" height="350" width="900"></p>
 <h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>整体过程可以总结如下: 依次将文档写入内存中, 若缓存的文档数或者bufferedDocs占用的内存超过阈值, 则触发一次flush, 该flush将之前的存储在内存中的文档产生一个chunk, 当达到blockSize次flush后, 产生一个block。当达到一个block后, 才开始向fdt文件和fdx文件写入索引结构。一个fdx可能包含多个block的索引结构。</p>
 
-      
+	
 
-      
     </div>
     <div class="article-info article-info-index">
       
@@ -1653,10 +1663,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">Flink、Slot分配、SubTask申请slot, SubTask部署</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">NIO, write, read</a>
               </li>
              
@@ -1665,7 +1671,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
+                <a href="javascript:void(0)" class="js-tag color3">Flink、Slot分配、SubTask申请slot, SubTask部署</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">Lucene、ByteBlockPool</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1673,11 +1683,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">Lucene、词典、FST</a>
+                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">Lucene、ByteBlockPool</a>
+                <a href="javascript:void(0)" class="js-tag color4">Lucene、词典、FST</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1689,19 +1699,19 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">Lucene、BKW树、Point</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">Lucene、词典、tim、tip、doc、pos、fst、倒排索引</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
+                <a href="javascript:void(0)" class="js-tag color3">Lucene、BKW树、Point</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">Cycler</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1713,7 +1723,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">maven, 插件, 打包</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1725,15 +1743,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
               </li>
             
             <div class="clearfix"></div>

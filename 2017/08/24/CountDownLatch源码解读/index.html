@@ -188,7 +188,9 @@
     
     <div class="article-entry" itemprop="articleBody">
       
-        <p>CountDownLatch也是线程同步的一个工具, 底层也是使用AQS(参考<a href="https://kkewwei.github.io/elasticsearch_learning/2017/07/23/ReentrantLock%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB/">ReentrantLock源码解读</a>)来进行锁的互斥。<br>CountDownLatch与ReentrantLock的主要区别是:</p>
+
+	
+		<p>CountDownLatch也是线程同步的一个工具, 底层也是使用AQS(参考<a href="https://kkewwei.github.io/elasticsearch_learning/2017/07/23/ReentrantLock%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB/">ReentrantLock源码解读</a>)来进行锁的互斥。<br>CountDownLatch与ReentrantLock的主要区别是:</p>
 <ul>
 <li>CountDownLatch是一个共享锁, ReentrantLock是一个独占锁。</li>
 <li>CountDownLatch中state初始值为n, 代表一个锁被分成了n份。 好比门钥匙, 有一个门需要n份钥匙聚齐后才能打开。 若门打开后, 第一个通过的那个人可以告诉排队等待的人, 然后依次经过。而ReentrantLock中state为0, 表示锁没有被占用, 比如有一个很窄的门, 每次只能通过一个人, 虽拥有那个钥匙(state&#x3D;1), 谁才能过那道门。 若有很多人等, 那么就要排队了。 若新来一个人来时, 门恰好是开着的, 他能忽略排队的人过去的话, 这就是非公平锁, 若需要进入等待队列的话, 那就是公平锁。<br>CountDownLatch并不存在公不公平锁的概念, CountDownLatch的这个门打开后, 进门的并发并没有限制, 任何人只要发现门打开了, 就可以进入。 而ReentrantLock对应的门, 设置了每次进门的并发只能是1, 所以需要排序进入。<br>CountDownLatch使用方法如下:<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">CountDownLatch countDownLatch = new CountDownLatch(3);</span><br><span class="line">//获取共享锁,获取不到就阻塞</span><br><span class="line">countDownLatch.await();</span><br><span class="line"> //释放一份共享锁</span><br><span class="line">countDownLatch.countDown();</span><br></pre></td></tr></table></figure></li>
@@ -238,30 +240,8 @@
 <h2 id="ReentrantLock和CountDownLatch对比"><a href="#ReentrantLock和CountDownLatch对比" class="headerlink" title="ReentrantLock和CountDownLatch对比"></a>ReentrantLock和CountDownLatch对比</h2><p>ReentrantLock作为互斥锁, 当且仅当前面的线程被unlock()唤醒后, 后继节点才能被唤醒。前面一个节点唤醒后,直到运行unlock(), 才能继续唤醒阻塞的线程。<br>CountDownLatch作为共享锁, 在countDown()中首先会唤醒阻塞的队列, 再继续唤醒下一个线层(调用doReleaseShared()函数)。同时被唤醒的那个线程也会继续唤醒后继节点(调用doReleaseShared()函数), 在countDown()和await()都可能唤醒后续线程。代码中一个明显的区别就是, 阻塞的线程被唤醒后, ReentrantLock调用的的是setHead()就退出了, 而CountDownLatch调用的是setHeadAndPropagate(), 继续向后传播。这里也体现了共享的概念, 只要获得锁, 合适的情况下就会向后传播, 唤醒后续线程。</p>
 <h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>CountDownLatch获取锁时候, 调用await()时, 只要state为0即可。 而state降低通过countDown()实现。该锁属于共享锁, 当state为0后, 会逐渐通知等待队列中的线程。</p>
 
-      
+	
 
-      
-        <div class="page-reward">
-          <a href="javascript:;" class="page-reward-btn tooltip-top">
-            <div class="tooltip tooltip-east">
-            <span class="tooltip-item">
-              赏
-            </span>
-            <span class="tooltip-content">
-              <span class="tooltip-text">
-                <span class="tooltip-inner">
-                  <p class="reward-p"><i class="icon icon-quo-left"></i>谢谢阅读<i class="icon icon-quo-right"></i></p>
-                  <div class="reward-box">
-                    
-                    
-                  </div>
-                </span>
-              </span>
-            </span>
-          </div>
-          </a>
-        </div>
-      
     </div>
     <div class="article-info article-info-index">
       
@@ -391,7 +371,7 @@
 
 
   
-  
+
   
 
   
@@ -515,10 +495,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">Flink、Slot分配、SubTask申请slot, SubTask部署</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">NIO, write, read</a>
               </li>
              
@@ -527,7 +503,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
+                <a href="javascript:void(0)" class="js-tag color3">Flink、Slot分配、SubTask申请slot, SubTask部署</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">Lucene、ByteBlockPool</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -535,11 +515,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">Lucene、词典、FST</a>
+                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">Lucene、ByteBlockPool</a>
+                <a href="javascript:void(0)" class="js-tag color4">Lucene、词典、FST</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -551,19 +531,19 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">Lucene、BKW树、Point</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">Lucene、词典、tim、tip、doc、pos、fst、倒排索引</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
+                <a href="javascript:void(0)" class="js-tag color3">Lucene、BKW树、Point</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">Cycler</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -575,7 +555,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">maven, 插件, 打包</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -587,15 +575,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
               </li>
             
             <div class="clearfix"></div>

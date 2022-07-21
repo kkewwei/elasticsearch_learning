@@ -184,7 +184,9 @@
     
     <div class="article-entry" itemprop="articleBody">
       
-        <p>Flink对于JobManager和TaskManager之间通信采用Akka remote实现, 本文将以tm和jm之间的一次远程通信为示例进行讲解。为了读者更好地理解, 本文首先介绍AKKa相关基本知识。</p>
+
+	
+		<p>Flink对于JobManager和TaskManager之间通信采用Akka remote实现, 本文将以tm和jm之间的一次远程通信为示例进行讲解。为了读者更好地理解, 本文首先介绍AKKa相关基本知识。</p>
 <h1 id="Akka基础学习"><a href="#Akka基础学习" class="headerlink" title="Akka基础学习"></a>Akka基础学习</h1><p>本文首先以hello world为例进行讲解:</p>
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br></pre></td><td class="code"><pre><span class="line">public class hello &#123;</span><br><span class="line">    public static void main(String[] args) &#123;</span><br><span class="line">        // 创建系统</span><br><span class="line">        final ActorSystem system = ActorSystem.create(&quot;hello&quot;);</span><br><span class="line">        // 创建消息角色(): greeter1, 接受消息处理类: Greeter</span><br><span class="line">        final ActorRef greeter1 = system.actorOf(Props.create(Greeter.class), &quot;Sender1&quot;);</span><br><span class="line">        final ActorRef greeter2 = system.actorOf(Props.create(Greeter.class), &quot;Sender2&quot;);</span><br><span class="line">        //消息发送greeter1 -&gt;  greeter2, 消息内容&quot;tell1&quot;</span><br><span class="line">        greeter2.tell(&quot;tell1&quot;, greeter1);</span><br><span class="line"></span><br><span class="line">        //通过ask, 表示角色发送完消息, 希望对方返回。</span><br><span class="line">        Future&lt;String&gt; future  = Patterns.ask(greeter1, &quot;ask1&quot;, 5000).&lt;String&gt;mapTo(ClassTag$.MODULE$.&lt;String&gt;apply(String.class));</span><br><span class="line">        future.onComplete(new OnComplete&lt;String&gt;() &#123;</span><br><span class="line">            public void onComplete(Throwable throwable, String o) throws Throwable &#123;</span><br><span class="line">                if (throwable == null) &#123;</span><br><span class="line">                    System.out.println(o);</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;, system.dispatcher());</span><br><span class="line"></span><br><span class="line">        //获取greeter1的绝对路径</span><br><span class="line">        String url = greeter1.path().parent().toString()+&quot;/&quot;+greeter1.path().name()+&quot;#&quot;+greeter1.path().uid();</span><br><span class="line">        // 通过actorSelection, 可以查找角色, 这个函数比较重要, 我们只知道某个角色的绝对路径, 我们通过该函数, 就可以获取到该角色。一般用于远程数据传输。</span><br><span class="line">        ActorSelection actorSelection = system.actorSelection(url);</span><br><span class="line">        Future&lt;ActorIdentity&gt; identify  = Patterns.ask(actorSelection, new Identify(1), 5000).&lt;ActorIdentity&gt;mapTo(ClassTag$.MODULE$.&lt;ActorIdentity&gt;apply(ActorIdentity.class));</span><br><span class="line">        identify.onComplete(new OnComplete&lt;ActorIdentity&gt;() &#123;</span><br><span class="line">            public void onComplete(Throwable throwable, ActorIdentity o) throws Throwable &#123;</span><br><span class="line">                if (throwable != null) &#123;</span><br><span class="line">                &#125; else &#123;</span><br><span class="line">                    // 我们可以对比发现, 之前那个角色通过绝对路径获取到了。</span><br><span class="line">                    ActorRef actorRef = o.getRef();</span><br><span class="line">                    System.out.println(&quot;system.actorSelection verify:&quot; + (actorRef==greeter1));</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;, system.dispatcher());</span><br><span class="line">    &#125;</span><br><span class="line">    //消息处理类, 必须继承UntypedActor</span><br><span class="line">    public static class Greeter extends UntypedActor &#123;</span><br><span class="line">        // 消息角色真正接收到数据的函数</span><br><span class="line">        public void onReceive(Object message) &#123;</span><br><span class="line">            if(message instanceof String &amp;&amp; ((String)message).equals(&quot;tell1&quot;)) &#123;</span><br><span class="line">                System.out.println(message);</span><br><span class="line">                getSender().tell(&quot;word2&quot;, getSelf());</span><br><span class="line">            &#125; else if(message instanceof String &amp;&amp; ((String)message).equals(&quot;ask1&quot;)) &#123;</span><br><span class="line">                System.out.println(message);</span><br><span class="line">                // getSelf()表示本角色</span><br><span class="line">                getSender().tell(&quot;Patterns.ask()&quot;, getSelf());</span><br><span class="line">            &#125; else &#123;</span><br><span class="line">                System.out.println(&quot;unhandled:&quot; + message);</span><br><span class="line">                unhandled(message);</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
@@ -266,30 +268,8 @@
 </ol>
 <h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>可以看到, Akka通信最底层依靠的是Patterns.ask来完成, 整个通信流程也是比较清晰的。</p>
 
-      
+	
 
-      
-        <div class="page-reward">
-          <a href="javascript:;" class="page-reward-btn tooltip-top">
-            <div class="tooltip tooltip-east">
-            <span class="tooltip-item">
-              赏
-            </span>
-            <span class="tooltip-content">
-              <span class="tooltip-text">
-                <span class="tooltip-inner">
-                  <p class="reward-p"><i class="icon icon-quo-left"></i>谢谢阅读<i class="icon icon-quo-right"></i></p>
-                  <div class="reward-box">
-                    
-                    
-                  </div>
-                </span>
-              </span>
-            </span>
-          </div>
-          </a>
-        </div>
-      
     </div>
     <div class="article-info article-info-index">
       
@@ -419,7 +399,7 @@
 
 
   
-  
+
   
 
   
@@ -543,10 +523,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">Flink、Slot分配、SubTask申请slot, SubTask部署</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">NIO, write, read</a>
               </li>
              
@@ -555,7 +531,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
+                <a href="javascript:void(0)" class="js-tag color3">Flink、Slot分配、SubTask申请slot, SubTask部署</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">Lucene、ByteBlockPool</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -563,11 +543,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">Lucene、词典、FST</a>
+                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">Lucene、ByteBlockPool</a>
+                <a href="javascript:void(0)" class="js-tag color4">Lucene、词典、FST</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -579,19 +559,19 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">Lucene、BKW树、Point</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">Lucene、词典、tim、tip、doc、pos、fst、倒排索引</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
+                <a href="javascript:void(0)" class="js-tag color3">Lucene、BKW树、Point</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">Cycler</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -603,7 +583,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">maven, 插件, 打包</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -615,15 +603,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
               </li>
             
             <div class="clearfix"></div>

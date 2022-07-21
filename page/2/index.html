@@ -185,7 +185,9 @@
     
     <div class="article-entry" itemprop="articleBody">
       
-        <p>ES中在refresh、flush过程中, 都有可能触发段合并, 段合并是将小的段合并成大的段, merge过程有两个好处:</p>
+
+	
+		<p>ES中在refresh、flush过程中, 都有可能触发段合并, 段合并是将小的段合并成大的段, merge过程有两个好处:</p>
 <ol>
 <li>加快查询速度</li>
 <li>减少内存空间的占用<br>本文主要从ES7.3层面讲解是如何进行小的段文件合并成大的段文件的, 至于lucene层面的段合并, 之后也会整理一篇文档出来。</li>
@@ -284,9 +286,8 @@
 </ul>
 <h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>本文着重从merge调度层面讲解的, 比如如何选择segment, 如何动态调整merge速度的。至于lucene层面的合并, 将在之后的文档中详细介绍。从分析角度看, merge还是有些问题的, 比如只考虑单个shard的合并速度, 却没有在node层面进行限速。</p>
 
-      
+	
 
-      
     </div>
     <div class="article-info article-info-index">
       
@@ -367,7 +368,9 @@
     
     <div class="article-entry" itemprop="articleBody">
       
-        <p>Lucene在建立倒排索引结构时, 需要存储大量的byte数组, 并不能固定需要在一个数组中存放多少byte。数组不能扩展的特性并不能很好的解决动态扩容的问题, Lucene自己开发了类ByteBlockPool来满足这一特性。针对int类型开发了IntBlockPool, 两者原理相同, 本文就以ByteBlockPool存储细节来展开介绍。</p>
+
+	
+		<p>Lucene在建立倒排索引结构时, 需要存储大量的byte数组, 并不能固定需要在一个数组中存放多少byte。数组不能扩展的特性并不能很好的解决动态扩容的问题, Lucene自己开发了类ByteBlockPool来满足这一特性。针对int类型开发了IntBlockPool, 两者原理相同, 本文就以ByteBlockPool存储细节来展开介绍。</p>
 <h1 id="属性介绍"><a href="#属性介绍" class="headerlink" title="属性介绍"></a>属性介绍</h1><p>先看下相关属性:</p>
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"> // 真正存放byte的地方, 还是可以扩容的。</span><br><span class="line"> public byte[][] buffers = new byte[10][];</span><br><span class="line"> //指向二元buffers的第一元指针, 当前正在向第几个byte[]存放数据</span><br><span class="line"> private int bufferUpto = -1;</span><br><span class="line">//当前正在写入的byte[]内的相对偏移量，就是buffer内可分配的起始位置。</span><br><span class="line"> public int byteUpto = BYTE_BLOCK_SIZE;</span><br><span class="line"> //当前块buffer</span><br><span class="line"> public byte[] buffer;</span><br><span class="line">// buffer在所有buffers的位置（当前buffer在全局的偏移量），(bufferUpto -1)*BYTE_BLOCK_SIZE</span><br><span class="line"> public int byteOffset = -BYTE_BLOCK_SIZE;</span><br><span class="line"> // 当使用完当前buffer后, 会再次申请一个byte[]来存放byte。每次申请一个byte[], 都对应了一个级别, 每个级别可以申请的内存大小都是固定的。NEXT_LEVEL_ARRAY定义当前级别的下一个级别是第几级, LEVEL_SIZE_ARRAY对应了每个级别可以申请的byte[]大小。最多有9级别, 当超过第9级别后, 后面再申请的话, 只能是第9级。这里使用了一个小技巧来实现这个操作, NEXT_LEVEL_ARRAY[8]=9,表示第8级别后面是第9级, NEXT_LEVEL_ARRAY[9]=9表示第9级后面还是第9级。</span><br><span class="line"> public final static int[] NEXT_LEVEL_ARRAY = &#123;1, 2, 3, 4, 5, 6, 7, 8, 9, 9&#125;;</span><br><span class="line"> public final static int[] LEVEL_SIZE_ARRAY = &#123;5, 14, 20, 30, 40, 40, 80, 80, 120, 200&#125;;</span><br><span class="line"> // 定义了最开始的分配byte[]的级别</span><br><span class="line"> public final static int FIRST_LEVEL_SIZE = LEVEL_SIZE_ARRAY[0];</span><br></pre></td></tr></table></figure>
 
@@ -386,9 +389,8 @@
 <p>主要过程用图像表示如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/lucene_bytebuffer1.png" height="250" width="600"><br>其中address是在整个buffers中的绝对位置。 一个buffer可以产生不同的slice, 每个slice不需要连续, 相当于一个链串结构。 slice扩容分为9级, 达到9级后新申请的内存大小都按照第9级别来分配。</p>
 <h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>ByteBlockPool通过管理字符串二维数组方式实现动态扩容, 而且扩容成本也不高。lucene中在字符串存储上使用了较多较为巧妙的方法, 正是这些巧妙方法, 使得lucene有着比较优秀的性能。</p>
 
-      
+	
 
-      
     </div>
     <div class="article-info article-info-index">
       
@@ -469,7 +471,9 @@
     
     <div class="article-entry" itemprop="articleBody">
       
-        <p>我们可能经常会使用kill -9 pid 来kill某个进程, 其实-9就是某一种信号量, 今天我们将简单讲解下信号量的使用。 linux中信号就是软件中断, 它提供了一种处理异步时间的方法: 终端用户键入中断键, 则会通过信号机构停止一个程序。产生信号的事件对于进程而言则是随机出现的。 进程表態只测试一个变量来判别是否发生了一个信号, 而是必须告诉内核”在此信号发生时, 请执行以下操作”, 可以要求系统在某个信号按照以下三种的其中一种方式操作:<br>(1) 忽略信号, 大多数信号都可使用这种方式处理, 但是有两只中信号决不能被忽略, 它们是SIGKILL和SIGSTOP。这两种信号不能被忽略的原因是: 它们向超级用户提供一种使进程终止或者停止的可靠方法。另外, 如果忽略某种由硬件异常产生的信号(例如非法存储访问或者除以0), 则金恒的行为是未定义的。<br>(2) 捕获信号, 为了做到这一点要通知内核在某种信号发生时, 调用一个用户函数。在用户函数中, 可执行用户希望对这种事件进行的处理, 例如, 若编写一个命令解释器, 当用户用键盘产生中断信号后, 很可能希望用户返回到程序的主循环, 终止系统正在为用户执行的命令。 若果捕获到SIGCHILD信号, 则表示子进程已经终止, 所以此信号的捕获可以调用waitpid以取得该子进程的进程ID已经它的最终状态。 又例如, 如果进程创建了临时文件, 那么可能要为SIGTERM信号编写一个信号捕获函数以清理临时文件(kill命令传送的信号默认信号时终止信号)。<br>(3) 执行系统默认动作。对于大部分信号的系统默认动作是终止该进程。<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/signal_1.png" height="450" width="500"><br><img src="https://kkewwei.github.io/elasticsearch_learning/img/signal_2.png" height="250" width="480"><br>想了解每个信号的含义, 可以参考《Unix环境高级编程》一书, 每种信号可以由一个数字表示, 这里罗列一些常见的:</p>
+
+	
+		<p>我们可能经常会使用kill -9 pid 来kill某个进程, 其实-9就是某一种信号量, 今天我们将简单讲解下信号量的使用。 linux中信号就是软件中断, 它提供了一种处理异步时间的方法: 终端用户键入中断键, 则会通过信号机构停止一个程序。产生信号的事件对于进程而言则是随机出现的。 进程表態只测试一个变量来判别是否发生了一个信号, 而是必须告诉内核”在此信号发生时, 请执行以下操作”, 可以要求系统在某个信号按照以下三种的其中一种方式操作:<br>(1) 忽略信号, 大多数信号都可使用这种方式处理, 但是有两只中信号决不能被忽略, 它们是SIGKILL和SIGSTOP。这两种信号不能被忽略的原因是: 它们向超级用户提供一种使进程终止或者停止的可靠方法。另外, 如果忽略某种由硬件异常产生的信号(例如非法存储访问或者除以0), 则金恒的行为是未定义的。<br>(2) 捕获信号, 为了做到这一点要通知内核在某种信号发生时, 调用一个用户函数。在用户函数中, 可执行用户希望对这种事件进行的处理, 例如, 若编写一个命令解释器, 当用户用键盘产生中断信号后, 很可能希望用户返回到程序的主循环, 终止系统正在为用户执行的命令。 若果捕获到SIGCHILD信号, 则表示子进程已经终止, 所以此信号的捕获可以调用waitpid以取得该子进程的进程ID已经它的最终状态。 又例如, 如果进程创建了临时文件, 那么可能要为SIGTERM信号编写一个信号捕获函数以清理临时文件(kill命令传送的信号默认信号时终止信号)。<br>(3) 执行系统默认动作。对于大部分信号的系统默认动作是终止该进程。<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/signal_1.png" height="450" width="500"><br><img src="https://kkewwei.github.io/elasticsearch_learning/img/signal_2.png" height="250" width="480"><br>想了解每个信号的含义, 可以参考《Unix环境高级编程》一书, 每种信号可以由一个数字表示, 这里罗列一些常见的:</p>
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">Some of the more commonly used signals:</span><br><span class="line">1       HUP (hang up)</span><br><span class="line">2       INT (interrupt)</span><br><span class="line">3       QUIT (quit)</span><br><span class="line">6       ABRT (abort, 调用abort时触发)</span><br><span class="line">9       KILL (non-catchable, non-ignorable kill)</span><br><span class="line">14      ALRM (alarm clock)</span><br><span class="line">15      TERM (software termination signal)</span><br><span class="line">30      SIGUSR1 (user defined signal 1)</span><br><span class="line">31      SIGUSR2 (user defined signal 2)</span><br></pre></td></tr></table></figure>
 
 <p>在系统默认动作列中, “终止w&#x2F;core”表示在进程当前工作目录的core文件中复制了该进程的存储图像(该文件名为core)。 在以下条件下不产生core文件:<br>(a) 程是设置-用户-ID, 而且当前用户并非程序文件的所有者<br>(b) 进程是设置-组-ID ,而且当前用户并非该程序文件的组所有者<br>(c)用户没有写当前工作目录的许可权<br>(d) 文件太大。我们经常使用<code>ulimit -c unlimited</code>设置core文件大小。</p>
@@ -482,9 +486,8 @@
 </ol>
 <p>参考:<br>《Unix环境高级编程》第十章 信 号</p>
 
-      
+	
 
-      
     </div>
     <div class="article-info article-info-index">
       
@@ -554,10 +557,11 @@
     
     <div class="article-entry" itemprop="articleBody">
       
-        
-      
 
-      
+	
+		
+	
+
     </div>
     <div class="article-info article-info-index">
       
@@ -638,7 +642,9 @@
     
     <div class="article-entry" itemprop="articleBody">
       
-        <h1 id="现象"><a href="#现象" class="headerlink" title="现象"></a>现象</h1><h2 id="现象1"><a href="#现象1" class="headerlink" title="现象1"></a>现象1</h2><p>最近在下线ES5.6.8集群节点时候, 发现了一个很奇怪的现象, 我先把cluster参数给贴出来看下:</p>
+
+	
+		<h1 id="现象"><a href="#现象" class="headerlink" title="现象"></a>现象</h1><h2 id="现象1"><a href="#现象1" class="headerlink" title="现象1"></a>现象1</h2><p>最近在下线ES5.6.8集群节点时候, 发现了一个很奇怪的现象, 我先把cluster参数给贴出来看下:</p>
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">PUT _cluster/settings</span><br><span class="line">&#123;</span><br><span class="line">    &quot;transient&quot;: &#123;</span><br><span class="line">        &quot;cluster&quot;: &#123;</span><br><span class="line">         &quot;routing&quot;: &#123;</span><br><span class="line">            &quot;rebalance&quot;: &#123;</span><br><span class="line">               &quot;enable&quot;: &quot;all&quot;</span><br><span class="line">            &#125;,</span><br><span class="line">            &quot;allocation&quot;: &#123;</span><br><span class="line">               &quot;allow_rebalance&quot;: &quot;always&quot;,</span><br><span class="line">               &quot;cluster_concurrent_rebalance&quot;: &quot;1&quot;,</span><br><span class="line">               &quot;node_concurrent_recoveries&quot;: &quot;1&quot;,</span><br><span class="line">               &quot;node_initial_primaries_recoveries&quot;: &quot;1&quot;,</span><br><span class="line">               &quot;enable&quot;: &quot;all&quot;</span><br><span class="line">            &#125;</span><br><span class="line">         &#125;</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
 <p>然后我通过如下命令下线4个节点:</p>
@@ -699,9 +705,8 @@
 </ol>
 <h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>若仅仅增加节点, 那么就是rebalance操作, 此时cluster_concurrent_rebalance是生效的。 若做了exclude操作, 那么就变成了move操作, 此时node_concurrent_recoveries就该生效了。 move, rebalance, allocation等操作都是由多个决策器一起决定如何分配的, 只要合理使用各种决策器, 那么分片分配就能被我们合理的掌握了。</p>
 
-      
+	
 
-      
     </div>
     <div class="article-info article-info-index">
       
@@ -771,7 +776,9 @@
     
     <div class="article-entry" itemprop="articleBody">
       
-        <p>如下是flink on yarn启动的一个示例:</p>
+
+	
+		<p>如下是flink on yarn启动的一个示例:</p>
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">/bin/flink run -m yarn-cluster -yd -yjm 1024 -ys 2 -ytm 2048 clink-with-dependencies.jar  --topic_name topic1 --log_name --source_num 50  --sink_num 50</span><br></pre></td></tr></table></figure>
 
 <p>其中我们定义了JobManager的大小为1024M, TaskManager大小为2048M, 但是通过实际观察发现JobManager heap大小为424M, TaskManager heap memory大小为1304M, direct memory大小为744M , 参数值为啥是这个呢?</p>
@@ -807,9 +814,8 @@
 <li>在我们代码中, useOffHeap是false, 由taskmanager.memory.off-heap设置, 默认为false。<br>那么, TM启动的参数就很明显了, HEAP为1304MB, OFF-HEAD为2048MB-1304MB&#x3D;744MB(包括Container占用空闲+网络buffer)。</li>
 </ol>
 
-      
+	
 
-      
     </div>
     <div class="article-info article-info-index">
       
@@ -879,7 +885,9 @@
     
     <div class="article-entry" itemprop="articleBody">
       
-        <p>Flink对于JobManager和TaskManager之间通信采用Akka remote实现, 本文将以tm和jm之间的一次远程通信为示例进行讲解。为了读者更好地理解, 本文首先介绍AKKa相关基本知识。</p>
+
+	
+		<p>Flink对于JobManager和TaskManager之间通信采用Akka remote实现, 本文将以tm和jm之间的一次远程通信为示例进行讲解。为了读者更好地理解, 本文首先介绍AKKa相关基本知识。</p>
 <h1 id="Akka基础学习"><a href="#Akka基础学习" class="headerlink" title="Akka基础学习"></a>Akka基础学习</h1><p>本文首先以hello world为例进行讲解:</p>
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br></pre></td><td class="code"><pre><span class="line">public class hello &#123;</span><br><span class="line">    public static void main(String[] args) &#123;</span><br><span class="line">        // 创建系统</span><br><span class="line">        final ActorSystem system = ActorSystem.create(&quot;hello&quot;);</span><br><span class="line">        // 创建消息角色(): greeter1, 接受消息处理类: Greeter</span><br><span class="line">        final ActorRef greeter1 = system.actorOf(Props.create(Greeter.class), &quot;Sender1&quot;);</span><br><span class="line">        final ActorRef greeter2 = system.actorOf(Props.create(Greeter.class), &quot;Sender2&quot;);</span><br><span class="line">        //消息发送greeter1 -&gt;  greeter2, 消息内容&quot;tell1&quot;</span><br><span class="line">        greeter2.tell(&quot;tell1&quot;, greeter1);</span><br><span class="line"></span><br><span class="line">        //通过ask, 表示角色发送完消息, 希望对方返回。</span><br><span class="line">        Future&lt;String&gt; future  = Patterns.ask(greeter1, &quot;ask1&quot;, 5000).&lt;String&gt;mapTo(ClassTag$.MODULE$.&lt;String&gt;apply(String.class));</span><br><span class="line">        future.onComplete(new OnComplete&lt;String&gt;() &#123;</span><br><span class="line">            public void onComplete(Throwable throwable, String o) throws Throwable &#123;</span><br><span class="line">                if (throwable == null) &#123;</span><br><span class="line">                    System.out.println(o);</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;, system.dispatcher());</span><br><span class="line"></span><br><span class="line">        //获取greeter1的绝对路径</span><br><span class="line">        String url = greeter1.path().parent().toString()+&quot;/&quot;+greeter1.path().name()+&quot;#&quot;+greeter1.path().uid();</span><br><span class="line">        // 通过actorSelection, 可以查找角色, 这个函数比较重要, 我们只知道某个角色的绝对路径, 我们通过该函数, 就可以获取到该角色。一般用于远程数据传输。</span><br><span class="line">        ActorSelection actorSelection = system.actorSelection(url);</span><br><span class="line">        Future&lt;ActorIdentity&gt; identify  = Patterns.ask(actorSelection, new Identify(1), 5000).&lt;ActorIdentity&gt;mapTo(ClassTag$.MODULE$.&lt;ActorIdentity&gt;apply(ActorIdentity.class));</span><br><span class="line">        identify.onComplete(new OnComplete&lt;ActorIdentity&gt;() &#123;</span><br><span class="line">            public void onComplete(Throwable throwable, ActorIdentity o) throws Throwable &#123;</span><br><span class="line">                if (throwable != null) &#123;</span><br><span class="line">                &#125; else &#123;</span><br><span class="line">                    // 我们可以对比发现, 之前那个角色通过绝对路径获取到了。</span><br><span class="line">                    ActorRef actorRef = o.getRef();</span><br><span class="line">                    System.out.println(&quot;system.actorSelection verify:&quot; + (actorRef==greeter1));</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;, system.dispatcher());</span><br><span class="line">    &#125;</span><br><span class="line">    //消息处理类, 必须继承UntypedActor</span><br><span class="line">    public static class Greeter extends UntypedActor &#123;</span><br><span class="line">        // 消息角色真正接收到数据的函数</span><br><span class="line">        public void onReceive(Object message) &#123;</span><br><span class="line">            if(message instanceof String &amp;&amp; ((String)message).equals(&quot;tell1&quot;)) &#123;</span><br><span class="line">                System.out.println(message);</span><br><span class="line">                getSender().tell(&quot;word2&quot;, getSelf());</span><br><span class="line">            &#125; else if(message instanceof String &amp;&amp; ((String)message).equals(&quot;ask1&quot;)) &#123;</span><br><span class="line">                System.out.println(message);</span><br><span class="line">                // getSelf()表示本角色</span><br><span class="line">                getSender().tell(&quot;Patterns.ask()&quot;, getSelf());</span><br><span class="line">            &#125; else &#123;</span><br><span class="line">                System.out.println(&quot;unhandled:&quot; + message);</span><br><span class="line">                unhandled(message);</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
@@ -961,9 +969,8 @@
 </ol>
 <h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>可以看到, Akka通信最底层依靠的是Patterns.ask来完成, 整个通信流程也是比较清晰的。</p>
 
-      
+	
 
-      
     </div>
     <div class="article-info article-info-index">
       
@@ -1033,7 +1040,9 @@
     
     <div class="article-entry" itemprop="articleBody">
       
-        <p>在了解TaskManager处理task之前, 我们先看下该JVM启动过程。 TaskManager端yarn启动的类为YarnTaskExecutorRunner, TM端存放当前可利用的slot信息存放在TaskManagerServices.taskSlotTable里面, slot默认资源为new ResourceProfile(cpu&#x3D;1.0, men&#x3D;42)。<br>在<a href="https://kkewwei.github.io/elasticsearch_learning/2019/03/12/Flink%E5%8E%9F%E7%90%86-slot%E5%88%86%E9%85%8D/#%E9%83%A8%E7%BD%B2subTask%E5%88%B0%E5%AF%B9%E5%BA%94%E7%9A%84slot">Flink原理-Slot申请及SubTask部署</a>中, 我们知道, subTask会在JobManager中通过TaskManagerGateway.submitTask(deployment, rpcTimeout)进行部署subTask。TaskManager会通过TaskExecutor.subTask()接收到该部署请求。</p>
+
+	
+		<p>在了解TaskManager处理task之前, 我们先看下该JVM启动过程。 TaskManager端yarn启动的类为YarnTaskExecutorRunner, TM端存放当前可利用的slot信息存放在TaskManagerServices.taskSlotTable里面, slot默认资源为new ResourceProfile(cpu&#x3D;1.0, men&#x3D;42)。<br>在<a href="https://kkewwei.github.io/elasticsearch_learning/2019/03/12/Flink%E5%8E%9F%E7%90%86-slot%E5%88%86%E9%85%8D/#%E9%83%A8%E7%BD%B2subTask%E5%88%B0%E5%AF%B9%E5%BA%94%E7%9A%84slot">Flink原理-Slot申请及SubTask部署</a>中, 我们知道, subTask会在JobManager中通过TaskManagerGateway.submitTask(deployment, rpcTimeout)进行部署subTask。TaskManager会通过TaskExecutor.subTask()接收到该部署请求。</p>
 <figure class="highlight plain"><figcaption><span>CompletableFuture<acknowledge> submitTask(</acknowledge></span></figcaption><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br></pre></td><td class="code"><pre><span class="line">		TaskDeploymentDescriptor tdd,</span><br><span class="line">		JobMasterId jobMasterId,</span><br><span class="line">		Time timeout) &#123;</span><br><span class="line">	try &#123;</span><br><span class="line">		final JobID jobId = tdd.getJobId();</span><br><span class="line">		//获得与jobManager通信的链接</span><br><span class="line">		final JobManagerConnection jobManagerConnection = jobManagerTable.get(jobId);</span><br><span class="line">		// re-integrate offloaded data:</span><br><span class="line">		try &#123;</span><br><span class="line">			tdd.loadBigData(blobCacheService.getPermanentBlobService()); //啥事不做</span><br><span class="line">		&#125; catch (IOException | ClassNotFoundException e) &#123;</span><br><span class="line">			throw new TaskSubmissionException(&quot;Could not re-integrate offloaded TaskDeploymentDescriptor data.&quot;, e);</span><br><span class="line">		&#125;</span><br><span class="line">		// deserialize the pre-serialized information</span><br><span class="line">		final JobInformation jobInformation;</span><br><span class="line">		final TaskInformation taskInformation;</span><br><span class="line">		try &#123;</span><br><span class="line">			jobInformation = tdd.getSerializedJobInformation().deserializeValue(getClass().getClassLoader());</span><br><span class="line">			taskInformation = tdd.getSerializedTaskInformation().deserializeValue(getClass().getClassLoader());</span><br><span class="line">		&#125;</span><br><span class="line">		Task task = new Task(</span><br><span class="line">			jobInformation,</span><br><span class="line">			taskInformation,</span><br><span class="line">			tdd.getExecutionAttemptId(),</span><br><span class="line">			tdd.getAllocationId(),</span><br><span class="line">			tdd.getSubtaskIndex(),</span><br><span class="line">			tdd.getAttemptNumber(),</span><br><span class="line">			tdd.getProducedPartitions(),</span><br><span class="line">			tdd.getInputGates(),</span><br><span class="line">			tdd.getTargetSlotNumber(),</span><br><span class="line">			taskExecutorServices.getMemoryManager(),</span><br><span class="line">			taskExecutorServices.getIOManager(),</span><br><span class="line">			taskExecutorServices.getNetworkEnvironment(),</span><br><span class="line">			taskExecutorServices.getBroadcastVariableManager(),</span><br><span class="line">			taskStateManager,</span><br><span class="line">			taskManagerActions,</span><br><span class="line">			inputSplitProvider,</span><br><span class="line">			checkpointResponder,</span><br><span class="line">			blobCacheService,</span><br><span class="line">			libraryCache,</span><br><span class="line">			fileCache,</span><br><span class="line">			taskManagerConfiguration,</span><br><span class="line">			taskMetricGroup,</span><br><span class="line">			resultPartitionConsumableNotifier,</span><br><span class="line">			partitionStateChecker,</span><br><span class="line">			getRpcService().getExecutor());</span><br><span class="line">		log.info(&quot;Received task &#123;&#125;.&quot;, task.getTaskInfo().getTaskNameWithSubtasks());</span><br><span class="line">		boolean taskAdded;</span><br><span class="line">		try &#123;</span><br><span class="line">		    // 将task放入taskSlotTable.taskSlotMappings中</span><br><span class="line">			taskAdded = taskSlotTable.addTask(task);</span><br><span class="line">		&#125;</span><br><span class="line">		if (taskAdded) &#123;</span><br><span class="line">		    //这里比较重要，开始进行task执行</span><br><span class="line">			task.startTaskThread();</span><br><span class="line">			return CompletableFuture.completedFuture(Acknowledge.get());</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
 <p>TM接收到请求后, 首先构建Task(Runnable), 然后通过task.startTaskThread()将这个线程运行起来, 真正执行任务的是run函数:</p>
@@ -1053,9 +1062,8 @@
 <p>每条数据都是通过streamOperator.processElement(record)来完成处理的, 以map算子为例, streamOperator为StreamMap:<br> <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"> @Internal</span><br><span class="line">public class StreamMap&lt;IN, OUT&gt;</span><br><span class="line">		extends AbstractUdfStreamOperator&lt;OUT, MapFunction&lt;IN, OUT&gt;&gt;</span><br><span class="line">		implements OneInputStreamOperator&lt;IN, OUT&gt; &#123;</span><br><span class="line">	private static final long serialVersionUID = 1L;</span><br><span class="line">	public StreamMap(MapFunction&lt;IN, OUT&gt; mapper) &#123;</span><br><span class="line">		super(mapper);</span><br><span class="line">		chainingStrategy = ChainingStrategy.ALWAYS;</span><br><span class="line">	&#125;</span><br><span class="line">	@Override</span><br><span class="line">	public void processElement(StreamRecord&lt;IN&gt; element) throws Exception &#123;</span><br><span class="line">		output.collect(element.replace(userFunction.map(element.getValue())));</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
 <p> 可以看到, 我们只用负责定义map就可以了。</p>
 
-      
+	
 
-      
     </div>
     <div class="article-info article-info-index">
       
@@ -1125,7 +1133,9 @@
     
     <div class="article-entry" itemprop="articleBody">
       
-        <p>本文将从ExecutionGraph开始向后讲起, ExecutionGraph定义了Job的并发逻辑结构, 作为任务执行的以后一层逻辑结构, 也是最核心数据结构。为了让大家有全局的了解, 先盗一张广为引用的Graph转换图:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/Flink_Graph.png" height="900" width="800"><br>具体来说, 本文讲述在JobManager端subTask申请slot以及部署到TaskManager上的过程。</p>
+
+	
+		<p>本文将从ExecutionGraph开始向后讲起, ExecutionGraph定义了Job的并发逻辑结构, 作为任务执行的以后一层逻辑结构, 也是最核心数据结构。为了让大家有全局的了解, 先盗一张广为引用的Graph转换图:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/Flink_Graph.png" height="900" width="800"><br>具体来说, 本文讲述在JobManager端subTask申请slot以及部署到TaskManager上的过程。</p>
 <h1 id="Task分配slot及部署"><a href="#Task分配slot及部署" class="headerlink" title="Task分配slot及部署"></a>Task分配slot及部署</h1><p>代码将从ExecutionGraph.scheduleExecutionGraph()开始讲解, 进入:</p>
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line">public void scheduleForExecution() throws JobException &#123;</span><br><span class="line">	final long currentGlobalModVersion = globalModVersion;</span><br><span class="line">	if (transitionState(JobStatus.CREATED, JobStatus.RUNNING)) &#123;</span><br><span class="line">		final CompletableFuture&lt;Void&gt; newSchedulingFuture;</span><br><span class="line">		switch (scheduleMode) &#123;</span><br><span class="line">			case LAZY_FROM_SOURCES:</span><br><span class="line">				newSchedulingFuture = scheduleLazy(slotProvider);</span><br><span class="line">				break;</span><br><span class="line">			case EAGER:</span><br><span class="line">				newSchedulingFuture = scheduleEager(slotProvider, allocationTimeout);</span><br><span class="line">				break;</span><br><span class="line">			default:</span><br><span class="line">				throw new JobException(&quot;Schedule mode is invalid.&quot;);</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line">	...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
@@ -1240,9 +1250,8 @@
 <h1 id="MultiTaskSlot及SingleTaskSlot"><a href="#MultiTaskSlot及SingleTaskSlot" class="headerlink" title="MultiTaskSlot及SingleTaskSlot"></a>MultiTaskSlot及SingleTaskSlot</h1><p>MultiTaskSlot及SingleTaskSlot都继承TaskSlot, 每当subTask申请到一个未被共享的slot时, 就会产生一个MultiTaskSlot, 它代表着一个TM上的slot, 管理着该slot被共享的情况。 实际分配给每个subTask时, 会单独产生一个SingleTaskSlot, 然后每次被MultiTaskSlot管理着。之后若共享slot时, 分配到的都是同一个MultiTaskSlot, 不同的是每次每次分配都产生新的SingleTaskSlot。</p>
 <h1 id="参考文档"><a href="#参考文档" class="headerlink" title="参考文档"></a>参考文档</h1><p><a href="https://ci.apache.org/projects/flink/flink-docs-release-1.8/concepts/runtime.html" target="_blank" rel="noopener">https://ci.apache.org/projects/flink/flink-docs-release-1.8/concepts/runtime.html</a><br><a href="https://ci.apache.org/projects/flink/flink-docs-release-1.8/internals/job_scheduling.html" target="_blank" rel="noopener">https://ci.apache.org/projects/flink/flink-docs-release-1.8/internals/job_scheduling.html</a><br><a href="http://wuchong.me/blog/2016/05/03/flink-internals-overview/" target="_blank" rel="noopener">http://wuchong.me/blog/2016/05/03/flink-internals-overview/</a><br><a href="http://wuchong.me/blog/2016/05/09/flink-internals-understanding-execution-resources/" target="_blank" rel="noopener">http://wuchong.me/blog/2016/05/09/flink-internals-understanding-execution-resources/</a></p>
 
-      
+	
 
-      
     </div>
     <div class="article-info article-info-index">
       
@@ -1323,7 +1332,9 @@
     
     <div class="article-entry" itemprop="articleBody">
       
-        <p>同Netty内存池(可参考<a href="https://kkewwei.github.io/elasticsearch_learning/2018/05/23/Netty%E5%86%85%E5%AD%98%E5%AD%A6%E4%B9%A0/">Netty PoolArea原理探究</a>)一样, 为了增强Netty高性能并发能力, 减少通用对象分配的损耗, 也采用了对象池的概念。 当需要某个对象时, 首先从对象池中获取该对象, 当使用完成后, 将对象释放到对象池中, 这样达到重复使用对象的效果。基本使用如下:</p>
+
+	
+		<p>同Netty内存池(可参考<a href="https://kkewwei.github.io/elasticsearch_learning/2018/05/23/Netty%E5%86%85%E5%AD%98%E5%AD%A6%E4%B9%A0/">Netty PoolArea原理探究</a>)一样, 为了增强Netty高性能并发能力, 减少通用对象分配的损耗, 也采用了对象池的概念。 当需要某个对象时, 首先从对象池中获取该对象, 当使用完成后, 将对象释放到对象池中, 这样达到重复使用对象的效果。基本使用如下:</p>
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br></pre></td><td class="code"><pre><span class="line">public class Cycli &#123;</span><br><span class="line">    private static final Recycler&lt;Cycler&gt; CyclerRecycler = new Recycler&lt;Cycler&gt;() &#123;</span><br><span class="line">        @Override</span><br><span class="line">        protected Cycler newObject(Handle&lt;Cycler&gt; handle) &#123;</span><br><span class="line">            return new Cycler(handle);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;;</span><br><span class="line">    static final class Cycler &#123;</span><br><span class="line">        private String value;</span><br><span class="line">        public void setValue(String value) &#123;</span><br><span class="line">            this.value = value;</span><br><span class="line">        &#125;</span><br><span class="line">        private Recycler.Handle&lt;Cycler&gt; handle;</span><br><span class="line">        public Cycler(Recycler.Handle&lt;Cycler&gt; handle) &#123;</span><br><span class="line">            this.handle = handle;</span><br><span class="line">        &#125;</span><br><span class="line">        public void recycle() &#123;</span><br><span class="line">            handle.recycle(this);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    public static void  main(String[] args) &#123;</span><br><span class="line">        // 1、从回收池获取对象</span><br><span class="line">        Cycler cycler1 = CyclerRecycler.get();</span><br><span class="line">        // 2、开始使用对象</span><br><span class="line">        cycler1.setValue(&quot;hello,java&quot;);</span><br><span class="line">        // 3、回收对象到对象池</span><br><span class="line">        cycler1.recycle();</span><br><span class="line">        // 4、从回收池获取对象</span><br><span class="line">        Cycler cycler2 = CyclerRecycler.get();</span><br><span class="line">        //比较从对象池中获取的对象即为之前释放的对象</span><br><span class="line">        System.out.print(cycler1 == cycler2);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
 <p>使用比较简单, 主要定义了如下几个对象:</p>
@@ -1375,9 +1386,8 @@
 <p>可以看到, 向Link中插入对象时, 仅改变对象的lastRecycledId值, 而没有改变recycledId值。</p>
 <h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>Netty回收对象也不是把所有对象全部回收, 为了防止回收对象过多, 会在直接存入stack的elements和从Link转移到stack的elements时会丢弃7&#x2F;8的废弃对象。Netty中使用对象回收的地方很多, 一个高频使用就是PooledUnsafeDirectByteBuf, 首先申请16M内存作为内存池时, 按需分配小的内存块, 这些小内存块都会被PooledUnsafeDirectByteBuf管理着。 而减少PooledUnsafeDirectByteBuf对象创建次数, 也增强了netty高性能传输数据的能力。</p>
 
-      
+	
 
-      
     </div>
     <div class="article-info article-info-index">
       
@@ -1543,10 +1553,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">Flink、Slot分配、SubTask申请slot, SubTask部署</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">NIO, write, read</a>
               </li>
              
@@ -1555,7 +1561,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
+                <a href="javascript:void(0)" class="js-tag color3">Flink、Slot分配、SubTask申请slot, SubTask部署</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">Lucene、ByteBlockPool</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1563,11 +1573,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">Lucene、词典、FST</a>
+                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">Lucene、ByteBlockPool</a>
+                <a href="javascript:void(0)" class="js-tag color4">Lucene、词典、FST</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1579,19 +1589,19 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">Lucene、BKW树、Point</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">Lucene、词典、tim、tip、doc、pos、fst、倒排索引</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
+                <a href="javascript:void(0)" class="js-tag color3">Lucene、BKW树、Point</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">Cycler</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1603,7 +1613,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">maven, 插件, 打包</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1615,15 +1633,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
               </li>
             
             <div class="clearfix"></div>

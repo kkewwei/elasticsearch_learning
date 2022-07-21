@@ -188,7 +188,9 @@
     
     <div class="article-entry" itemprop="articleBody">
       
-        <p>Lucene在建立倒排索引结构时, 需要存储大量的byte数组, 并不能固定需要在一个数组中存放多少byte。数组不能扩展的特性并不能很好的解决动态扩容的问题, Lucene自己开发了类ByteBlockPool来满足这一特性。针对int类型开发了IntBlockPool, 两者原理相同, 本文就以ByteBlockPool存储细节来展开介绍。</p>
+
+	
+		<p>Lucene在建立倒排索引结构时, 需要存储大量的byte数组, 并不能固定需要在一个数组中存放多少byte。数组不能扩展的特性并不能很好的解决动态扩容的问题, Lucene自己开发了类ByteBlockPool来满足这一特性。针对int类型开发了IntBlockPool, 两者原理相同, 本文就以ByteBlockPool存储细节来展开介绍。</p>
 <h1 id="属性介绍"><a href="#属性介绍" class="headerlink" title="属性介绍"></a>属性介绍</h1><p>先看下相关属性:</p>
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"> // 真正存放byte的地方, 还是可以扩容的。</span><br><span class="line"> public byte[][] buffers = new byte[10][];</span><br><span class="line"> //指向二元buffers的第一元指针, 当前正在向第几个byte[]存放数据</span><br><span class="line"> private int bufferUpto = -1;</span><br><span class="line">//当前正在写入的byte[]内的相对偏移量，就是buffer内可分配的起始位置。</span><br><span class="line"> public int byteUpto = BYTE_BLOCK_SIZE;</span><br><span class="line"> //当前块buffer</span><br><span class="line"> public byte[] buffer;</span><br><span class="line">// buffer在所有buffers的位置（当前buffer在全局的偏移量），(bufferUpto -1)*BYTE_BLOCK_SIZE</span><br><span class="line"> public int byteOffset = -BYTE_BLOCK_SIZE;</span><br><span class="line"> // 当使用完当前buffer后, 会再次申请一个byte[]来存放byte。每次申请一个byte[], 都对应了一个级别, 每个级别可以申请的内存大小都是固定的。NEXT_LEVEL_ARRAY定义当前级别的下一个级别是第几级, LEVEL_SIZE_ARRAY对应了每个级别可以申请的byte[]大小。最多有9级别, 当超过第9级别后, 后面再申请的话, 只能是第9级。这里使用了一个小技巧来实现这个操作, NEXT_LEVEL_ARRAY[8]=9,表示第8级别后面是第9级, NEXT_LEVEL_ARRAY[9]=9表示第9级后面还是第9级。</span><br><span class="line"> public final static int[] NEXT_LEVEL_ARRAY = &#123;1, 2, 3, 4, 5, 6, 7, 8, 9, 9&#125;;</span><br><span class="line"> public final static int[] LEVEL_SIZE_ARRAY = &#123;5, 14, 20, 30, 40, 40, 80, 80, 120, 200&#125;;</span><br><span class="line"> // 定义了最开始的分配byte[]的级别</span><br><span class="line"> public final static int FIRST_LEVEL_SIZE = LEVEL_SIZE_ARRAY[0];</span><br></pre></td></tr></table></figure>
 
@@ -207,30 +209,8 @@
 <p>主要过程用图像表示如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/lucene_bytebuffer1.png" height="250" width="600"><br>其中address是在整个buffers中的绝对位置。 一个buffer可以产生不同的slice, 每个slice不需要连续, 相当于一个链串结构。 slice扩容分为9级, 达到9级后新申请的内存大小都按照第9级别来分配。</p>
 <h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>ByteBlockPool通过管理字符串二维数组方式实现动态扩容, 而且扩容成本也不高。lucene中在字符串存储上使用了较多较为巧妙的方法, 正是这些巧妙方法, 使得lucene有着比较优秀的性能。</p>
 
-      
+	
 
-      
-        <div class="page-reward">
-          <a href="javascript:;" class="page-reward-btn tooltip-top">
-            <div class="tooltip tooltip-east">
-            <span class="tooltip-item">
-              赏
-            </span>
-            <span class="tooltip-content">
-              <span class="tooltip-text">
-                <span class="tooltip-inner">
-                  <p class="reward-p"><i class="icon icon-quo-left"></i>谢谢阅读<i class="icon icon-quo-right"></i></p>
-                  <div class="reward-box">
-                    
-                    
-                  </div>
-                </span>
-              </span>
-            </span>
-          </div>
-          </a>
-        </div>
-      
     </div>
     <div class="article-info article-info-index">
       
@@ -371,7 +351,7 @@
 
 
   
-  
+
   
 
   
@@ -495,10 +475,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">Flink、Slot分配、SubTask申请slot, SubTask部署</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">NIO, write, read</a>
               </li>
              
@@ -507,7 +483,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
+                <a href="javascript:void(0)" class="js-tag color3">Flink、Slot分配、SubTask申请slot, SubTask部署</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">Lucene、ByteBlockPool</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -515,11 +495,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">Lucene、词典、FST</a>
+                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">Lucene、ByteBlockPool</a>
+                <a href="javascript:void(0)" class="js-tag color4">Lucene、词典、FST</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -531,19 +511,19 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">Lucene、BKW树、Point</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">Lucene、词典、tim、tip、doc、pos、fst、倒排索引</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
+                <a href="javascript:void(0)" class="js-tag color3">Lucene、BKW树、Point</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">Cycler</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -555,7 +535,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">maven, 插件, 打包</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -567,15 +555,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
               </li>
             
             <div class="clearfix"></div>

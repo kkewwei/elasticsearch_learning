@@ -191,7 +191,9 @@
     
     <div class="article-entry" itemprop="articleBody">
       
-        <p>&amp;emsp;本文将以一个最简单的netty服务器端代码进行讲解。</p>
+
+	
+		<p>&amp;emsp;本文将以一个最简单的netty服务器端代码进行讲解。</p>
 <h1 id="服务器示例"><a href="#服务器示例" class="headerlink" title="服务器示例"></a>服务器示例</h1> <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br></pre></td><td class="code"><pre><span class="line"> public class HelloServer &#123;</span><br><span class="line">    /**</span><br><span class="line">     * 服务端监听的端口地址</span><br><span class="line">     */</span><br><span class="line">    private static final int portNumber = 7878;</span><br><span class="line">    public static void main(String[] args) throws InterruptedException &#123;</span><br><span class="line">        EventLoopGroup bossGroup = new NioEventLoopGroup(1);</span><br><span class="line">        EventLoopGroup WorkGroup = new NioEventLoopGroup(4);</span><br><span class="line">        try &#123;</span><br><span class="line">            ServerBootstrap b = new ServerBootstrap();</span><br><span class="line">            b.group(bossGroup,WorkGroup);</span><br><span class="line">            b.channel(NioServerSocketChannel.class);</span><br><span class="line">            b.childHandler(new HelloServerInitializer());</span><br><span class="line">            ChannelFuture f = b.bind(portNumber).sync();</span><br><span class="line">            f.channel().closeFuture().sync();</span><br><span class="line">        &#125; finally &#123;</span><br><span class="line">            bossGroup.shutdownGracefully();</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">class HelloServerInitializer extends ChannelInitializer&lt;SocketChannel&gt; &#123;</span><br><span class="line">    @Override       //  ch = NioSocketChannel</span><br><span class="line">    protected void initChannel(SocketChannel ch) throws Exception &#123;</span><br><span class="line">        ChannelPipeline pipeline = ch.pipeline();</span><br><span class="line">        pipeline.addLast(&quot;frameDecoder&quot;, new LengthFieldBasedFrameDecoder(Integer.MAX_VALUE, 0, 4, 0, 4));</span><br><span class="line">        pipeline.addLast(&quot;frameEncoder&quot;, new LengthFieldPrepender(4));</span><br><span class="line">        pipeline.addLast(&quot;decoder&quot;, new StringDecoder(CharsetUtil.UTF_8));</span><br><span class="line">        pipeline.addLast(&quot;encoder&quot;, new StringEncoder(CharsetUtil.UTF_8));</span><br><span class="line">        // 自己的逻辑Handler</span><br><span class="line">        pipeline.addLast(&quot;handler&quot;, new HelloServerHandler());</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">class HelloServerHandler extends SimpleChannelInboundHandler&lt;String&gt; &#123;</span><br><span class="line">    @Override</span><br><span class="line">    protected void channelRead0(ChannelHandlerContext ctx, String msg) throws Exception &#123;</span><br><span class="line">        // 收到消息直接打印输出</span><br><span class="line">        System.out.println(ctx.channel().remoteAddress() + &quot; Say : &quot; + msg);</span><br><span class="line">        // 返回客户端消息 - 我已经接收到了你的消息</span><br><span class="line">        ctx.writeAndFlush(&quot;Received your message !\n&quot;);</span><br><span class="line">    &#125;</span><br><span class="line">    /*</span><br><span class="line">     *</span><br><span class="line">     * 覆盖 channelActive 方法 在channel被启用的时候触发 (在建立连接的时候)</span><br><span class="line">     *</span><br><span class="line">     * channelActive 和 channelInActive 在后面的内容中讲述，这里先不做详细的描述</span><br><span class="line">     * */</span><br><span class="line">    @Override</span><br><span class="line">    public void channelActive(ChannelHandlerContext ctx) throws Exception &#123;</span><br><span class="line">        ctx.writeAndFlush(&quot;Welcome to &quot; + InetAddress.getLocalHost().getHostName() + &quot; service!\n&quot;);</span><br><span class="line">        super.channelActive(ctx);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
 <h1 id="NioEventLoop和NioEventLoopGroup分析"><a href="#NioEventLoop和NioEventLoopGroup分析" class="headerlink" title="NioEventLoop和NioEventLoopGroup分析"></a>NioEventLoop和NioEventLoopGroup分析</h1><ul>
@@ -276,30 +278,8 @@
 
 <p>currentChildHandler就是我们自定的HelloServerInitializer, 该handler包含了我们所需要的所有逻辑,这些handler将在NioEventLoop篇构造NioSocketChannel时使用。</p>
 
-      
+	
 
-      
-        <div class="page-reward">
-          <a href="javascript:;" class="page-reward-btn tooltip-top">
-            <div class="tooltip tooltip-east">
-            <span class="tooltip-item">
-              赏
-            </span>
-            <span class="tooltip-content">
-              <span class="tooltip-text">
-                <span class="tooltip-inner">
-                  <p class="reward-p"><i class="icon icon-quo-left"></i>谢谢阅读<i class="icon icon-quo-right"></i></p>
-                  <div class="reward-box">
-                    
-                    
-                  </div>
-                </span>
-              </span>
-            </span>
-          </div>
-          </a>
-        </div>
-      
     </div>
     <div class="article-info article-info-index">
       
@@ -440,7 +420,7 @@
 
 
   
-  
+
   
 
   
@@ -564,10 +544,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">Flink、Slot分配、SubTask申请slot, SubTask部署</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">NIO, write, read</a>
               </li>
              
@@ -576,7 +552,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
+                <a href="javascript:void(0)" class="js-tag color3">Flink、Slot分配、SubTask申请slot, SubTask部署</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">Lucene、ByteBlockPool</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -584,11 +564,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">Lucene、词典、FST</a>
+                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">Lucene、ByteBlockPool</a>
+                <a href="javascript:void(0)" class="js-tag color4">Lucene、词典、FST</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -600,19 +580,19 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">Lucene、BKW树、Point</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">Lucene、词典、tim、tip、doc、pos、fst、倒排索引</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
+                <a href="javascript:void(0)" class="js-tag color3">Lucene、BKW树、Point</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">Cycler</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -624,7 +604,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">maven, 插件, 打包</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -636,15 +624,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
               </li>
             
             <div class="clearfix"></div>

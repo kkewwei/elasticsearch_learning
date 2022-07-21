@@ -186,7 +186,9 @@
     
     <div class="article-entry" itemprop="articleBody">
       
-        <p>首先给出一个http server pipiLine里面的处理器的组成结构的示例:</p>
+
+	
+		<p>首先给出一个http server pipiLine里面的处理器的组成结构的示例:</p>
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">@Override</span><br><span class="line">protected void initChannel(Channel ch) throws Exception &#123;</span><br><span class="line">    final HttpRequestDecoder decoder = new HttpRequestDecoder(4096, 8192, 8192);</span><br><span class="line">    decoder.setCumulator(ByteToMessageDecoder.COMPOSITE_CUMULATOR);  //默认是另一个</span><br><span class="line">    ch.pipeline().addLast(&quot;decoder&quot;, decoder);</span><br><span class="line">    ch.pipeline().addLast(&quot;encoder&quot;, new HttpResponseEncoder());</span><br><span class="line">    final HttpObjectAggregator aggregator = new HttpObjectAggregator(Math.toIntExact(transport.maxContentLength.getBytes()));</span><br><span class="line">    ch.pipeline().addLast(&quot;aggregator&quot;, aggregator);  //包的聚合</span><br><span class="line">    ch.pipeline().addLast(&quot;encoder_compress&quot;, new HttpContentCompressor(transport.compressionLevel));</span><br><span class="line">    ch.pipeline().addLast(&quot;pipelining&quot;, new HttpPipeliningHandler(transport.logger, transport.pipeliningMaxEvents));</span><br><span class="line">    ch.pipeline().addLast(&quot;handler&quot;, requestHandler);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
 <p>其中只有HttpRequestDecoder属于ByteToMessageDecoder类型, 主要作用是从byte中拼接处每一个帧, 其余处理器大部分是根据自定义的语义对这个帧转化, 本文将以示例中的重要的handler为处理器, 以POST请求解析过程为串分析下去。<br>http处理方式是每次将缓冲池放满(默认65536个), 然后将65536个字符按照虚拟的chunk分片(默认一个HttpChunk 8192个字符),通过handler, 最后在HttpObjectAggregator聚合, 然后发向后面。<br>这里有一个问题:<br><code>为什么不将65536个字符一下发送到最终handler, 而需要先分解成虚拟的chunked, 一个一个发送到后面再聚合起来?</code><br>服务器端数据真正接收到客户端网络的数据是在NioSocketChannel里面的NioByteUnsafe(NioSocketChannelUnsafe父类)里面的read()里面。</p>
@@ -248,30 +250,8 @@
 <p>至此,一个完整地AggregatedFullHttpRequest已经解析出来了,组成如下:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/DefaultLastHttpContent.png"></p>
 <h1 id="附"><a href="#附" class="headerlink" title="附"></a>附</h1><p>如何将Composite转换为一个连续的堆内buf呢?<br>通过Unpooled.copiedBuffer(request.content())方法即可。</p>
 
-      
+	
 
-      
-        <div class="page-reward">
-          <a href="javascript:;" class="page-reward-btn tooltip-top">
-            <div class="tooltip tooltip-east">
-            <span class="tooltip-item">
-              赏
-            </span>
-            <span class="tooltip-content">
-              <span class="tooltip-text">
-                <span class="tooltip-inner">
-                  <p class="reward-p"><i class="icon icon-quo-left"></i>谢谢阅读<i class="icon icon-quo-right"></i></p>
-                  <div class="reward-box">
-                    
-                    
-                  </div>
-                </span>
-              </span>
-            </span>
-          </div>
-          </a>
-        </div>
-      
     </div>
     <div class="article-info article-info-index">
       
@@ -388,7 +368,7 @@
 
 
   
-  
+
   
 
   
@@ -512,10 +492,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">Flink、Slot分配、SubTask申请slot, SubTask部署</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">NIO, write, read</a>
               </li>
              
@@ -524,7 +500,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
+                <a href="javascript:void(0)" class="js-tag color3">Flink、Slot分配、SubTask申请slot, SubTask部署</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">Lucene、ByteBlockPool</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -532,11 +512,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">Lucene、词典、FST</a>
+                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">Lucene、ByteBlockPool</a>
+                <a href="javascript:void(0)" class="js-tag color4">Lucene、词典、FST</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -548,19 +528,19 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">Lucene、BKW树、Point</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">Lucene、词典、tim、tip、doc、pos、fst、倒排索引</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
+                <a href="javascript:void(0)" class="js-tag color3">Lucene、BKW树、Point</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">Cycler</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -572,7 +552,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">maven, 插件, 打包</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -584,15 +572,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
               </li>
             
             <div class="clearfix"></div>

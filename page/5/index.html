@@ -185,7 +185,9 @@
     
     <div class="article-entry" itemprop="articleBody">
       
-        <p>Semaphore信号量底层也是使用AQS(参考<a href="https://kkewwei.github.io/elasticsearch_learning/2017/07/23/ReentrantLock%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB/">ReentrantLock源码解读</a>)来进行锁的互斥。<br>基本使用如下:</p>
+
+	
+		<p>Semaphore信号量底层也是使用AQS(参考<a href="https://kkewwei.github.io/elasticsearch_learning/2017/07/23/ReentrantLock%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB/">ReentrantLock源码解读</a>)来进行锁的互斥。<br>基本使用如下:</p>
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">Semaphore semp = new Semaphore(2, fasle);</span><br><span class="line">//若被别的线程通过中断唤醒了, 那么就直接抛出异常</span><br><span class="line">public void acquire();</span><br><span class="line">//若被别的线程通过中断唤醒了, 那么将中断再放到本线程里退出</span><br><span class="line">public void acquireUninterruptibly()</span><br><span class="line">//尝试获取锁, 若获取不到就直接退出</span><br><span class="line">public boolean tryAcquire()</span><br><span class="line">//再unit内等待获取锁, 获取不到就直接抛出异常</span><br><span class="line">public boolean tryAcquire(long timeout, TimeUnit unit) throws InterruptedException</span><br><span class="line"></span><br><span class="line">//释放一个锁。</span><br><span class="line">public void release()</span><br></pre></td></tr></table></figure>
 
 <p>Semaphore构造函数中, 2代表获取锁的并发, false代表非公平锁。信号量Semaphore的用户是限制访问的并发, 最大只能两个线程获取锁, 别的线程线程获取时都只能等着。statue最大为2, 代表可剩余的锁个数</p>
@@ -232,9 +234,8 @@
 <p>在tryReleaseShared将锁还给state(默认+1), 使用了for(;;)为了一定的释放成功才可以退出, 释放成功了, 尝试去调用doReleaseShared(具体参考<a href="https://kkewwei.github.io/elasticsearch_learning/2017/08/24/CountDownLatch%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB/">CountDownLatch源码解读</a>)来继续唤醒新的head节点。</p>
 <h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>Semaphore信号量可以限制并发访问的次数, 使用起来也比较简单; 也分公平锁和费公平锁, 与ReentrantLock讲解的概念一样。</p>
 
-      
+	
 
-      
     </div>
     <div class="article-info article-info-index">
       
@@ -304,7 +305,9 @@
     
     <div class="article-entry" itemprop="articleBody">
       
-        <p>首先回顾下ReentrantLock、CountDownLatch的区别: ReentrantLock是互斥锁, CountDownLatch是共享锁, 有没有哪种锁能够部分场景互斥, 部分场景共享呢, 那就是本文的主角:ReentrantReadWriteLock, 也是以AQS为基础实现的第三种应用。 要注意, ReentrantReadWriteLock与ReentrantLock没有一点关系。基本使用如下:</p>
+
+	
+		<p>首先回顾下ReentrantLock、CountDownLatch的区别: ReentrantLock是互斥锁, CountDownLatch是共享锁, 有没有哪种锁能够部分场景互斥, 部分场景共享呢, 那就是本文的主角:ReentrantReadWriteLock, 也是以AQS为基础实现的第三种应用。 要注意, ReentrantReadWriteLock与ReentrantLock没有一点关系。基本使用如下:</p>
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">ReadWriteLock readWriteLock = new ReentrantReadWriteLock();</span><br><span class="line">//获取读锁</span><br><span class="line">readWriteLock.readLock().lock();</span><br><span class="line">//释放读锁</span><br><span class="line">readWriteLock.readLock().unlock();</span><br><span class="line">//获取写锁</span><br><span class="line">readWriteLock.writeLock().lock();</span><br><span class="line">//获取写锁</span><br><span class="line">readWriteLock.writeLock().lock();</span><br></pre></td></tr></table></figure>
 
 <p>根据锁的名称, 基本也能猜出大致互斥关系, 读锁与读锁共享, 读锁与写锁互斥, 写锁与写锁互斥。读锁和写锁分为公平锁和非公平锁, 默认为非公平锁, 读锁和写锁这么初始化:</p>
@@ -377,9 +380,8 @@
 </ul>
 <h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>ReentrantReadWriteLock读锁与写锁可以认为分别是ReentrantLock、CountDownLatch的实现, 不同的是对state赋予的含义不同。</p>
 
-      
+	
 
-      
     </div>
     <div class="article-info article-info-index">
       
@@ -449,7 +451,9 @@
     
     <div class="article-entry" itemprop="articleBody">
       
-        <p>ReentrantLock作为线程之间相互通信的工具, 在实际项目中较多的被使用到, 了解ReentrantLock, 就不得不提AbstractQueuedSynchronizer(AQS), 本文章将对这两个类展开详述。<br>基本使用如下:</p>
+
+	
+		<p>ReentrantLock作为线程之间相互通信的工具, 在实际项目中较多的被使用到, 了解ReentrantLock, 就不得不提AbstractQueuedSynchronizer(AQS), 本文章将对这两个类展开详述。<br>基本使用如下:</p>
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">ReentrantLock lock = new ReentrantLock(true);</span><br><span class="line">//尝试获取锁,获取不到就阻塞</span><br><span class="line">lock.lock();</span><br><span class="line">......</span><br><span class="line">//释放锁,获取完了唤醒被阻塞的线程</span><br><span class="line">lock.unlock();</span><br></pre></td></tr></table></figure>
 
 <p>我们需要注意, 调用lock.lock()和lock.unlock()的线程必须是一个, lock.unlock()会对线程检查, 只有当调用lock.lock()的线程和本线程一致, 才可以解锁。可以看到, 是不是很像关键字synchronized的作用?</p>
@@ -564,9 +568,8 @@
 线程在获取锁的时候, 主要根据ReentrantLock里面的状态status来识别是否可以获取锁, 若为0, 那么锁未被获取; 若为1, 说明锁被一个线程获取; 若大于1, 说明发生了线程重入。 若没有获取到, 则将自己加入等待队列, 然后睡眠。 线程在释放锁时, 也会唤醒等待队列排在前面的线程。</li>
 </ol>
 
-      
+	
 
-      
     </div>
     <div class="article-info article-info-index">
       
@@ -647,7 +650,9 @@
     
     <div class="article-entry" itemprop="articleBody">
       
-        <p>jvm作为扩平台执行的环境, 屏蔽了代码与底层操作系统打交道, 这样代码就可以在不同平台下无缝迁移。但是也有一个坏处, java不能访问底层硬件资源并且执行速度相对c&#x2F;c++很慢, 要是可以在java代码中调用c&#x2F;c++语言, 那就可以弥补这方面的不足。 JNI(java native interface)就是来作为沟通桥梁的。 当函数被定义为native, 就说明本函数不是用java语言编写的。 本文展示java 如何使用native来调用c++代码的。</p>
+
+	
+		<p>jvm作为扩平台执行的环境, 屏蔽了代码与底层操作系统打交道, 这样代码就可以在不同平台下无缝迁移。但是也有一个坏处, java不能访问底层硬件资源并且执行速度相对c&#x2F;c++很慢, 要是可以在java代码中调用c&#x2F;c++语言, 那就可以弥补这方面的不足。 JNI(java native interface)就是来作为沟通桥梁的。 当函数被定义为native, 就说明本函数不是用java语言编写的。 本文展示java 如何使用native来调用c++代码的。</p>
 <h1 id="使用"><a href="#使用" class="headerlink" title="使用"></a>使用</h1><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">public class Native1&#123;</span><br><span class="line">    public int a = 0;</span><br><span class="line">    public native void satA();</span><br><span class="line"></span><br><span class="line">    public static void main(String[] args) &#123;</span><br><span class="line">        System.loadLibrary(&quot;hellworld&quot;);</span><br><span class="line">        Native1 Native1 = new Native1()</span><br><span class="line">        Native1.satA();</span><br><span class="line">        System.out.println(&quot;a:&quot; + a);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
 <p>我们定义了sayHello函数为native属性的。这里System.loadLibrary(“hellworld”)必不可少, 否则会报如下异常</p>
@@ -666,9 +671,8 @@
 
 <h1 id="参考"><a href="#参考" class="headerlink" title="参考"></a>参考</h1><p><a href="https://www.chilkatsoft.com/java-loadLibrary-MacOSX.asp" target="_blank" rel="noopener">https://www.chilkatsoft.com/java-loadLibrary-MacOSX.asp</a><br><a href="https://blog.csdn.net/createchance/article/details/53783490" target="_blank" rel="noopener">https://blog.csdn.net/createchance/article/details/53783490</a><br><a href="https://blog.csdn.net/abc5382334/article/details/18052757" target="_blank" rel="noopener">https://blog.csdn.net/abc5382334/article/details/18052757</a></p>
 
-      
+	
 
-      
     </div>
     <div class="article-info article-info-index">
       
@@ -738,7 +742,8 @@
     
     <div class="article-entry" itemprop="articleBody">
       
-        <p>在<a href="https://kkewwei.github.io/elasticsearch_learning/2017/04/10/JAVA-NIO%E5%8E%9F%E7%90%861/#JAVA-NIO%E7%9A%84%E5%9F%BA%E6%9C%AC%E4%BD%BF%E7%94%A8">JAVA NIO通信分析</a>中, 说明了客户端与服务器端是如何建立连接的, 那么本文将在上文的基础上, 了解服务器端是如何根据建立的连接进行写和读的。由于读写流程基本一致, 这里只分析如何进行写入的。</p>
+
+			<p>在<a href="https://kkewwei.github.io/elasticsearch_learning/2017/04/10/JAVA-NIO%E5%8E%9F%E7%90%861/#JAVA-NIO%E7%9A%84%E5%9F%BA%E6%9C%AC%E4%BD%BF%E7%94%A8">JAVA NIO通信分析</a>中, 说明了客户端与服务器端是如何建立连接的, 那么本文将在上文的基础上, 了解服务器端是如何根据建立的连接进行写和读的。由于读写流程基本一致, 这里只分析如何进行写入的。</p>
 <h1 id="write"><a href="#write" class="headerlink" title="write"></a>write</h1><p>服务器端调用了<code>SocketChannel.write(ByteBuffer.wrap( msg.getBytes()));</code>, 此时开启了写的流程:</p>
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br></pre></td><td class="code"><pre><span class="line">public int write(ByteBuffer buf) throws IOException &#123; \</span><br><span class="line">      if (buf == null)</span><br><span class="line">          throw new NullPointerException();</span><br><span class="line">      // 可以看到, 管道只要有一个在写, 那么久不让别的线程使用了</span><br><span class="line">      synchronized (writeLock) &#123;</span><br><span class="line">          // SocketChannelImp state=ST_CONNECTED</span><br><span class="line">          ensureWriteOpen();</span><br><span class="line">          int n = 0;</span><br><span class="line">          try &#123;</span><br><span class="line">              begin();</span><br><span class="line">              synchronized (stateLock) &#123;</span><br><span class="line">                  if (!isOpen())</span><br><span class="line">                      return 0;</span><br><span class="line">                  writerThread = NativeThread.current();</span><br><span class="line">              &#125;</span><br><span class="line">              for (;;) &#123;</span><br><span class="line">                  n = IOUtil.write(fd, buf, -1, nd); // 成功的话，就是写入成功的size</span><br><span class="line">                  // 如果发现退出时因为中断原因, 并且管道还正常打开的话, 那么就继续写入。</span><br><span class="line">                  if ((n == IOStatus.INTERRUPTED) &amp;&amp; isOpen())</span><br><span class="line">                      continue;</span><br><span class="line">                  // 这里对IOS_UNAVAILABLE/EOF进行了识别, 若异常为IOS_UNAVAILABLE/EOF, 则没有问题, 但是还是直接退出了。</span><br><span class="line">                  //返回的是成功写入的条数, -1 代表写入到文件末尾了, -2代表写入缓存满了/没有可以读取的了</span><br><span class="line">                  return IOStatus.normalize(n);</span><br><span class="line">              &#125;</span><br><span class="line">          &#125; finally &#123;</span><br><span class="line">              writerCleanup();</span><br><span class="line">              end(n &gt; 0 || (n == IOStatus.UNAVAILABLE));</span><br><span class="line">              synchronized (stateLock) &#123;</span><br><span class="line">                  if ((n &lt;= 0) &amp;&amp; (!isOutputOpen))</span><br><span class="line">                      throw new AsynchronousCloseException();</span><br><span class="line">              &#125;</span><br><span class="line">              assert IOStatus.check(n);</span><br><span class="line">          &#125;</span><br><span class="line">      &#125;</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
 
@@ -748,12 +753,8 @@
 <li>循环调用IOUtil.write向套接字写入数据, 返回的n表示当前写入的byte大小</li>
 </ol>
 <p>3.当写入完成后, 调用writerCleanup清理现场。比如将writerThread置位, 代表没有线程写入了, 检查是否有必要进行将管道置为失败</p>
-        
-          <a class="article-more-a" href="/elasticsearch_learning/2017/04/10/Java-NIO-write-read过程分析/#more">more >></a>
-        
-      
+	
 
-      
     </div>
     <div class="article-info article-info-index">
       
@@ -834,7 +835,9 @@
     
     <div class="article-entry" itemprop="articleBody">
       
-        <p>JAVA NIO作为Java网络通信模块最基本的单元, 而在实践中, 我们都会接触到网络通信, 搞懂JAVA NIO, 对我们排查问题起到事半功倍的效果。 本文将带你进入JAVA NIO函数及底层本地函数的世界。</p>
+
+	
+		<p>JAVA NIO作为Java网络通信模块最基本的单元, 而在实践中, 我们都会接触到网络通信, 搞懂JAVA NIO, 对我们排查问题起到事半功倍的效果。 本文将带你进入JAVA NIO函数及底层本地函数的世界。</p>
 <h1 id="JAVA-NIO的基本使用"><a href="#JAVA-NIO的基本使用" class="headerlink" title="JAVA NIO的基本使用"></a>JAVA NIO的基本使用</h1><p>我们仍然以一个网上的典型示例入手:</p>
 <h2 id="java版实现"><a href="#java版实现" class="headerlink" title="java版实现"></a>java版实现</h2><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br></pre></td><td class="code"><pre><span class="line">import java.io.IOException;</span><br><span class="line">import java.net.InetSocketAddress;</span><br><span class="line">import java.net.SocketOptions;</span><br><span class="line">import java.nio.ByteBuffer;</span><br><span class="line">import java.nio.channels.SelectionKey;</span><br><span class="line">import java.nio.channels.Selector;</span><br><span class="line">import java.nio.channels.ServerSocketChannel;</span><br><span class="line">import java.nio.channels.SocketChannel;</span><br><span class="line">import java.util.Iterator;</span><br><span class="line">public class NIOServer &#123;</span><br><span class="line">    static Selector selector;  // 选择器</span><br><span class="line">    public static void main(String[] args) throws Exception</span><br><span class="line">    &#123;</span><br><span class="line">        //打开一个通道</span><br><span class="line">        ServerSocketChannel serverSocketChannel = ServerSocketChannel.open();</span><br><span class="line">        serverSocketChannel.socket().setSoTimeout(10000);</span><br><span class="line">        serverSocketChannel.socket().setReuseAddress(true);</span><br><span class="line">        //通道设置非阻塞</span><br><span class="line">        serverSocketChannel.configureBlocking(false);</span><br><span class="line">        //绑定端口号, 100表示该端口可以支持的最大连接数</span><br><span class="line">        serverSocketChannel.bind(new InetSocketAddress(&quot;localhost&quot;, 8080, 100));</span><br><span class="line">        //注册</span><br><span class="line">        selector = Selector.open(); // KQueueSelectorImpl</span><br><span class="line">        serverSocketChannel.register(selector, SelectionKey.OP_ACCEPT);</span><br><span class="line">        while (true)</span><br><span class="line">        &#123;</span><br><span class="line">            selector.select();</span><br><span class="line">            Iterator&lt;SelectionKey&gt; ite = selector.selectedKeys().iterator();</span><br><span class="line">            while (ite.hasNext())</span><br><span class="line">            &#123;</span><br><span class="line">                SelectionKey key = ite.next();</span><br><span class="line">                if (key.isAcceptable())</span><br><span class="line">                &#123;</span><br><span class="line">                    SocketChannel channel = serverSocketChannel.accept();</span><br><span class="line">                    //SocketChannelImp，返回的是一个已完成三次三次握手的链接</span><br><span class="line">                    channel.configureBlocking(false);</span><br><span class="line">                    channel.register(selector, SelectionKey.OP_READ);</span><br><span class="line">                &#125;</span><br><span class="line">                else if (key.isReadable())</span><br><span class="line">                &#123;</span><br><span class="line">                    SocketChannel channel = (SocketChannel) key.channel();</span><br><span class="line">                    ByteBuffer buffer = ByteBuffer.allocate(256);</span><br><span class="line">                    int i = channel.read(buffer);</span><br><span class="line">                    if (i != -1)</span><br><span class="line">                    &#123;</span><br><span class="line">                        String msg = new String(buffer.array()).trim();</span><br><span class="line">                        System.out.println(&quot;NIO server received message =  &quot; + msg);</span><br><span class="line">                        channel.write(ByteBuffer.wrap( msg.getBytes()));</span><br><span class="line">                    &#125; else</span><br><span class="line">                    &#123;</span><br><span class="line">                        channel.close();</span><br><span class="line">                    &#125;</span><br><span class="line">                &#125;</span><br><span class="line">                ite.remove();</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
@@ -955,9 +958,8 @@
 <p>accept操作做了如下事情:<br>1.调用begin()以便支持当调用accept0时被阻塞时, 可以被别的线程唤醒。<br>2.循环调用accept0, 直到成功获取和client建立连接的套接字。成功返回的标志就是n&#x3D;1。<br>3.调用IOUtil.configureBlocking(newfd, true)将该套接字设置成默认true。<br>4.建立SocketChannelImpl对象, 并绑定和client保持连接的套接字newfd。<br>然后调用<code>channel.register(this.selector, SelectionKey.OP_READ)</code>将SocketChannelImpl和selector注册到一起，产生新的SelectionKeyImpl放入selector中。</p>
 <h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>JAVA NIO底层函数实现基本都是靠网络套接字实现的, 服务器端建立连接主要分为以下几个步骤: 建立ServersocketChannel, 绑定端口, 建立Selector, 注册感兴趣的事件, 开始监听端口, 调用select()等待建立连接的响应事件, 和client建立连接。所有事件只用注册一次，之后只要再发生了该事件，就会不停的触发响应。</p>
 
-      
+	
 
-      
     </div>
     <div class="article-info article-info-index">
       
@@ -1038,7 +1040,9 @@
     
     <div class="article-entry" itemprop="articleBody">
       
-        <p>maven有三个生命周期:clean, default, site。 clean主要的目的是为了清理上次构建产生的文件, default主要是为了构建项目, site主要了为了搭建和发布项目web站点, 比如项目信心, 以便团队之间更好地交流。我们一般主要关注default声明周期, 这里会大致介绍下常用的phase:</p>
+
+	
+		<p>maven有三个生命周期:clean, default, site。 clean主要的目的是为了清理上次构建产生的文件, default主要是为了构建项目, site主要了为了搭建和发布项目web站点, 比如项目信心, 以便团队之间更好地交流。我们一般主要关注default声明周期, 这里会大致介绍下常用的phase:</p>
 <table>
 <thead>
 <tr>
@@ -1185,9 +1189,8 @@
 <li>在Intellij IDea的右边-&gt; Maven Projects右键 -&gt; show Dependencies可查看。</li>
 </ol>
 
-      
+	
 
-      
     </div>
     <div class="article-info article-info-index">
       
@@ -1268,7 +1271,9 @@
     
     <div class="article-entry" itemprop="articleBody">
       
-        <p>一般在公共分支上操作,不能修改分支的提交记录, 但是可以使用cherry-pick, revert这样的可以使用, 而rebase, reset这样的命令一般在私有分支上才可用。</p>
+
+	
+		<p>一般在公共分支上操作,不能修改分支的提交记录, 但是可以使用cherry-pick, revert这样的可以使用, 而rebase, reset这样的命令一般在私有分支上才可用。</p>
 <h1 id="rebase"><a href="#rebase" class="headerlink" title="rebase"></a>rebase</h1><p>git rebase是用来更改提交的基, 通过重新在当前分支提交一连串的commit来实现的, 比如dev分支从master A提交产生的, 在master分支又进行了B、C、D提交, 在dev分支进行了E、F、G提交, 此时为了保证D能够合并到master最新的D提交上, 那么就使用rebase。<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/git_rebase3.png" height="300" width="550"><br><code>git:(dev) git rebase master</code>, 此时处于G(最新提交)操作。变基是以共同祖先节点开始变的, 这里以master为基，执行后就像放电影一样, 会将E、F、G的所有内容顺序与D合并。比如基于D与E合并后变成D’, 基于D’与F合并变成F’, 基于F’和G合并变成G’。箭头代表着基于哪些commit进行了merge。 完成rebase操作后, 提交链路被就改了。<br>用法:1.git rebase master 2. 通过vim解决冲突, 3.使用git add .保存 4.git rebase –continue继续解决下一个冲突<br>注意: 并没有要求修改comment, commit不变</p>
 <h2 id="半路rebase"><a href="#半路rebase" class="headerlink" title="半路rebase"></a>半路rebase</h2><p>以上示例是我们在dev分支的最新提交H上进行rebase的, 假如我们不在最新G上操作, 而是在F上进行rebase操作, 会出现什么结果呢?<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/git_rebase2.png" height="300" width="550"><br>可以看到dev分支没有任何变化, 而是将EF提交分别与D提交合并, 使EF部分变基到master分支上。</p>
 <h2 id="rebase-i-参数"><a href="#rebase-i-参数" class="headerlink" title="rebase -i 参数"></a>rebase -i 参数</h2><p>-i参数使rebase将于用户交互的形式完成merge, 根据这个参数, 用户可以完成多次提交顺序的复制、删除、编辑commit、修改提交顺序等一系列操作。<br><code>git:(dev): git rebase -i master</code>之后, 将弹出这样的界面:<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/git_rebase5.png" height="350" width="450"></p>
@@ -1314,9 +1319,8 @@ git rebase -i HEAD~3 : 这次提交的coment直接丢弃, 所有提交都不给�
 <li>git:(master D提交): git reset HEAD file1<br>用<code>本地代码仓库</code>的文件file1来重置<code>暂存区</code>(索引)的file1。</li>
 </ul>
 
-      
+	
 
-      
     </div>
     <div class="article-info article-info-index">
       
@@ -1397,7 +1401,9 @@ git rebase -i HEAD~3 : 这次提交的coment直接丢弃, 所有提交都不给�
     
     <div class="article-entry" itemprop="articleBody">
       
-        <p>jvm进程崩溃时, 可以产生coredump文件, 该dump文件记录了崩溃时cpu、jvm当前线程、当前内存的使用情况, 学会分析该coredump对于我们排查问题十分重要, 本文将主要讲解如何通过gdb分析该coredump文件。</p>
+
+	
+		<p>jvm进程崩溃时, 可以产生coredump文件, 该dump文件记录了崩溃时cpu、jvm当前线程、当前内存的使用情况, 学会分析该coredump对于我们排查问题十分重要, 本文将主要讲解如何通过gdb分析该coredump文件。</p>
 <h1 id="coredump产生"><a href="#coredump产生" class="headerlink" title="coredump产生"></a>coredump产生</h1><p>第一步检查系统是否允许产生coredump文件<br>操作系统默认禁止coredump文件的产生, 可以通过<code>ulimit -c</code>查看是否允许产生coredump文件, 若显示为0, 则禁止线程崩溃时产生该core文件, 可以通过<code>echo &quot;ulimit  -c unlimited&quot; &gt;&gt; /etc/profile</code>. 我们也可以通过cat &#x2F;pro&#x2F;$pid&#x2F;limits 查看设置情况</p>
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line">Limit                     Soft Limit           Hard Limit           Units</span><br><span class="line">Max cpu time              unlimited            unlimited            seconds</span><br><span class="line">Max file size             unlimited            unlimited            bytes</span><br><span class="line">Max data size             unlimited            unlimited            bytes</span><br><span class="line">Max stack size            8388608              unlimited            bytes</span><br><span class="line">Max core file size        unlimited            unlimited            bytes</span><br><span class="line">Max resident set          unlimited            unlimited            bytes</span><br><span class="line">Max processes             23262                23262                processes</span><br><span class="line">Max open files            4096                 4096                 files</span><br><span class="line">Max locked memory         65536                65536                bytes</span><br><span class="line">Max address space         unlimited            unlimited            bytes</span><br><span class="line">Max file locks            unlimited            unlimited            locks</span><br><span class="line">Max pending signals       23262                23262                signals</span><br><span class="line">Max msgqueue size         819200               819200               bytes</span><br><span class="line">Max nice priority         0                    0</span><br><span class="line">Max realtime priority     0                    0</span><br><span class="line">Max realtime timeout      unlimited            unlimited            us</span><br></pre></td></tr></table></figure>
 
@@ -1539,9 +1545,8 @@ git rebase -i HEAD~3 : 这次提交的coment直接丢弃, 所有提交都不给�
 <p>3.使用<code>strings memory.bin1</code>查找包含的字符创, 或者使用<code>hexDump -C memory.bin1</code>, 以二进制打开内存dump。(若内存区域无值, 此方法将无用)</p>
 <h1 id="参考"><a href="#参考" class="headerlink" title="参考"></a>参考</h1><p><a href="https://blog.csdn.net/zdy0_2004/article/details/80102076" target="_blank" rel="noopener">https://blog.csdn.net/zdy0_2004/article/details/80102076</a><br><a href="https://www.cnblogs.com/xuxm2007/archive/2011/04/01/2002162.html" target="_blank" rel="noopener">https://www.cnblogs.com/xuxm2007/archive/2011/04/01/2002162.html</a></p>
 
-      
+	
 
-      
     </div>
     <div class="article-info article-info-index">
       
@@ -1626,7 +1631,9 @@ git rebase -i HEAD~3 : 这次提交的coment直接丢弃, 所有提交都不给�
     
     <div class="article-entry" itemprop="articleBody">
       
-        <p>本文介绍几个不常用的内存泄露排查工具:perftools、pmap、jcmd。</p>
+
+	
+		<p>本文介绍几个不常用的内存泄露排查工具:perftools、pmap、jcmd。</p>
 <h1 id="堆外内存分类"><a href="#堆外内存分类" class="headerlink" title="堆外内存分类"></a>堆外内存分类</h1><p> 1.通过<code>ByteBuffer.allocateDirect</code>方式申请的内存。可以通过编写<code>ManagementFactory.getPlatformMXBeans(BufferPoolMXBean.class)</code>、jcmd方式监控到<br> 2.通过<code>UNSAFE.allocateMemory()</code>方式申请的内存, 可以通过jcmd方式监控到。<br> 3.通过mmap0()方式分配内存,<br> 4.线程栈使用的内存, 通过统计线程个数查看(jcmd中也有统计)<br> 5.java8的metaspace元数据空间<br> 6.JNI里分配的内存(一般需要pmap、perf工具检测)</p>
 <h2 id="jcmd"><a href="#jcmd" class="headerlink" title="jcmd"></a>jcmd</h2><p>jcm是一个多功能工具, 功能如下:</p>
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line">$user@host: /usr/local/java18/bin/jcmd 25266 help</span><br><span class="line">25266:</span><br><span class="line">The following commands are available:</span><br><span class="line">JFR.stop</span><br><span class="line">JFR.start</span><br><span class="line">JFR.dump</span><br><span class="line">JFR.check</span><br><span class="line">VM.native_memory</span><br><span class="line">VM.check_commercial_features</span><br><span class="line">VM.unlock_commercial_features</span><br><span class="line">ManagementAgent.stop</span><br><span class="line">ManagementAgent.start_local</span><br><span class="line">ManagementAgent.start</span><br><span class="line">GC.rotate_log</span><br><span class="line">Thread.print         // 与jstack功能相同</span><br><span class="line">GC.class_stats</span><br><span class="line">GC.class_histogram    // 与jmap -histo功能相同</span><br><span class="line">GC.heap_dump         //与jmap -dump功能相同</span><br><span class="line">GC.run_finalization</span><br><span class="line">GC.run</span><br><span class="line">VM.uptime</span><br><span class="line">VM.flags                   //查看更完整的启动命令, 包括默认的参数, 比如垃圾回收器</span><br><span class="line">VM.system_properties      //查看系统参数</span><br><span class="line">VM.command_line          //查看启动命令</span><br><span class="line">VM.version</span><br><span class="line">help</span><br></pre></td></tr></table></figure>
@@ -1712,9 +1719,8 @@ The third column is a cumulative sum of the second column (i.e., the kth entry i
 </ul>
 <h1 id="参考"><a href="#参考" class="headerlink" title="参考"></a>参考</h1><p><a href="http://goog-perftools.sourceforge.net/doc/heap_profiler.html" target="_blank" rel="noopener">http://goog-perftools.sourceforge.net/doc/heap_profiler.html</a><br><a href="https://docs.oracle.com/javase/8/docs/technotes/guides/troubleshoot/tooldescr007.html" target="_blank" rel="noopener">https://docs.oracle.com/javase/8/docs/technotes/guides/troubleshoot/tooldescr007.html</a><br><a href="https://www.cnblogs.com/duanxz/archive/2012/08/09/2630284.html" target="_blank" rel="noopener">https://www.cnblogs.com/duanxz/archive/2012/08/09/2630284.html</a><br><a href="https://tech.xxxx.com/2019/01/03/spring-boot-native-memory-leak.html" target="_blank" rel="noopener">https://tech.xxxx.com/2019/01/03/spring-boot-native-memory-leak.html</a><br><a href="https://www.cnblogs.com/sidesky/p/10009241.html" target="_blank" rel="noopener">https://www.cnblogs.com/sidesky/p/10009241.html</a><br><a href="https://yq.aliyun.com/articles/227924" target="_blank" rel="noopener">https://yq.aliyun.com/articles/227924</a><br><a href="https://www.cnblogs.com/ggjucheng/p/3348439.html" target="_blank" rel="noopener">https://www.cnblogs.com/ggjucheng/p/3348439.html</a><br><a href="https://coldwalker.com/2018/08//troubleshooter_native_memory_increase/" target="_blank" rel="noopener">https://coldwalker.com/2018/08//troubleshooter_native_memory_increase/</a></p>
 
-      
+	
 
-      
     </div>
     <div class="article-info article-info-index">
       
@@ -1880,10 +1886,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">Flink、Slot分配、SubTask申请slot, SubTask部署</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">NIO, write, read</a>
               </li>
              
@@ -1892,7 +1894,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
+                <a href="javascript:void(0)" class="js-tag color3">Flink、Slot分配、SubTask申请slot, SubTask部署</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">Lucene、ByteBlockPool</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1900,11 +1906,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">Lucene、词典、FST</a>
+                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">Lucene、ByteBlockPool</a>
+                <a href="javascript:void(0)" class="js-tag color4">Lucene、词典、FST</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1916,19 +1922,19 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">Lucene、BKW树、Point</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">Lucene、词典、tim、tip、doc、pos、fst、倒排索引</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
+                <a href="javascript:void(0)" class="js-tag color3">Lucene、BKW树、Point</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">Cycler</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1940,7 +1946,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">maven, 插件, 打包</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1952,15 +1966,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
               </li>
             
             <div class="clearfix"></div>

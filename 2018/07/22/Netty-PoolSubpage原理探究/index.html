@@ -186,7 +186,9 @@
     
     <div class="article-entry" itemprop="articleBody">
       
-        <p>Netty中大于8K的内存是通过PoolChunk来分配的, 小于8k的内存是通过PoolSubpage分配的, 本章将详细描述如何通过PoolSubpage分配小于8K的内存。当申请小于8K的内存时, 会从分配一个8k的叶子节点, 若用不完的话, 存在很大的浪费, 所以通过PoolSubpage来管理8K的内存, 如下图<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/PoolSubpage.png" height="400" width="450"><br>每一个PoolSubpage都会与PoolChunk里面的一个叶子节点映射起来, 然后将PoolSubpage根据用户申请的ElementSize化成几等分, 之后只要再次申请ElementSize大小的内存, 将直接从这个PoolSubpage中分配。<br>下面是PoolSubpage的构造函数:</p>
+
+	
+		<p>Netty中大于8K的内存是通过PoolChunk来分配的, 小于8k的内存是通过PoolSubpage分配的, 本章将详细描述如何通过PoolSubpage分配小于8K的内存。当申请小于8K的内存时, 会从分配一个8k的叶子节点, 若用不完的话, 存在很大的浪费, 所以通过PoolSubpage来管理8K的内存, 如下图<br><img src="https://kkewwei.github.io/elasticsearch_learning/img/PoolSubpage.png" height="400" width="450"><br>每一个PoolSubpage都会与PoolChunk里面的一个叶子节点映射起来, 然后将PoolSubpage根据用户申请的ElementSize化成几等分, 之后只要再次申请ElementSize大小的内存, 将直接从这个PoolSubpage中分配。<br>下面是PoolSubpage的构造函数:</p>
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br></pre></td><td class="code"><pre><span class="line">PoolSubpage(PoolSubpage&lt;T&gt; head, PoolChunk&lt;T&gt; chunk, int memoryMapIdx, int runOffset, int pageSize, int elemSize) &#123;</span><br><span class="line">     this.chunk = chunk;</span><br><span class="line">     //与PoolChunkPage中哪个节点映射一起来</span><br><span class="line">     this.memoryMapIdx = memoryMapIdx;</span><br><span class="line">     this.runOffset = runOffset;</span><br><span class="line">     //该叶子节点的大小</span><br><span class="line">     this.pageSize = pageSize;</span><br><span class="line">     //bitmap的每一位都描述的是一个element的使用情况</span><br><span class="line">     bitmap = new long[pageSize &gt;&gt;&gt; 10];</span><br><span class="line">     init(head, elemSize);</span><br><span class="line"> &#125;</span><br><span class="line"> //init根据当前需要分配的内存大小，确定需要多少个bitmap元素</span><br><span class="line"> void init(PoolSubpage&lt;T&gt; head, int elemSize) &#123;   ///elemSize代表此次申请的大小，比如申请64byte，那么这个page被分成了8k/64=2^7=128个</span><br><span class="line">     doNotDestroy = true;</span><br><span class="line">     this.elemSize = elemSize;</span><br><span class="line">     if (elemSize != 0) &#123;</span><br><span class="line">         maxNumElems = numAvail = pageSize / elemSize; //被分成了128份64大小的内存</span><br><span class="line">         nextAvail = 0;</span><br><span class="line">         bitmapLength = maxNumElems &gt;&gt;&gt; 6;  //6代表着long长度 = 2</span><br><span class="line">         if ((maxNumElems &amp; 63) != 0) &#123;//低6位</span><br><span class="line">             bitmapLength ++;</span><br><span class="line">         &#125;</span><br><span class="line"></span><br><span class="line">         for (int i = 0; i &lt; bitmapLength; i ++) &#123;</span><br><span class="line">             bitmap[i] = 0;</span><br><span class="line">         &#125;</span><br><span class="line">     &#125;</span><br><span class="line">     addToPool(head);</span><br><span class="line"> &#125;</span><br></pre></td></tr></table></figure>
 
 <p>有人会有疑问: 为啥bitmap &#x3D; new long[pageSize &gt;&gt;&gt; 10], 因为小于8K的内存, 最小是以16b为单位来分配的, 一个long类型为64位, 最多需要pageSize&#x2F;(16*64)个long就可以将一个PoolSubpage中所有element是否分配描述清楚了, log2(16*64)&#x3D;10。<br>然后再调用init来对PoolSubpage结构进行初始化:</p>
@@ -215,30 +217,8 @@
 </ol>
 <h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>PoolSubpage主要管理小于8K的内存分配, 内存返回的handle可以唯一确定PoolChunk、poolSubpage中具体哪个element。 当PoolSubpage没有使用的内存时, 可能从对应的链中取出。同时一定没有从subpages中去掉。</p>
 
-      
+	
 
-      
-        <div class="page-reward">
-          <a href="javascript:;" class="page-reward-btn tooltip-top">
-            <div class="tooltip tooltip-east">
-            <span class="tooltip-item">
-              赏
-            </span>
-            <span class="tooltip-content">
-              <span class="tooltip-text">
-                <span class="tooltip-inner">
-                  <p class="reward-p"><i class="icon icon-quo-left"></i>谢谢阅读<i class="icon icon-quo-right"></i></p>
-                  <div class="reward-box">
-                    
-                    
-                  </div>
-                </span>
-              </span>
-            </span>
-          </div>
-          </a>
-        </div>
-      
     </div>
     <div class="article-info article-info-index">
       
@@ -368,7 +348,7 @@
 
 
   
-  
+
   
 
   
@@ -492,10 +472,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">Flink、Slot分配、SubTask申请slot, SubTask部署</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">NIO, write, read</a>
               </li>
              
@@ -504,7 +480,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
+                <a href="javascript:void(0)" class="js-tag color3">Flink、Slot分配、SubTask申请slot, SubTask部署</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">Lucene、ByteBlockPool</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -512,11 +492,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">Lucene、词典、FST</a>
+                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">Lucene、ByteBlockPool</a>
+                <a href="javascript:void(0)" class="js-tag color4">Lucene、词典、FST</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -528,19 +508,19 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">Lucene、BKW树、Point</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">Lucene、词典、tim、tip、doc、pos、fst、倒排索引</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
+                <a href="javascript:void(0)" class="js-tag color3">Lucene、BKW树、Point</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">Cycler</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -552,7 +532,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">maven, 插件, 打包</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -564,15 +552,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
               </li>
             
             <div class="clearfix"></div>

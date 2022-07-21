@@ -184,7 +184,9 @@
     
     <div class="article-entry" itemprop="articleBody">
       
-        <p>在了解TaskManager处理task之前, 我们先看下该JVM启动过程。 TaskManager端yarn启动的类为YarnTaskExecutorRunner, TM端存放当前可利用的slot信息存放在TaskManagerServices.taskSlotTable里面, slot默认资源为new ResourceProfile(cpu&#x3D;1.0, men&#x3D;42)。<br>在<a href="https://kkewwei.github.io/elasticsearch_learning/2019/03/12/Flink%E5%8E%9F%E7%90%86-slot%E5%88%86%E9%85%8D/#%E9%83%A8%E7%BD%B2subTask%E5%88%B0%E5%AF%B9%E5%BA%94%E7%9A%84slot">Flink原理-Slot申请及SubTask部署</a>中, 我们知道, subTask会在JobManager中通过TaskManagerGateway.submitTask(deployment, rpcTimeout)进行部署subTask。TaskManager会通过TaskExecutor.subTask()接收到该部署请求。</p>
+
+	
+		<p>在了解TaskManager处理task之前, 我们先看下该JVM启动过程。 TaskManager端yarn启动的类为YarnTaskExecutorRunner, TM端存放当前可利用的slot信息存放在TaskManagerServices.taskSlotTable里面, slot默认资源为new ResourceProfile(cpu&#x3D;1.0, men&#x3D;42)。<br>在<a href="https://kkewwei.github.io/elasticsearch_learning/2019/03/12/Flink%E5%8E%9F%E7%90%86-slot%E5%88%86%E9%85%8D/#%E9%83%A8%E7%BD%B2subTask%E5%88%B0%E5%AF%B9%E5%BA%94%E7%9A%84slot">Flink原理-Slot申请及SubTask部署</a>中, 我们知道, subTask会在JobManager中通过TaskManagerGateway.submitTask(deployment, rpcTimeout)进行部署subTask。TaskManager会通过TaskExecutor.subTask()接收到该部署请求。</p>
 <figure class="highlight plain"><figcaption><span>CompletableFuture<acknowledge> submitTask(</acknowledge></span></figcaption><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br></pre></td><td class="code"><pre><span class="line">		TaskDeploymentDescriptor tdd,</span><br><span class="line">		JobMasterId jobMasterId,</span><br><span class="line">		Time timeout) &#123;</span><br><span class="line">	try &#123;</span><br><span class="line">		final JobID jobId = tdd.getJobId();</span><br><span class="line">		//获得与jobManager通信的链接</span><br><span class="line">		final JobManagerConnection jobManagerConnection = jobManagerTable.get(jobId);</span><br><span class="line">		// re-integrate offloaded data:</span><br><span class="line">		try &#123;</span><br><span class="line">			tdd.loadBigData(blobCacheService.getPermanentBlobService()); //啥事不做</span><br><span class="line">		&#125; catch (IOException | ClassNotFoundException e) &#123;</span><br><span class="line">			throw new TaskSubmissionException(&quot;Could not re-integrate offloaded TaskDeploymentDescriptor data.&quot;, e);</span><br><span class="line">		&#125;</span><br><span class="line">		// deserialize the pre-serialized information</span><br><span class="line">		final JobInformation jobInformation;</span><br><span class="line">		final TaskInformation taskInformation;</span><br><span class="line">		try &#123;</span><br><span class="line">			jobInformation = tdd.getSerializedJobInformation().deserializeValue(getClass().getClassLoader());</span><br><span class="line">			taskInformation = tdd.getSerializedTaskInformation().deserializeValue(getClass().getClassLoader());</span><br><span class="line">		&#125;</span><br><span class="line">		Task task = new Task(</span><br><span class="line">			jobInformation,</span><br><span class="line">			taskInformation,</span><br><span class="line">			tdd.getExecutionAttemptId(),</span><br><span class="line">			tdd.getAllocationId(),</span><br><span class="line">			tdd.getSubtaskIndex(),</span><br><span class="line">			tdd.getAttemptNumber(),</span><br><span class="line">			tdd.getProducedPartitions(),</span><br><span class="line">			tdd.getInputGates(),</span><br><span class="line">			tdd.getTargetSlotNumber(),</span><br><span class="line">			taskExecutorServices.getMemoryManager(),</span><br><span class="line">			taskExecutorServices.getIOManager(),</span><br><span class="line">			taskExecutorServices.getNetworkEnvironment(),</span><br><span class="line">			taskExecutorServices.getBroadcastVariableManager(),</span><br><span class="line">			taskStateManager,</span><br><span class="line">			taskManagerActions,</span><br><span class="line">			inputSplitProvider,</span><br><span class="line">			checkpointResponder,</span><br><span class="line">			blobCacheService,</span><br><span class="line">			libraryCache,</span><br><span class="line">			fileCache,</span><br><span class="line">			taskManagerConfiguration,</span><br><span class="line">			taskMetricGroup,</span><br><span class="line">			resultPartitionConsumableNotifier,</span><br><span class="line">			partitionStateChecker,</span><br><span class="line">			getRpcService().getExecutor());</span><br><span class="line">		log.info(&quot;Received task &#123;&#125;.&quot;, task.getTaskInfo().getTaskNameWithSubtasks());</span><br><span class="line">		boolean taskAdded;</span><br><span class="line">		try &#123;</span><br><span class="line">		    // 将task放入taskSlotTable.taskSlotMappings中</span><br><span class="line">			taskAdded = taskSlotTable.addTask(task);</span><br><span class="line">		&#125;</span><br><span class="line">		if (taskAdded) &#123;</span><br><span class="line">		    //这里比较重要，开始进行task执行</span><br><span class="line">			task.startTaskThread();</span><br><span class="line">			return CompletableFuture.completedFuture(Acknowledge.get());</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
 <p>TM接收到请求后, 首先构建Task(Runnable), 然后通过task.startTaskThread()将这个线程运行起来, 真正执行任务的是run函数:</p>
@@ -204,30 +206,8 @@
 <p>每条数据都是通过streamOperator.processElement(record)来完成处理的, 以map算子为例, streamOperator为StreamMap:<br> <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"> @Internal</span><br><span class="line">public class StreamMap&lt;IN, OUT&gt;</span><br><span class="line">		extends AbstractUdfStreamOperator&lt;OUT, MapFunction&lt;IN, OUT&gt;&gt;</span><br><span class="line">		implements OneInputStreamOperator&lt;IN, OUT&gt; &#123;</span><br><span class="line">	private static final long serialVersionUID = 1L;</span><br><span class="line">	public StreamMap(MapFunction&lt;IN, OUT&gt; mapper) &#123;</span><br><span class="line">		super(mapper);</span><br><span class="line">		chainingStrategy = ChainingStrategy.ALWAYS;</span><br><span class="line">	&#125;</span><br><span class="line">	@Override</span><br><span class="line">	public void processElement(StreamRecord&lt;IN&gt; element) throws Exception &#123;</span><br><span class="line">		output.collect(element.replace(userFunction.map(element.getValue())));</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
 <p> 可以看到, 我们只用负责定义map就可以了。</p>
 
-      
+	
 
-      
-        <div class="page-reward">
-          <a href="javascript:;" class="page-reward-btn tooltip-top">
-            <div class="tooltip tooltip-east">
-            <span class="tooltip-item">
-              赏
-            </span>
-            <span class="tooltip-content">
-              <span class="tooltip-text">
-                <span class="tooltip-inner">
-                  <p class="reward-p"><i class="icon icon-quo-left"></i>谢谢阅读<i class="icon icon-quo-right"></i></p>
-                  <div class="reward-box">
-                    
-                    
-                  </div>
-                </span>
-              </span>
-            </span>
-          </div>
-          </a>
-        </div>
-      
     </div>
     <div class="article-info article-info-index">
       
@@ -357,7 +337,7 @@
 
 
   
-  
+
   
 
   
@@ -481,10 +461,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">Flink、Slot分配、SubTask申请slot, SubTask部署</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">NIO, write, read</a>
               </li>
              
@@ -493,7 +469,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
+                <a href="javascript:void(0)" class="js-tag color3">Flink、Slot分配、SubTask申请slot, SubTask部署</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">Lucene、ByteBlockPool</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -501,11 +481,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">Lucene、词典、FST</a>
+                <a href="javascript:void(0)" class="js-tag color4">NIO</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">Lucene、ByteBlockPool</a>
+                <a href="javascript:void(0)" class="js-tag color4">Lucene、词典、FST</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -517,19 +497,19 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">Lucene、BKW树、Point</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">Lucene、词典、tim、tip、doc、pos、fst、倒排索引</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
+                <a href="javascript:void(0)" class="js-tag color3">Lucene、BKW树、Point</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">Cycler</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">PoolArena</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -541,7 +521,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">maven, 插件, 打包</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -553,15 +541,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">git, rebase, cherry-pick, reset, checkout</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">NioEventLoop</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">perftools、jcmd、pmap</a>
               </li>
             
             <div class="clearfix"></div>
